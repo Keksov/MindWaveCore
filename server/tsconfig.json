@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "allowJs": false,
+    "isolatedModules": true,
+    "baseUrl": ".",
+    "ignoreDeprecations": "6.0",
+    "typeRoots": [
+      "./node_modules/@types"
+    ],
+    "paths": {
+      "fast-xml-parser": ["./node_modules/fast-xml-parser"]
+    },
+    "types": ["bun"]
+  },
+  "include": [
+    "./**/*.ts",
+    "../../BodyMonitorCore/server/**/*.ts",
+    "../../GnauralCore/server/**/*.ts"
+  ]
+}

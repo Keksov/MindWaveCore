@@ -1,0 +1,17 @@
+{
+  "name": "mindwave-core-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "./bun.exe --watch run server.ts",
+    "start": "./bun.exe run server.ts",
+    "typecheck": "./bun.exe x tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.12"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^5.7.1"
+  }
+}
