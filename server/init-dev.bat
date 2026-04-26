@@ -6,10 +6,16 @@ set "HOST_SERVER_DIR=%HOST_DIR%"
 set "UI_DIR=%HOST_DIR%..\ui"
 set "BUN_EXE=%HOST_SERVER_DIR%bun.exe"
 set "BUN_URL=https://github.com/oven-sh/bun/releases/latest/download/bun-windows-x64.zip"
+set "BUN_RELEASE_REPO=oven-sh/bun"
+set "BUN_ASSET_NAME=bun-windows-x64.zip"
+set "BUN_CACHE_DIR=%HOST_SERVER_DIR%tmp\bun"
+set "BUN_CACHE_ZIP=%BUN_CACHE_DIR%\%BUN_ASSET_NAME%"
 set "BUN_VERSION=unknown"
 set "SERVER_STATUS=not started"
 set "UI_STATUS=not started"
 set "BUN_SOURCE=existing"
+for %%I in ("%HOST_SERVER_DIR%..\..\VendorsCore\common\win") do set "COMMON_WIN_DIR=%%~fI"
+set "RELEASE_ASSET_DOWNLOAD=%COMMON_WIN_DIR%\release_asset_download.bat"
 
 if /I "%MW_DRY_RUN%"=="1" (
         echo HOST_DIR=%HOST_DIR%
@@ -58,11 +64,24 @@ if errorlevel 1 exit /b 1
 exit /b 0
 
 :download_bun
-set "TEMP_ZIP=%TEMP%\mindwave-bun-%RANDOM%%RANDOM%.zip"
 set "TEMP_DIR=%TEMP%\mindwave-bun-%RANDOM%%RANDOM%"
+set "ARCHIVE_PATH=%BUN_CACHE_ZIP%"
 
-if exist "%TEMP_ZIP%" del /f /q "%TEMP_ZIP%" >nul 2>nul
 if exist "%TEMP_DIR%" rd /s /q "%TEMP_DIR%" >nul 2>nul
+
+if exist "%ARCHIVE_PATH%" if not exist "%RELEASE_ASSET_DOWNLOAD%" set "ARCHIVE_PATH=%TEMP%\mindwave-bun-%RANDOM%%RANDOM%.zip"
+if /I "%ARCHIVE_PATH%"=="%TEMP%\mindwave-bun-%RANDOM%%RANDOM%.zip" if exist "%ARCHIVE_PATH%" del /f /q "%ARCHIVE_PATH%" >nul 2>nul
+
+if exist "%RELEASE_ASSET_DOWNLOAD%" (
+    if not exist "%BUN_CACHE_DIR%" mkdir "%BUN_CACHE_DIR%"
+    if errorlevel 1 (
+        echo [init-dev] Failed to create Bun cache directory: %BUN_CACHE_DIR%
+        exit /b 1
+    )
+) else (
+    set "ARCHIVE_PATH=%TEMP%\mindwave-bun-%RANDOM%%RANDOM%.zip"
+    if exist "%ARCHIVE_PATH%" del /f /q "%ARCHIVE_PATH%" >nul 2>nul
+)
 
 mkdir "%TEMP_DIR%"
 if errorlevel 1 (
@@ -70,36 +89,50 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo [init-dev] Downloading Bun archive...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri '%BUN_URL%' -OutFile '%TEMP_ZIP%'"
-if errorlevel 1 (
-    echo [init-dev] Failed to download Bun from %BUN_URL%
-    call :cleanup_download "%TEMP_ZIP%" "%TEMP_DIR%"
-    exit /b 1
+if exist "%RELEASE_ASSET_DOWNLOAD%" (
+    echo [init-dev] Preparing cached Bun archive...
+    call "%RELEASE_ASSET_DOWNLOAD%" --repo "%BUN_RELEASE_REPO%" --asset "%BUN_ASSET_NAME%" --out "%ARCHIVE_PATH%" --latest
+    if errorlevel 1 (
+        echo [init-dev] Failed to prepare cached Bun archive.
+        call :cleanup_download "" "%TEMP_DIR%"
+        exit /b 1
+    )
+) else (
+    echo [init-dev] Downloading Bun archive...
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri '%BUN_URL%' -OutFile '%ARCHIVE_PATH%'"
+    if errorlevel 1 (
+        echo [init-dev] Failed to download Bun from %BUN_URL%
+        call :cleanup_download "%ARCHIVE_PATH%" "%TEMP_DIR%"
+        exit /b 1
+    )
 )
 
 echo [init-dev] Extracting Bun archive...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "Expand-Archive -LiteralPath '%TEMP_ZIP%' -DestinationPath '%TEMP_DIR%' -Force"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Expand-Archive -LiteralPath '%ARCHIVE_PATH%' -DestinationPath '%TEMP_DIR%' -Force"
 if errorlevel 1 (
     echo [init-dev] Failed to extract Bun archive.
-    call :cleanup_download "%TEMP_ZIP%" "%TEMP_DIR%"
+    call :cleanup_download "" "%TEMP_DIR%"
     exit /b 1
 )
 
 if not exist "%TEMP_DIR%\bun-windows-x64\bun.exe" (
     echo [init-dev] Extracted archive did not contain bun-windows-x64\bun.exe
-    call :cleanup_download "%TEMP_ZIP%" "%TEMP_DIR%"
+    call :cleanup_download "" "%TEMP_DIR%"
     exit /b 1
 )
 
 copy /y "%TEMP_DIR%\bun-windows-x64\bun.exe" "%BUN_EXE%" >nul
 if errorlevel 1 (
     echo [init-dev] Failed to copy bun.exe into %HOST_SERVER_DIR%
-    call :cleanup_download "%TEMP_ZIP%" "%TEMP_DIR%"
+    call :cleanup_download "" "%TEMP_DIR%"
     exit /b 1
 )
 
-call :cleanup_download "%TEMP_ZIP%" "%TEMP_DIR%"
+if /I "%ARCHIVE_PATH%"=="%BUN_CACHE_ZIP%" (
+    call :cleanup_download "" "%TEMP_DIR%"
+) else (
+    call :cleanup_download "%ARCHIVE_PATH%" "%TEMP_DIR%"
+)
 
 "%BUN_EXE%" --version >nul 2>nul
 if errorlevel 1 (
