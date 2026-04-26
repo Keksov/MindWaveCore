@@ -69,9 +69,6 @@ set "ARCHIVE_PATH=%BUN_CACHE_ZIP%"
 
 if exist "%TEMP_DIR%" rd /s /q "%TEMP_DIR%" >nul 2>nul
 
-if exist "%ARCHIVE_PATH%" if not exist "%RELEASE_ASSET_DOWNLOAD%" set "ARCHIVE_PATH=%TEMP%\mindwave-bun-%RANDOM%%RANDOM%.zip"
-if /I "%ARCHIVE_PATH%"=="%TEMP%\mindwave-bun-%RANDOM%%RANDOM%.zip" if exist "%ARCHIVE_PATH%" del /f /q "%ARCHIVE_PATH%" >nul 2>nul
-
 if exist "%RELEASE_ASSET_DOWNLOAD%" (
     if not exist "%BUN_CACHE_DIR%" mkdir "%BUN_CACHE_DIR%"
     if errorlevel 1 (
