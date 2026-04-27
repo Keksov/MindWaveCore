@@ -12,4 +12,7 @@ Current architecture:
 - **Runtime log database:** Stored here (var/)
 - **Runtime caches:** Stored here (tmp/)
 
+Runtime protocol notes:
+- Compact runtime JSONL schema: `RUNTIME_JSONL_SCHEMA.md`
+
 The system is now fully product-owned and self-contained.

@@ -28,11 +28,11 @@ const DEFAULT_RETENTION_DAYS = 30
 const DEFAULT_AUDIO_PRESETS_ROOT = ""
 const DEFAULT_EVENT_PAGE_SIZE = 500
 const REAL_DEVICE_DATA_EVENT_NAMES = new Set([
-  "hr_notification",
-  "breath_phase",
-  "snapshot",
-  "algo_blink",
-  "algo_bp",
+  "hr",
+  "bp",
+  "s",
+  "ab",
+  "ap",
 ])
 
 interface ActiveWorkflowSession {
@@ -355,7 +355,7 @@ const getParsedRuntimeEventName = (value: unknown): string | null => {
     return null
   }
 
-  const eventName = typeof value.event === "string" ? value.event.trim() : ""
+  const eventName = typeof value.e === "string" ? value.e.trim() : ""
   return eventName === "" ? null : eventName
 }
 
@@ -872,7 +872,7 @@ export class LogArchiveStore {
 
   private backfillSessionDataAvailability(): void {
     const dataEventPatterns = Array.from(REAL_DEVICE_DATA_EVENT_NAMES)
-      .map((eventName) => `payload_json LIKE '%"event":"${eventName}"%'`)
+      .map((eventName) => `payload_json LIKE '%"e":"${eventName}"%'`)
       .join(" OR ")
 
     this.db.run(

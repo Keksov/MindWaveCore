@@ -821,12 +821,12 @@ export const getRuntimeEventTimestampMs = (value: unknown): number | null => {
     return null
   }
 
-  if (isNumber(value.epoch)) {
-    return Math.round(value.epoch * 1000)
+  if (isNumber(value.ep)) {
+    return Math.round(value.ep * 1000)
   }
 
-  if (typeof value.ts === "string") {
-    const parsed = Date.parse(value.ts)
+  if (typeof value.t === "string") {
+    const parsed = Date.parse(value.t)
     if (Number.isFinite(parsed)) {
       return parsed
     }
@@ -836,71 +836,75 @@ export const getRuntimeEventTimestampMs = (value: unknown): number | null => {
 }
 
 export const parseHrNotificationEvent = (value: unknown): RuntimeHrNotificationEvent | null => {
-  if (!isRecord(value) || value.event !== "hr_notification" || !isNumber(value.hr)) {
+  if (!isRecord(value) || value.e !== "hr" || !isNumber(value.h)) {
     return null
   }
 
   return {
     event: "hr_notification",
-    epoch: isNumber(value.epoch) ? value.epoch : undefined,
-    ts: typeof value.ts === "string" ? value.ts : undefined,
-    hr: value.hr,
-    rr: isNumberArray(value.rr) ? value.rr : [],
+    epoch: isNumber(value.ep) ? value.ep : undefined,
+    ts: typeof value.t === "string" ? value.t : undefined,
+    hr: value.h,
+    rr: isNumberArray(value.r) ? value.r : [],
   }
 }
 
 export const parseBreathPhaseEvent = (value: unknown): RuntimeBreathPhaseEvent | null => {
-  if (!isRecord(value) || value.event !== "breath_phase") {
+  if (!isRecord(value) || value.e !== "bp") {
     return null
   }
 
-  const phase = value.phase === "inhale" || value.phase === "exhale"
-    ? value.phase
+  const phase = value.p === "i"
+    ? "inhale"
+    : value.p === "e"
+      ? "exhale"
     : null
 
   if (phase === null) {
     return null
   }
 
-  const extremum = value.extremum === "peak" || value.extremum === "valley"
-    ? value.extremum
-    : undefined
+  const extremum = value.x === "pk"
+    ? "peak"
+    : value.x === "vy"
+      ? "valley"
+      : undefined
 
   return {
     event: "breath_phase",
-    epoch: isNumber(value.epoch) ? value.epoch : undefined,
-    ts: typeof value.ts === "string" ? value.ts : undefined,
+    epoch: isNumber(value.ep) ? value.ep : undefined,
+    ts: typeof value.t === "string" ? value.t : undefined,
     phase,
     extremum,
-    hr: isNumber(value.hr) ? value.hr : undefined,
-    rrRawMs: isNumber(value.rr_raw_ms) ? value.rr_raw_ms : undefined,
-    rrSmoothMs: isNumber(value.rr_smooth_ms) ? value.rr_smooth_ms : undefined,
-    deltaMs: isNumber(value.delta_ms) ? value.delta_ms : undefined,
-    sampleIndex: isNumber(value.sample_index) ? value.sample_index : undefined,
+    hr: isNumber(value.h) ? value.h : undefined,
+    rrRawMs: isNumber(value.r0) ? value.r0 : undefined,
+    rrSmoothMs: isNumber(value.r1) ? value.r1 : undefined,
+    deltaMs: isNumber(value.dm) ? value.dm : undefined,
+    sampleIndex: isNumber(value.si) ? value.si : undefined,
   }
 }
 
 export const parseSnapshotEvent = (value: unknown): RuntimeSnapshotEvent | null => {
-  if (!isRecord(value) || value.event !== "snapshot") {
+  if (!isRecord(value) || value.e !== "s") {
     return null
   }
 
   const snapshot: RuntimeSnapshotEvent = {
     event: "snapshot",
-    epoch: isNumber(value.epoch) ? value.epoch : undefined,
-    ts: typeof value.ts === "string" ? value.ts : undefined,
-    raw: isNumber(value.raw) ? value.raw : undefined,
-    poorSignal: isNumber(value.poorSignal) ? value.poorSignal : undefined,
-    attention: isNumber(value.attention) ? value.attention : undefined,
-    meditation: isNumber(value.meditation) ? value.meditation : undefined,
-    delta: isNumber(value.delta) ? value.delta : undefined,
-    theta: isNumber(value.theta) ? value.theta : undefined,
-    alpha1: isNumber(value.alpha1) ? value.alpha1 : undefined,
-    alpha2: isNumber(value.alpha2) ? value.alpha2 : undefined,
-    beta1: isNumber(value.beta1) ? value.beta1 : undefined,
-    beta2: isNumber(value.beta2) ? value.beta2 : undefined,
-    gamma1: isNumber(value.gamma1) ? value.gamma1 : undefined,
-    gamma2: isNumber(value.gamma2) ? value.gamma2 : undefined,
+    epoch: isNumber(value.ep) ? value.ep : undefined,
+    ts: typeof value.t === "string" ? value.t : undefined,
+    raw: isNumber(value.rw) ? value.rw : undefined,
+    poorSignal: isNumber(value.ps) ? value.ps : undefined,
+    attention: isNumber(value.at) ? value.at : undefined,
+    meditation: isNumber(value.md) ? value.md : undefined,
+    delta: isNumber(value.d) ? value.d : undefined,
+    theta: isNumber(value.th) ? value.th : undefined,
+    alpha1: isNumber(value.a1) ? value.a1 : undefined,
+    alpha2: isNumber(value.a2) ? value.a2 : undefined,
+    beta1: isNumber(value.b1) ? value.b1 : undefined,
+    beta2: isNumber(value.b2) ? value.b2 : undefined,
+    gamma1: isNumber(value.g1) ? value.g1 : undefined,
+    gamma2: isNumber(value.g2) ? value.g2 : undefined,
   }
 
   const hasMetric = EEG_SNAPSHOT_SERIES_KEYS.some((key) => snapshot[key] !== undefined)
