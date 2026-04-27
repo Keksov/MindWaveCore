@@ -1,1 +1,1 @@
-export { useAudioStore } from '../../../../../products/GnauralCore/ui/stores/audio'
+export { useAudioStore } from '../../../../GnauralCore/ui/stores/audio'

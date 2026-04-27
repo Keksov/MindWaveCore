@@ -1,1 +1,1 @@
-export * from '../../../../../products/BodyMonitorCore/ui/stores/session'
+export * from '../../../../BodyMonitorCore/ui/stores/session'

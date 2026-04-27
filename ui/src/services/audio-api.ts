@@ -1,1 +1,1 @@
-export * from '../../../../../products/GnauralCore/ui/audio-api'
+export * from '../../../../GnauralCore/ui/audio-api'

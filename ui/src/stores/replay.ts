@@ -1,1 +1,3 @@
-export * from '../../../../../products/MindWaveCore/ui/stores/replay'
+
+export * from '../../stores/replay'
+

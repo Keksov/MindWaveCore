@@ -1,1 +1,1 @@
-export * from '../../../../../products/MindWaveCore/ui/services/admin-api'
+export * from '../../services/admin-api'

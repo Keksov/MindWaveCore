@@ -1,1 +1,1 @@
-export * from '../../../../../products/MindWaveCore/ui/composables/use-ws'
+export * from '../../composables/use-ws'

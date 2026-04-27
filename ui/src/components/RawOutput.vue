@@ -1,5 +1,5 @@
 <script lang="ts">
-import RawOutput from '../../../../../products/MindWaveCore/ui/components/RawOutput.vue'
+import RawOutput from '../../components/RawOutput.vue'
 
 export default RawOutput
 </script>

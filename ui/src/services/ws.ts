@@ -1,1 +1,1 @@
-export * from '../../../../../products/MindWaveCore/ui/services/ws'
+export * from '../../services/ws'

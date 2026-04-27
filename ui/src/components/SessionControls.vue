@@ -1,5 +1,5 @@
 <script lang="ts">
-import SessionControls from '../../../../../products/BodyMonitorCore/ui/components/SessionControls.vue'
+import SessionControls from '../../../../BodyMonitorCore/ui/components/SessionControls.vue'
 
 export default SessionControls
 </script>

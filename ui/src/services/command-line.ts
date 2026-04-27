@@ -1,1 +1,1 @@
-export * from '../../../../../products/BodyMonitorCore/ui/services/command-line'
+export * from '../../../../BodyMonitorCore/ui/services/command-line'

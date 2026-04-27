@@ -1,5 +1,5 @@
 <script lang="ts">
-import GnauralScheduleView from '../../../../../products/GnauralCore/ui/components/GnauralScheduleView.vue'
+import GnauralScheduleView from '../../../../GnauralCore/ui/components/GnauralScheduleView.vue'
 
 export default GnauralScheduleView
 </script>

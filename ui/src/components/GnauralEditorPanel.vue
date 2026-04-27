@@ -1,5 +1,5 @@
 <script lang="ts">
-import GnauralEditorPanel from '../../../../../products/GnauralCore/ui/components/GnauralEditorPanel.vue'
+import GnauralEditorPanel from '../../../../GnauralCore/ui/components/GnauralEditorPanel.vue'
 
 export default GnauralEditorPanel
 </script>

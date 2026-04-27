@@ -1,5 +1,5 @@
 <script lang="ts">
-import DeviceList from '../../../../../products/BodyMonitorCore/ui/components/DeviceList.vue'
+import DeviceList from '../../../../BodyMonitorCore/ui/components/DeviceList.vue'
 
 export default DeviceList
 </script>

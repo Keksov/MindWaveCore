@@ -1,1 +1,1 @@
-export * from '../../../../../products/MindWaveCore/ui/stores/log-archive'
+export * from '../../stores/log-archive'

@@ -1,5 +1,5 @@
 <script lang="ts">
-import DeviceScanBlock from '../../../../../products/BodyMonitorCore/ui/components/DeviceScanBlock.vue'
+import DeviceScanBlock from '../../../../BodyMonitorCore/ui/components/DeviceScanBlock.vue'
 
 export default DeviceScanBlock
 </script>
