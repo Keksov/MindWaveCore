@@ -4,7 +4,7 @@ bunx.exe
 bunx.txt
 
 # Runtime log database
-etc/mindwave-logs.sqlite*
+var/mindwave-logs.sqlite*
 
 # Generated frontend build output
 public/

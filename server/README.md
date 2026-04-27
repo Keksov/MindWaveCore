@@ -9,7 +9,7 @@ Current architecture:
 - **Bun runtime:** Lives here (bun.exe, bunx.exe, bun.lock)
 - **Dependencies:** Installed here (node_modules/)
 - **Build output:** Generated here (public/)
-- **Runtime log database:** Stored here (etc/)
+- **Runtime log database:** Stored here (var/)
 - **Runtime caches:** Stored here (tmp/)
 
 The system is now fully product-owned and self-contained.

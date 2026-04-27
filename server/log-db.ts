@@ -1,3 +1,4 @@
+import { existsSync, mkdirSync, renameSync } from "node:fs"
 import { Database } from "bun:sqlite"
 import { join } from "node:path"
 import { buildArchivedLogChartData } from "./log-chart"
@@ -22,6 +23,7 @@ import type {
 } from "./protocol"
 
 const DB_FILE_NAME = "mindwave-logs.sqlite"
+const DB_FILE_SIDE_SUFFIXES = ["", "-shm", "-wal"] as const
 const DEFAULT_RETENTION_DAYS = 30
 const DEFAULT_AUDIO_PRESETS_ROOT = ""
 const DEFAULT_EVENT_PAGE_SIZE = 500
@@ -1122,6 +1124,22 @@ export class LogArchiveStore {
 }
 
 export const createLogArchiveStore = (serverDir: string): LogArchiveStore => {
-  const dbPath = join(serverDir, "etc", DB_FILE_NAME)
+  const legacyEtcDir = join(serverDir, "etc")
+  const runtimeVarDir = join(serverDir, "var")
+  const dbPath = join(runtimeVarDir, DB_FILE_NAME)
+
+  mkdirSync(runtimeVarDir, { recursive: true })
+
+  if (!existsSync(dbPath)) {
+    for (const suffix of DB_FILE_SIDE_SUFFIXES) {
+      const legacyPath = join(legacyEtcDir, `${DB_FILE_NAME}${suffix}`)
+      const nextPath = join(runtimeVarDir, `${DB_FILE_NAME}${suffix}`)
+
+      if (existsSync(legacyPath) && !existsSync(nextPath)) {
+        renameSync(legacyPath, nextPath)
+      }
+    }
+  }
+
   return new LogArchiveStore(dbPath)
 }
