@@ -1,12 +1,17 @@
 import type { RouteRecordRaw } from 'vue-router'
 import {
-  loadAudioPage,
   loadLogArchivePage,
   loadLogPage,
   loadMainLayout,
-  loadMonitoringPage,
   loadSettingsPage,
 } from '../../router/page-loaders'
+import { moduleRoutes } from '../modules'
+
+const moduleRouteRecords: RouteRecordRaw[] = moduleRoutes.map((route) => ({
+  name: route.name,
+  path: route.path,
+  component: route.component,
+}))
 
 const routes: RouteRecordRaw[] = [
   {
@@ -15,8 +20,7 @@ const routes: RouteRecordRaw[] = [
     children: [
       { path: '', redirect: '/settings' },
       { path: 'settings', component: loadSettingsPage },
-      { path: 'monitoring', component: loadMonitoringPage },
-      { path: 'audio', component: loadAudioPage },
+      ...moduleRouteRecords,
       { path: 'log', component: loadLogPage },
       { path: 'archive', component: loadLogArchivePage }
     ]

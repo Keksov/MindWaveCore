@@ -9,7 +9,7 @@ export default boot(({ app }) => {
     locale: savedLocale,
     fallbackLocale: 'en',
     legacy: false,
-    messages
+    messages: messages as Record<string, any>
   })
 
   app.use(i18n)

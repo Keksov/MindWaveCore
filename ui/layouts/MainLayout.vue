@@ -17,29 +17,11 @@
           class="q-mx-sm"
         >
           <q-tab
-            name="/settings"
-            :label="$t('nav.settings')"
-            @click="goTo('/settings')"
-          />
-          <q-tab
-            name="/monitoring"
-            :label="$t('nav.monitoring')"
-            @click="goTo('/monitoring')"
-          />
-          <q-tab
-            name="/audio"
-            :label="$t('nav.audio')"
-            @click="goTo('/audio')"
-          />
-          <q-tab
-            name="/log"
-            :label="$t('nav.log')"
-            @click="goTo('/log')"
-          />
-          <q-tab
-            name="/archive"
-            :label="$t('nav.archive')"
-            @click="goTo('/archive')"
+            v-for="tab in navigationTabs"
+            :key="tab.path"
+            :name="tab.path"
+            :label="$t(tab.labelKey)"
+            @click="goTo(tab.path)"
           />
         </q-tabs>
         <q-space />
@@ -151,6 +133,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { wsService } from 'src/services/ws'
 import { adminApi, type AdminBunActionStatusResponse } from '../services/admin-api'
+import { moduleRoutes } from '../src/modules'
 import { useSessionStore } from 'stores/session'
 
 const { t, locale } = useI18n()
@@ -158,6 +141,13 @@ const $q = useQuasar()
 const route = useRoute()
 const router = useRouter()
 const session = useSessionStore()
+
+const navigationTabs = [
+  { path: '/settings', labelKey: 'nav.settings' },
+  ...moduleRoutes.map((moduleRoute) => ({ path: `/${moduleRoute.path}`, labelKey: moduleRoute.navLabelKey })),
+  { path: '/log', labelKey: 'nav.log' },
+  { path: '/archive', labelKey: 'nav.archive' },
+] as const
 
 type BunActionKey = 'buildUi' | 'restartExe' | 'restartBun'
 type BunActionProgressState = 'idle' | 'pending' | 'running' | 'completed' | 'failed' | 'scheduled' | 'skipped'
@@ -213,7 +203,7 @@ watch(() => session.connectStopRequestToken, (token) => {
   wsService.send({ type: 'bodymonitor_stdio_stop' })
 })
 
-function goTo(path: '/settings' | '/monitoring' | '/audio' | '/log' | '/archive') {
+function goTo(path: string) {
   if (route.path === path) return
   void router.push(path)
 }

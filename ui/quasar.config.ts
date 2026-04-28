@@ -9,7 +9,7 @@ const toVitePath = (pathValue: string) => pathValue.replace(/\\/g, '/')
 
 export default function (/* ctx */) {
   return {
-    boot: ['i18n'],
+    boot: ['i18n', 'module-plugins'],
 
     css: ['app.scss'],
 
@@ -20,7 +20,7 @@ export default function (/* ctx */) {
       vueRouterMode: 'hash',
       distDir: resolve(currentDir, '..', 'server', 'public'),
       alias: {
-        '@protocol': resolve(currentDir, '..', 'server', 'protocol.ts')
+        '@protocol': resolve(currentDir, '..', '..', 'SharedPasCore', 'ts', 'protocol.ts')
       },
       extendViteConf(viteConf) {
         viteConf.resolve ??= {}
