@@ -470,7 +470,30 @@ watch(() => bunActionsDialog.isOpen, (isOpen) => {
   }
 })
 
-watch(() => wsService.connectionState.value, (state) => {
+let dismissConnectionLostNotify: (() => void) | null = null
+
+function showConnectionLostNotify(): void {
+  if (dismissConnectionLostNotify !== null) {
+    return
+  }
+  dismissConnectionLostNotify = $q.notify({
+    type: 'negative',
+    position: 'top',
+    message: t('common.connectionLost'),
+    timeout: 0,
+    group: 'connection-lost',
+  })
+}
+
+function hideConnectionLostNotify(): void {
+  if (dismissConnectionLostNotify === null) {
+    return
+  }
+  dismissConnectionLostNotify()
+  dismissConnectionLostNotify = null
+}
+
+watch(() => wsService.connectionState.value, (state, prevState) => {
   if (bunActionReload.phase === 'await-disconnect') {
     if (state !== 'connected') {
       bunActionReload.phase = 'await-reconnect'
@@ -480,6 +503,15 @@ watch(() => wsService.connectionState.value, (state) => {
 
   if (bunActionReload.phase === 'await-reconnect' && state === 'connected') {
     reloadPageAfterBunActions()
+    return
+  }
+
+  if (prevState === 'connected' && state === 'disconnected' && bunActionReload.phase === 'idle') {
+    showConnectionLostNotify()
+  }
+
+  if (state === 'connected') {
+    hideConnectionLostNotify()
   }
 })
 

@@ -15,4 +15,8 @@ Current architecture:
 Runtime protocol notes:
 - Compact runtime JSONL schema: `RUNTIME_JSONL_SCHEMA.md`
 
+Development workflow notes:
+- After changing **UI files only** (`ui/`): run `bun run build` in `ui/` — the server serves `public/` as static files and picks up the new build automatically. No restart needed.
+- After changing **server files** (`server/*.ts`): restart is required — either via `POST /api/admin/bun-actions/restart-bun` or by relaunching `launcher.bat`.
+
 The system is now fully product-owned and self-contained.

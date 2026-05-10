@@ -1,6 +1,8 @@
 import type { ServerWebSocket } from "bun"
 import type { LogArchiveStore } from "./log-db"
 import type { LogReplayManager, ReplayPublisher } from "./log-replay"
+import { prepareAlphaRelaxationSchedule } from "./alpha-relaxation-schedule"
+import { prepareSleepDrowseSchedule } from "./sleep-drowse-schedule"
 import { isAudioBrowserMessage, isBrowserMessage, toJson } from "./protocol"
 import type { AppSession } from "../../BodyMonitorCore/server"
 import type { GnauralSession } from "../../GnauralCore/server"
@@ -34,6 +36,24 @@ const sendAudioError = (aSocket: ServerWebSocket<UiSocketData>, aMessage: string
   )
 }
 
+const startAlphaRelaxationAudio = async (aContext: UiWsContext, aDurationMin: number): Promise<void> => {
+  const schedule = await prepareAlphaRelaxationSchedule(aDurationMin)
+  await aContext.audioSession.start(
+    schedule.filePath,
+    aContext.archiveStore.getAudioSettings(),
+    [schedule.rootPath],
+  )
+}
+
+const startSleepDrowseAudio = async (aContext: UiWsContext, aDurationMin: number): Promise<void> => {
+  const schedule = await prepareSleepDrowseSchedule(aDurationMin)
+  await aContext.audioSession.start(
+    schedule.filePath,
+    aContext.archiveStore.getAudioSettings(),
+    [schedule.rootPath],
+  )
+}
+
 export const handleUiOpen = (
   aSocket: ServerWebSocket<UiSocketData>,
   aProcessManager: AppSession,
@@ -49,8 +69,8 @@ export const handleUiOpen = (
     toJson(aContext.audioSession.getStatus())
   )
 
-  const replaySnapshot = aContext.replayManager.getSnapshot()
-  if (replaySnapshot !== null) {
+  const replaySnapshots = aContext.replayManager.getSnapshotEvents()
+  for (const replaySnapshot of replaySnapshots) {
     aSocket.send(toJson(replaySnapshot))
   }
 }
@@ -109,6 +129,26 @@ export const handleUiMessage = async (
         aContext.audioSession.setVolume(parsed.left, parsed.right)
         return
       }
+
+      if (parsed.type === "audio_alpha_relaxation_start") {
+        await startAlphaRelaxationAudio(aContext, parsed.durationMin)
+        return
+      }
+
+      if (parsed.type === "audio_alpha_relaxation_stop") {
+        aContext.audioSession.stop()
+        return
+      }
+
+      if (parsed.type === "audio_sleep_drowse_start") {
+        await startSleepDrowseAudio(aContext, parsed.durationMin)
+        return
+      }
+
+      if (parsed.type === "audio_sleep_drowse_stop") {
+        aContext.audioSession.stop()
+        return
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Audio command failed"
       sendAudioError(aSocket, message)
@@ -117,8 +157,38 @@ export const handleUiMessage = async (
     return
   }
 
+  if (parsed.type === "bodymonitor_request_alpha_relaxation_start") {
+    try {
+      await startAlphaRelaxationAudio(aContext, parsed.durationMin)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Alpha relaxation audio start failed"
+      sendUiError(aSocket, message)
+    }
+    return
+  }
+
+  if (parsed.type === "bodymonitor_request_alpha_relaxation_stop") {
+    aContext.audioSession.stop()
+    return
+  }
+
+  if (parsed.type === "bodymonitor_request_sleep_drowse_start") {
+    try {
+      await startSleepDrowseAudio(aContext, parsed.durationMin)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Sleep drowse audio start failed"
+      sendUiError(aSocket, message)
+    }
+    return
+  }
+
+  if (parsed.type === "bodymonitor_request_sleep_drowse_stop") {
+    aContext.audioSession.stop()
+    return
+  }
+
   if (parsed.type === "replay_start") {
-    const result = await aContext.replayManager.startReplay(aContext.replayPublisher, parsed.sessionId)
+    const result = await aContext.replayManager.startReplay(aContext.replayPublisher, parsed.sessionId, parsed.timestampMs)
     if (!result.ok) {
       sendUiError(aSocket, result.error ?? "Replay start failed")
     }
@@ -129,6 +199,20 @@ export const handleUiMessage = async (
     const stopped = await aContext.replayManager.stopReplay(aContext.replayPublisher)
     if (!stopped) {
       sendUiError(aSocket, "Replay is not active")
+    }
+    return
+  }
+
+  if (parsed.type === "replay_pause") {
+    if (!aContext.replayManager.pauseReplay(aContext.replayPublisher)) {
+      sendUiError(aSocket, "Replay cannot be paused")
+    }
+    return
+  }
+
+  if (parsed.type === "replay_seek") {
+    if (!await aContext.replayManager.seekReplay(aContext.replayPublisher, parsed.timestampMs)) {
+      sendUiError(aSocket, "Replay seek failed")
     }
     return
   }
@@ -148,10 +232,27 @@ export const handleUiMessage = async (
     }
   }
 
-  aContext.archiveStore.noteBrowserMessage(parsed, aProcessManager.getState())
+  aContext.archiveStore.noteBrowserMessage(
+    parsed,
+    aProcessManager.getState(),
+    aContext.audioSession.getLoadedSchedule(),
+    aContext.audioSession.getLoadedScheduleStartedAtMs(),
+  )
 
   if (parsed.type === "bodymonitor_server_list_devices") {
     aProcessManager.sendServerListDevices()
+    return
+  }
+
+  if (parsed.type === "bodymonitor_server_ping_device") {
+    const result = await aProcessManager.pingDevice(parsed.mac)
+    aContext.replayPublisher.publish("ui", toJson(result))
+    return
+  }
+
+  if (parsed.type === "bodymonitor_server_diagnose_eeg") {
+    const result = await aProcessManager.diagnoseEeg(parsed.mac)
+    aContext.replayPublisher.publish("ui", toJson(result))
     return
   }
 

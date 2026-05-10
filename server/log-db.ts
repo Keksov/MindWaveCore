@@ -20,6 +20,7 @@ import type {
   BodyMonitorOutputEvent,
   BodyMonitorServerEvent,
   BodyMonitorStdioAckEvent,
+  GnauralScheduleData,
 } from "./protocol"
 
 const DB_FILE_NAME = "mindwave-logs.sqlite"
@@ -63,6 +64,8 @@ interface SessionRow {
   readonly event_count: number
   readonly exit_code: number | null
   readonly device_summary_json: string
+  readonly audio_schedule_json: string | null
+  readonly audio_schedule_started_at_ms: number | null
 }
 
 interface EventRow {
@@ -203,9 +206,13 @@ const toOptionalNumber = (value: number | null): number | undefined => {
   return value === null ? undefined : value
 }
 
-const rowToSessionSummary = (row: SessionRow, tags: readonly string[] = []): ArchivedLogSummary => {
+const rowToSessionSummary = (row: SessionRow, tags: readonly string[] = []): ArchivedLogDetail => {
   const deviceSummary = uniqueDeviceSummary(parseJson<LogDeviceSummary[]>(row.device_summary_json, []))
   const customName = toOptionalString(row.custom_name)
+  const audioSchedule = row.audio_schedule_json === null
+    ? undefined
+    : parseJson<GnauralScheduleData | undefined>(row.audio_schedule_json, undefined)
+  const audioScheduleStartedAtMs = toOptionalNumber(row.audio_schedule_started_at_ms)
 
   return {
     id: row.id,
@@ -224,6 +231,8 @@ const rowToSessionSummary = (row: SessionRow, tags: readonly string[] = []): Arc
     exitCode: toOptionalNumber(row.exit_code),
     deviceSummary,
     tags,
+    audioSchedule,
+    audioScheduleStartedAtMs,
   }
 }
 
@@ -374,6 +383,7 @@ const isEventRelevantForArchive = (event: BodyMonitorServerEvent): boolean => {
     case "bodymonitor_output":
     case "bodymonitor_device":
     case "bodymonitor_devices":
+    case "bodymonitor_scan_device_status":
     case "bodymonitor_error":
     case "bodymonitor_exit":
     case "bodymonitor_stdio_ack":
@@ -382,10 +392,13 @@ const isEventRelevantForArchive = (event: BodyMonitorServerEvent): boolean => {
     case "bodymonitor_stdio_ready":
       return true
     case "bodymonitor_server_ready":
+    case "bodymonitor_ping_result":
     case "replay_started":
     case "replay_progress":
     case "replay_stopped":
     case "replay_finished":
+      return false
+    default:
       return false
   }
 }
@@ -420,7 +433,12 @@ export class LogArchiveStore {
     return this.getSession(this.activeSession.id)
   }
 
-  public noteBrowserMessage(message: BodyMonitorBrowserMessage, snapshot: ProcessStateSnapshot): void {
+  public noteBrowserMessage(
+    message: BodyMonitorBrowserMessage,
+    snapshot: ProcessStateSnapshot,
+    audioSchedule: GnauralScheduleData | null = null,
+    audioScheduleStartedAtMs: number | null = null,
+  ): void {
     if (message.type === "bodymonitor_stdio_configure") {
       this.pendingMonitorConfig = {
         params: [...message.params],
@@ -445,6 +463,8 @@ export class LogArchiveStore {
         sourceRunId: snapshot.runId,
         commandLine,
         deviceSummary,
+        audioSchedule,
+        audioScheduleStartedAtMs,
       })
       this.activeWorkflowKind = "monitor"
       this.pendingMonitorConfig = null
@@ -499,6 +519,43 @@ export class LogArchiveStore {
     }
   }
 
+  public noteAudioScheduleLoaded(schedule: GnauralScheduleData, startedAtMs: number | null = null): number | null {
+    const session = this.activeSession
+    if (session === null || session.kind !== "monitor") {
+      return null
+    }
+
+    this.db.run(
+      `UPDATE log_sessions
+       SET audio_schedule_json = ?,
+           audio_schedule_started_at_ms = ?
+       WHERE id = ?`,
+      [JSON.stringify(schedule), startedAtMs, session.id],
+    )
+
+    return session.id
+  }
+
+  public noteAudioScheduleContent(sessionId: number, fileContent: string): void {
+    this.db.run(
+      `UPDATE log_sessions
+       SET audio_file_content = ?
+       WHERE id = ?
+         AND kind = 'monitor'`,
+      [fileContent, sessionId],
+    )
+  }
+
+  public getSessionAudioFileContent(id: number): string | null {
+    const row = this.db
+      .query<{ readonly audio_file_content: string | null }, [number]>(
+        "SELECT audio_file_content FROM log_sessions WHERE id = ?"
+      )
+      .get(id)
+
+    return row?.audio_file_content ?? null
+  }
+
   public listSessions(options: ListLogSessionsOptions = {}): ArchivedLogListResult {
     const page = normalizePage(options.page, 1)
     const pageSize = normalizePageSize(options.pageSize, 25)
@@ -543,7 +600,7 @@ export class LogArchiveStore {
 
     const rows = this.db
       .query<SessionRow, (string | number)[]>(
-        `SELECT id, kind, source_run_id, created_at, started_at, ended_at, default_name, custom_name, is_favorite, status, command_line, event_count, exit_code, device_summary_json
+        `SELECT id, kind, source_run_id, created_at, started_at, ended_at, default_name, custom_name, is_favorite, status, command_line, event_count, exit_code, device_summary_json, audio_schedule_json, audio_schedule_started_at_ms
          FROM log_sessions
          ${whereSql}
          ORDER BY created_at DESC, id DESC
@@ -564,7 +621,7 @@ export class LogArchiveStore {
   public getSession(id: number): ArchivedLogDetail | null {
     const row = this.db
       .query<SessionRow, [number]>(
-        `SELECT id, kind, source_run_id, created_at, started_at, ended_at, default_name, custom_name, is_favorite, status, command_line, event_count, exit_code, device_summary_json
+        `SELECT id, kind, source_run_id, created_at, started_at, ended_at, default_name, custom_name, is_favorite, status, command_line, event_count, exit_code, device_summary_json, audio_schedule_json, audio_schedule_started_at_ms
          FROM log_sessions
         WHERE id = ?
           AND kind = 'monitor'
@@ -768,6 +825,8 @@ export class LogArchiveStore {
         status TEXT NOT NULL CHECK(status IN ('active', 'completed', 'failed', 'interrupted')),
         command_line TEXT,
         device_summary_json TEXT NOT NULL DEFAULT '[]',
+        audio_schedule_json TEXT,
+        audio_schedule_started_at_ms INTEGER,
         has_device_data INTEGER NOT NULL DEFAULT 0 CHECK(has_device_data IN (0, 1)),
         event_count INTEGER NOT NULL DEFAULT 0,
         exit_code INTEGER
@@ -860,14 +919,33 @@ export class LogArchiveStore {
       .query<TableInfoRow, []>("PRAGMA table_info(log_sessions)")
       .all()
 
-    if (columns.some((column) => column.name === "has_device_data")) {
-      return
+    if (!columns.some((column) => column.name === "has_device_data")) {
+      this.db.run(
+        `ALTER TABLE log_sessions
+         ADD COLUMN has_device_data INTEGER NOT NULL DEFAULT 0`
+      )
     }
 
-    this.db.run(
-      `ALTER TABLE log_sessions
-       ADD COLUMN has_device_data INTEGER NOT NULL DEFAULT 0`
-    )
+    if (!columns.some((column) => column.name === "audio_schedule_json")) {
+      this.db.run(
+        `ALTER TABLE log_sessions
+         ADD COLUMN audio_schedule_json TEXT`
+      )
+    }
+
+    if (!columns.some((column) => column.name === "audio_schedule_started_at_ms")) {
+      this.db.run(
+        `ALTER TABLE log_sessions
+         ADD COLUMN audio_schedule_started_at_ms INTEGER`
+      )
+    }
+
+    if (!columns.some((column) => column.name === "audio_file_content")) {
+      this.db.run(
+        `ALTER TABLE log_sessions
+         ADD COLUMN audio_file_content TEXT`
+      )
+    }
   }
 
   private backfillSessionDataAvailability(): void {
@@ -879,6 +957,7 @@ export class LogArchiveStore {
       `UPDATE log_sessions
        SET has_device_data = 1
        WHERE kind = 'monitor'
+         AND has_device_data = 0
          AND EXISTS (
            SELECT 1
            FROM log_events
@@ -957,6 +1036,8 @@ export class LogArchiveStore {
     readonly sourceRunId?: string
     readonly commandLine?: string
     readonly deviceSummary: readonly LogDeviceSummary[]
+    readonly audioSchedule?: GnauralScheduleData | null
+    readonly audioScheduleStartedAtMs?: number | null
   }): ActiveWorkflowSession {
     const createdAt = input.createdAt
     const startedAt = input.createdAt
@@ -973,8 +1054,10 @@ export class LogArchiveStore {
          default_name,
          status,
          command_line,
-         device_summary_json
-       ) VALUES (?, ?, ?, ?, ?, 'active', ?, ?)`,
+         device_summary_json,
+         audio_schedule_json,
+         audio_schedule_started_at_ms
+       ) VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?)`,
       [
         input.kind,
         input.sourceRunId ?? null,
@@ -983,6 +1066,8 @@ export class LogArchiveStore {
         defaultName,
         input.commandLine ?? null,
         JSON.stringify(deviceSummary),
+        input.audioSchedule === undefined || input.audioSchedule === null ? null : JSON.stringify(input.audioSchedule),
+        input.audioScheduleStartedAtMs ?? null,
       ],
     )
 

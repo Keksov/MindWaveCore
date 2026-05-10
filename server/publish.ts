@@ -86,6 +86,13 @@ export const createPublishCallbacks = <T extends UiPublishSocketData>(
         devices: aDevices
       }, aHooks)
     },
+    onScanDeviceStatus(aRunId: string, aEvent) {
+      emitEvent(aServer, {
+        ...aEvent,
+        type: "bodymonitor_scan_device_status",
+        runId: aRunId,
+      }, aHooks)
+    },
     onError(aMessage: string, aRunId?: string) {
       emitEvent(aServer, {
         type: "bodymonitor_error",

@@ -8,6 +8,29 @@ set "SERVER_URL=http://localhost:3300/"
 set "SERVER_READY_MAX_ATTEMPTS=15"
 set "HOST_PUBLIC_INDEX=%HOST_DIR%public\index.html"
 set "UI_DIR=%HOST_DIR%..\ui"
+set "LAUNCH_UI_ONLY=0"
+
+if /I "%MW_UI_ONLY%"=="1" set "LAUNCH_UI_ONLY=1"
+if /I "%MW_UI_ONLY%"=="true" set "LAUNCH_UI_ONLY=1"
+
+:parse_args
+if "%~1"=="" goto args_done
+if /I "%~1"=="--ui-only" (
+    set "LAUNCH_UI_ONLY=1"
+    shift
+    goto parse_args
+)
+if /I "%~1"=="ui-only" (
+    set "LAUNCH_UI_ONLY=1"
+    shift
+    goto parse_args
+)
+
+echo [launcher] Unknown option: %~1
+echo [launcher] Supported options: --ui-only
+exit /b 1
+
+:args_done
 
 set "BUN_CMD=%HOST_DIR%bun.exe"
 if not exist "%BUN_CMD%" set "BUN_CMD=bun"
@@ -18,6 +41,7 @@ if /I "%MW_DRY_RUN%"=="1" (
     echo SERVER_ENTRY=%SERVER_ENTRY%
     echo HOST_PUBLIC_INDEX=%HOST_PUBLIC_INDEX%
     echo UI_DIR=%UI_DIR%
+    echo LAUNCH_UI_ONLY=%LAUNCH_UI_ONLY%
     echo BUN_CMD=%BUN_CMD%
     echo SERVER_URL=%SERVER_URL%
     exit /b 0
@@ -76,9 +100,15 @@ if not exist "%HOST_PUBLIC_INDEX%" (
 
 :start_server
 
+set "SERVER_START_COMMAND=cd /d %HOST_DIR% && %BUN_CMD% run start"
+if "%LAUNCH_UI_ONLY%"=="1" (
+    echo [launcher] UI-only mode enabled. BodyMonitor.exe auto-start is disabled.
+    set "SERVER_START_COMMAND=cd /d %HOST_DIR% && set MW_UI_ONLY=1 && %BUN_CMD% run start"
+)
+
 echo [launcher] Starting server from host package:
 echo [launcher]   %HOST_PACKAGE_JSON%
-start "MindWave Server" cmd /k "cd /d %HOST_DIR% && %BUN_CMD% run start"
+start "MindWave Server" cmd /k "%SERVER_START_COMMAND%"
 
 :wait_for_server
 where curl.exe >nul 2>nul

@@ -1,8 +1,10 @@
 import { mkdir, readdir, realpath, rename, stat, unlink } from "node:fs/promises"
 import { spawn } from "node:child_process"
 import { createHash, randomUUID } from "node:crypto"
-import { basename, extname, isAbsolute, join, relative, resolve } from "node:path"
+import { tmpdir } from "node:os"
+import { basename, dirname, extname, isAbsolute, join, relative, resolve } from "node:path"
 import type { Server, Subprocess } from "bun"
+import { XMLParser, XMLBuilder } from "fast-xml-parser"
 import { createSession, type AppSession } from "../../BodyMonitorCore/server"
 import {
   buildInlineContentDisposition,
@@ -19,7 +21,7 @@ import {
 import { createLogArchiveStore } from "./log-db"
 import { createLogReplayManager } from "./log-replay"
 import { createPublishCallbacks } from "./publish"
-import type { AudioFileKind, AudioPresetsResponse, AudioServerEvent, AudioSettings, PresetTreeNode } from "./protocol"
+import type { AudioFileKind, AudioPresetsResponse, AudioServerEvent, AudioSettings, GnauralScheduleData, PresetTreeNode } from "./protocol"
 import { isRecord, toJson } from "./protocol"
 import { handleUiMessage, handleUiOpen, type UiSocketData } from "./ui-ws-handler"
 
@@ -44,6 +46,7 @@ const RETENTION_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000
 const ADMIN_COMMAND_OUTPUT_LIMIT = 4000
 const BUN_RESTART_DELAY_SEC = 2
 const SERVER_IDLE_TIMEOUT_SEC = 120
+const isUiOnlyMode = Bun.argv.includes("--ui-only") || Bun.env.MW_UI_ONLY === "1" || Bun.env.MW_UI_ONLY?.toLowerCase() === "true"
 
 let restartAttempt = 0
 let restartTimer: ReturnType<typeof setTimeout> | null = null
@@ -777,7 +780,10 @@ const executeBuildUiAction = async (): Promise<AdminBunActionResponse> => {
 
 const executeRestartExeAction = async (): Promise<AdminBunActionResponse> => {
   if (replayManager.isActive()) {
-    throw new Error("Replay is active. Stop replay before restarting BodyMonitor.exe")
+    const stopped = await replayManager.stopReplay(server)
+    if (!stopped) {
+      throw new Error("Replay is active but could not be stopped before restarting BodyMonitor.exe")
+    }
   }
 
   resetRestartState()
@@ -906,6 +912,10 @@ const createServerCallbacks = (aServer: Server<SocketData>) => {
 }
 
 const ensureBodyMonitorRunning = async (aServer: Server<SocketData>): Promise<void> => {
+  if (isUiOnlyMode) {
+    return
+  }
+
   if (processManager.getState().state !== "idle") {
     return
   }
@@ -930,12 +940,73 @@ const ensureBodyMonitorRunning = async (aServer: Server<SocketData>): Promise<vo
   }
 }
 
+let replayAudioStartToken = 0
+let replayAudioTempFilePath: string | null = null
+
+const cleanupReplayAudioTempFile = (aFilePath: string | null): void => {
+  if (aFilePath === null) {
+    return
+  }
+
+  void unlink(aFilePath).catch(() => undefined)
+}
+
 const replayManager = createLogReplayManager({
   archiveStore,
   processManager,
   async restoreLiveProcess(aPublisher) {
     await ensureBodyMonitorRunning(aPublisher as Server<SocketData>)
-  }
+  },
+  audioControl: {
+    start(audioContent: string, positionSec: number): void {
+      const startToken = replayAudioStartToken + 1
+      replayAudioStartToken = startToken
+
+      const tempPath = join(tmpdir(), `mindwave-gnaural-replay-${randomUUID()}.gnaural`)
+      const previousTempPath = replayAudioTempFilePath
+      replayAudioTempFilePath = tempPath
+      cleanupReplayAudioTempFile(previousTempPath)
+
+      void Bun.write(tempPath, audioContent).then(async () => {
+        if (startToken !== replayAudioStartToken) {
+          cleanupReplayAudioTempFile(tempPath)
+          return
+        }
+
+        await gnauralSession.start(tempPath, archiveStore.getAudioSettings(), [dirname(tempPath)])
+
+        if (startToken !== replayAudioStartToken) {
+          if (replayAudioTempFilePath === null || replayAudioTempFilePath === tempPath) {
+            gnauralSession.stop()
+          }
+          cleanupReplayAudioTempFile(tempPath)
+          return
+        }
+
+        if (positionSec > 0) {
+          gnauralSession.seek(positionSec)
+        }
+      }).catch(() => {
+        if (replayAudioTempFilePath === tempPath) {
+          replayAudioTempFilePath = null
+        }
+        cleanupReplayAudioTempFile(tempPath)
+      })
+    },
+    stop(): void {
+      replayAudioStartToken += 1
+      gnauralSession.stop()
+      const tempPath = replayAudioTempFilePath
+      replayAudioTempFilePath = null
+      cleanupReplayAudioTempFile(tempPath)
+    },
+    pause(): void {
+      gnauralSession.pause()
+    },
+    resume(): void {
+      gnauralSession.resume()
+    },
+  },
 })
 
 let server: Server<SocketData>
@@ -1607,8 +1678,46 @@ const serveStatic = async (aPathname: string): Promise<Response> => {
   })
 }
 
+const rewriteGnauralXml = (xmlContent: string, schedule: GnauralScheduleData): string => {
+  try {
+    const parser = new XMLParser({
+      ignoreAttributes: false,
+      isArray: (name) => name === "voice",
+    })
+    const doc = parser.parse(xmlContent) as Record<string, unknown>
+    const root = doc["gnaural"] as Record<string, unknown> | undefined
+    if (root == null) return xmlContent
+
+    const voices = root["voice"] as unknown[] | undefined
+    if (!Array.isArray(voices)) return xmlContent
+
+    for (let i = 0; i < voices.length; i++) {
+      const xmlVoice = voices[i] as Record<string, unknown>
+      const schedVoice = schedule.voices[i]
+      if (schedVoice == null) continue
+      if (schedVoice.typeIndex === 2 && schedVoice.audioFilePath !== "") {
+        xmlVoice["description"] = schedVoice.audioFilePath
+      }
+    }
+
+    const builder = new XMLBuilder({ ignoreAttributes: false })
+    return builder.build(doc) as string
+  } catch {
+    return xmlContent
+  }
+}
+
 gnauralSession = createGnauralSession(runtimeDir, {
   onEvent(aEvent) {
+    if (aEvent.type === "audio_schedule_loaded") {
+      const logSessionId = archiveStore.noteAudioScheduleLoaded(aEvent.schedule, aEvent.loadedAtMs ?? null)
+      if (logSessionId !== null) {
+        void Bun.file(aEvent.filePath).text().then((xmlContent) => {
+          archiveStore.noteAudioScheduleContent(logSessionId, rewriteGnauralXml(xmlContent, aEvent.schedule))
+        }).catch(() => undefined)
+      }
+    }
+
     publishAudioEvent(aEvent)
   },
 })
@@ -1660,6 +1769,9 @@ registerShutdownHandlers()
 console.log(`[server] listening on http://localhost:${server.port}`)
 console.log(`[server] static files: ${publicDir}`)
 console.log(`[server] endpoints: /ws/ui, /api/logs, /api/log-settings, /api/audio-settings, /api/audio/presets, /api/audio/file, /api/audio/schedule, /api/audio/schedule/voice-state, /api/audio/editor, /api/audio/editor/save, /api/audio/editor/autosave, /api/audio/editor/history`)
+if (isUiOnlyMode) {
+  console.log("[server] UI-only mode: BodyMonitor.exe autostart disabled")
+}
 
 try {
   const finalizedCount = archiveStore.finalizeInterruptedSessions()

@@ -1,281 +1,323 @@
 <template>
-  <q-page class="archive-page">
+  <q-page class="archive-page" :style-fn="pageStyle">
     <div class="archive-page__inner">
-      <div class="archive-page__header row items-start q-col-gutter-lg">
-        <div class="col-12 col-md">
-          <div class="text-h5">{{ $t('archive.title') }}</div>
-          <div class="text-caption text-grey-5 q-mt-xs">{{ $t('archive.subtitle') }}</div>
-        </div>
-
-        <div class="col-12 col-md-auto">
-          <div class="row q-col-gutter-sm items-end archive-page__settings">
-            <div class="col-auto">
-              <q-input
-                v-model.number="retentionInput"
-                type="number"
-                dense
-                outlined
-                debounce="600"
-                min="0"
-                :loading="archive.settingsLoading"
-                :label="$t('archive.retentionDays')"
-                :hint="$t('archive.retentionDisabledHint')"
-                persistent-hint
-                @update:model-value="onRetentionChanged"
-                @blur="onRetentionBlur"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <q-banner v-if="replay.isReplayMode" class="archive-page__banner bg-amber-5 text-dark rounded-borders">
-        <div class="row items-center justify-between q-gutter-sm">
-          <div>
-            <div class="text-subtitle2">{{ $t('archive.replayBadge') }}</div>
-            <div class="text-caption">{{ $t('archive.replayActiveBanner', { name: replay.replaySessionName }) }}</div>
-          </div>
-          <q-btn flat dense icon="close" :label="$t('archive.stopReplay')" @click="unloadArchivedData" />
-        </div>
-      </q-banner>
-
       <q-card flat bordered class="archive-page__card">
-        <div class="row q-col-gutter-md q-pa-md items-center archive-page__controls">
-          <div class="col-12 col-md">
-            <q-input
-              v-model="searchText"
-              dense
-              outlined
-              clearable
-              debounce="250"
-              :label="$t('archive.searchLabel')"
-              @update:model-value="onSearchChanged"
-            >
-              <template #prepend>
-                <q-icon name="search" />
-              </template>
-            </q-input>
-          </div>
-
-          <div class="col-12 col-sm-auto">
-            <q-toggle
-              :model-value="archive.favoriteOnly"
-              color="amber"
-              :label="$t('archive.favoriteOnly')"
-              @update:model-value="onFavoriteToggle"
-            />
-          </div>
-
-          <div class="col-12 col-sm-auto">
-            <q-btn flat icon="refresh" :label="$t('archive.refresh')" :loading="archive.loading" @click="reload" />
-          </div>
-
-          <div v-if="selectedLogIds.length > 0" class="col-12 col-sm-auto">
-            <q-btn
-              color="negative"
-              icon="delete"
-              :label="$t('archive.deleteSelectedAction', { count: selectedLogIds.length })"
-              @click="requestRemoveSelectedLogs"
-            />
-          </div>
-        </div>
-
-        <div v-if="archive.activeTagFilter !== ''" class="q-px-md q-pb-md">
-          <q-chip color="secondary" text-color="white" removable @remove="clearTagFilter">
-            {{ $t('archive.filterByTag', { tag: archive.activeTagFilter }) }}
-          </q-chip>
-        </div>
-
-        <q-table
-          flat
-          :rows="archive.logs"
-          :columns="columns"
-          row-key="id"
-          :loading="archive.loading"
-          hide-pagination
+        <q-tabs
+          v-model="activeTab"
+          dense
+          indicator-color="secondary"
+          active-color="secondary"
+          align="left"
+          class="archive-page__tabs"
+          no-caps
         >
-          <template #header-cell-select="props">
-            <q-th :props="props" class="archive-page__select-column text-center">
-              <q-checkbox
-                :model-value="allSelectableLogsSelected"
-                :indeterminate="partiallySelectedLogs"
-                :disable="selectableLogIds.length === 0"
-                @update:model-value="toggleSelectAllLogs"
-              />
-            </q-th>
-          </template>
+          <q-tab :name="SESSIONS_TAB" :label="$t('archive.sessionsTab')" />
 
-          <template #body-cell-select="props">
-            <q-td :props="props" class="archive-page__select-column text-center">
-              <q-checkbox
-                :model-value="isLogSelected(props.row.id)"
-                :disable="isDeleteDisabled(props.row)"
-                @update:model-value="(value) => toggleLogSelection(props.row.id, value)"
-              />
-            </q-td>
-          </template>
-
-          <template #body-cell-createdAt="props">
-            <q-td :props="props">
-              {{ formatDateTime(props.row.createdAt) }}
-            </q-td>
-          </template>
-
-          <template #body-cell-name="props">
-            <q-td :props="props">
-              <q-input
-                dense
-                borderless
-                class="archive-page__name-input"
-                :model-value="draftName(props.row.id, props.row.customName)"
-                :placeholder="props.row.defaultName"
-                @update:model-value="(value) => setDraftName(props.row.id, value)"
-                @blur="saveName(props.row.id, props.row.customName)"
-                @keyup.enter="saveName(props.row.id, props.row.customName)"
-              >
-                <template #prepend>
-                  <q-icon v-if="props.row.isFavorite" name="star" color="amber-5" size="xs" />
-                </template>
-              </q-input>
-            </q-td>
-          </template>
-
-          <template #body-cell-tags="props">
-            <q-td :props="props" class="archive-page__tags-cell">
-              <q-input
-                v-if="editingTagsId === props.row.id"
-                dense
-                outlined
-                autofocus
-                class="archive-page__tags-input"
-                :model-value="draftTagsValue(props.row.id, props.row.tags)"
-                :placeholder="$t('archive.tagsPlaceholder')"
-                @update:model-value="(value) => setDraftTags(props.row.id, value)"
-                @blur="saveTags(props.row.id, props.row.tags)"
-                @keyup.enter="saveTags(props.row.id, props.row.tags)"
-                @keyup.esc="cancelTagsEdit(props.row.id, props.row.tags)"
-              />
-
-              <div
-                v-else
-                class="archive-page__tags-display"
-                :title="$t('archive.tagsEditHint')"
-                @click="startTagsEdit(props.row.id, props.row.tags)"
-              >
-                <div v-if="props.row.tags.length > 0" class="archive-page__tags-inline">
-                  <template v-for="(tag, index) in props.row.tags" :key="tag">
-                    <span
-                      class="archive-page__tag-link"
-                      :class="{ 'archive-page__tag-link--active': archive.activeTagFilter === tag }"
-                      @click.stop="applyTagFilter(tag)"
-                    >
-                      {{ tag }}
-                    </span>
-                    <span v-if="index < props.row.tags.length - 1" class="archive-page__tag-separator">, </span>
-                  </template>
-                </div>
-                <div v-else class="archive-page__tags-empty">
-                  {{ $t('archive.tagsEmptyHint') }}
-                </div>
-
-                <q-icon name="edit" size="xs" color="grey-5" class="archive-page__tags-edit-icon" />
-              </div>
-            </q-td>
-          </template>
-
-          <template #body-cell-deviceSummary="props">
-            <q-td :props="props" class="archive-page__devices-cell">
-              <div v-if="props.row.deviceSummary.length === 0" class="text-grey-5">
-                {{ $t('archive.noDevices') }}
-              </div>
-              <div v-else class="archive-page__devices-list">
-                <div
-                  v-for="deviceSummary in props.row.deviceSummary"
-                  :key="deviceSummaryKey(deviceSummary)"
-                  class="archive-page__device-item"
-                >
-                  <q-icon
-                    :name="capabilityAppearance(deviceSummary.capability).icon"
-                    :color="capabilityAppearance(deviceSummary.capability).color"
-                    size="xs"
-                  />
-                  <span class="archive-page__device-capability">
-                    {{ capabilityLabel(deviceSummary.capability) }}
-                  </span>
-                  <span class="archive-page__device-separator">·</span>
-                  <span class="archive-page__device-label">{{ deviceSummary.label }}</span>
-                </div>
-              </div>
-            </q-td>
-          </template>
-
-          <template #body-cell-status="props">
-            <q-td :props="props">
-              <q-badge :label="statusLabel(props.row.status)" :color="statusColor(props.row.status)" />
-            </q-td>
-          </template>
-
-          <template #body-cell-favorite="props">
-            <q-td :props="props" class="text-center">
+          <q-tab
+            v-for="sessionTab in replayTabs"
+            :key="sessionTab.sessionId"
+            :name="replayTabName(sessionTab.sessionId)"
+            no-caps
+          >
+            <div class="archive-page__tab-label row items-center no-wrap">
+              <span class="ellipsis">{{ sessionTab.sessionName }}</span>
               <q-btn
                 flat
+                dense
                 round
-                :icon="props.row.isFavorite ? 'star' : 'star_outline'"
-                :color="props.row.isFavorite ? 'amber-5' : 'grey-5'"
-                @click="toggleFavorite(props.row.id, props.row.isFavorite)"
+                size="sm"
+                icon="close"
+                class="archive-page__tab-close"
+                :title="$t('archive.closeReplayTab')"
+                :aria-label="$t('archive.closeReplayTab')"
+                @click.stop="closeReplayTab(sessionTab.sessionId)"
               />
-            </q-td>
-          </template>
+            </div>
+          </q-tab>
+        </q-tabs>
 
-          <template #body-cell-actions="props">
-            <q-td :props="props" class="archive-page__actions-cell">
-              <div class="archive-page__actions-row">
-                <q-btn flat dense icon="download" color="secondary" :label="$t('archive.replayAction')" @click="loadArchivedLog(props.row)" />
-                <div class="archive-page__delete-action" :title="isDeleteDisabled(props.row) ? $t('archive.deleteActiveHint') : ''">
-                  <q-btn
-                    flat
-                    dense
-                    icon="delete"
-                    color="negative"
-                    :label="$t('archive.deleteAction')"
-                    :disable="isDeleteDisabled(props.row)"
-                    @click="requestRemoveLog(props.row)"
-                  />
+        <q-separator />
+
+        <q-tab-panels v-model="activeTab" animated class="archive-page__tab-panels">
+          <q-tab-panel :name="SESSIONS_TAB" class="archive-page__tab-panel archive-page__tab-panel--sessions">
+            <div class="archive-page__header row items-start q-col-gutter-lg q-pa-md q-pb-sm">
+              <div class="col-12 col-md">
+                <div class="text-h5">{{ $t('archive.title') }}</div>
+                <div class="text-caption text-grey-5 q-mt-xs">{{ $t('archive.subtitle') }}</div>
+              </div>
+
+              <div class="col-12 col-md-auto">
+                <div class="row q-col-gutter-sm items-end archive-page__settings">
+                  <div class="col-auto">
+                    <q-input
+                      v-model.number="retentionInput"
+                      type="number"
+                      dense
+                      outlined
+                      debounce="600"
+                      min="0"
+                      :loading="archive.settingsLoading"
+                      :label="$t('archive.retentionDays')"
+                      :hint="$t('archive.retentionDisabledHint')"
+                      persistent-hint
+                      @update:model-value="onRetentionChanged"
+                      @blur="onRetentionBlur"
+                    />
+                  </div>
                 </div>
               </div>
-            </q-td>
-          </template>
-
-          <template #no-data>
-            <div class="full-width q-pa-lg text-center text-grey-5">
-              {{ archive.loading ? $t('archive.loading') : $t('archive.empty') }}
             </div>
-          </template>
-        </q-table>
 
-        <div class="row items-center justify-between q-pa-md archive-page__footer">
-          <div class="row items-center q-gutter-sm">
-            <span class="text-caption text-grey-5">{{ $t('archive.rowsPerPage') }}</span>
-            <q-select
-              dense
-              outlined
-              emit-value
-              map-options
-              options-dense
-              :model-value="archive.pageSize"
-              :options="pageSizeOptions"
-              @update:model-value="onPageSizeChanged"
+            <div class="row q-col-gutter-md q-pa-md items-center archive-page__controls">
+              <div class="col-12 col-md">
+                <q-input
+                  v-model="searchText"
+                  dense
+                  outlined
+                  clearable
+                  debounce="250"
+                  :label="$t('archive.searchLabel')"
+                  @update:model-value="onSearchChanged"
+                >
+                  <template #prepend>
+                    <q-icon name="search" />
+                  </template>
+                </q-input>
+              </div>
+
+              <div class="col-12 col-sm-auto">
+                <q-toggle
+                  :model-value="archive.favoriteOnly"
+                  color="amber"
+                  :label="$t('archive.favoriteOnly')"
+                  @update:model-value="onFavoriteToggle"
+                />
+              </div>
+
+              <div class="col-12 col-sm-auto">
+                <q-btn flat icon="refresh" :label="$t('archive.refresh')" :loading="archive.loading" @click="reload" />
+              </div>
+
+              <div v-if="selectedLogIds.length > 0" class="col-12 col-sm-auto">
+                <q-btn
+                  color="negative"
+                  icon="delete"
+                  :label="$t('archive.deleteSelectedAction', { count: selectedLogIds.length })"
+                  @click="requestRemoveSelectedLogs"
+                />
+              </div>
+            </div>
+
+            <div v-if="archive.activeTagFilter !== ''" class="q-px-md q-pb-md">
+              <q-chip color="secondary" text-color="white" removable @remove="clearTagFilter">
+                {{ $t('archive.filterByTag', { tag: archive.activeTagFilter }) }}
+              </q-chip>
+            </div>
+
+            <q-table
+              flat
+              :rows="archive.logs"
+              :columns="columns"
+              row-key="id"
+              :loading="archive.loading"
+              hide-pagination
+            >
+              <template #header-cell-select="props">
+                <q-th :props="props" class="archive-page__select-column text-center">
+                  <q-checkbox
+                    :model-value="allSelectableLogsSelected"
+                    :indeterminate="partiallySelectedLogs"
+                    :disable="selectableLogIds.length === 0"
+                    @update:model-value="toggleSelectAllLogs"
+                  />
+                </q-th>
+              </template>
+
+              <template #body-cell-select="props">
+                <q-td :props="props" class="archive-page__select-column text-center">
+                  <q-checkbox
+                    :model-value="isLogSelected(props.row.id)"
+                    :disable="isDeleteDisabled(props.row)"
+                    @update:model-value="(value) => toggleLogSelection(props.row.id, value)"
+                  />
+                </q-td>
+              </template>
+
+              <template #body-cell-createdAt="props">
+                <q-td :props="props">
+                  {{ formatDateTime(props.row.createdAt) }}
+                </q-td>
+              </template>
+
+              <template #body-cell-name="props">
+                <q-td :props="props">
+                  <q-input
+                    dense
+                    borderless
+                    class="archive-page__name-input"
+                    :model-value="draftName(props.row.id, props.row.customName)"
+                    :placeholder="props.row.defaultName"
+                    @update:model-value="(value) => setDraftName(props.row.id, value)"
+                    @blur="saveName(props.row.id, props.row.customName)"
+                    @keyup.enter="saveName(props.row.id, props.row.customName)"
+                  >
+                    <template #prepend>
+                      <q-icon v-if="props.row.isFavorite" name="star" color="amber-5" size="xs" />
+                    </template>
+                  </q-input>
+                </q-td>
+              </template>
+
+              <template #body-cell-tags="props">
+                <q-td :props="props" class="archive-page__tags-cell">
+                  <q-input
+                    v-if="editingTagsId === props.row.id"
+                    dense
+                    outlined
+                    autofocus
+                    class="archive-page__tags-input"
+                    :model-value="draftTagsValue(props.row.id, props.row.tags)"
+                    :placeholder="$t('archive.tagsPlaceholder')"
+                    @update:model-value="(value) => setDraftTags(props.row.id, value)"
+                    @blur="saveTags(props.row.id, props.row.tags)"
+                    @keyup.enter="saveTags(props.row.id, props.row.tags)"
+                    @keyup.esc="cancelTagsEdit(props.row.id, props.row.tags)"
+                  />
+
+                  <div
+                    v-else
+                    class="archive-page__tags-display"
+                    :title="$t('archive.tagsEditHint')"
+                    @click="startTagsEdit(props.row.id, props.row.tags)"
+                  >
+                    <div v-if="props.row.tags.length > 0" class="archive-page__tags-inline">
+                      <template v-for="(tag, index) in props.row.tags" :key="tag">
+                        <span
+                          class="archive-page__tag-link"
+                          :class="{ 'archive-page__tag-link--active': archive.activeTagFilter === tag }"
+                          @click.stop="applyTagFilter(tag)"
+                        >
+                          {{ tag }}
+                        </span>
+                        <span v-if="index < props.row.tags.length - 1" class="archive-page__tag-separator">, </span>
+                      </template>
+                    </div>
+                    <div v-else class="archive-page__tags-empty">
+                      {{ $t('archive.tagsEmptyHint') }}
+                    </div>
+
+                    <q-icon name="edit" size="xs" color="grey-5" class="archive-page__tags-edit-icon" />
+                  </div>
+                </q-td>
+              </template>
+
+              <template #body-cell-deviceSummary="props">
+                <q-td :props="props" class="archive-page__devices-cell">
+                  <div v-if="props.row.deviceSummary.length === 0" class="text-grey-5">
+                    {{ $t('archive.noDevices') }}
+                  </div>
+                  <div v-else class="archive-page__devices-list">
+                    <div
+                      v-for="deviceSummary in props.row.deviceSummary"
+                      :key="deviceSummaryKey(deviceSummary)"
+                      class="archive-page__device-item"
+                    >
+                      <q-icon
+                        :name="capabilityAppearance(deviceSummary.capability).icon"
+                        :color="capabilityAppearance(deviceSummary.capability).color"
+                        size="xs"
+                      />
+                      <span class="archive-page__device-capability">
+                        {{ capabilityLabel(deviceSummary.capability) }}
+                      </span>
+                      <span class="archive-page__device-separator">·</span>
+                      <span class="archive-page__device-label">{{ deviceSummary.label }}</span>
+                    </div>
+                  </div>
+                </q-td>
+              </template>
+
+              <template #body-cell-status="props">
+                <q-td :props="props">
+                  <q-badge :label="statusLabel(props.row.status)" :color="statusColor(props.row.status)" />
+                </q-td>
+              </template>
+
+              <template #body-cell-favorite="props">
+                <q-td :props="props" class="text-center">
+                  <q-btn
+                    flat
+                    round
+                    :icon="props.row.isFavorite ? 'star' : 'star_outline'"
+                    :color="props.row.isFavorite ? 'amber-5' : 'grey-5'"
+                    @click="toggleFavorite(props.row.id, props.row.isFavorite)"
+                  />
+                </q-td>
+              </template>
+
+              <template #body-cell-actions="props">
+                <q-td :props="props" class="archive-page__actions-cell">
+                  <div class="archive-page__actions-row">
+                    <q-btn flat dense icon="download" color="secondary" :label="$t('archive.replayAction')" @click="loadArchivedLog(props.row)" />
+                    <div class="archive-page__delete-action" :title="isDeleteDisabled(props.row) ? $t('archive.deleteActiveHint') : ''">
+                      <q-btn
+                        flat
+                        dense
+                        icon="delete"
+                        color="negative"
+                        :label="$t('archive.deleteAction')"
+                        :disable="isDeleteDisabled(props.row)"
+                        @click="requestRemoveLog(props.row)"
+                      />
+                    </div>
+                  </div>
+                </q-td>
+              </template>
+
+              <template #no-data>
+                <div class="full-width q-pa-lg text-center text-grey-5">
+                  {{ archive.loading ? $t('archive.loading') : $t('archive.empty') }}
+                </div>
+              </template>
+            </q-table>
+
+            <div class="row items-center justify-between q-pa-md archive-page__footer">
+              <div class="row items-center q-gutter-sm">
+                <span class="text-caption text-grey-5">{{ $t('archive.rowsPerPage') }}</span>
+                <q-select
+                  dense
+                  outlined
+                  emit-value
+                  map-options
+                  options-dense
+                  :model-value="archive.pageSize"
+                  :options="pageSizeOptions"
+                  @update:model-value="onPageSizeChanged"
+                />
+              </div>
+
+              <q-pagination
+                :model-value="archive.page"
+                :max="pageCount"
+                direction-links
+                boundary-links
+                @update:model-value="onPageChanged"
+              />
+            </div>
+          </q-tab-panel>
+
+          <q-tab-panel
+            v-for="sessionTab in replayTabs"
+            :key="`panel-${sessionTab.sessionId}`"
+            :name="replayTabName(sessionTab.sessionId)"
+            class="archive-page__tab-panel archive-page__tab-panel--replay"
+          >
+            <archive-replay-view
+              :session-id="sessionTab.sessionId"
+              @close="closeReplayTab(sessionTab.sessionId)"
             />
-          </div>
-
-          <q-pagination
-            :model-value="archive.page"
-            :max="pageCount"
-            direction-links
-            boundary-links
-            @update:model-value="onPageChanged"
-          />
-        </div>
+          </q-tab-panel>
+        </q-tab-panels>
       </q-card>
 
       <q-dialog v-model="deleteDialog.isOpen" persistent>
@@ -305,20 +347,23 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { onBeforeRouteLeave } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useQuasar } from 'quasar'
 import type { ArchivedLogSummary, LogDeviceSummary, LogSessionStatus } from '@protocol'
+import ArchiveReplayView from '../components/ArchiveReplayView.vue'
 import { capabilityMeta } from 'stores/device'
 import { useLogArchiveStore } from 'stores/log-archive'
 import { useReplayStore } from 'stores/replay'
 
+const SESSIONS_TAB = 'sessions'
+
 const { t } = useI18n()
 const $q = useQuasar()
-const router = useRouter()
 const archive = useLogArchiveStore()
 const replay = useReplayStore()
 
+const activeTab = ref<string>(SESSIONS_TAB)
 const searchText = ref('')
 const retentionInput = ref(archive.retentionDays)
 const draftNames = ref<Record<number, string>>({})
@@ -350,6 +395,8 @@ const pageSizeOptions = [
   { label: '50', value: 50 },
 ]
 
+const replayTabs = computed(() => replay.replayPreparedSessions)
+
 const pageCount = computed(() => {
   return Math.max(1, Math.ceil(archive.total / archive.pageSize))
 })
@@ -377,6 +424,28 @@ const allSelectableLogsSelected = computed(() => {
 const partiallySelectedLogs = computed(() => {
   return selectedLogIds.value.length > 0 && !allSelectableLogsSelected.value
 })
+
+function replayTabName(sessionId: number): string {
+  return `replay-${sessionId}`
+}
+
+function parseReplaySessionIdFromTab(tabName: string): number | null {
+  if (!tabName.startsWith('replay-')) {
+    return null
+  }
+
+  const value = Number(tabName.slice('replay-'.length))
+  return Number.isFinite(value) ? value : null
+}
+
+function pageStyle(offset: number, height: number) {
+  const pageHeight = Math.max(0, height - offset)
+
+  return {
+    height: `${pageHeight}px`,
+    minHeight: `${pageHeight}px`,
+  }
+}
 
 function formatDateTime(value: string): string {
   return new Date(value).toLocaleString()
@@ -413,10 +482,6 @@ function toggleLogSelection(id: number, value: boolean | null) {
 
 function toggleSelectAllLogs(value: boolean | null) {
   selectedLogIds.value = value === true ? [...selectableLogIds.value] : []
-}
-
-function clearSelectedLogs() {
-  selectedLogIds.value = []
 }
 
 function openDeleteDialog(options: {
@@ -672,17 +737,28 @@ async function confirmDelete() {
 }
 
 function loadArchivedLog(log: ArchivedLogSummary) {
-  const sent = replay.startReplay(log.id)
-  if (!sent) {
-    $q.notify({ type: 'negative', message: t('archive.replaySendFailed') })
-    return
-  }
+  const parsedStartedAtMs = Date.parse(log.startedAt)
 
-  void router.push('/monitoring')
+  replay.prepareReplay(
+    log.id,
+    log.effectiveName,
+    log.kind,
+    log.audioSchedule ?? null,
+    log.audioScheduleStartedAtMs ?? null,
+    Number.isFinite(parsedStartedAtMs) ? parsedStartedAtMs : null,
+  )
+
+  activeTab.value = replayTabName(log.id)
 }
 
-function unloadArchivedData() {
-  replay.stopReplay()
+function closeReplayTab(sessionId: number) {
+  const closedTabName = replayTabName(sessionId)
+  const wasActiveTab = activeTab.value === closedTabName
+  replay.closeReplaySession(sessionId)
+
+  if (wasActiveTab) {
+    activeTab.value = SESSIONS_TAB
+  }
 }
 
 function normalizeRetentionDays(value: string | number | null): number | null {
@@ -787,9 +863,44 @@ watch(
   },
 )
 
+watch(activeTab, (nextTab, previousTab) => {
+  const previousSessionId = parseReplaySessionIdFromTab(previousTab)
+  const nextSessionId = parseReplaySessionIdFromTab(nextTab)
+
+  if (previousSessionId !== null && previousSessionId !== nextSessionId) {
+    replay.pauseReplaySession(previousSessionId)
+  }
+
+  if (nextSessionId === null) {
+    replay.activateReplaySession(null)
+    return
+  }
+
+  if (!replay.activateReplaySession(nextSessionId)) {
+    activeTab.value = SESSIONS_TAB
+  }
+})
+
+watch(
+  () => replayTabs.value.map((session) => session.sessionId),
+  (sessionIds) => {
+    const sessionId = parseReplaySessionIdFromTab(activeTab.value)
+    if (sessionId !== null && !sessionIds.includes(sessionId)) {
+      activeTab.value = SESSIONS_TAB
+    }
+  },
+)
+
+onBeforeRouteLeave(() => {
+  replay.pauseActiveReplay()
+  replay.activateReplaySession(null)
+})
+
 onMounted(() => {
   searchText.value = archive.searchQuery
   retentionInput.value = archive.retentionDays
+  replay.activateReplaySession(null)
+
   void archive.loadSettings().then(() => {
     retentionInput.value = archive.retentionDays
   })
@@ -799,19 +910,81 @@ onMounted(() => {
 
 <style scoped>
 .archive-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
   min-height: 0;
+  overflow: hidden;
 }
 
 .archive-page__inner {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 16px;
-  min-height: 100%;
+  min-height: 0;
+  overflow: hidden;
   padding: 16px;
 }
 
-.archive-page__banner {
-  border: 1px solid rgba(217, 119, 6, 0.18);
+.archive-page__card {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.archive-page__tabs {
+  flex: 0 0 auto;
+}
+
+.archive-page__tab-label {
+  gap: 4px;
+  max-width: 280px;
+}
+
+.archive-page__tab-close {
+  margin-left: 2px;
+}
+
+.archive-page__tab-panels {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.archive-page__tab-panels:deep(.q-panel) {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.archive-page__tab-panels:deep(.q-tab-panel) {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.archive-page__tab-panel {
+  min-height: 0;
+  padding: 16px;
+}
+
+.archive-page__tab-panel--sessions {
+  overflow-y: auto;
+  padding: 0;
+}
+
+.archive-page__tab-panel--replay {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .archive-page__select-column {
@@ -957,6 +1130,10 @@ onMounted(() => {
 
   .archive-page__delete-action {
     display: flex;
+  }
+
+  .archive-page__tab-label {
+    max-width: 180px;
   }
 }
 </style>

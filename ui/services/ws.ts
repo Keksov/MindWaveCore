@@ -1,16 +1,14 @@
 import { ref, type Ref } from 'vue'
-import type { BrowserMessage, BodyMonitorServerEvent, ServerEvent } from '@protocol'
-import { useAudioStore } from 'stores/audio'
-import { useSessionStore } from 'stores/session'
-import { useDeviceStore } from 'stores/device'
-import { useReplayStore } from 'stores/replay'
+import type { BrowserMessage, ServerEvent } from '@protocol'
 
 export type ConnectionState = 'connecting' | 'connected' | 'disconnected'
+export type WsEventHandler = (event: ServerEvent) => boolean | void
 
 const MAX_RECONNECT_MS = 10_000
 const BASE_RECONNECT_MS = 1_000
 
 const connectionState: Ref<ConnectionState> = ref('disconnected')
+const eventHandlers = new Set<WsEventHandler>()
 let socket: WebSocket | null = null
 let reconnectAttempt = 0
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null
@@ -20,99 +18,19 @@ function getWsUrl(): string {
   return `${proto}://${location.host}/ws/ui`
 }
 
-function isAudioEvent(event: ServerEvent): boolean {
-  return event.type.startsWith('audio_')
-}
-
-function isBodyMonitorEvent(event: ServerEvent): event is BodyMonitorServerEvent {
-  return !event.type.startsWith('audio_')
-}
-
 function dispatch(event: ServerEvent): void {
-  const audio = useAudioStore()
-  const session = useSessionStore()
-  const device = useDeviceStore()
-  const replay = useReplayStore()
-
-  if (isAudioEvent(event)) {
-    switch (event.type) {
-      case 'audio_status':
-        audio.handleStatus(event)
-        return
-      case 'audio_progress':
-        audio.handleProgress(event)
-        return
-      case 'audio_error':
-        audio.handleError(event)
-        return
-      case 'audio_exit':
-        audio.handleExit(event)
-        return
-      case 'audio_render_progress':
-        audio.handleRenderProgress(event)
-        return
-      case 'audio_render_done':
-        audio.handleRenderDone(event)
-        return
-      case 'audio_schedule_loaded':
-        audio.handleScheduleLoaded(event)
-        return
+  for (const handler of eventHandlers) {
+    if (handler(event) === true) {
+      return
     }
   }
+}
 
-  switch (event.type) {
-    case 'replay_started':
-      replay.handleReplayStarted(event)
-      return
-    case 'replay_progress':
-      replay.handleReplayProgress(event)
-      return
-    case 'replay_stopped':
-      replay.handleReplayStopped(event)
-      return
-    case 'replay_finished':
-      replay.handleReplayFinished(event)
-      return
-  }
+function registerHandler(handler: WsEventHandler): () => void {
+  eventHandlers.add(handler)
 
-  if (replay.isReplayMode && isBodyMonitorEvent(event)) {
-    replay.handleReplayEvent(event)
-    return
-  }
-
-  switch (event.type) {
-    case 'bodymonitor_status':
-      session.handleStatus(event)
-      break
-    case 'bodymonitor_started':
-      session.handleStarted(event)
-      break
-    case 'bodymonitor_scan_command':
-      session.handleScanCommand(event)
-      break
-    case 'bodymonitor_output':
-      session.handleOutput(event)
-      break
-    case 'bodymonitor_exit':
-      session.handleExit(event)
-      break
-    case 'bodymonitor_error':
-      session.handleError(event)
-      break
-    case 'bodymonitor_device':
-      device.handleDevice(event)
-      break
-    case 'bodymonitor_devices':
-      device.handleDevices(event)
-      break
-    case 'bodymonitor_stdio_ack':
-      session.handleStdioAck(event)
-      break
-    case 'bodymonitor_stdio_ready':
-      session.handleStdioReady()
-      break
-    case 'bodymonitor_server_ready':
-      break
+  return () => {
+    eventHandlers.delete(handler)
   }
 }
 
@@ -174,6 +92,7 @@ function init(): void {
 
 export const wsService = {
   connectionState,
+  registerHandler,
   send,
   init
 } as const
