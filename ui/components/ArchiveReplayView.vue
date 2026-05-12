@@ -59,12 +59,12 @@
           <eeg-chart-settings-bar
             v-if="hasEegData"
             :window-sec="replayWindowSec"
-            :scale-mode="replayScaleMode"
+            :data-correction="replayDataCorrection"
             :can-use-calibrated="false"
             :calibrated-tooltip="$t('monitoring.calibration.replayUnsupported')"
             :data-source="replayDataSource"
             @update:window-sec="replayWindowSec = $event"
-            @update:scale-mode="replayScaleMode = $event"
+            @update:data-correction="replayDataCorrection = $event"
             @update:data-source="replayDataSource = $event"
           />
 
@@ -97,7 +97,7 @@
                         :data="chartData"
                         :anchor-timestamp-ms="displayedReplayTimestampMs"
                         :window-sec="replayWindowSec"
-                        :scale-mode="replayScaleMode"
+                        :data-correction="replayDataCorrection"
                         :data-source="replayDataSource"
                         show-signal-badge
                       />
@@ -108,7 +108,7 @@
                         :data="chartData"
                         :anchor-timestamp-ms="displayedReplayTimestampMs"
                         :window-sec="replayWindowSec"
-                        :scale-mode="replayScaleMode"
+                        :data-correction="replayDataCorrection"
                         :data-source="replayDataSource"
                       />
                     </template>
@@ -241,7 +241,7 @@
                   :data="chartData"
                   :anchor-timestamp-ms="displayedReplayTimestampMs"
                   :window-sec="replayWindowSec"
-                  :scale-mode="replayScaleMode"
+                  :data-correction="replayDataCorrection"
                   :data-source="replayDataSource"
                   show-signal-badge
                 />
@@ -252,7 +252,7 @@
                   :data="chartData"
                   :anchor-timestamp-ms="displayedReplayTimestampMs"
                   :window-sec="replayWindowSec"
-                  :scale-mode="replayScaleMode"
+                  :data-correction="replayDataCorrection"
                   :data-source="replayDataSource"
                 />
               </template>
@@ -364,7 +364,7 @@ import { useI18n } from 'vue-i18n'
 import type { ReplaySpeed } from '@protocol'
 import { EEG_BAND_COLORS } from '../../../BodyMonitorCore/ui/services/eeg-band-colors'
 import { EEG_BAND_KEYS, type EegBandKey } from '../../../BodyMonitorCore/ui/services/eeg-band-snapshot'
-import type { EegBandScaleMode, EegDataSource } from '../../../BodyMonitorCore/ui/stores/preferences'
+import type { EegDataCorrection, EegDataSource } from '../../../BodyMonitorCore/ui/stores/preferences'
 import { usePreferencesStore } from '../../../BodyMonitorCore/ui/stores/preferences'
 import { hasLogChartData } from '../../../SharedPasCore/ts/log-chart'
 import { wsService } from 'src/services/ws'
@@ -400,8 +400,8 @@ interface EegModeOption {
 const replaySpeedOptions = [1, 2, 4, 10] as const
 const replayEegMode = ref<ReplayEegMode>('radar')
 const replayWindowSec = ref<number>(_preferences.eegBandWindowSec)
-const replayScaleMode = ref<EegBandScaleMode>(
-  _preferences.eegBandScaleMode === 'calibrated' ? 'normalized' : _preferences.eegBandScaleMode,
+const replayDataCorrection = ref<EegDataCorrection>(
+  _preferences.eegDataCorrection === 'calibrated' ? 'raw' : _preferences.eegDataCorrection,
 )
 const replayDataSource = ref<EegDataSource>(_preferences.eegDataSource)
 
