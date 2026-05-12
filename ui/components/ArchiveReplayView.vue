@@ -12,21 +12,31 @@
         </div>
 
         <div class="col archive-replay-view__header-devices">
-          <div v-if="selectedDevices.length > 0" class="archive-replay-view__header-devices-content row items-center q-gutter-sm">
-            <span class="text-caption text-grey-5 archive-replay-view__header-devices-label">
-              {{ $t('archive.devices') }}
-            </span>
+          <div v-if="selectedDevices.length > 0" class="archive-replay-view__header-devices-content">
+            <div class="archive-replay-view__header-devices-main row items-center q-gutter-sm">
+              <span class="text-caption text-grey-5 archive-replay-view__header-devices-label">
+                {{ $t('archive.devices') }}
+              </span>
 
-            <div class="archive-replay-view__device-list archive-replay-view__device-list--header">
-              <q-chip
-                v-for="device in selectedDevices"
-                :key="`${device.capability}:${device.label}`"
-                dense
-                color="grey-9"
-                text-color="grey-2"
-              >
-                {{ capabilityLabel(device.capability) }}: {{ device.label }}
-              </q-chip>
+              <div class="archive-replay-view__device-list archive-replay-view__device-list--header">
+                <q-chip
+                  v-for="device in selectedDevices"
+                  :key="`${device.capability}:${device.label}`"
+                  dense
+                  color="grey-9"
+                  text-color="grey-2"
+                >
+                  {{ capabilityLabel(device.capability) }}: {{ device.label }}
+                </q-chip>
+              </div>
+            </div>
+
+            <div
+              v-if="headerSignalBadgeText !== null"
+              class="archive-replay-view__header-signal-badge"
+              :style="{ color: headerSignalBadgeColor }"
+            >
+              {{ headerSignalBadgeText }}
             </div>
           </div>
         </div>
@@ -45,6 +55,16 @@
               <q-tooltip>{{ opt.tooltip }}</q-tooltip>
             </q-btn>
           </q-btn-group>
+
+          <eeg-chart-settings-bar
+            v-if="hasEegData"
+            :window-sec="replayWindowSec"
+            :scale-mode="replayScaleMode"
+            :can-use-calibrated="false"
+            :calibrated-tooltip="$t('monitoring.calibration.replayUnsupported')"
+            @update:window-sec="replayWindowSec = $event"
+            @update:scale-mode="replayScaleMode = $event"
+          />
 
           <q-chip dense color="blue-grey-8" text-color="blue-grey-1">
             {{ statusChipLabel }}
@@ -74,6 +94,8 @@
                         class="archive-replay-view__chart"
                         :data="chartData"
                         :anchor-timestamp-ms="displayedReplayTimestampMs"
+                        :window-sec="replayWindowSec"
+                        :scale-mode="replayScaleMode"
                         show-signal-badge
                       />
 
@@ -82,6 +104,8 @@
                         class="archive-replay-view__chart"
                         :data="chartData"
                         :anchor-timestamp-ms="displayedReplayTimestampMs"
+                        :window-sec="replayWindowSec"
+                        :scale-mode="replayScaleMode"
                       />
                     </template>
 
@@ -126,6 +150,13 @@
                   </div>
 
                   <div class="col archive-replay-view__timeline-track" :style="timelineTrackStyle">
+                    <div
+                      v-if="showTimelineDominantBandBar"
+                      class="archive-replay-view__timeline-dominant-band-bar"
+                      :style="timelineDominantBandBarStyle"
+                      aria-hidden="true"
+                    />
+
                     <q-slider
                       v-model="sessionSliderMs"
                       class="archive-replay-view__slider"
@@ -138,6 +169,13 @@
                       color="secondary"
                       @update:model-value="handleSessionSliderInput"
                       @change="handleSessionSeek"
+                    />
+
+                    <div
+                      v-if="showTimelineSignalBar"
+                      class="archive-replay-view__timeline-signal-bar"
+                      :style="timelineSignalBarStyle"
+                      aria-hidden="true"
                     />
 
                     <div class="archive-replay-view__timeline-end-labels text-caption text-grey-5">
@@ -198,6 +236,8 @@
                   class="archive-replay-view__chart"
                   :data="chartData"
                   :anchor-timestamp-ms="displayedReplayTimestampMs"
+                  :window-sec="replayWindowSec"
+                  :scale-mode="replayScaleMode"
                   show-signal-badge
                 />
 
@@ -206,6 +246,8 @@
                   class="archive-replay-view__chart"
                   :data="chartData"
                   :anchor-timestamp-ms="displayedReplayTimestampMs"
+                  :window-sec="replayWindowSec"
+                  :scale-mode="replayScaleMode"
                 />
               </template>
 
@@ -250,6 +292,13 @@
             </div>
 
             <div class="col archive-replay-view__timeline-track" :style="timelineTrackStyle">
+              <div
+                v-if="showTimelineDominantBandBar"
+                class="archive-replay-view__timeline-dominant-band-bar"
+                :style="timelineDominantBandBarStyle"
+                aria-hidden="true"
+              />
+
               <q-slider
                 v-model="sessionSliderMs"
                 class="archive-replay-view__slider"
@@ -262,6 +311,13 @@
                 color="secondary"
                 @update:model-value="handleSessionSliderInput"
                 @change="handleSessionSeek"
+              />
+
+              <div
+                v-if="showTimelineSignalBar"
+                class="archive-replay-view__timeline-signal-bar"
+                :style="timelineSignalBarStyle"
+                aria-hidden="true"
               />
 
               <div class="archive-replay-view__timeline-end-labels text-caption text-grey-5">
@@ -300,6 +356,10 @@
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ReplaySpeed } from '@protocol'
+import { EEG_BAND_COLORS } from '../../../BodyMonitorCore/ui/services/eeg-band-colors'
+import { EEG_BAND_KEYS, type EegBandKey } from '../../../BodyMonitorCore/ui/services/eeg-band-snapshot'
+import type { EegBandScaleMode } from '../../../BodyMonitorCore/ui/stores/preferences'
+import { usePreferencesStore } from '../../../BodyMonitorCore/ui/stores/preferences'
 import { hasLogChartData } from '../../../SharedPasCore/ts/log-chart'
 import { wsService } from 'src/services/ws'
 import { useReplayStore } from 'stores/replay'
@@ -307,6 +367,7 @@ import { useReplayStore } from 'stores/replay'
 const DeviceDataChart = defineAsyncComponent(() => import('../../../BodyMonitorCore/ui/components/DeviceDataChart.vue'))
 const EegRadarChart = defineAsyncComponent(() => import('../../../BodyMonitorCore/ui/components/EegRadarChart.vue'))
 const EegCurrentReadingsChart = defineAsyncComponent(() => import('../../../BodyMonitorCore/ui/components/EegCurrentReadingsChart.vue'))
+const EegChartSettingsBar = defineAsyncComponent(() => import('../../../BodyMonitorCore/ui/components/EegChartSettingsBar.vue'))
 const GnauralScheduleView = defineAsyncComponent(() => import('../../../GnauralCore/ui/components/GnauralScheduleView.vue'))
 
 const props = defineProps<{
@@ -320,6 +381,8 @@ const emit = defineEmits<{
 const replay = useReplayStore()
 const { t } = useI18n()
 
+const _preferences = usePreferencesStore()
+
 type ReplayEegMode = 'bands' | 'radar'
 
 interface EegModeOption {
@@ -330,12 +393,307 @@ interface EegModeOption {
 
 const replaySpeedOptions = [1, 2, 4, 10] as const
 const replayEegMode = ref<ReplayEegMode>('radar')
+const replayWindowSec = ref<number>(_preferences.eegBandWindowSec)
+const replayScaleMode = ref<EegBandScaleMode>(
+  _preferences.eegBandScaleMode === 'calibrated' ? 'normalized' : _preferences.eegBandScaleMode,
+)
 
 const REPLAY_SPLIT_STORAGE_KEY = 'archive-replay-split-px'
 const REPLAY_SPLIT_DEFAULT = 400
 const REPLAY_SPLIT_CHART_MIN = 200
 const REPLAY_SPLIT_AUDIO_MIN = 320
 const GNAURAL_MAIN_PLOT_RIGHT_GUTTER_PX = 44
+const TIMELINE_SIGNAL_NEUTRAL_COLOR = '#5f6b76'
+const TIMELINE_SIGNAL_GOOD_COLOR = '#2fbf71'
+const TIMELINE_SIGNAL_FAIR_COLOR = '#f3c64d'
+const TIMELINE_SIGNAL_POOR_COLOR = '#e25a5a'
+const TIMELINE_SIGNAL_SAMPLE_COUNT = 240
+const SIGNAL_BADGE_NONE_COLOR = '#9aa5b1'
+const SIGNAL_BADGE_GOOD_COLOR = '#43aa8b'
+const SIGNAL_BADGE_FAIR_COLOR = '#f9c74f'
+const SIGNAL_BADGE_POOR_COLOR = '#e76f51'
+const replayErrorTranslationKeys = new Map<string, string>([
+  ['Stop the active scan or monitoring session before replay', 'archive.replayStopActiveSessionBeforeReplay'],
+])
+
+type TimelineSignalPoint = readonly [timestampMs: number, value: number]
+type TimelineEegSeriesByBand = Record<EegBandKey, readonly TimelineSignalPoint[]>
+
+function interpolateHexColor(startHex: string, endHex: string, ratio: number): string {
+  const normalizedRatio = Math.max(0, Math.min(1, ratio))
+  const startValue = parseInt(startHex.slice(1), 16)
+  const endValue = parseInt(endHex.slice(1), 16)
+  const startRed = (startValue >> 16) & 0xff
+  const startGreen = (startValue >> 8) & 0xff
+  const startBlue = startValue & 0xff
+  const endRed = (endValue >> 16) & 0xff
+  const endGreen = (endValue >> 8) & 0xff
+  const endBlue = endValue & 0xff
+  const red = Math.round(startRed + ((endRed - startRed) * normalizedRatio))
+  const green = Math.round(startGreen + ((endGreen - startGreen) * normalizedRatio))
+  const blue = Math.round(startBlue + ((endBlue - startBlue) * normalizedRatio))
+
+  return `#${[red, green, blue].map((value) => value.toString(16).padStart(2, '0')).join('')}`
+}
+
+function poorSignalToColor(value: number): string {
+  if (!Number.isFinite(value)) {
+    return TIMELINE_SIGNAL_NEUTRAL_COLOR
+  }
+
+  const normalizedValue = Math.max(0, Math.min(200, value))
+  if (normalizedValue <= 25) {
+    return interpolateHexColor(
+      TIMELINE_SIGNAL_GOOD_COLOR,
+      TIMELINE_SIGNAL_FAIR_COLOR,
+      normalizedValue / 25,
+    )
+  }
+
+  return interpolateHexColor(
+    TIMELINE_SIGNAL_FAIR_COLOR,
+    TIMELINE_SIGNAL_POOR_COLOR,
+    (normalizedValue - 25) / 175,
+  )
+}
+
+function getPoorSignalAtTimestamp(
+  points: readonly TimelineSignalPoint[],
+  anchorTimestampMs: number | null,
+): number | null {
+  if (points.length === 0) {
+    return null
+  }
+
+  if (anchorTimestampMs === null || !Number.isFinite(anchorTimestampMs)) {
+    return points[points.length - 1]?.[1] ?? null
+  }
+
+  return getLatestPointValueAtTimestamp(points, anchorTimestampMs)
+}
+
+function getLatestPointValueAtTimestamp(
+  points: readonly TimelineSignalPoint[],
+  anchorTimestampMs: number,
+): number | null {
+  if (points.length === 0 || !Number.isFinite(anchorTimestampMs)) {
+    return null
+  }
+
+  let latestValue: number | null = null
+  for (const [timestampMs, value] of points) {
+    if (timestampMs > anchorTimestampMs) {
+      break
+    }
+
+    latestValue = value
+  }
+
+  if (latestValue !== null) {
+    return latestValue
+  }
+
+  return points[0]?.[1] ?? null
+}
+
+function resolveDominantEegBandAtTimestamp(
+  seriesByBand: Readonly<TimelineEegSeriesByBand>,
+  anchorTimestampMs: number,
+): EegBandKey | null {
+  let dominantBand: EegBandKey | null = null
+  let dominantValue = Number.NEGATIVE_INFINITY
+
+  for (const bandKey of EEG_BAND_KEYS) {
+    const value = getLatestPointValueAtTimestamp(seriesByBand[bandKey], anchorTimestampMs)
+    if (value === null || !Number.isFinite(value)) {
+      continue
+    }
+
+    if (dominantBand === null || value > dominantValue) {
+      dominantBand = bandKey
+      dominantValue = value
+    }
+  }
+
+  return dominantBand
+}
+
+function toSignalQualityPercent(value: number | null): number | null {
+  if (value === null || !Number.isFinite(value)) {
+    return null
+  }
+
+  const clampedValue = Math.max(0, Math.min(200, value))
+  return Math.round((1 - (clampedValue / 200)) * 100)
+}
+
+function poorSignalBadgeText(value: number | null): string {
+  if (value === null) return t('monitoring.badge.signalNone')
+
+  const qualityPercent = toSignalQualityPercent(value)
+  const suffix = qualityPercent === null ? '' : ` ${qualityPercent}%`
+
+  if (value === 0) return `${t('monitoring.badge.signalGood')}${suffix}`
+  if (value <= 25) return `${t('monitoring.badge.signalFair')}${suffix}`
+  return `${t('monitoring.badge.signalPoor')}${suffix}`
+}
+
+function poorSignalBadgeColor(value: number | null): string {
+  if (value === null) return SIGNAL_BADGE_NONE_COLOR
+  if (value === 0) return SIGNAL_BADGE_GOOD_COLOR
+  if (value <= 25) return SIGNAL_BADGE_FAIR_COLOR
+  return SIGNAL_BADGE_POOR_COLOR
+}
+
+function localizeReplayError(message: string | null): string | null {
+  if (message === null) {
+    return null
+  }
+
+  const translationKey = replayErrorTranslationKeys.get(message)
+  if (translationKey === undefined) {
+    return message
+  }
+
+  return t(translationKey)
+}
+
+function buildTimelineSignalGradient(
+  points: readonly TimelineSignalPoint[],
+  minTimestampMs: number,
+  maxTimestampMs: number,
+): string {
+  if (points.length === 0) {
+    return TIMELINE_SIGNAL_NEUTRAL_COLOR
+  }
+
+  const safeMinTimestampMs = Number.isFinite(minTimestampMs) ? minTimestampMs : 0
+  const safeMaxTimestampMs = Number.isFinite(maxTimestampMs)
+    ? Math.max(safeMinTimestampMs, maxTimestampMs)
+    : safeMinTimestampMs
+  const durationMs = safeMaxTimestampMs - safeMinTimestampMs
+  if (durationMs <= 0) {
+    return poorSignalToColor(points[points.length - 1]?.[1] ?? Number.NaN)
+  }
+
+  const segments: Array<{ color: string, startPercent: number, endPercent: number }> = []
+  let pointIndex = 0
+  let activeValue: number | null = null
+
+  for (let sampleIndex = 0; sampleIndex < TIMELINE_SIGNAL_SAMPLE_COUNT; sampleIndex += 1) {
+    const sampleTimestampMs = safeMinTimestampMs + (((sampleIndex + 0.5) / TIMELINE_SIGNAL_SAMPLE_COUNT) * durationMs)
+    while (pointIndex < points.length && points[pointIndex][0] <= sampleTimestampMs) {
+      activeValue = points[pointIndex][1]
+      pointIndex += 1
+    }
+
+    const color = activeValue === null
+      ? TIMELINE_SIGNAL_NEUTRAL_COLOR
+      : poorSignalToColor(activeValue)
+    const startPercent = (sampleIndex / TIMELINE_SIGNAL_SAMPLE_COUNT) * 100
+    const endPercent = ((sampleIndex + 1) / TIMELINE_SIGNAL_SAMPLE_COUNT) * 100
+    const previousSegment = segments[segments.length - 1]
+
+    if (previousSegment !== undefined && previousSegment.color === color) {
+      previousSegment.endPercent = endPercent
+    } else {
+      segments.push({ color, startPercent, endPercent })
+    }
+  }
+
+  if (segments.length === 0) {
+    return TIMELINE_SIGNAL_NEUTRAL_COLOR
+  }
+
+  const gradientStops = segments.flatMap((segment) => [
+    `${segment.color} ${segment.startPercent.toFixed(3)}%`,
+    `${segment.color} ${segment.endPercent.toFixed(3)}%`,
+  ])
+
+  return `linear-gradient(to right, ${gradientStops.join(', ')})`
+}
+
+function buildTimelineDominantBandGradient(
+  seriesByBand: Readonly<TimelineEegSeriesByBand>,
+  minTimestampMs: number,
+  maxTimestampMs: number,
+): string {
+  const hasBandPoints = EEG_BAND_KEYS.some((bandKey) => seriesByBand[bandKey].length > 0)
+  if (!hasBandPoints) {
+    return TIMELINE_SIGNAL_NEUTRAL_COLOR
+  }
+
+  const safeMinTimestampMs = Number.isFinite(minTimestampMs) ? minTimestampMs : 0
+  const safeMaxTimestampMs = Number.isFinite(maxTimestampMs)
+    ? Math.max(safeMinTimestampMs, maxTimestampMs)
+    : safeMinTimestampMs
+  const durationMs = safeMaxTimestampMs - safeMinTimestampMs
+
+  if (durationMs <= 0) {
+    const dominantBand = resolveDominantEegBandAtTimestamp(seriesByBand, safeMaxTimestampMs)
+    return dominantBand === null ? TIMELINE_SIGNAL_NEUTRAL_COLOR : EEG_BAND_COLORS[dominantBand]
+  }
+
+  const segments: Array<{ color: string, startPercent: number, endPercent: number }> = []
+  const pointIndices = Object.fromEntries(
+    EEG_BAND_KEYS.map((bandKey) => [bandKey, 0]),
+  ) as Record<EegBandKey, number>
+  const activeValues = Object.fromEntries(
+    EEG_BAND_KEYS.map((bandKey) => [bandKey, null]),
+  ) as Record<EegBandKey, number | null>
+
+  for (let sampleIndex = 0; sampleIndex < TIMELINE_SIGNAL_SAMPLE_COUNT; sampleIndex += 1) {
+    const sampleTimestampMs = safeMinTimestampMs + (((sampleIndex + 0.5) / TIMELINE_SIGNAL_SAMPLE_COUNT) * durationMs)
+
+    for (const bandKey of EEG_BAND_KEYS) {
+      const points = seriesByBand[bandKey]
+      let pointIndex = pointIndices[bandKey]
+      while (pointIndex < points.length && points[pointIndex][0] <= sampleTimestampMs) {
+        activeValues[bandKey] = points[pointIndex][1]
+        pointIndex += 1
+      }
+      pointIndices[bandKey] = pointIndex
+    }
+
+    let dominantBand: EegBandKey | null = null
+    let dominantValue = Number.NEGATIVE_INFINITY
+    for (const bandKey of EEG_BAND_KEYS) {
+      const value = activeValues[bandKey]
+      if (value === null || !Number.isFinite(value)) {
+        continue
+      }
+
+      if (dominantBand === null || value > dominantValue) {
+        dominantBand = bandKey
+        dominantValue = value
+      }
+    }
+
+    const color = dominantBand === null
+      ? TIMELINE_SIGNAL_NEUTRAL_COLOR
+      : EEG_BAND_COLORS[dominantBand]
+    const startPercent = (sampleIndex / TIMELINE_SIGNAL_SAMPLE_COUNT) * 100
+    const endPercent = ((sampleIndex + 1) / TIMELINE_SIGNAL_SAMPLE_COUNT) * 100
+    const previousSegment = segments[segments.length - 1]
+
+    if (previousSegment !== undefined && previousSegment.color === color) {
+      previousSegment.endPercent = endPercent
+    } else {
+      segments.push({ color, startPercent, endPercent })
+    }
+  }
+
+  if (segments.length === 0) {
+    return TIMELINE_SIGNAL_NEUTRAL_COLOR
+  }
+
+  const gradientStops = segments.flatMap((segment) => [
+    `${segment.color} ${segment.startPercent.toFixed(3)}%`,
+    `${segment.color} ${segment.endPercent.toFixed(3)}%`,
+  ])
+
+  return `linear-gradient(to right, ${gradientStops.join(', ')})`
+}
 
 const storedReplaySplitPx = parseFloat(
   localStorage.getItem(REPLAY_SPLIT_STORAGE_KEY) ?? String(REPLAY_SPLIT_DEFAULT),
@@ -517,11 +875,37 @@ const statusChipLabel = computed(() => {
 const chartData = computed(() => session.value?.chartData ?? null)
 const isChartLoading = computed(() => session.value?.chartLoading ?? false)
 const chartError = computed(() => session.value?.chartError ?? null)
-const sessionError = computed(() => session.value?.error ?? null)
+const sessionError = computed(() => localizeReplayError(session.value?.error ?? null))
 const hasChartData = computed(() => chartData.value !== null && hasLogChartData(chartData.value))
 const hasEegData = computed(() =>
   chartData.value?.series.some((series) => series.panel === 'eeg' && series.points.length > 0) ?? false,
 )
+const eegBandSeriesByKey = computed<TimelineEegSeriesByBand>(() => {
+  const seriesEntries = chartData.value?.series ?? []
+  return Object.fromEntries(
+    EEG_BAND_KEYS.map((bandKey) => {
+      const bandSeries = seriesEntries.find((series) => series.key === bandKey)
+      return [bandKey, (bandSeries?.points ?? []) as readonly TimelineSignalPoint[]]
+    }),
+  ) as TimelineEegSeriesByBand
+})
+const showTimelineDominantBandBar = computed(() => hasEegData.value)
+const timelineDominantBandBarStyle = computed<Record<string, string>>(() => ({
+  background: buildTimelineDominantBandGradient(
+    eegBandSeriesByKey.value,
+    replayTimeSliderMinTimestampMs.value,
+    replayTimeSliderMaxTimestampMs.value,
+  ),
+}))
+const poorSignalSeries = computed(() => chartData.value?.series.find((series) => series.key === 'poorSignal') ?? null)
+const showTimelineSignalBar = computed(() => poorSignalSeries.value?.points.length !== undefined && poorSignalSeries.value.points.length > 0)
+const timelineSignalBarStyle = computed<Record<string, string>>(() => ({
+  background: buildTimelineSignalGradient(
+    (poorSignalSeries.value?.points ?? []) as readonly TimelineSignalPoint[],
+    replayTimeSliderMinTimestampMs.value,
+    replayTimeSliderMaxTimestampMs.value,
+  ),
+}))
 const isStandaloneEegMode = true
 
 const eegModeOptions = computed<EegModeOption[]>(() => [
@@ -677,6 +1061,29 @@ const scheduleCanSeek = computed(() => {
 })
 const isPlaying = computed(() => session.value?.status === 'playing')
 const selectedDevices = computed(() => session.value?.selectedDevices ?? [])
+const hasSelectedEegDevice = computed(() => {
+  return selectedDevices.value.some((device) => device.capability.toLowerCase() === 'eeg')
+})
+const headerSignalQualityValue = computed(() => {
+  if (!hasSelectedEegDevice.value) {
+    return null
+  }
+
+  return getPoorSignalAtTimestamp(
+    (poorSignalSeries.value?.points ?? []) as readonly TimelineSignalPoint[],
+    displayedReplayTimestampMs.value,
+  )
+})
+const headerSignalBadgeText = computed(() => {
+  if (!hasSelectedEegDevice.value) {
+    return null
+  }
+
+  return poorSignalBadgeText(headerSignalQualityValue.value)
+})
+const headerSignalBadgeColor = computed(() => {
+  return poorSignalBadgeColor(headerSignalQualityValue.value)
+})
 
 watch(
   () => [session.value?.cursorTimestampMs ?? null, replayTimeSliderMinTimestampMs.value, replayTimeSliderMaxTimestampMs.value],
@@ -895,12 +1302,29 @@ function handleScheduleSeek(positionSec: number) {
 
 .archive-replay-view__header-devices-content {
   align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  justify-content: center;
+  min-width: 0;
+}
+
+.archive-replay-view__header-devices-main {
+  align-items: center;
   justify-content: center;
   min-width: 0;
 }
 
 .archive-replay-view__header-devices-label {
   flex: 0 0 auto;
+}
+
+.archive-replay-view__header-signal-badge {
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 1.2;
+  padding: 2px 8px;
 }
 
 .archive-replay-view__controls {
@@ -913,6 +1337,29 @@ function handleScheduleSeek(positionSec: number) {
 
 .archive-replay-view__slider {
   min-width: 0;
+}
+
+.archive-replay-view__slider:deep(.q-slider__track-container--h) {
+  padding-top: 2px;
+  padding-bottom: 1px;
+}
+
+.archive-replay-view__timeline-dominant-band-bar {
+  background: #5f6b76;
+  border-radius: 999px;
+  flex: 0 0 auto;
+  height: 4px;
+  margin: 0;
+  pointer-events: none;
+}
+
+.archive-replay-view__timeline-signal-bar {
+  background: #5f6b76;
+  border-radius: 999px;
+  flex: 0 0 auto;
+  height: 4px;
+  margin: 1px 0 8px;
+  pointer-events: none;
 }
 
 .archive-replay-view__timeline {

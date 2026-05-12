@@ -102,6 +102,7 @@
     "replayControlConnecting": "Соединение с сервером ещё открывается. Replay-контролы скоро станут доступны.",
     "replayControlDisconnected": "Соединение с сервером разорвано. Воспроизведение replay недоступно, пока оно не восстановится.",
     "replayCommandUnavailable": "Не удалось отправить replay-команду. Проверьте соединение с сервером и повторите попытку.",
+    "replayStopActiveSessionBeforeReplay": "Остановите активное сканирование или сессию мониторинга перед запуском replay.",
     "replayStatusReady": "Готово",
     "replayStatusStarting": "Запуск...",
     "replayStatusPlaying": "Воспроизведение",

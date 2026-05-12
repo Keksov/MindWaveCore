@@ -784,7 +784,9 @@ export const useReplayStore = defineStore('replay', () => {
 
     session.transportActive = true
     session.startPending = false
-    session.status = 'playing'
+    if (session.status !== 'paused') {
+      session.status = 'playing'
+    }
     session.speed = event.speed
     session.cursorTimestampMs = event.cursorTimestampMs ?? session.cursorTimestampMs
   }

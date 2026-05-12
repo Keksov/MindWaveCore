@@ -102,6 +102,7 @@
     "replayControlConnecting": "Server connection is still opening. Replay controls will be available in a moment.",
     "replayControlDisconnected": "Server connection is disconnected. Replay playback is unavailable until it reconnects.",
     "replayCommandUnavailable": "Replay command could not be sent. Check the server connection and try again.",
+    "replayStopActiveSessionBeforeReplay": "Stop the active scan or monitoring session before replay",
     "replayStatusReady": "Ready",
     "replayStatusStarting": "Starting...",
     "replayStatusPlaying": "Playing",

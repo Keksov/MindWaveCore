@@ -16,6 +16,7 @@ import {
 } from "./protocol"
 
 const REPLAY_PAGE_SIZE = 500
+const REPLAY_MAX_GAP_MS = 3000
 
 type ReplayPublishedEvent = ReplayStartedEvent | ReplayStoppedEvent | ReplayPausedEvent | ReplayFinishedEvent
 type ReplaySnapshotEvent = ReplayStartedEvent | ReplayPausedEvent | ReplayFinishedEvent
@@ -258,20 +259,41 @@ export const createLogReplayManager = (
   }
 
   const waitWithCancellation = async (
+    server: ReplayPublisher,
     replayState: ActiveReplayState,
-    sourceDelayMs: number,
+    waitDelayMs: number,
+    targetTimestampMs: number,
   ): Promise<boolean> => {
-    let remainingSourceDelayMs = Math.max(0, Math.trunc(sourceDelayMs))
+    const startTimestampMs = replayState.previousTimestampMs
+    const normalizedWaitDelayMs = Math.max(0, Math.trunc(waitDelayMs))
+    const totalTimelineAdvanceMs = startTimestampMs === null
+      ? 0
+      : Math.max(0, targetTimestampMs - startTimestampMs)
+    let remainingWaitDelayMs = normalizedWaitDelayMs
 
-    while (remainingSourceDelayMs > 0) {
+    while (remainingWaitDelayMs > 0) {
       if (!await waitUntilResumedOrCancelled(replayState)) {
         return false
       }
 
       const currentSpeed = replayState.speed
-      const sleepSliceMs = Math.min(Math.max(remainingSourceDelayMs / currentSpeed, 1), 100)
+      const sleepSliceMs = Math.min(Math.max(remainingWaitDelayMs / currentSpeed, 1), 100)
       await Bun.sleep(sleepSliceMs)
-      remainingSourceDelayMs = Math.max(0, remainingSourceDelayMs - sleepSliceMs * currentSpeed)
+
+      const advancedWaitDelayMs = Math.min(remainingWaitDelayMs, sleepSliceMs * currentSpeed)
+      remainingWaitDelayMs = Math.max(0, remainingWaitDelayMs - advancedWaitDelayMs)
+
+      if (startTimestampMs !== null && normalizedWaitDelayMs > 0 && totalTimelineAdvanceMs > 0) {
+        const completedRatio = Math.max(0, Math.min(1, (normalizedWaitDelayMs - remainingWaitDelayMs) / normalizedWaitDelayMs))
+        const interpolatedTimestampMs = Math.min(
+          targetTimestampMs,
+          startTimestampMs + Math.round(totalTimelineAdvanceMs * completedRatio),
+        )
+
+        replayState.cursorTimestampMs = interpolatedTimestampMs
+        replayState.previousTimestampMs = interpolatedTimestampMs
+        publishReplayProgress(server, replayState)
+      }
     }
 
     return waitUntilResumedOrCancelled(replayState)
@@ -299,8 +321,9 @@ export const createLogReplayManager = (
 
           const eventTimestampMs = getArchivedEventTimestampMs(event)
           if (replayState.previousTimestampMs !== null && eventTimestampMs !== null) {
-            const sourceDelayMs = Math.max(0, eventTimestampMs - replayState.previousTimestampMs)
-            if (!await waitWithCancellation(replayState, sourceDelayMs)) {
+            const rawDelayMs = Math.max(0, eventTimestampMs - replayState.previousTimestampMs)
+            const waitDelayMs = Math.min(rawDelayMs, REPLAY_MAX_GAP_MS)
+            if (!await waitWithCancellation(server, replayState, waitDelayMs, eventTimestampMs)) {
               return
             }
           }
