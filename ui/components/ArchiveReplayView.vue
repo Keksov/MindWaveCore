@@ -62,8 +62,10 @@
             :scale-mode="replayScaleMode"
             :can-use-calibrated="false"
             :calibrated-tooltip="$t('monitoring.calibration.replayUnsupported')"
+            :data-source="replayDataSource"
             @update:window-sec="replayWindowSec = $event"
             @update:scale-mode="replayScaleMode = $event"
+            @update:data-source="replayDataSource = $event"
           />
 
           <q-chip dense color="blue-grey-8" text-color="blue-grey-1">
@@ -96,6 +98,7 @@
                         :anchor-timestamp-ms="displayedReplayTimestampMs"
                         :window-sec="replayWindowSec"
                         :scale-mode="replayScaleMode"
+                        :data-source="replayDataSource"
                         show-signal-badge
                       />
 
@@ -106,6 +109,7 @@
                         :anchor-timestamp-ms="displayedReplayTimestampMs"
                         :window-sec="replayWindowSec"
                         :scale-mode="replayScaleMode"
+                        :data-source="replayDataSource"
                       />
                     </template>
 
@@ -238,6 +242,7 @@
                   :anchor-timestamp-ms="displayedReplayTimestampMs"
                   :window-sec="replayWindowSec"
                   :scale-mode="replayScaleMode"
+                  :data-source="replayDataSource"
                   show-signal-badge
                 />
 
@@ -248,6 +253,7 @@
                   :anchor-timestamp-ms="displayedReplayTimestampMs"
                   :window-sec="replayWindowSec"
                   :scale-mode="replayScaleMode"
+                  :data-source="replayDataSource"
                 />
               </template>
 
@@ -358,7 +364,7 @@ import { useI18n } from 'vue-i18n'
 import type { ReplaySpeed } from '@protocol'
 import { EEG_BAND_COLORS } from '../../../BodyMonitorCore/ui/services/eeg-band-colors'
 import { EEG_BAND_KEYS, type EegBandKey } from '../../../BodyMonitorCore/ui/services/eeg-band-snapshot'
-import type { EegBandScaleMode } from '../../../BodyMonitorCore/ui/stores/preferences'
+import type { EegBandScaleMode, EegDataSource } from '../../../BodyMonitorCore/ui/stores/preferences'
 import { usePreferencesStore } from '../../../BodyMonitorCore/ui/stores/preferences'
 import { hasLogChartData } from '../../../SharedPasCore/ts/log-chart'
 import { wsService } from 'src/services/ws'
@@ -397,6 +403,7 @@ const replayWindowSec = ref<number>(_preferences.eegBandWindowSec)
 const replayScaleMode = ref<EegBandScaleMode>(
   _preferences.eegBandScaleMode === 'calibrated' ? 'normalized' : _preferences.eegBandScaleMode,
 )
+const replayDataSource = ref<EegDataSource>(_preferences.eegDataSource)
 
 const REPLAY_SPLIT_STORAGE_KEY = 'archive-replay-split-px'
 const REPLAY_SPLIT_DEFAULT = 400
@@ -889,7 +896,10 @@ const eegBandSeriesByKey = computed<TimelineEegSeriesByBand>(() => {
     }),
   ) as TimelineEegSeriesByBand
 })
-const showTimelineDominantBandBar = computed(() => hasEegData.value)
+const hasThinkGearBandData = computed(() =>
+  EEG_BAND_KEYS.some((bandKey) => eegBandSeriesByKey.value[bandKey].length > 0),
+)
+const showTimelineDominantBandBar = computed(() => replayDataSource.value === 'bands' && hasThinkGearBandData.value)
 const timelineDominantBandBarStyle = computed<Record<string, string>>(() => ({
   background: buildTimelineDominantBandGradient(
     eegBandSeriesByKey.value,

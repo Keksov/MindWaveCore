@@ -3,6 +3,7 @@ import {
   LOG_CHART_SERIES_META,
   LOG_CHART_SERIES_ORDER,
   getRuntimeEventTimestampMs,
+  parseAlgoBandPowerEvent,
   parseBreathPhaseEvent,
   parseHrNotificationEvent,
   parseSnapshotEvent,
@@ -122,6 +123,36 @@ const appendSnapshotEvent = (
   return true
 }
 
+const appendAlgoBandEvent = (
+  buckets: Record<LogChartSeriesKey, LogChartPoint[]>,
+  range: TimestampRange,
+  timestampMs: number,
+  parsedJson: unknown,
+): boolean => {
+  const algoBandEvent = parseAlgoBandPowerEvent(parsedJson)
+  if (algoBandEvent === null) {
+    return false
+  }
+
+  if (algoBandEvent.delta !== undefined) {
+    appendPoint(buckets, range, "bpDelta", [timestampMs, algoBandEvent.delta])
+  }
+  if (algoBandEvent.theta !== undefined) {
+    appendPoint(buckets, range, "bpTheta", [timestampMs, algoBandEvent.theta])
+  }
+  if (algoBandEvent.alpha !== undefined) {
+    appendPoint(buckets, range, "bpAlpha", [timestampMs, algoBandEvent.alpha])
+  }
+  if (algoBandEvent.beta !== undefined) {
+    appendPoint(buckets, range, "bpBeta", [timestampMs, algoBandEvent.beta])
+  }
+  if (algoBandEvent.gamma !== undefined) {
+    appendPoint(buckets, range, "bpGamma", [timestampMs, algoBandEvent.gamma])
+  }
+
+  return true
+}
+
 const toChartSeries = (buckets: Record<LogChartSeriesKey, LogChartPoint[]>): readonly LogChartSeries[] => {
   return LOG_CHART_SERIES_ORDER
     .filter((key) => buckets[key].length > 0)
@@ -161,7 +192,11 @@ export const buildArchivedLogChartData = (
       continue
     }
 
-    void appendSnapshotEvent(buckets, range, timestampMs, parsedJson)
+    if (appendSnapshotEvent(buckets, range, timestampMs, parsedJson)) {
+      continue
+    }
+
+    void appendAlgoBandEvent(buckets, range, timestampMs, parsedJson)
   }
 
   return {
