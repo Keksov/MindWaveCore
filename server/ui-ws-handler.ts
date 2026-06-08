@@ -16,6 +16,20 @@ export interface UiWsContext {
   readonly archiveStore: LogArchiveStore
   readonly replayManager: LogReplayManager
   readonly replayPublisher: ReplayPublisher
+  readonly scheduleWatcher: { watch(filePath: string): void; unwatch(filePath: string): void }
+}
+
+const socketWatchedPath = new Map<ServerWebSocket<UiSocketData>, string>()
+
+export const handleUiClose = (
+  aSocket: ServerWebSocket<UiSocketData>,
+  aContext: UiWsContext,
+): void => {
+  const watchedPath = socketWatchedPath.get(aSocket)
+  if (watchedPath !== undefined) {
+    aContext.scheduleWatcher.unwatch(watchedPath)
+    socketWatchedPath.delete(aSocket)
+  }
 }
 
 const sendUiError = (aSocket: ServerWebSocket<UiSocketData>, aMessage: string): void => {
@@ -147,6 +161,19 @@ export const handleUiMessage = async (
 
       if (parsed.type === "audio_sleep_drowse_stop") {
         aContext.audioSession.stop()
+        return
+      }
+
+      if (parsed.type === "audio_subscribe_schedule") {
+        const previousPath = socketWatchedPath.get(aSocket)
+        if (previousPath !== undefined) {
+          aContext.scheduleWatcher.unwatch(previousPath)
+          socketWatchedPath.delete(aSocket)
+        }
+        if (parsed.filePath !== null) {
+          aContext.scheduleWatcher.watch(parsed.filePath)
+          socketWatchedPath.set(aSocket, parsed.filePath)
+        }
         return
       }
     } catch (error) {

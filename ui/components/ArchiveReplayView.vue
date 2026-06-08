@@ -362,8 +362,8 @@
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ReplaySpeed } from '@protocol'
-import { EEG_BAND_COLORS } from '../../../BodyMonitorCore/ui/services/eeg-band-colors'
-import { EEG_BAND_KEYS, type EegBandKey } from '../../../BodyMonitorCore/ui/services/eeg-band-snapshot'
+import { COMBINED_EEG_BAND_COLORS, EEG_BAND_COLORS } from '../../../BodyMonitorCore/ui/services/eeg-band-colors'
+import { ALGO_BP_KEYS, EEG_BAND_KEYS, type AlgoBpKey, type EegBandKey } from '../../../BodyMonitorCore/ui/services/eeg-band-snapshot'
 import type { EegDataCorrection, EegDataSource } from '../../../BodyMonitorCore/ui/stores/preferences'
 import { usePreferencesStore } from '../../../BodyMonitorCore/ui/stores/preferences'
 import { hasLogChartData } from '../../../SharedPasCore/ts/log-chart'
@@ -424,7 +424,17 @@ const replayErrorTranslationKeys = new Map<string, string>([
 ])
 
 type TimelineSignalPoint = readonly [timestampMs: number, value: number]
-type TimelineEegSeriesByBand = Record<EegBandKey, readonly TimelineSignalPoint[]>
+type TimelineSeriesByKey<Key extends string> = Record<Key, readonly TimelineSignalPoint[]>
+type TimelineEegSeriesByBand = TimelineSeriesByKey<EegBandKey>
+type TimelineAlgoBpSeriesByBand = TimelineSeriesByKey<AlgoBpKey>
+
+const ALGO_BP_TIMELINE_COLORS: Record<AlgoBpKey, string> = {
+  bpDelta: COMBINED_EEG_BAND_COLORS.delta,
+  bpTheta: COMBINED_EEG_BAND_COLORS.theta,
+  bpAlpha: COMBINED_EEG_BAND_COLORS.alpha,
+  bpBeta: COMBINED_EEG_BAND_COLORS.beta,
+  bpGamma: COMBINED_EEG_BAND_COLORS.gamma,
+}
 
 function interpolateHexColor(startHex: string, endHex: string, ratio: number): string {
   const normalizedRatio = Math.max(0, Math.min(1, ratio))
@@ -503,15 +513,16 @@ function getLatestPointValueAtTimestamp(
   return points[0]?.[1] ?? null
 }
 
-function resolveDominantEegBandAtTimestamp(
-  seriesByBand: Readonly<TimelineEegSeriesByBand>,
+function resolveDominantSeriesAtTimestamp<Key extends string>(
+  keys: readonly Key[],
+  seriesByKey: Readonly<TimelineSeriesByKey<Key>>,
   anchorTimestampMs: number,
-): EegBandKey | null {
-  let dominantBand: EegBandKey | null = null
+): Key | null {
+  let dominantBand: Key | null = null
   let dominantValue = Number.NEGATIVE_INFINITY
 
-  for (const bandKey of EEG_BAND_KEYS) {
-    const value = getLatestPointValueAtTimestamp(seriesByBand[bandKey], anchorTimestampMs)
+  for (const bandKey of keys) {
+    const value = getLatestPointValueAtTimestamp(seriesByKey[bandKey], anchorTimestampMs)
     if (value === null || !Number.isFinite(value)) {
       continue
     }
@@ -625,7 +636,37 @@ function buildTimelineDominantBandGradient(
   minTimestampMs: number,
   maxTimestampMs: number,
 ): string {
-  const hasBandPoints = EEG_BAND_KEYS.some((bandKey) => seriesByBand[bandKey].length > 0)
+  return buildTimelineDominantSeriesGradient(
+    EEG_BAND_KEYS,
+    seriesByBand,
+    EEG_BAND_COLORS,
+    minTimestampMs,
+    maxTimestampMs,
+  )
+}
+
+function buildTimelineDominantAlgoBpGradient(
+  seriesByBand: Readonly<TimelineAlgoBpSeriesByBand>,
+  minTimestampMs: number,
+  maxTimestampMs: number,
+): string {
+  return buildTimelineDominantSeriesGradient(
+    ALGO_BP_KEYS,
+    seriesByBand,
+    ALGO_BP_TIMELINE_COLORS,
+    minTimestampMs,
+    maxTimestampMs,
+  )
+}
+
+function buildTimelineDominantSeriesGradient<Key extends string>(
+  keys: readonly Key[],
+  seriesByKey: Readonly<TimelineSeriesByKey<Key>>,
+  colorByKey: Readonly<Record<Key, string>>,
+  minTimestampMs: number,
+  maxTimestampMs: number,
+): string {
+  const hasBandPoints = keys.some((bandKey) => seriesByKey[bandKey].length > 0)
   if (!hasBandPoints) {
     return TIMELINE_SIGNAL_NEUTRAL_COLOR
   }
@@ -637,23 +678,23 @@ function buildTimelineDominantBandGradient(
   const durationMs = safeMaxTimestampMs - safeMinTimestampMs
 
   if (durationMs <= 0) {
-    const dominantBand = resolveDominantEegBandAtTimestamp(seriesByBand, safeMaxTimestampMs)
-    return dominantBand === null ? TIMELINE_SIGNAL_NEUTRAL_COLOR : EEG_BAND_COLORS[dominantBand]
+    const dominantBand = resolveDominantSeriesAtTimestamp(keys, seriesByKey, safeMaxTimestampMs)
+    return dominantBand === null ? TIMELINE_SIGNAL_NEUTRAL_COLOR : colorByKey[dominantBand]
   }
 
   const segments: Array<{ color: string, startPercent: number, endPercent: number }> = []
   const pointIndices = Object.fromEntries(
-    EEG_BAND_KEYS.map((bandKey) => [bandKey, 0]),
-  ) as Record<EegBandKey, number>
+    keys.map((bandKey) => [bandKey, 0]),
+  ) as Record<Key, number>
   const activeValues = Object.fromEntries(
-    EEG_BAND_KEYS.map((bandKey) => [bandKey, null]),
-  ) as Record<EegBandKey, number | null>
+    keys.map((bandKey) => [bandKey, null]),
+  ) as Record<Key, number | null>
 
   for (let sampleIndex = 0; sampleIndex < TIMELINE_SIGNAL_SAMPLE_COUNT; sampleIndex += 1) {
     const sampleTimestampMs = safeMinTimestampMs + (((sampleIndex + 0.5) / TIMELINE_SIGNAL_SAMPLE_COUNT) * durationMs)
 
-    for (const bandKey of EEG_BAND_KEYS) {
-      const points = seriesByBand[bandKey]
+    for (const bandKey of keys) {
+      const points = seriesByKey[bandKey]
       let pointIndex = pointIndices[bandKey]
       while (pointIndex < points.length && points[pointIndex][0] <= sampleTimestampMs) {
         activeValues[bandKey] = points[pointIndex][1]
@@ -662,9 +703,9 @@ function buildTimelineDominantBandGradient(
       pointIndices[bandKey] = pointIndex
     }
 
-    let dominantBand: EegBandKey | null = null
+    let dominantBand: Key | null = null
     let dominantValue = Number.NEGATIVE_INFINITY
-    for (const bandKey of EEG_BAND_KEYS) {
+    for (const bandKey of keys) {
       const value = activeValues[bandKey]
       if (value === null || !Number.isFinite(value)) {
         continue
@@ -678,7 +719,7 @@ function buildTimelineDominantBandGradient(
 
     const color = dominantBand === null
       ? TIMELINE_SIGNAL_NEUTRAL_COLOR
-      : EEG_BAND_COLORS[dominantBand]
+      : colorByKey[dominantBand]
     const startPercent = (sampleIndex / TIMELINE_SIGNAL_SAMPLE_COUNT) * 100
     const endPercent = ((sampleIndex + 1) / TIMELINE_SIGNAL_SAMPLE_COUNT) * 100
     const previousSegment = segments[segments.length - 1]
@@ -896,16 +937,40 @@ const eegBandSeriesByKey = computed<TimelineEegSeriesByBand>(() => {
     }),
   ) as TimelineEegSeriesByBand
 })
+const algoBpSeriesByKey = computed<TimelineAlgoBpSeriesByBand>(() => {
+  const seriesEntries = chartData.value?.series ?? []
+  return Object.fromEntries(
+    ALGO_BP_KEYS.map((bandKey) => {
+      const bandSeries = seriesEntries.find((series) => series.key === bandKey)
+      return [bandKey, (bandSeries?.points ?? []) as readonly TimelineSignalPoint[]]
+    }),
+  ) as TimelineAlgoBpSeriesByBand
+})
 const hasThinkGearBandData = computed(() =>
   EEG_BAND_KEYS.some((bandKey) => eegBandSeriesByKey.value[bandKey].length > 0),
 )
-const showTimelineDominantBandBar = computed(() => replayDataSource.value === 'bands' && hasThinkGearBandData.value)
+const hasAlgoBpBandData = computed(() =>
+  ALGO_BP_KEYS.some((bandKey) => algoBpSeriesByKey.value[bandKey].length > 0),
+)
+const showTimelineDominantBandBar = computed(() => {
+  if (replayDataSource.value === 'algo-bp') {
+    return hasAlgoBpBandData.value
+  }
+
+  return hasThinkGearBandData.value
+})
 const timelineDominantBandBarStyle = computed<Record<string, string>>(() => ({
-  background: buildTimelineDominantBandGradient(
-    eegBandSeriesByKey.value,
-    replayTimeSliderMinTimestampMs.value,
-    replayTimeSliderMaxTimestampMs.value,
-  ),
+  background: replayDataSource.value === 'algo-bp'
+    ? buildTimelineDominantAlgoBpGradient(
+        algoBpSeriesByKey.value,
+        replayTimeSliderMinTimestampMs.value,
+        replayTimeSliderMaxTimestampMs.value,
+      )
+    : buildTimelineDominantBandGradient(
+        eegBandSeriesByKey.value,
+        replayTimeSliderMinTimestampMs.value,
+        replayTimeSliderMaxTimestampMs.value,
+      ),
 }))
 const poorSignalSeries = computed(() => chartData.value?.series.find((series) => series.key === 'poorSignal') ?? null)
 const showTimelineSignalBar = computed(() => poorSignalSeries.value?.points.length !== undefined && poorSignalSeries.value.points.length > 0)

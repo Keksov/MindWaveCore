@@ -50,6 +50,9 @@ export function ensureDefaultWsHandlersRegistered(): void {
       case 'audio_schedule_loaded':
         audio.handleScheduleLoaded(event)
         return true
+      case 'audio_schedule_changed':
+        audio.handleScheduleChanged(event)
+        return true
     }
 
     return false

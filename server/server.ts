@@ -23,7 +23,8 @@ import { createLogReplayManager } from "./log-replay"
 import { createPublishCallbacks } from "./publish"
 import type { AudioFileKind, AudioPresetsResponse, AudioServerEvent, AudioSettings, GnauralScheduleData, PresetTreeNode } from "./protocol"
 import { isRecord, toJson } from "./protocol"
-import { handleUiMessage, handleUiOpen, type UiSocketData } from "./ui-ws-handler"
+import { handleUiClose, handleUiMessage, handleUiOpen, type UiSocketData } from "./ui-ws-handler"
+import { createScheduleWatcher } from "../../GnauralCore/server/schedule-watcher"
 
 type SocketData = UiSocketData
 
@@ -333,7 +334,11 @@ const createCachedAudioOutput = async (
     return targetFilePath
   }
 
-  const tempFilePath = `${targetFilePath}.${process.pid}.${randomUUID()}.tmp`
+  const targetExt = extname(targetFilePath)
+  const tempFilePath = join(
+    dirname(targetFilePath),
+    `${basename(targetFilePath, targetExt)}.${process.pid}.${randomUUID()}.tmp${targetExt}`,
+  )
 
   let child: Subprocess<"ignore", "pipe", "pipe">
   try {
@@ -1015,6 +1020,12 @@ const publishAudioEvent = (aEvent: AudioServerEvent): void => {
   server.publish("ui", toJson(aEvent))
 }
 
+const scheduleWatcher = createScheduleWatcher((filePath) => {
+  publishAudioEvent({ type: "audio_schedule_changed", filePath })
+})
+
+let sessionWatchedPath: string | null = null
+
 const disposeAudioSession = async (): Promise<void> => {
   if (audioSessionDisposePromise !== null) {
     return audioSessionDisposePromise
@@ -1024,6 +1035,8 @@ const disposeAudioSession = async (): Promise<void> => {
     const message = error instanceof Error ? error.message : "Failed to dispose audio session"
     console.error(`[server] ${message}`)
   })
+
+  scheduleWatcher.dispose()
 
   await audioSessionDisposePromise
 }
@@ -1716,6 +1729,19 @@ gnauralSession = createGnauralSession(runtimeDir, {
           archiveStore.noteAudioScheduleContent(logSessionId, rewriteGnauralXml(xmlContent, aEvent.schedule))
         }).catch(() => undefined)
       }
+
+      if (sessionWatchedPath !== null) {
+        scheduleWatcher.unwatch(sessionWatchedPath)
+      }
+      sessionWatchedPath = aEvent.filePath
+      scheduleWatcher.watch(sessionWatchedPath)
+    }
+
+    if (aEvent.type === "audio_status" && aEvent.transportState === "idle") {
+      if (sessionWatchedPath !== null) {
+        scheduleWatcher.unwatch(sessionWatchedPath)
+        sessionWatchedPath = null
+      }
     }
 
     publishAudioEvent(aEvent)
@@ -1750,6 +1776,7 @@ server = Bun.serve<SocketData>({
         archiveStore,
         replayManager,
         replayPublisher: server,
+        scheduleWatcher,
       })
     },
     async message(aSocket, aMessage) {
@@ -1759,6 +1786,16 @@ server = Bun.serve<SocketData>({
         archiveStore,
         replayManager,
         replayPublisher: server,
+        scheduleWatcher,
+      })
+    },
+    close(aSocket) {
+      handleUiClose(aSocket, {
+        audioSession: gnauralSession,
+        archiveStore,
+        replayManager,
+        replayPublisher: server,
+        scheduleWatcher,
       })
     }
   }
