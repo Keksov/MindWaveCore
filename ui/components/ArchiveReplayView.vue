@@ -1,7 +1,6 @@
 <template>
   <div class="archive-replay-view">
-    <q-card flat bordered class="archive-replay-view__card column no-wrap">
-      <q-card-section class="row items-center justify-between q-col-gutter-md archive-replay-view__header-row">
+    <div class="row items-center justify-between q-col-gutter-md q-px-md q-py-md archive-replay-view__header-row">
         <div class="col min-w-0">
           <div class="text-subtitle1 ellipsis" :title="sessionTitle">
             {{ sessionTitle }}
@@ -73,11 +72,11 @@
           </q-chip>
           <q-btn flat dense icon="close" :label="$t('common.closeAction')" @click="emitClose" />
         </div>
-      </q-card-section>
+    </div>
 
-      <q-separator />
+    <q-separator />
 
-      <q-card-section class="archive-replay-view__split-section q-pa-none">
+    <div class="archive-replay-view__split-section">
         <div v-if="hasSchedule" class="archive-replay-view__splitter-container" ref="splitterContainerEl">
           <q-splitter
             horizontal
@@ -87,29 +86,53 @@
             :limits="splitterLimits"
           >
             <template #before>
-              <div class="archive-replay-view__pane archive-replay-view__pane--chart q-pa-md">
+              <div class="archive-replay-view__pane archive-replay-view__pane--chart q-pa-xs">
                 <div class="archive-replay-view__chart-section">
                   <template v-if="hasChartData && chartData !== null">
                     <template v-if="isStandaloneEegMode && hasEegData">
                       <eeg-current-readings-chart
                         v-if="replayEegMode === 'bands'"
+                        ref="eegBandsChartRef"
                         class="archive-replay-view__chart"
                         :data="chartData"
                         :anchor-timestamp-ms="displayedReplayTimestampMs"
                         :window-sec="replayWindowSec"
                         :data-correction="replayDataCorrection"
                         :data-source="replayDataSource"
+                        :ui-state-scope="scheduleScope"
+                        :show-side-panel-open-button="false"
                         show-signal-badge
                       />
 
                       <eeg-radar-chart
-                        v-else
+                        v-else-if="replayEegMode === 'radar'"
+                        ref="eegRadarChartRef"
                         class="archive-replay-view__chart"
                         :data="chartData"
                         :anchor-timestamp-ms="displayedReplayTimestampMs"
                         :window-sec="replayWindowSec"
                         :data-correction="replayDataCorrection"
                         :data-source="replayDataSource"
+                        :ui-state-scope="scheduleScope"
+                        :show-side-panel-open-button="false"
+                      />
+
+                      <eeg-line-timeline-chart
+                        v-else
+                        ref="eegLineChartRef"
+                        class="archive-replay-view__chart"
+                        :data="chartData"
+                        :anchor-timestamp-ms="displayedReplayTimestampMs"
+                        :window-sec="replayWindowSec"
+                        :data-correction="replayDataCorrection"
+                        :data-source="replayDataSource"
+                        :timeline-start-timestamp-ms="replayTimelineStartTimestampMs"
+                        :timeline-duration-sec="replayTimelineDurationSec"
+                        :time-viewport-start-sec="replayTimeViewportStartSec"
+                        :time-viewport-end-sec="replayTimeViewportEndSec"
+                        :ui-state-scope="scheduleScope"
+                        :show-side-panel-open-button="false"
+                        @update:time-viewport="handleReplayTimeViewportUpdate"
                       />
                     </template>
 
@@ -207,12 +230,27 @@
                       </div>
                     </div>
                   </div>
+
+                  <div v-if="showTimelineEegSettingsButton" class="col-auto">
+                    <q-btn
+                      dense
+                      round
+                      size="xs"
+                      color="primary"
+                      text-color="white"
+                      icon="settings"
+                      class="archive-replay-view__timeline-settings-button"
+                      :aria-label="$t('monitoring.eegLine.openPanel')"
+                      :title="$t('monitoring.eegLine.openPanel')"
+                      @click="openActiveEegSidePanel"
+                    />
+                  </div>
                 </div>
               </div>
             </template>
 
             <template #after>
-              <div class="archive-replay-view__pane archive-replay-view__pane--schedule q-pa-md">
+              <div class="archive-replay-view__pane archive-replay-view__pane--schedule">
                 <div ref="scheduleSectionEl" class="archive-replay-view__schedule-section">
                   <gnaural-schedule-view
                     class="archive-replay-view__schedule"
@@ -222,8 +260,11 @@
                     :transport-state="scheduleTransportState"
                     :track-state-busy="true"
                     :can-seek="scheduleCanSeek"
+                    :time-viewport-start-sec="replayTimeViewportStartSec"
+                    :time-viewport-end-sec="replayTimeViewportEndSec"
                     :ui-state-scope="scheduleScope"
                     @seek="handleScheduleSeek"
+                    @update:time-viewport="handleReplayTimeViewportUpdate"
                   />
                 </div>
               </div>
@@ -231,29 +272,53 @@
           </q-splitter>
         </div>
 
-        <div v-else class="archive-replay-view__pane archive-replay-view__pane--chart q-pa-md">
+        <div v-else class="archive-replay-view__pane archive-replay-view__pane--chart q-pa-xs">
           <div class="archive-replay-view__chart-section">
             <template v-if="hasChartData && chartData !== null">
               <template v-if="isStandaloneEegMode && hasEegData">
                 <eeg-current-readings-chart
                   v-if="replayEegMode === 'bands'"
+                  ref="eegBandsChartRef"
                   class="archive-replay-view__chart"
                   :data="chartData"
                   :anchor-timestamp-ms="displayedReplayTimestampMs"
                   :window-sec="replayWindowSec"
                   :data-correction="replayDataCorrection"
                   :data-source="replayDataSource"
+                  :ui-state-scope="scheduleScope"
+                  :show-side-panel-open-button="false"
                   show-signal-badge
                 />
 
                 <eeg-radar-chart
-                  v-else
+                  v-else-if="replayEegMode === 'radar'"
+                  ref="eegRadarChartRef"
                   class="archive-replay-view__chart"
                   :data="chartData"
                   :anchor-timestamp-ms="displayedReplayTimestampMs"
                   :window-sec="replayWindowSec"
                   :data-correction="replayDataCorrection"
                   :data-source="replayDataSource"
+                  :ui-state-scope="scheduleScope"
+                  :show-side-panel-open-button="false"
+                />
+
+                <eeg-line-timeline-chart
+                  v-else
+                  ref="eegLineChartRef"
+                  class="archive-replay-view__chart"
+                  :data="chartData"
+                  :anchor-timestamp-ms="displayedReplayTimestampMs"
+                  :window-sec="replayWindowSec"
+                  :data-correction="replayDataCorrection"
+                  :data-source="replayDataSource"
+                  :timeline-start-timestamp-ms="replayTimelineStartTimestampMs"
+                  :timeline-duration-sec="replayTimelineDurationSec"
+                  :time-viewport-start-sec="replayTimeViewportStartSec"
+                  :time-viewport-end-sec="replayTimeViewportEndSec"
+                  :ui-state-scope="scheduleScope"
+                  :show-side-panel-open-button="false"
+                  @update:time-viewport="handleReplayTimeViewportUpdate"
                 />
               </template>
 
@@ -351,10 +416,24 @@
                 </div>
               </div>
             </div>
+
+            <div v-if="showTimelineEegSettingsButton" class="col-auto">
+              <q-btn
+                dense
+                round
+                size="xs"
+                color="primary"
+                text-color="white"
+                icon="settings"
+                class="archive-replay-view__timeline-settings-button"
+                :aria-label="$t('monitoring.eegLine.openPanel')"
+                :title="$t('monitoring.eegLine.openPanel')"
+                @click="openActiveEegSidePanel"
+              />
+            </div>
           </div>
         </div>
-      </q-card-section>
-    </q-card>
+    </div>
   </div>
 </template>
 
@@ -373,6 +452,7 @@ import { useReplayStore } from 'stores/replay'
 const DeviceDataChart = defineAsyncComponent(() => import('../../../BodyMonitorCore/ui/components/DeviceDataChart.vue'))
 const EegRadarChart = defineAsyncComponent(() => import('../../../BodyMonitorCore/ui/components/EegRadarChart.vue'))
 const EegCurrentReadingsChart = defineAsyncComponent(() => import('../../../BodyMonitorCore/ui/components/EegCurrentReadingsChart.vue'))
+const EegLineTimelineChart = defineAsyncComponent(() => import('../../../BodyMonitorCore/ui/components/EegLineTimelineChart.vue'))
 const EegChartSettingsBar = defineAsyncComponent(() => import('../../../BodyMonitorCore/ui/components/EegChartSettingsBar.vue'))
 const GnauralScheduleView = defineAsyncComponent(() => import('../../../GnauralCore/ui/components/GnauralScheduleView.vue'))
 
@@ -389,7 +469,12 @@ const { t } = useI18n()
 
 const _preferences = usePreferencesStore()
 
-type ReplayEegMode = 'bands' | 'radar'
+type ReplayEegMode = 'bands' | 'radar' | 'line'
+
+interface TimeViewportPayload {
+  readonly startSec: number
+  readonly endSec: number
+}
 
 interface EegModeOption {
   readonly value: ReplayEegMode
@@ -397,13 +482,35 @@ interface EegModeOption {
   readonly tooltip: string
 }
 
+interface EegSidePanelController {
+  readonly openSidePanel?: () => void
+  readonly closeSidePanel?: () => void
+  readonly isSidePanelVisible?: () => boolean
+}
+
+function parseReplayEegMode(value: string | null): ReplayEegMode {
+  if (value === 'bands' || value === 'radar' || value === 'line') {
+    return value
+  }
+
+  return 'radar'
+}
+
 const replaySpeedOptions = [1, 2, 4, 10] as const
-const replayEegMode = ref<ReplayEegMode>('radar')
+const REPLAY_EEG_MODE_STORAGE_KEY = 'archive-replay-eeg-mode'
+const replayEegMode = ref<ReplayEegMode>(
+  parseReplayEegMode(localStorage.getItem(REPLAY_EEG_MODE_STORAGE_KEY)),
+)
 const replayWindowSec = ref<number>(_preferences.eegBandWindowSec)
 const replayDataCorrection = ref<EegDataCorrection>(
   _preferences.eegDataCorrection === 'calibrated' ? 'raw' : _preferences.eegDataCorrection,
 )
 const replayDataSource = ref<EegDataSource>(_preferences.eegDataSource)
+const replayTimeViewportStartSec = ref<number | null>(null)
+const replayTimeViewportEndSec = ref<number | null>(null)
+const eegBandsChartRef = ref<EegSidePanelController | null>(null)
+const eegRadarChartRef = ref<EegSidePanelController | null>(null)
+const eegLineChartRef = ref<EegSidePanelController | null>(null)
 
 const REPLAY_SPLIT_STORAGE_KEY = 'archive-replay-split-px'
 const REPLAY_SPLIT_DEFAULT = 400
@@ -749,6 +856,9 @@ const storedReplaySplitPx = parseFloat(
 const replaySplitPx = ref(
   Number.isFinite(storedReplaySplitPx) ? storedReplaySplitPx : REPLAY_SPLIT_DEFAULT,
 )
+watch(replayEegMode, (value) => {
+  localStorage.setItem(REPLAY_EEG_MODE_STORAGE_KEY, value)
+})
 watch(replaySplitPx, (value) => {
   if (!Number.isFinite(value)) {
     replaySplitPx.value = REPLAY_SPLIT_DEFAULT
@@ -811,7 +921,7 @@ function readTimelineRightInsetPx(): number {
 }
 
 function updateTimelineAlignmentInset(): void {
-  timelineRightInsetPx.value = readTimelineRightInsetPx()
+  timelineRightInsetPx.value = 0; //readTimelineRightInsetPx()
 }
 
 function reconnectTimelineAlignmentObservers(): void {
@@ -982,10 +1092,29 @@ const timelineSignalBarStyle = computed<Record<string, string>>(() => ({
   ),
 }))
 const isStandaloneEegMode = true
+const showTimelineEegSettingsButton = computed(() => {
+  return hasEegData.value && isStandaloneEegMode
+})
+
+function openActiveEegSidePanel(): void {
+  const activeController = replayEegMode.value === 'bands'
+    ? eegBandsChartRef.value
+    : replayEegMode.value === 'radar'
+      ? eegRadarChartRef.value
+      : eegLineChartRef.value
+
+  if (activeController?.isSidePanelVisible?.() === true) {
+    activeController.closeSidePanel?.()
+    return
+  }
+
+  activeController?.openSidePanel?.()
+}
 
 const eegModeOptions = computed<EegModeOption[]>(() => [
   { value: 'bands', icon: 'bar_chart', tooltip: t('monitoring.eegMode.bands') },
   { value: 'radar', icon: 'radar', tooltip: t('monitoring.eegMode.radar') },
+  { value: 'line', icon: 'show_chart', tooltip: t('monitoring.eegMode.line') },
 ])
 
 const replayTimeSliderMinTimestampMs = computed(() => {
@@ -1059,6 +1188,25 @@ const currentSchedule = computed(() => session.value?.audioSchedule ?? null)
 const hasSchedule = computed(() => currentSchedule.value !== null)
 const scheduleScope = computed(() => `archive-replay-${props.sessionId}`)
 
+const replayTimelineDurationSec = computed<number | null>(() => {
+  const minTimestampMs = replayTimeSliderMinTimestampMs.value
+  const maxTimestampMs = replayTimeSliderMaxTimestampMs.value
+  if (!Number.isFinite(minTimestampMs) || !Number.isFinite(maxTimestampMs) || maxTimestampMs <= minTimestampMs) {
+    return null
+  }
+
+  return (maxTimestampMs - minTimestampMs) / 1000
+})
+
+const replayTimelineStartTimestampMs = computed<number | null>(() => {
+  const minTimestampMs = replayTimeSliderMinTimestampMs.value
+  if (!Number.isFinite(minTimestampMs)) {
+    return null
+  }
+
+  return minTimestampMs
+})
+
 watch(
   [scheduleSectionEl, hasSchedule],
   async ([sectionEl, scheduleAvailable]) => {
@@ -1066,6 +1214,8 @@ watch(
       timelineAlignmentResizeObserver?.disconnect()
       timelineAlignmentMutationObserver?.disconnect()
       timelineRightInsetPx.value = 0
+      replayTimeViewportStartSec.value = null
+      replayTimeViewportEndSec.value = null
       return
     }
 
@@ -1089,6 +1239,47 @@ const schedulePositionSec = computed(() => {
   }
   return elapsedSec % singleLoopDurationSec
 })
+
+function normalizeReplayTimeViewport(viewport: TimeViewportPayload): TimeViewportPayload | null {
+  const durationSec = replayTimelineDurationSec.value
+  if (durationSec === null || !Number.isFinite(viewport.startSec) || !Number.isFinite(viewport.endSec)) {
+    return null
+  }
+
+  const minViewportSec = 0.2
+  const maxStartSec = Math.max(0, durationSec - minViewportSec)
+  const clampedStartSec = Math.max(0, Math.min(viewport.startSec, maxStartSec))
+  const clampedEndSec = Math.min(
+    Math.max(viewport.endSec, clampedStartSec + minViewportSec),
+    durationSec,
+  )
+
+  return {
+    startSec: clampedStartSec,
+    endSec: clampedEndSec,
+  }
+}
+
+function handleReplayTimeViewportUpdate(viewport: TimeViewportPayload): void {
+  const normalizedViewport = normalizeReplayTimeViewport(viewport)
+  if (normalizedViewport === null) {
+    return
+  }
+
+  const currentStartSec = replayTimeViewportStartSec.value
+  const currentEndSec = replayTimeViewportEndSec.value
+  if (
+    currentStartSec !== null
+    && currentEndSec !== null
+    && Math.abs(currentStartSec - normalizedViewport.startSec) < 0.0001
+    && Math.abs(currentEndSec - normalizedViewport.endSec) < 0.0001
+  ) {
+    return
+  }
+
+  replayTimeViewportStartSec.value = normalizedViewport.startSec
+  replayTimeViewportEndSec.value = normalizedViewport.endSec
+}
 
 const scheduleTransportState = computed(() => {
   return session.value?.status === 'playing' ? 'playing' : 'paused'
@@ -1318,15 +1509,6 @@ function handleScheduleSeek(positionSec: number) {
   overflow: hidden;
 }
 
-.archive-replay-view__card {
-  background: rgba(15, 23, 42, 0.32);
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  min-height: 0;
-  overflow: hidden;
-}
-
 .archive-replay-view__split-section {
   display: flex;
   flex: 1 1 0;
@@ -1456,6 +1638,12 @@ function handleScheduleSeek(positionSec: number) {
   justify-content: space-between;
   line-height: 1;
   transform: translateY(-45%);
+}
+
+.archive-replay-view__timeline-settings-button {
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  min-height: 34px;
+  min-width: 34px;
 }
 
 .archive-replay-view__device-list {

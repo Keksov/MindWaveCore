@@ -357,13 +357,44 @@ import { useLogArchiveStore } from 'stores/log-archive'
 import { useReplayStore } from 'stores/replay'
 
 const SESSIONS_TAB = 'sessions'
+const ARCHIVE_ACTIVE_TAB_STORAGE_KEY = 'archive-page-active-tab'
 
 const { t } = useI18n()
 const $q = useQuasar()
 const archive = useLogArchiveStore()
 const replay = useReplayStore()
 
-const activeTab = ref<string>(SESSIONS_TAB)
+function loadStoredActiveTab(): string {
+  try {
+    const storedValue = localStorage.getItem(ARCHIVE_ACTIVE_TAB_STORAGE_KEY)
+    if (storedValue === null || storedValue === '') {
+      return SESSIONS_TAB
+    }
+
+    if (storedValue === SESSIONS_TAB) {
+      return SESSIONS_TAB
+    }
+
+    const replaySessionId = parseReplaySessionIdFromTab(storedValue)
+    if (replaySessionId === null) {
+      return SESSIONS_TAB
+    }
+
+    return storedValue
+  } catch {
+    return SESSIONS_TAB
+  }
+}
+
+function saveStoredActiveTab(tabName: string): void {
+  try {
+    localStorage.setItem(ARCHIVE_ACTIVE_TAB_STORAGE_KEY, tabName)
+  } catch {
+    // Ignore localStorage failures.
+  }
+}
+
+const activeTab = ref<string>(loadStoredActiveTab())
 const searchText = ref('')
 const retentionInput = ref(archive.retentionDays)
 const draftNames = ref<Record<number, string>>({})
@@ -864,6 +895,8 @@ watch(
 )
 
 watch(activeTab, (nextTab, previousTab) => {
+  saveStoredActiveTab(nextTab)
+
   const previousSessionId = parseReplaySessionIdFromTab(previousTab)
   const nextSessionId = parseReplaySessionIdFromTab(nextTab)
 
@@ -889,6 +922,7 @@ watch(
       activeTab.value = SESSIONS_TAB
     }
   },
+  { immediate: true },
 )
 
 onBeforeRouteLeave(() => {
@@ -897,6 +931,8 @@ onBeforeRouteLeave(() => {
 })
 
 onMounted(() => {
+  saveStoredActiveTab(activeTab.value)
+
   searchText.value = archive.searchQuery
   retentionInput.value = archive.retentionDays
   replay.activateReplaySession(null)
@@ -985,6 +1021,7 @@ onMounted(() => {
   height: 100%;
   min-height: 0;
   overflow: hidden;
+  padding: 0;
 }
 
 .archive-page__select-column {
