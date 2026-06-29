@@ -5,7 +5,13 @@ import { prepareAlphaRelaxationSchedule } from "./alpha-relaxation-schedule"
 import { prepareSleepDrowseSchedule } from "./sleep-drowse-schedule"
 import { isAudioBrowserMessage, isBrowserMessage, toJson } from "./protocol"
 import type { AppSession } from "../../BodyMonitorCore/server"
-import type { GnauralSession } from "../../GnauralCore/server"
+import {
+  resolveAllowedAudioFilePath,
+  SpectrogramSession,
+  type GnauralSession,
+  type SpectrogramSourceResolver,
+} from "../../GnauralCore/server"
+import { isSpectrogramClientMessage } from "../../GnauralCore/server/protocol"
 
 export interface UiSocketData {
   readonly kind: "ui"
@@ -20,6 +26,30 @@ export interface UiWsContext {
 }
 
 const socketWatchedPath = new Map<ServerWebSocket<UiSocketData>, string>()
+const socketSpectrogram = new Map<ServerWebSocket<UiSocketData>, SpectrogramSession>()
+
+const getSpectrogramSession = (
+  aSocket: ServerWebSocket<UiSocketData>,
+  aContext: UiWsContext,
+): SpectrogramSession => {
+  let session = socketSpectrogram.get(aSocket)
+  if (session === undefined) {
+    const resolveSource: SpectrogramSourceResolver = async (aRequest) => {
+      const requestedPath = aRequest.filePath
+      if (requestedPath === undefined || requestedPath === "") {
+        throw new Error("spectrogram:open requires a filePath")
+      }
+      const resolved = resolveAllowedAudioFilePath(requestedPath, aContext.archiveStore.getAudioSettings())
+      if (resolved === null) {
+        throw new Error("audio file is not allowed or has an unsupported type")
+      }
+      return { filePath: resolved.filePath, fileKind: resolved.fileKind }
+    }
+    session = new SpectrogramSession({ resolveSource })
+    socketSpectrogram.set(aSocket, session)
+  }
+  return session
+}
 
 export const handleUiClose = (
   aSocket: ServerWebSocket<UiSocketData>,
@@ -29,6 +59,12 @@ export const handleUiClose = (
   if (watchedPath !== undefined) {
     aContext.scheduleWatcher.unwatch(watchedPath)
     socketWatchedPath.delete(aSocket)
+  }
+
+  const spectrogram = socketSpectrogram.get(aSocket)
+  if (spectrogram !== undefined) {
+    socketSpectrogram.delete(aSocket)
+    void spectrogram.dispose()
   }
 }
 
@@ -101,6 +137,14 @@ export const handleUiMessage = async (
   } catch {
     console.warn("[ui:ws] invalid-json")
     sendUiError(aSocket, "Invalid JSON request")
+    return
+  }
+
+  if (isSpectrogramClientMessage(parsed)) {
+    const session = getSpectrogramSession(aSocket, aContext)
+    const response = await session.handle(parsed)
+    // Spectrogram messages are their own (additive) protocol, outside ServerEvent.
+    aSocket.send(JSON.stringify(response))
     return
   }
 
