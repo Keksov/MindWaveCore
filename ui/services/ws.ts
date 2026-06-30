@@ -1,5 +1,10 @@
 import { ref, type Ref } from 'vue'
-import type { BrowserMessage, ServerEvent } from '@protocol'
+import type {
+  BrowserMessage,
+  ServerEvent,
+  SpectrogramClientMessage,
+  SpectrogramServerMessage,
+} from '@protocol'
 
 export type ConnectionState = 'connecting' | 'connected' | 'disconnected'
 export type WsEventHandler = (event: ServerEvent) => boolean | void
@@ -85,6 +90,23 @@ function send(msg: BrowserMessage): boolean {
   return true
 }
 
+function sendSpectrogram(msg: SpectrogramClientMessage): boolean {
+  if (socket === null || socket.readyState !== WebSocket.OPEN) return false
+  socket.send(JSON.stringify(msg))
+  return true
+}
+
+function onSpectrogram(handler: (message: SpectrogramServerMessage) => void): () => void {
+  return registerHandler((event) => {
+    const type = (event as { type?: unknown }).type
+    if (typeof type === 'string' && type.startsWith('spectrogram:')) {
+      handler(event as unknown as SpectrogramServerMessage)
+      return true
+    }
+    return false
+  })
+}
+
 function init(): void {
   if (socket !== null || connectionState.value === 'connecting') return
   connect()
@@ -94,6 +116,8 @@ export const wsService = {
   connectionState,
   registerHandler,
   send,
+  sendSpectrogram,
+  onSpectrogram,
   init
 } as const
 
