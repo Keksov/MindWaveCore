@@ -1,0 +1,79 @@
+# MindWave — migrate launch to AppCore
+
+Status: **active** (app.cfg written; approval gate AP0.2 before bundling binaries / retiring the old launcher)
+Created: 2026-07-01
+Authoritative progress ledger: [appcore-launch-progress.json](appcore-launch-progress.json)
+
+Goal: launch MindWave via the shared **AppCore** WebView2 launcher
+(`c:\projects\Games\AppCore` → `AppMain.exe -config app.cfg`) instead of the bespoke
+`server/launcher.bat`, mirroring how KKLeftRight is launched.
+
+## 1. Where things stand (verified 2026-07-01)
+- **AppCore** is a native FPC WebView2 launcher. `AppMain.exe -config <app.cfg>` reads a
+  `KEY=VALUE` file, starts the backend (`bun run start` prod / `bun run dev` dev) + UI
+  (`bun run build` prod / quasar `bun run dev` dev), waits for the port, opens a webview.
+  Prebuilt `AppMain.exe` + `libwebview.dll` exist at `AppCore/build/win_x64/bin`.
+- **KKLeftRight pattern:** `AppMain.exe` + `libwebview.dll` + `app.cfg` live **in
+  `server/`**; AppMain auto-loads the sibling `app.cfg`.
+- **MindWave fits the model cleanly:**
+  - server default port **3300** (`server.ts` getPort; PORT env overrides);
+  - `server/package.json` has `dev` + `start`; `ui/package.json` has `dev` (quasar) + `build`;
+  - **quasar `distDir` = `server/public`** and the server serves `public/` → prod build is
+    already wired (no change needed);
+  - quasar devServer proxies `/api` + `/ws/ui` → `http://localhost:3300` (ws:true); dev URL 9000;
+  - `server/bun.exe` is bundled; `server/launcher.bat` is the current launcher.
+
+## 2. Locked decisions (AP-D1 … AP-D7)
+- **AP-D1 — Config location.** `MindWaveCore/server/app.cfg` (mirrors KKLeftRight); AppMain
+  auto-loads it when placed next to the exe.
+- **AP-D2 — BunExe = `.\bun.exe`** (pin the bundled bun; matches launcher.bat's preference).
+- **AP-D3 — Mode=prod, FullScreen=true** (kiosk launch); dev documented in the cfg comments.
+- **AP-D4 — Reuse the prebuilt AppMain.exe + libwebview.dll** from AppCore (don't fork/rebuild
+  AppCore); copy them into `server/` so AppMain auto-loads `app.cfg`.
+- **AP-D5 — No server/quasar change for prod serving** — quasar already builds to
+  `server/public` and the server serves it; dev proxy already targets 3300.
+- **AP-D6 — Process:** plan + ledger; per-step atomic commits (step-id prefixed); no push;
+  approval gate before bundling binaries / retiring the launcher.
+- **AP-D7 — OPEN (approval AP0.2):** (a) commit-vs-sync for the copied `AppMain.exe` +
+  `libwebview.dll` (default: **sync-only**, gitignored, copied by a small script — same as
+  worker-packaging WP-D3); (b) **retire vs keep** `server/launcher.bat` (default: keep as a
+  documented fallback, make AppCore the primary path).
+
+## 3. Acceptance / gates
+`PASS = AppMain.exe -config server/app.cfg (or auto-loaded next to the exe) launches MindWave:
+prod builds the UI, starts the backend on 3300, and opens the webview at localhost:3300;
+dev opens 9000 with the backend on 3300`. Launch is a manual/visual gate (needs WebView2
+runtime + a desktop session).
+
+## 4. Risks
+- **Manual/visual acceptance** — launching a WebView2 kiosk can't be asserted headlessly here;
+  verification is manual (AP2.x).
+- **WebView2 runtime** must be installed on the target (ships with Win11).
+- **bun on PATH vs bundled** — pinned to `.\bun.exe` to avoid PATH ambiguity.
+- **Binary bundling** (AppMain.exe/libwebview.dll ~ MB) — sync-only keeps them out of git (AP-D7a).
+
+## 5. Steps (checklist mirrors the ledger)
+**Phase 0 — Plan & approval**
+- [x] **AP0.1 — Plan & ledger.**
+- [x] **AP1.1 — Write `server/app.cfg`.** (Explicitly requested; low-risk config.)
+- [ ] **AP0.2 — Approval gate.** Confirm AP-D7 (commit-vs-sync AppMain binaries; retire vs keep
+  launcher.bat). **Pause before AP1.2.**
+
+**Phase 1 — Bundle the launcher**
+- [ ] **AP1.2 — Bundle AppMain.exe + libwebview.dll into `server/`** (copy from
+  AppCore/build/win_x64/bin) via a small sync script; `.gitignore` per AP-D7a.
+
+**Phase 2 — Verify launch (manual)**
+- [ ] **AP2.1 — Prod launch.** Run AppMain (auto-load app.cfg): UI builds → backend on 3300 →
+  webview opens localhost:3300; spectrogram/audio work.
+- [ ] **AP2.2 — Dev launch.** Set Mode=dev: quasar dev 9000 + backend 3300; webview opens 9000.
+
+**Phase 3 — Finalize**
+- [ ] **AP3.1 — Retire/adjust `launcher.bat` + README.** Document AppCore as the primary launch;
+  keep or remove launcher.bat per AP-D7b.
+
+## 6. References
+- AppCore: `c:\projects\Games\AppCore\README.md` + `examples/appcore.cfg`
+- Reference config: `c:\projects\Games\KKLeftRight\server\app.cfg`
+- MindWave config: [../../server/app.cfg](../../server/app.cfg)
+- Current launcher (to migrate from): `MindWaveCore/server/launcher.bat`
