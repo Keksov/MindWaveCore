@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-01T23:00:00Z",
+  "updatedAt": "2026-07-01T23:40:00Z",
   "decisions": [
     { "id": "SF-D1", "text": "Scope & process: 3 items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green each step. Code in GnauralCore; ledger in MindWaveCore." },
     { "id": "SF-D2", "text": "Loading indicator: surface worker/tile loading in SpectrogramView as an overlay spinner driven by spec.loading (analysis open + tiles pending); keep audio.spectrogramLoading (decode) in AudioPage so an indicator covers the whole prepare span (decode -> open -> first tiles)." },
@@ -135,7 +135,8 @@
       "evidence": [
         "SERVER (enabling change): SpectrogramSession now keeps a Map<analysisId,{wavHandle,params}> instead of a single analysis — onOpen no longer closes the previous (acquires its own source; releases on failure); get-tile/point-query/area-query use the message's analysisId (requireAnalysis(id) validates against the map); reconfigure targets the message's analysisId (close+reopen -> new id, keeps the source); close/dispose close per-analysis. server tests 17/0.",
         "UI: AudioPage renders two stacked SpectrogramViews for stereo (isSpectrogramStereo = spectrogramBuffer.numberOfChannels>=2) with per-channel analysis computeds (spectrogramLeftAnalysis channel:0 / spectrogramRightAnalysis channel:1, stable computeds so no reconfigure churn), labelled L/R; mono renders one pane. Both share v-model:height (resize both). SpectrogramView gained a `label` prop shown in its toolbar.",
-        "Backend change -> requires bun server restart. vue-tsc clean; GnauralCore bun 61/0."
+        "Backend change -> requires bun server restart. vue-tsc clean; GnauralCore bun 61/0.",
+        "FOLLOW-UP: the WORKER was also single-analysis (EnsureCurrent errored on a non-current id -> owner saw 'get-tile analysisId mismatch' on the L channel). SpectrumCoreFftwWorkerProbe.pas now keeps a registry of analyses; EnsureCurrent selects by id + restores that analysis's cache token; open registers (no longer frees the previous), close unregisters, shutdown frees all. Rebuilt + re-bundled (manifest updated; exe gitignored). Verified: two opens then get-tile on the first -> ok; bridge test 15/0."
       ]
     },
     {
@@ -174,6 +175,7 @@
     { "ts": "2026-07-01T22:00:00Z", "step": "-", "event": "note", "note": "Owner: prioritize the Audacity-like UI (Phase 5) first so the remaining spectrum-render issue can be described in detail afterwards. SF2.1 left in-progress, SF3.1 deferred; proceeding with Phase 5." },
     { "ts": "2026-07-01T22:10:00Z", "step": "SF5.1", "event": "done", "note": "SpectrogramView takes a height prop (fixed track height); AudioPage sets default 260px per track (items-start row). Reused by SF5.2/SF5.3. vue-tsc clean." },
     { "ts": "2026-07-01T22:30:00Z", "step": "SF5.2", "event": "done", "note": "Bottom-edge drag handle in SpectrogramView resizes the track (pointer-capture, clamp 120-1200) via v-model:height; AudioPage persists the height to localStorage (loaded on init). i18n added. vue-tsc clean; bun 61/0." },
-    { "ts": "2026-07-01T23:00:00Z", "step": "SF5.3", "event": "done", "note": "Stereo L/R split. Enabling server change: SpectrogramSession now supports multiple concurrent analyses keyed by analysisId (was single-analysis; blocked two-channel view). UI: AudioPage stacks two per-channel SpectrogramViews (channel 0/1, labelled L/R) for stereo (numberOfChannels>=2), one pane for mono; shared v-model:height. server 17/0, ui 61/0, vue-tsc clean. Requires bun server restart." }
+    { "ts": "2026-07-01T23:00:00Z", "step": "SF5.3", "event": "done", "note": "Stereo L/R split. Enabling server change: SpectrogramSession now supports multiple concurrent analyses keyed by analysisId (was single-analysis; blocked two-channel view). UI: AudioPage stacks two per-channel SpectrogramViews (channel 0/1, labelled L/R) for stereo (numberOfChannels>=2), one pane for mono; shared v-model:height. server 17/0, ui 61/0, vue-tsc clean. Requires bun server restart." },
+    { "ts": "2026-07-01T23:40:00Z", "step": "SF5.3", "event": "fixed", "note": "Owner error on the left channel: 'get-tile failed: get-tile analysisId mismatch'. The WORKER (SpectrumCoreFftwWorkerProbe) was single-analysis too (one global Current; EnsureCurrent erroring on a different id) — the server multi-analysis change alone wasn't enough. Made the worker keep a registry of analyses; EnsureCurrent(id) now SELECTS the analysis and restores its TileCacheAnalysisToken (which keys both tile caches, so caching stays correct per analysis); open registers instead of freeing the previous; close unregisters; shutdown frees all. Rebuilt the probe + re-bundled into MindWave (manifest.json updated; exe gitignored). Verified via direct stdio probe: open AAA + BBB, get-tile AAA -> ok (frames=33). Bridge integration test 15/0. Requires bun server restart to pick up the new bundled worker." }
   ]
 }
