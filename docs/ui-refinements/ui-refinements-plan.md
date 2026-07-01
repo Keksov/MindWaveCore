@@ -1,6 +1,6 @@
 # UI refinements batch 1
 
-Status: **complete** (all phases done 2026-07-01; manual/visual acceptance left to owner)
+Status: **active** (batch 1 phases 1–3 done; reopened 2026-07-01 for RF4 — spectrum on file click)
 Created: 2026-07-01
 Authoritative progress ledger: [ui-refinements-progress.json](ui-refinements-progress.json)
 
@@ -77,6 +77,14 @@ Goal: three independent refinements requested by the owner —
 - **RF-D7 — Files-panel close button.** Add a close (×) button to the files panel header,
   mirroring the Tracks panel header (`q-btn flat round dense icon="close"` → `closeFilesPanel`).
   *(Owner addition 2026-07-01.)*
+- **RF-D8 — Show the spectrum on audio-file click.** Today `spectrogramBuffer` is decoded only
+  on playback start (`ensureLocalAudioReady`), so selecting a file shows "no spectrogram" until
+  you press play. Export `ensureLocalAudioReady` from the audio store and, in AudioPage
+  `handleSelectedPathChange`, on a **non-autoplay** selection of a **local audio file (wav/flac)**
+  set `activeContentTab = 'player'` + `activePlayerViewTab = 'spectrogram'` and trigger the
+  decode so the spectrum renders without playback. **Scope: wav/flac only**; `.gnaural` keeps the
+  schedule view (rendering a gnaural to WAV for its spectrum is out of scope here). *(Owner
+  addition 2026-07-01.)*
 
 ## 3. Acceptance / gates
 - Item 1: on every in-scope page the content card touches the window edge (no outer margin);
@@ -123,9 +131,15 @@ Goal: three independent refinements requested by the owner —
   built AppCore (`build_app.bat` OK); committed in the AppCore repo; re-synced `AppMain.exe`
   into MindWave (sync-only, gitignored).
 
-**Plan complete.** All three refinements landed; automated checks (vue-tsc, bun, FPC build)
-green. Manual/visual acceptance (page layout flush with the window; sidebar collapse; Start
-offset; bar hides when backgrounded) is the owner's gate.
+**Batch 1 (Phases 1–3) landed**; automated checks (vue-tsc, bun, FPC build) green. Manual/visual
+acceptance (page layout flush with the window; sidebar collapse; Start offset; bar hides when
+backgrounded) is the owner's gate.
+
+**Phase 4 — Show spectrum on audio-file click** *(reopened 2026-07-01)*
+- [ ] **RF4.1 — Decode + show spectrum on selection.** Export `ensureLocalAudioReady`; in
+  AudioPage `handleSelectedPathChange`, on a non-autoplay wav/flac selection switch to the
+  player's Spectrogram view and decode so the spectrum shows without playback (RF-D8). Verify
+  `vue-tsc` + `bun`.
 
 ## 6. References
 - Collapsible pattern: [GnauralScheduleView.vue](../../../GnauralCore/ui/components/GnauralScheduleView.vue) (`trackPanelOpen`)
