@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-01T22:10:00Z",
+  "updatedAt": "2026-07-01T22:30:00Z",
   "decisions": [
     { "id": "SF-D1", "text": "Scope & process: 3 items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green each step. Code in GnauralCore; ledger in MindWaveCore." },
     { "id": "SF-D2", "text": "Loading indicator: surface worker/tile loading in SpectrogramView as an overlay spinner driven by spec.loading (analysis open + tiles pending); keep audio.spectrogramLoading (decode) in AudioPage so an indicator covers the whole prepare span (decode -> open -> first tiles)." },
@@ -113,11 +113,15 @@
       "id": "SF5.2",
       "phase": 5,
       "title": "Drag-resize track height",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": ["SF5.1"],
-      "artifacts": ["GnauralCore/ui/components/SpectrogramView.vue"],
+      "artifacts": ["GnauralCore/ui/components/SpectrogramView.vue", "GnauralCore/ui/pages/AudioPage.vue", "GnauralCore/ui/i18n/en.json", "GnauralCore/ui/i18n/ru.json"],
       "verify": "a bottom-border drag handle resizes the track height (pointer drag); height persisted in localStorage; vue-tsc + bun green",
-      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+      "startedAt": "2026-07-01T22:15:00Z", "finishedAt": "2026-07-01T22:30:00Z", "blockedReason": null,
+      "evidence": [
+        "SpectrogramView: bottom-edge drag handle (spectrogram-view__resize-handle, ns-resize, pointer-capture drag) emits update:height clamped to [120,1200]. AudioPage uses v-model:height=spectrogramTrackHeight, loads the initial value from localStorage (mindwave-audio-spectrogram-track-height, clamped) and persists on change. i18n audio.spectrogramResizeHandle (en/ru).",
+        "vue-tsc clean; GnauralCore bun 61/0; i18n JSON parses."
+      ]
     },
     {
       "id": "SF5.3",
@@ -163,6 +167,7 @@
     { "ts": "2026-07-01T21:25:00Z", "step": "SF2.1", "event": "fixed", "note": "Owner error surfaced: 'worker request timed out after 15000ms' on a 25-min FLAC (d:\\bin\\Presets\\01 - Elation Galaxy.flac). Root cause of the blank: heavy worker ops (full-file STFT open-analysis / wide overview get-tile) exceed the flat 15s SpectrogramWorkerManager timeout, which poisons + restarts the worker -> analysis/tiles never arrive -> blank. Fix: spectrogram-session.ts now passes generous per-command timeouts (open-analysis/reconfigure 120s, get-tile 60s). BACKEND change -> requires bun server restart (not UI HMR). server tests 17/0." },
     { "ts": "2026-07-01T21:45:00Z", "step": "SF5", "event": "planned", "note": "Owner addition (attached Audacity reference): new Phase 5 'Make the UI Audacity-like' — SF5.1 default track height, SF5.2 drag-resize via bottom border, SF5.3 stereo left/right split. Decisions SF-D7/D8/D9. Awaiting owner 'go'." },
     { "ts": "2026-07-01T22:00:00Z", "step": "-", "event": "note", "note": "Owner: prioritize the Audacity-like UI (Phase 5) first so the remaining spectrum-render issue can be described in detail afterwards. SF2.1 left in-progress, SF3.1 deferred; proceeding with Phase 5." },
-    { "ts": "2026-07-01T22:10:00Z", "step": "SF5.1", "event": "done", "note": "SpectrogramView takes a height prop (fixed track height); AudioPage sets default 260px per track (items-start row). Reused by SF5.2/SF5.3. vue-tsc clean." }
+    { "ts": "2026-07-01T22:10:00Z", "step": "SF5.1", "event": "done", "note": "SpectrogramView takes a height prop (fixed track height); AudioPage sets default 260px per track (items-start row). Reused by SF5.2/SF5.3. vue-tsc clean." },
+    { "ts": "2026-07-01T22:30:00Z", "step": "SF5.2", "event": "done", "note": "Bottom-edge drag handle in SpectrogramView resizes the track (pointer-capture, clamp 120-1200) via v-model:height; AudioPage persists the height to localStorage (loaded on init). i18n added. vue-tsc clean; bun 61/0." }
   ]
 }
