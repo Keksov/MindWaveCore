@@ -3,6 +3,10 @@ bun.exe
 bunx.exe
 bunx.txt
 
+# AppCore launcher binaries (sync-only via sync-appcore-launcher.ps1; AP-D7a)
+AppMain.exe
+libwebview.dll
+
 # Runtime log database
 var/mindwave-logs.sqlite*
 

@@ -56,12 +56,13 @@ runtime + a desktop session).
 **Phase 0 — Plan & approval**
 - [x] **AP0.1 — Plan & ledger.**
 - [x] **AP1.1 — Write `server/app.cfg`.** (Explicitly requested; low-risk config.)
-- [ ] **AP0.2 — Approval gate.** Confirm AP-D7 (commit-vs-sync AppMain binaries; retire vs keep
-  launcher.bat). **Pause before AP1.2.**
+- [x] **AP0.2 — Approval gate.** Locked AP-D7: (a) **sync-only** binaries; (b) **keep**
+  launcher.bat as a fallback (AppCore primary).
 
 **Phase 1 — Bundle the launcher**
-- [ ] **AP1.2 — Bundle AppMain.exe + libwebview.dll into `server/`** (copy from
-  AppCore/build/win_x64/bin) via a small sync script; `.gitignore` per AP-D7a.
+- [x] **AP1.2 — Bundle AppMain.exe + libwebview.dll into `server/`.** `sync-appcore-launcher.ps1`
+  copies them from AppCore/build/win_x64/bin; `.gitignore` keeps them sync-only. Done +
+  verified (git stages only the script + .gitignore).
 
 **Phase 2 — Verify launch (manual)**
 - [ ] **AP2.1 — Prod launch.** Run AppMain (auto-load app.cfg): UI builds → backend on 3300 →

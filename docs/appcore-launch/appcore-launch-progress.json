@@ -5,7 +5,7 @@
   "title": "Migrate MindWave launch to the AppCore WebView2 launcher",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-01T14:20:00Z",
+  "updatedAt": "2026-07-01T14:45:00Z",
   "decisions": [
     { "id": "AP-D1", "text": "Config location: MindWaveCore/server/app.cfg (mirrors KKLeftRight); AppMain auto-loads it when placed next to the exe." },
     { "id": "AP-D2", "text": "BunExe = .\\bun.exe (pin the bundled bun; matches launcher.bat's local-first preference)." },
@@ -48,21 +48,29 @@
       "id": "AP0.2",
       "phase": 0,
       "title": "Approval gate (AP-D7)",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": ["AP1.1"],
       "artifacts": ["docs/appcore-launch/appcore-launch-plan.md"],
       "verify": "owner confirms (a) commit-vs-sync for AppMain.exe/libwebview.dll and (b) retire-vs-keep launcher.bat; decisions locked. PAUSE before AP1.2.",
-      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+      "startedAt": "2026-07-01T14:30:00Z", "finishedAt": "2026-07-01T14:30:00Z", "blockedReason": null,
+      "evidence": [
+        "Owner locked AP-D7: (a) AppMain.exe + libwebview.dll are SYNC-ONLY (gitignored, copied by a script); (b) server/launcher.bat is KEPT as a fallback (AppCore is the primary launch)."
+      ]
     },
     {
       "id": "AP1.2",
       "phase": 1,
       "title": "Bundle AppMain.exe + libwebview.dll into server/",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": ["AP0.2"],
-      "artifacts": ["MindWaveCore/server/ (AppMain.exe, libwebview.dll)", "MindWaveCore/server/.gitignore (or a sync script)"],
+      "artifacts": ["MindWaveCore/server/sync-appcore-launcher.ps1", "MindWaveCore/server/.gitignore"],
       "verify": "AppMain.exe + libwebview.dll copied from AppCore/build/win_x64/bin into server/ (next to app.cfg); binaries handled per AP-D7a; AppMain auto-loads app.cfg",
-      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+      "startedAt": "2026-07-01T14:30:00Z", "finishedAt": "2026-07-01T14:45:00Z", "blockedReason": null,
+      "evidence": [
+        "sync-appcore-launcher.ps1 copies AppMain.exe + libwebview.dll from Games/AppCore/build/win_x64/bin into server/. Ran it: both synced; server/ now holds app.cfg + AppMain.exe + libwebview.dll (+ launcher.bat fallback).",
+        "server/.gitignore extended with AppMain.exe + libwebview.dll (sync-only, alongside bun.exe). git add -n stages only .gitignore + sync-appcore-launcher.ps1; the binaries are ignored. AppMain auto-loads the sibling app.cfg -> launches MindWave.",
+        "AP2.1/AP2.2 (prod/dev launch) are MANUAL/visual gates (WebView2 + desktop session) -> to be run by the owner."
+      ]
     },
     {
       "id": "AP2.1",
@@ -97,6 +105,7 @@
   ],
   "log": [
     { "ts": "2026-07-01T14:20:00Z", "step": "AP0.1", "event": "done", "note": "AppCore-launch plan + ledger created. Migrate MindWave launch to AppCore (AppMain.exe -config app.cfg), mirroring KKLeftRight. Grounded: prebuilt AppMain present; port 3300; quasar build->server/public already wired; dev proxy->3300; local bun.exe." },
-    { "ts": "2026-07-01T14:20:00Z", "step": "AP1.1", "event": "done", "note": "Wrote MindWaveCore/server/app.cfg (Mode=prod, BunExe=.\\bun.exe, ServerDir=., UiDir=..\\ui, ServerPort=3300, DevUrl=9000, BuildUi=true, FullScreen=true). Ports match server.ts (3300) + quasar dev proxy. Next: AP0.2 approval gate (AP-D7) before bundling AppMain binaries." }
+    { "ts": "2026-07-01T14:20:00Z", "step": "AP1.1", "event": "done", "note": "Wrote MindWaveCore/server/app.cfg (Mode=prod, BunExe=.\\bun.exe, ServerDir=., UiDir=..\\ui, ServerPort=3300, DevUrl=9000, BuildUi=true, FullScreen=true). Ports match server.ts (3300) + quasar dev proxy. Next: AP0.2 approval gate (AP-D7) before bundling AppMain binaries." },
+    { "ts": "2026-07-01T14:45:00Z", "step": "AP0.2+AP1.2", "event": "done", "note": "AP-D7 locked: sync-only binaries + keep launcher.bat fallback. sync-appcore-launcher.ps1 copies AppMain.exe+libwebview.dll into server/ (done); .gitignore keeps them sync-only. server/ has app.cfg+AppMain.exe+libwebview.dll; AppMain auto-loads app.cfg. Remaining AP2.1/2.2 = MANUAL launch verification (owner); AP3.1 = README doc." }
   ]
 }
