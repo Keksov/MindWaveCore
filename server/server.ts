@@ -25,6 +25,7 @@ import type { AudioFileKind, AudioPresetsResponse, AudioServerEvent, AudioSettin
 import { isRecord, toJson } from "./protocol"
 import { handleUiClose, handleUiMessage, handleUiOpen, type UiSocketData } from "./ui-ws-handler"
 import { createScheduleWatcher } from "../../GnauralCore/server/schedule-watcher"
+import { checkSpectrogramWorkerHealth } from "../../GnauralCore/server/spectrogram-bridge"
 
 type SocketData = UiSocketData
 
@@ -1826,4 +1827,13 @@ setInterval(() => {
 }, RETENTION_CLEANUP_INTERVAL_MS)
 
 void ensureBodyMonitorRunning(server)
+
+// WP2.2: non-fatal boot health-check for the bundled spectrogram worker.
+void checkSpectrogramWorkerHealth().then((health) => {
+  if (health.ok) {
+    console.log(`[server] spectrogram worker OK: ${health.exePath}`)
+  } else {
+    console.warn(`[server] spectrogram worker unavailable (${health.stage}): ${health.message}`)
+  }
+})
 
