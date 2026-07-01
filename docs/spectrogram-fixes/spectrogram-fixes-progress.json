@@ -5,13 +5,14 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-01T19:25:00Z",
+  "updatedAt": "2026-07-01T19:40:00Z",
   "decisions": [
     { "id": "SF-D1", "text": "Scope & process: 3 items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green each step. Code in GnauralCore; ledger in MindWaveCore." },
     { "id": "SF-D2", "text": "Loading indicator: surface worker/tile loading in SpectrogramView as an overlay spinner driven by spec.loading (analysis open + tiles pending); keep audio.spectrogramLoading (decode) in AudioPage so an indicator covers the whole prepare span (decode -> open -> first tiles)." },
     { "id": "SF-D3", "text": "Only-last-frame fix: make the rendered tile set persist/accumulate during load: (a) guard setView/applyView to no-op when the effective view (time window + zoom + viewBinCount) is unchanged (kill viewSeq churn); (b) re-assembleVisibleTiles on every tile arrival against the current cache (not only when pending.seq===viewSeq); (c) final assemble+redraw when loading clears. Root cause confirmed at execution via instrumentation; add a composable unit test for tile accumulation across a binCount/seq change. Confirmed repro (owner): happens on OPEN, no playback; a one-tile strip runs L->R and only the last tile stays." },
     { "id": "SF-D4", "text": "Settings panel = overlay named 'Параметры': convert the fixed 264px side column into a toggleable overlay mirroring the schedule settings panel (absolute aside over the plot, no main-content resize, backdrop, <transition>); header title 'Параметры' (audio.spectrogramSettingsTitle: en 'Parameters' / ru 'Параметры') + close (x). Default closed." },
-    { "id": "SF-D5", "text": "Toggle placement: the 'Параметры' toggle lives in the SpectrogramView toolbar (next to zoom/fit); open/close state + overlay are self-contained in the view; state local (not persisted) unless owner asks otherwise." }
+    { "id": "SF-D5", "text": "Toggle placement: the 'Параметры' toggle lives in the SpectrogramView toolbar (next to zoom/fit); open/close state + overlay are self-contained in the view; state local (not persisted) unless owner asks otherwise." },
+    { "id": "SF-D6", "text": "Owner addition 2026-07-01: prepare the spectrum when the Спектрограмма tab is opened. The tab renders only when audio.spectrogramBuffer!=null; RF4.1 decodes on tree selection, but selecting a file on the Воспроизведение tab then switching to Спектрограмма (or a selected-but-undecoded file) leaves the stale 'start local playback' message with nothing happening. Fix: when the Спектрограмма view becomes active for a selected LOCAL audio file (wav/flac) with no decoded buffer and no decode in flight, trigger audio.ensureLocalAudioReady(selectedPath, kind) (same non-playback decode as RF4.1); update the obsolete audio.noSpectrogram wording to cover only the no-file-selected case. .gnaural unchanged." }
   ],
   "steps": [
     {
@@ -83,6 +84,20 @@
       ],
       "verify": "settings panel is a toggleable overlay over the plot (no main-content resize), titled 'Параметры', with toolbar toggle + backdrop + close; i18n en/ru; vue-tsc + bun green",
       "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+    },
+    {
+      "id": "SF4.1",
+      "phase": 4,
+      "title": "Auto-prepare spectrum when the Спектрограмма tab is opened",
+      "status": "not-started",
+      "dependsOn": ["SF0.2"],
+      "artifacts": [
+        "GnauralCore/ui/pages/AudioPage.vue",
+        "GnauralCore/ui/i18n/en.json",
+        "GnauralCore/ui/i18n/ru.json"
+      ],
+      "verify": "switching to the Спектрограмма tab with a selected local audio file (no decoded buffer) triggers ensureLocalAudioReady so the spectrum prepares (spinner -> spectrum) instead of the stale 'start local playback' message; noSpectrogram wording updated; .gnaural unchanged; vue-tsc + bun green",
+      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
     }
   ],
   "log": [
@@ -90,6 +105,7 @@
     { "ts": "2026-07-01T19:00:00Z", "step": "SF0.2", "event": "done", "note": "Owner approved ('go'). SF-D2..SF-D5 locked. Proceeding to Phase 1." },
     { "ts": "2026-07-01T19:05:00Z", "step": "SF1.1", "event": "done", "note": "Added a loading overlay (spinner + 'Подготовка спектрограммы…') in SpectrogramView driven by spec.loading (analysis open + tiles pending). vue-tsc clean." },
     { "ts": "2026-07-01T19:10:00Z", "step": "-", "event": "note", "note": "Owner: none of the session's UI changes were visible -> the prod app served the stale built server/public. Rebuilt UI (quasar build). Owner then switched to quasar dev for live HMR." },
-    { "ts": "2026-07-01T19:25:00Z", "step": "SF1.1", "event": "fixed", "note": "Owner: spinner still not appearing. Root cause: spec.loading only counted pending tiles, so it was false during the slow worker open()/reconfigure() and tiles arrived too fast. Added an `opening` flag (open/reconfigure -> loading true; cleared at refetch/error/close) so the indicator covers the whole prepare span. vue-tsc + bun green." }
+    { "ts": "2026-07-01T19:25:00Z", "step": "SF1.1", "event": "fixed", "note": "Owner: spinner still not appearing. Root cause: spec.loading only counted pending tiles, so it was false during the slow worker open()/reconfigure() and tiles arrived too fast. Added an `opening` flag (open/reconfigure -> loading true; cleared at refetch/error/close) so the indicator covers the whole prepare span. vue-tsc + bun green." },
+    { "ts": "2026-07-01T19:40:00Z", "step": "SF4.1", "event": "planned", "note": "New owner item (SF-D6): on the Воспроизведение tab select a file, switch to Спектрограмма -> stale 'start local playback' message and nothing happens. Add Phase 4: auto-decode (ensureLocalAudioReady) when the Спектрограмма tab opens for a selected undecoded local file + refresh noSpectrogram wording. Awaiting owner 'go'." }
   ]
 }

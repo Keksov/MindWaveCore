@@ -65,6 +65,16 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
 - **SF-D5 — Toggle placement.** The "Параметры" toggle lives in the `SpectrogramView` toolbar
   (next to zoom/fit), so open/close state + overlay are self-contained in the view. State may
   be local to the view (not persisted) unless the owner wants persistence.
+- **SF-D6 — Prepare the spectrum when the Спектрограмма tab is opened.** The Спектрограмма tab
+  only renders when `audio.spectrogramBuffer !== null` (decoded); RF4.1 decodes on tree
+  *selection*, but if a local audio file is already selected (or selected-but-undecoded) and the
+  user just switches to the Спектрограмма tab, nothing decodes and the stale "start local
+  playback" message hangs. Fix: when the Спектрограмма view becomes active for a selected
+  **local audio** file with no decoded buffer and no decode in flight, trigger
+  `audio.ensureLocalAudioReady(selectedPath, kind)` (same non-playback decode as RF4.1), and
+  update the obsolete `audio.noSpectrogram` wording (a selected file now auto-prepares; the
+  message should cover only the "no file selected" case). Scope: wav/flac; `.gnaural` unchanged.
+  *(Owner addition 2026-07-01.)*
 
 ## 3. Acceptance / gates
 - Item 1: a loading indicator is visible while the spectrogram is preparing (decode + worker
@@ -100,6 +110,12 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
 - [ ] **SF3.1 — Overlay + rename.** Convert the settings panel to a toggleable overlay (no
   main-content resize) titled "Параметры" with a toolbar toggle + backdrop + close; i18n en/ru.
   Verify `vue-tsc` + `bun`.
+
+**Phase 4 — Prepare spectrum on tab open**
+- [ ] **SF4.1 — Auto-prepare on Спектрограмма tab.** When the Спектрограмма view becomes active
+  for a selected local audio file with no decoded buffer, trigger the (non-playback) decode so
+  the spectrum prepares instead of showing the stale "start playback" message; refresh the
+  `audio.noSpectrogram` wording (SF-D6). Verify `vue-tsc` + `bun`.
 
 ## 6. References
 - View/render: [SpectrogramView.vue](../../../GnauralCore/ui/components/SpectrogramView.vue),
