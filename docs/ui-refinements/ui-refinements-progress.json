@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "plan": "ui-refinements",
+  "planDoc": "docs/ui-refinements/ui-refinements-plan.md",
+  "title": "UI refinements batch 1 (page gap, collapsible presets sidebar, AppCore bar occlusion)",
+  "status": "active",
+  "createdAt": "2026-07-01",
+  "updatedAt": "2026-07-01T16:10:00Z",
+  "decisions": [
+    { "id": "RF-D1", "text": "Scope & process: 3 independent items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green for UI steps. Item 3 commits in the AppCore repo; the re-synced AppMain.exe in MindWave stays gitignored (not committed)." },
+    { "id": "RF-D2", "text": "Gap removal: zero the OUTER page padding (the <page>__inner wrapper) on all in-scope pages so the central block is flush with the window; inter-panel gaps stay (only padding -> 0, keep gap). Applies to base rule + responsive media-query overrides." },
+    { "id": "RF-D3", "text": "Presets sidebar collapse: reuse the Tracks-panel pattern -- filesPanelOpen ref persisted to localStorage, slide <transition>, sidebar removed from flow when closed. Default OPEN." },
+    { "id": "RF-D4", "text": "Toggle placement: a toggle control in the player-view tabs bar, LEFT of 'Воспроизведение', icon folder, label audio.filesTab (ru 'Файлы' / en 'Files'), aria-expanded/controls, active styling when open; toggles the shared filesPanelOpen. Sidebar is shared by player+editor tabs; toggle lives in the player menu as requested." },
+    { "id": "RF-D5", "text": "AppCore fix: in updateBar hide the bar when the main window is NOT the foreground app (occluded/behind other windows) in addition to when minimized; show when the app returns to foreground. Detect via GetForegroundWindow + GetAncestor(GA_ROOTOWNER) identity, counting the bar (WS_EX_NOACTIVATE) as app-active." }
+  ],
+  "steps": [
+    {
+      "id": "RF0.1",
+      "phase": 0,
+      "title": "Plan & ledger",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": ["docs/ui-refinements/ui-refinements-plan.md", "docs/ui-refinements/ui-refinements-progress.json"],
+      "verify": "ledger JSON parses; dependsOn DAG acyclic; plan + ledger committed",
+      "startedAt": "2026-07-01T16:10:00Z", "finishedAt": "2026-07-01T16:10:00Z", "blockedReason": null,
+      "evidence": [
+        "Grounded in code: item1 = per-page <page>__inner padding:16px (SettingsPage .settings-page__inner, LogArchivePage .archive-page__inner, LogPage, AudioPage .audio-page__inner, BodyMonitor 3 pages); MainLayout q-page-container adds no padding. item2 = AudioPage audio-page__sidebar always-visible; mirror GnauralScheduleView trackPanelOpen/localStorage/transition/toggle; player menu = activePlayerViewTab tabs (main='Воспроизведение', spectrogram). item3 = AppBar.pas updateBar hides only on IsIconic; bar is WS_EX_TOPMOST; rebuild via build/win_x64/build_app.bat, re-sync via server/sync-appcore-launcher.ps1.",
+        "DAG acyclic: RF0.1 -> RF0.2 -> {RF1.1, RF2.1, RF3.1} (three independent phases)."
+      ]
+    },
+    {
+      "id": "RF0.2",
+      "phase": 0,
+      "title": "Approval gate (RF-D2/RF-D4/RF-D5)",
+      "status": "not-started",
+      "dependsOn": ["RF0.1"],
+      "artifacts": ["docs/ui-refinements/ui-refinements-plan.md"],
+      "verify": "owner confirms RF-D2 (padding->0, keep inter-panel gaps), RF-D4 (toggle button left of Воспроизведение), RF-D5 (foreground-based hide). PAUSE before Phase 1.",
+      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+    },
+    {
+      "id": "RF1.1",
+      "phase": 1,
+      "title": "Zero outer page padding (all screens)",
+      "status": "not-started",
+      "dependsOn": ["RF0.2"],
+      "artifacts": [
+        "MindWaveCore/ui/pages/SettingsPage.vue",
+        "MindWaveCore/ui/pages/LogPage.vue",
+        "MindWaveCore/ui/pages/LogArchivePage.vue",
+        "GnauralCore/ui/pages/AudioPage.vue",
+        "BodyMonitorCore/ui/pages/AlphaRelaxationPage.vue",
+        "BodyMonitorCore/ui/pages/CalibrationPage.vue",
+        "BodyMonitorCore/ui/pages/MonitoringPage.vue"
+      ],
+      "verify": "<page>__inner padding set to 0 (base + media queries) on all in-scope pages; inter-panel gap kept; vue-tsc clean; content flush with window edge (visual owner check)",
+      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+    },
+    {
+      "id": "RF2.1",
+      "phase": 2,
+      "title": "Collapsible presets sidebar + 'Файлы'/'Files' toggle",
+      "status": "not-started",
+      "dependsOn": ["RF0.2"],
+      "artifacts": [
+        "GnauralCore/ui/pages/AudioPage.vue",
+        "GnauralCore/ui/i18n/en.json",
+        "GnauralCore/ui/i18n/ru.json"
+      ],
+      "verify": "filesPanelOpen (localStorage-persisted) + slide transition hide/show the presets sidebar; 'Файлы'/'Files' toggle (folder icon, aria) sits left of 'Воспроизведение' in the player-view tabs; audio.filesTab (+ show/hide aria) added to en/ru; vue-tsc + bun green",
+      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+    },
+    {
+      "id": "RF3.1",
+      "phase": 3,
+      "title": "AppCore control-bar occlusion fix",
+      "status": "not-started",
+      "dependsOn": ["RF0.2"],
+      "artifacts": [
+        "Games/AppCore/src/AppBar.pas",
+        "MindWaveCore/server/sync-appcore-launcher.ps1 (re-sync, sync-only binary)"
+      ],
+      "verify": "updateBar hides the bar when the main window is not foreground (behind other apps) + when minimized; shows when app returns to foreground; AppCore build_app.bat succeeds; AppMain.exe re-synced; committed in the AppCore repo",
+      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+    }
+  ],
+  "log": [
+    { "ts": "2026-07-01T16:10:00Z", "step": "RF0.1", "event": "done", "note": "UI-refinements batch-1 plan + ledger created. 3 items: (1) remove outer page gap on all screens; (2) collapsible presets sidebar mirroring the Tracks panel + 'Файлы'/'Files' toggle left of 'Воспроизведение'; (3) AppCore control-bar hides/shows with the main window's foreground state. Decisions RF-D1..RF-D5 drafted; next = RF0.2 approval gate." }
+  ]
+}
