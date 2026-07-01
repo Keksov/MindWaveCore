@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-02T00:20:00Z",
+  "updatedAt": "2026-07-02T00:30:00Z",
   "decisions": [
     { "id": "SF-D1", "text": "Scope & process: 3 items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green each step. Code in GnauralCore; ledger in MindWaveCore." },
     { "id": "SF-D2", "text": "Loading indicator: surface worker/tile loading in SpectrogramView as an overlay spinner driven by spec.loading (analysis open + tiles pending); keep audio.spectrogramLoading (decode) in AudioPage so an indicator covers the whole prepare span (decode -> open -> first tiles)." },
@@ -14,6 +14,7 @@
     { "id": "SF-D5", "text": "Toggle placement: the 'Параметры' toggle lives in the SpectrogramView toolbar (next to zoom/fit); open/close state + overlay are self-contained in the view; state local (not persisted) unless owner asks otherwise." },
     { "id": "SF-D7", "text": "Owner addition 2026-07-01 (Audacity-like UI #1): give the spectrogram plot a taller default height matching the Audacity reference (per-channel ~240px; stereo split ~2x) instead of the current min-height:280px flex fill." },
     { "id": "SF-D8", "text": "Owner addition (Audacity-like UI #2): a drag handle on the bottom border of the spectrogram track resizes its height via pointer drag (like Audacity); persist the chosen height (localStorage)." },
+    { "id": "SF-D10", "text": "Owner addition 2026-07-02 (SF2.1 real concern = SPEED): the only-last-frame visual bug is resolved; the remaining SF2.1 problem is spectrogram GENERATION SPEED (Audacity is much faster). PROFILE FIRST, optimize second (approval gate before any optimization). Measure each pipeline stage on d:\\bin\\Presets\\1_Orientation.flac: worker open-analysis, per-tile get-tile (sample-load/FLAC-decode vs FFT), tile payload bytes + JSON serialize/parse, WS transfer, UI render. Suspects to confirm/refute: single-threaded worker FFT; JSON (not binary) tile transport of large float arrays; repeated per-request FLAC decode (worker reads FLAC directly, no cached PCM)." },
     { "id": "SF-D9", "text": "Owner addition (Audacity-like UI #3): split stereo into stacked Left-over-Right panes, each analysing one channel (channel:0/channel:1, its own worker analysis); mono = single pane. Detect channel count from the decoded AudioBuffer.numberOfChannels (audio.spectrogramBuffer); label panes L/R. PREREQUISITE discovered at execution: the server kept one SpectrogramSession per WS and it was single-analysis (a 2nd open closed the 1st; get-tile used the session's stored analysisId). Refactored SpectrogramSession to hold multiple concurrent analyses keyed by analysisId (worker already multiplexes; client msgs already carry analysisId), so two channel analyses coexist over one socket. Backend change -> server restart." },
     { "id": "SF-D6", "text": "Owner addition 2026-07-01: prepare the spectrum when the Спектрограмма tab is opened. The tab renders only when audio.spectrogramBuffer!=null; RF4.1 decodes on tree selection, but selecting a file on the Воспроизведение tab then switching to Спектрограмма (or a selected-but-undecoded file) leaves the stale 'start local playback' message with nothing happening. Fix: when the Спектрограмма view becomes active for a selected LOCAL audio file (wav/flac) with no decoded buffer and no decode in flight, trigger audio.ensureLocalAudioReady(selectedPath, kind) (same non-playback decode as RF4.1); update the obsolete audio.noSpectrogram wording to cover only the no-file-selected case. .gnaural unchanged." }
   ],
@@ -62,7 +63,7 @@
       "id": "SF2.1",
       "phase": 2,
       "title": "Fix only-last-frame render (persist/accumulate tiles)",
-      "status": "in-progress",
+      "status": "done",
       "dependsOn": ["SF0.2"],
       "artifacts": [
         "GnauralCore/ui/components/SpectrogramView.vue",
@@ -140,6 +141,18 @@
       ]
     },
     {
+      "id": "SF6.1",
+      "phase": 6,
+      "title": "Profile the spectrogram generation pipeline",
+      "status": "in-progress",
+      "dependsOn": ["SF0.2"],
+      "artifacts": ["SpectrumCore or a scratch harness (profiling)", "spectrogram-fixes ledger (findings)"],
+      "verify": "stage-by-stage timing + payload breakdown on d:\\bin\\Presets\\1_Orientation.flac (open-analysis, get-tile sample-load vs FFT, tile bytes + serialize/parse, WS, UI render); bottleneck named; owner approval gate on the fix",
+      "startedAt": "2026-07-02T00:30:00Z", "finishedAt": null, "blockedReason": null, "evidence": [
+        "Recon: for wav/flac the source path passes STRAIGHT to the worker (spectrogram-audio-source: worker decodes flac natively) -> the worker's LoadChannelSegment decodes FLAC on demand per request (no cached PCM). Tiles are transferred as JSON (ui-ws-handler sends JSON.stringify(response)); a tile carries frames[].bins[] float arrays -> large text payloads. These are the prime suspects to quantify."
+      ]
+    },
+    {
       "id": "SF5.4",
       "phase": 5,
       "title": "Match Audacity default spectrogram settings",
@@ -190,6 +203,8 @@
     { "ts": "2026-07-01T22:10:00Z", "step": "SF5.1", "event": "done", "note": "SpectrogramView takes a height prop (fixed track height); AudioPage sets default 260px per track (items-start row). Reused by SF5.2/SF5.3. vue-tsc clean." },
     { "ts": "2026-07-01T22:30:00Z", "step": "SF5.2", "event": "done", "note": "Bottom-edge drag handle in SpectrogramView resizes the track (pointer-capture, clamp 120-1200) via v-model:height; AudioPage persists the height to localStorage (loaded on init). i18n added. vue-tsc clean; bun 61/0." },
     { "ts": "2026-07-01T23:00:00Z", "step": "SF5.3", "event": "done", "note": "Stereo L/R split. Enabling server change: SpectrogramSession now supports multiple concurrent analyses keyed by analysisId (was single-analysis; blocked two-channel view). UI: AudioPage stacks two per-channel SpectrogramViews (channel 0/1, labelled L/R) for stereo (numberOfChannels>=2), one pane for mono; shared v-model:height. server 17/0, ui 61/0, vue-tsc clean. Requires bun server restart." },
+    { "ts": "2026-07-02T00:30:00Z", "step": "SF2.1", "event": "done", "note": "Only-last-frame render RESOLVED (tile-count-by-zoom + worker timeouts + worker multi-analysis + WS multicast); owner moved on to speed, so the frames render. Remaining SF2.1 concern = generation SPEED, re-scoped to Phase 6 (SF-D10)." },
+    { "ts": "2026-07-02T00:30:00Z", "step": "SF6.1", "event": "planned", "note": "Owner: main problem is generation SPEED (Audacity much faster). Suspects: single-threaded worker FFT, JSON-not-binary tile transport, repeated per-request FLAC decode. Work via plan+ledger; profile the pipeline on d:\\bin\\Presets\\1_Orientation.flac first, then optimize at a gate." },
     { "ts": "2026-07-02T00:20:00Z", "step": "SF5.4", "event": "done", "note": "Set default spectrogram settings to match Audacity (owner screenshot): log scale 80-4000 Hz, 0 dB gain, 120 dB range, HF boost 0, Frequencies/magnitude, window 2048 Hann, zero-pad 2; palette rainbow (closest coloured to Audacity 'Color pink'). audacity preset aligned. vue-tsc + bun 61/0. NB: existing saved settings override defaults (Reset/preset to apply). Next: SF2.1." },
     { "ts": "2026-07-02T00:05:00Z", "step": "SF5.3", "event": "fixed", "note": "Owner: left channel loaded but the RIGHT channel spun forever (no data, no error). Root cause: ws.ts dispatch() stops at the first handler returning true, and every spectrogram composable's onSpectrogram handler returned true -> the first-registered (left) view consumed ALL spectrogram messages (filtering by requestId), so the second (right) view's handler was never called and its open/tile responses never arrived. Fix: multicast spectrogram messages to a dedicated Set of subscribers (all views receive every spectrogram message); regular ServerEvents keep single-consumer dispatch. UI-only change (HMR / page reload; no backend restart). vue-tsc clean; ui 61/0." },
     { "ts": "2026-07-01T23:40:00Z", "step": "SF5.3", "event": "fixed", "note": "Owner error on the left channel: 'get-tile failed: get-tile analysisId mismatch'. The WORKER (SpectrumCoreFftwWorkerProbe) was single-analysis too (one global Current; EnsureCurrent erroring on a different id) — the server multi-analysis change alone wasn't enough. Made the worker keep a registry of analyses; EnsureCurrent(id) now SELECTS the analysis and restores its TileCacheAnalysisToken (which keys both tile caches, so caching stays correct per analysis); open registers instead of freeing the previous; close unregisters; shutdown frees all. Rebuilt the probe + re-bundled into MindWave (manifest.json updated; exe gitignored). Verified via direct stdio probe: open AAA + BBB, get-tile AAA -> ok (frames=33). Bridge integration test 15/0. Requires bun server restart to pick up the new bundled worker." }

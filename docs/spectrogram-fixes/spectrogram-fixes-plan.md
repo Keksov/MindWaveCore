@@ -72,6 +72,16 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
 - **SF-D8 — Drag-to-resize track height.** A drag handle on the **bottom border** of the
   spectrogram track resizes its height (pointer drag), like Audacity; the chosen height is
   persisted (localStorage). *(Owner addition #2.)*
+- **SF-D10 — Spectrogram generation performance (SF2.1 real concern).** The "only last frame"
+  visual bug is resolved (tile-count-by-zoom, worker timeouts, worker multi-analysis, WS
+  multicast). The remaining SF2.1 problem is **generation SPEED** — Audacity renders a
+  spectrogram far faster. **Profile first, optimize second** (no premature optimization): measure
+  each pipeline stage on `d:\bin\Presets\1_Orientation.flac` — worker `open-analysis`, per-tile
+  `get-tile` (sample load/FLAC-decode vs FFT), tile payload size + JSON serialize/parse, WS
+  transfer, UI render — name the bottleneck, then choose the fix at an approval gate. Suspects to
+  confirm/refute: single-threaded worker FFT; JSON (not binary) tile transport of large float
+  arrays; repeated per-request FLAC decode (worker reads FLAC directly, no cached PCM). *(Owner
+  addition 2026-07-02.)*
 - **SF-D9 — Split stereo into left/right tracks.** For stereo sources, stack two spectrogram
   panes (Left over Right) like Audacity, each analysing one channel (`channel: 0` / `channel: 1`,
   its own worker analysis); mono renders a single pane. Detect channel count from the decoded
@@ -132,6 +142,12 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   (single pane for mono), detected via `AudioBuffer.numberOfChannels`. **Required a server
   change:** `SpectrogramSession` now supports multiple concurrent analyses keyed by `analysisId`
   (was single-analysis). server 17/0, ui 61/0, `vue-tsc` clean. **Phase 5 complete.**
+
+**Phase 6 — Spectrogram generation performance** *(owner addition 2026-07-02; SF-D10)*
+- [ ] **SF6.1 — Profile the pipeline.** Build a profiling harness and measure each stage on
+  `d:\bin\Presets\1_Orientation.flac` (worker open-analysis; per-tile get-tile with sample-load
+  vs FFT split; tile payload bytes + serialize/parse; WS; UI render). Produce a stage breakdown
+  and name the bottleneck. **PAUSE at an approval gate** to choose the optimization.
 
 **Phase 4 — Prepare spectrum on tab open**
 - [x] **SF4.1 — Auto-prepare on Спектрограмма tab.** `ensureSpectrogramPrepared()` + a watch
