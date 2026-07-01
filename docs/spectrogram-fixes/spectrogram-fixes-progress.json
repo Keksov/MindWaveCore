@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-01T20:45:00Z",
+  "updatedAt": "2026-07-01T21:05:00Z",
   "decisions": [
     { "id": "SF-D1", "text": "Scope & process: 3 items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green each step. Code in GnauralCore; ledger in MindWaveCore." },
     { "id": "SF-D2", "text": "Loading indicator: surface worker/tile loading in SpectrogramView as an overlay spinner driven by spec.loading (analysis open + tiles pending); keep audio.spectrogramLoading (decode) in AudioPage so an indicator covers the whole prepare span (decode -> open -> first tiles)." },
@@ -59,7 +59,7 @@
       "id": "SF2.1",
       "phase": 2,
       "title": "Fix only-last-frame render (persist/accumulate tiles)",
-      "status": "done",
+      "status": "in-progress",
       "dependsOn": ["SF0.2"],
       "artifacts": [
         "GnauralCore/ui/components/SpectrogramView.vue",
@@ -121,6 +121,7 @@
     { "ts": "2026-07-01T19:40:00Z", "step": "SF4.1", "event": "planned", "note": "New owner item (SF-D6): on the Воспроизведение tab select a file, switch to Спектрограмма -> stale 'start local playback' message and nothing happens. Add Phase 4: auto-decode (ensureLocalAudioReady) when the Спектрограмма tab opens for a selected undecoded local file + refresh noSpectrogram wording. Awaiting owner 'go'." },
     { "ts": "2026-07-01T19:55:00Z", "step": "SF4.1", "event": "done", "note": "AudioPage now auto-prepares the spectrum when the Спектрограмма tab is opened for a selected undecoded local file (ensureSpectrogramPrepared + watch); stale noSpectrogram wording refreshed (en/ru). vue-tsc + bun 56/0." },
     { "ts": "2026-07-01T20:20:00Z", "step": "SF2.1", "event": "done", "note": "Fixed only-last-frame render: tiles now persist/accumulate. Cache getByTileIndex binCount-fallback + assembleVisibleTiles uses it; always re-assemble on tile arrival; setView no-op guard against churn; viewBinCount rounded to 32-step. +4 unit tests (incl. explicit regression). vue-tsc clean; GnauralCore bun 60/0. Owner visual confirm pending." },
-    { "ts": "2026-07-01T20:45:00Z", "step": "SF2.1", "event": "fixed", "note": "Owner screenshot: bug persisted (strip runs L->R then vanishes; spinner stuck). REAL root cause: planVisibleTiles used a fixed 256 full-res frames/tile regardless of zoom -> a long file's full view plans hundreds of tiles that overflow the 128-LRU cache -> only rightmost survive. Fix: tile span = tileFrames*2^zoom full-res frames, so zoomed-out views need only a handful of tiles that fit the cache and all render. +1 unit test. vue-tsc clean; bun 61/0." }
+    { "ts": "2026-07-01T20:45:00Z", "step": "SF2.1", "event": "fixed", "note": "Owner screenshot: bug persisted (strip runs L->R then vanishes; spinner stuck). REAL root cause: planVisibleTiles used a fixed 256 full-res frames/tile regardless of zoom -> a long file's full view plans hundreds of tiles that overflow the 128-LRU cache -> only rightmost survive. Fix: tile span = tileFrames*2^zoom full-res frames, so zoomed-out views need only a handful of tiles that fit the cache and all render. +1 unit test. vue-tsc clean; bun 61/0." },
+    { "ts": "2026-07-01T21:05:00Z", "step": "SF2.1", "event": "reopened", "note": "Owner screenshot after the zoom fix: spinner clears but the plot is fully blank (no tiles AND no axes). Since the spinner clears when pending tiles drain (incl. on error), the wide/high-zoom get-tile requests are most likely erroring -> pending drained -> empty. Added diagnostics/robustness (no behavioural fix yet): (1) SpectrogramView draws axes whenever an analysis is present (blank plot != no analysis); (2) surfaces spec.error as an on-screen overlay; (3) close() resets currentView so the no-op guard can't skip the post-open setView. Need the on-screen error text / browser console to pin the worker failure before the real fix. vue-tsc clean; bun 61/0." }
   ]
 }
