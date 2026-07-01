@@ -5,11 +5,11 @@
   "title": "UI refinements batch 1 (page gap, collapsible presets sidebar, AppCore bar occlusion)",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-01T16:40:00Z",
+  "updatedAt": "2026-07-01T17:10:00Z",
   "decisions": [
     { "id": "RF-D1", "text": "Scope & process: 3 independent items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green for UI steps. Item 3 commits in the AppCore repo; the re-synced AppMain.exe in MindWave stays gitignored (not committed)." },
     { "id": "RF-D2", "text": "Gap removal: zero the OUTER page padding (the <page>__inner wrapper) on all in-scope pages so the central block is flush with the window; inter-panel gaps stay (only padding -> 0, keep gap). Applies to base rule + responsive media-query overrides." },
-    { "id": "RF-D3", "text": "Presets sidebar collapse: reuse the Tracks-panel pattern -- filesPanelOpen ref persisted to localStorage, slide <transition>, sidebar removed from flow when closed. Default OPEN." },
+    { "id": "RF-D3", "text": "Presets sidebar collapse: reuse the Tracks-panel pattern -- filesPanelOpen ref persisted to localStorage; sidebar toggled via plain v-if (matching the Tracks panel, which has no animated transition) and removed from flow when closed. Default OPEN. REVISED (owner 2026-07-01): the gap between the files panel and the player must be 5px -- same as the Tracks panel's __content gap (replacing audio-page__inner gap:16px)." },
     { "id": "RF-D4", "text": "REVISED (owner 2026-07-01): toggle in the TOP-LEVEL menu bar (audio-page__tabs-bar), LEFT of the 'Плеер' tab (audio.playerTab), icon folder, label audio.filesTab (ru 'Файлы' / en 'Files'), aria-expanded/controls, active styling when open; toggles the shared filesPanelOpen. Top-level placement fits the shared presets sidebar (used by both Плеер and Редактор tabs). Not the player-view submenu." },
     { "id": "RF-D5", "text": "AppCore fix: in updateBar hide the bar when the main window is NOT the foreground app (occluded/behind other windows) in addition to when minimized; show when the app returns to foreground. Detect via GetForegroundWindow + GetAncestor(GA_ROOTOWNER) identity, counting the bar (WS_EX_NOACTIVATE) as app-active." }
   ],
@@ -68,15 +68,22 @@
       "id": "RF2.1",
       "phase": 2,
       "title": "Collapsible presets sidebar + 'Файлы'/'Files' toggle",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": ["RF0.2"],
       "artifacts": [
         "GnauralCore/ui/pages/AudioPage.vue",
         "GnauralCore/ui/i18n/en.json",
         "GnauralCore/ui/i18n/ru.json"
       ],
-      "verify": "filesPanelOpen (localStorage-persisted) + slide transition hide/show the presets sidebar; 'Файлы'/'Files' toggle (folder icon, aria) sits left of the 'Плеер' tab in the top-level menu bar; audio.filesTab (+ show/hide aria) added to en/ru; vue-tsc + bun green",
-      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+      "verify": "filesPanelOpen (localStorage-persisted) toggles the presets sidebar via plain v-if (matching Tracks); files<->player gap = 5px (same as Tracks); 'Файлы'/'Files' toggle (folder icon, aria) sits left of the 'Плеер' tab in the top-level menu bar; audio.filesTab (+ show/hide aria) added to en/ru; vue-tsc + bun green",
+      "startedAt": "2026-07-01T16:55:00Z", "finishedAt": "2026-07-01T17:10:00Z", "blockedReason": null,
+      "evidence": [
+        "AudioPage.vue: sidebar wrapped in `v-if=\"filesPanelOpen\"` (id=audio-page-sidebar) — plain v-if toggle matching the Tracks panel; filesPanelOpen ref loaded from + persisted to localStorage key mindwave-audio-files-panel-open (default open); toggleFilesPanel().",
+        "Added a folder/'Файлы' q-btn toggle in the top-level audio-page__tabs-bar, LEFT of the <q-tabs> (Плеер/Редактор), with aria-expanded/aria-controls + active styling (audio-page__files-toggle--active).",
+        "Set audio-page__inner gap 16px -> 5px (files<->player spacing == Tracks panel __content gap:5px).",
+        "i18n: added audio.filesTab/filesShow/filesHide to GnauralCore en.json + ru.json (Files/Файлы).",
+        "Verify: vue-tsc --noEmit clean (MindWaveCore/ui); GnauralCore bun test = 56 pass / 0 fail; i18n JSON parses."
+      ]
     },
     {
       "id": "RF3.1",
@@ -96,6 +103,8 @@
     { "ts": "2026-07-01T16:10:00Z", "step": "RF0.1", "event": "done", "note": "UI-refinements batch-1 plan + ledger created. 3 items: (1) remove outer page gap on all screens; (2) collapsible presets sidebar mirroring the Tracks panel + 'Файлы'/'Files' toggle left of 'Воспроизведение'; (3) AppCore control-bar hides/shows with the main window's foreground state. Decisions RF-D1..RF-D5 drafted; next = RF0.2 approval gate." },
     { "ts": "2026-07-01T16:20:00Z", "step": "RF-D4", "event": "revised", "note": "Owner clarified: the 'Файлы'/'Files' toggle goes in the TOP-LEVEL menu bar, left of the 'Плеер' tab (not the player-view submenu). RF-D4 + RF2.1 verify updated. Still at approval gate RF0.2." },
     { "ts": "2026-07-01T16:30:00Z", "step": "RF0.2", "event": "done", "note": "Owner approved ('go'). Decisions RF-D2..RF-D5 locked. Proceeding to Phase 1." },
-    { "ts": "2026-07-01T16:40:00Z", "step": "RF1.1", "event": "done", "note": "Removed the outer page gap on all screens: zeroed __inner padding (Settings/LogArchive/Audio, base+media, kept inter-panel gap) and dropped the q-page `padding` prop (LogPage + BodyMonitor Monitoring/AlphaRelaxation/Calibration). vue-tsc clean. Committed per-repo (MindWaveCore/GnauralCore/BodyMonitorCore)." }
+    { "ts": "2026-07-01T16:40:00Z", "step": "RF1.1", "event": "done", "note": "Removed the outer page gap on all screens: zeroed __inner padding (Settings/LogArchive/Audio, base+media, kept inter-panel gap) and dropped the q-page `padding` prop (LogPage + BodyMonitor Monitoring/AlphaRelaxation/Calibration). vue-tsc clean. Committed per-repo (MindWaveCore/GnauralCore/BodyMonitorCore)." },
+    { "ts": "2026-07-01T16:55:00Z", "step": "RF-D3", "event": "revised", "note": "Owner addition: the files<->player gap must match the Tracks panel (5px). Confirmed Tracks uses plain v-if (no transition) + __content gap:5px; RF-D3/RF2.1 updated accordingly. Proceeding to implement RF2.1." },
+    { "ts": "2026-07-01T17:10:00Z", "step": "RF2.1", "event": "done", "note": "Presets sidebar now collapsible (v-if filesPanelOpen, localStorage-persisted, default open) with a folder/'Файлы' toggle in the top-level menu left of 'Плеер'; files<->player gap set to 5px (== Tracks). i18n filesTab/filesShow/filesHide (en/ru). vue-tsc clean; GnauralCore bun 56/0. Committed: GnauralCore (impl) + MindWaveCore (plan+ledger)." }
   ]
 }

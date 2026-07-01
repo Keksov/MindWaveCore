@@ -50,8 +50,12 @@ Goal: three independent refinements requested by the owner —
   (e.g. `audio-page__inner` keeps its 16px `gap`, only `padding` → 0). Applies to both the
   base rule and the responsive media-query overrides.
 - **RF-D3 — Presets sidebar collapse.** Reuse the Tracks-panel pattern: a `filesPanelOpen` ref
-  persisted to localStorage (per-key like the tracks panel), a slide `<transition>`, and the
-  sidebar removed from layout flow when closed. Default **open**.
+  persisted to localStorage (per-key like the tracks panel); the sidebar is toggled via plain
+  `v-if` and removed from layout flow when closed — matching the Tracks panel, which uses a
+  plain `v-if` (no animated transition). Default **open**. **The gap between the files panel and
+  the player is 5px** — the same as the Tracks panel's `__content { gap: 5px }` (replacing the
+  current `audio-page__inner { gap: 16px }`). *(Owner addition 2026-07-01: match the Tracks-panel
+  spacing.)*
 - **RF-D4 — "Файлы"/"Files" toggle placement.** A toggle control in the **top-level menu bar**
   (`audio-page__tabs-bar`), **left of the "Плеер" tab** (`audio.playerTab`), icon `folder`,
   label `audio.filesTab` (ru "Файлы"/en "Files"), `aria-expanded`/`aria-controls`, active
@@ -95,8 +99,9 @@ Goal: three independent refinements requested by the owner —
 
 **Phase 2 — Collapsible presets sidebar + "Файлы" toggle**
 - [ ] **RF2.1 — Make the presets sidebar collapsible + add the toggle.** In AudioPage: add
-  `filesPanelOpen` (localStorage-persisted), a slide transition, hide the sidebar when closed,
-  and a `folder`/"Файлы" toggle in the top-level menu bar left of the "Плеер" tab; add
+  `filesPanelOpen` (localStorage-persisted), hide the sidebar via plain `v-if` when closed
+  (matching the Tracks panel), set the files↔player gap to **5px** (same as the Tracks panel),
+  and add a `folder`/"Файлы" toggle in the top-level menu bar left of the "Плеер" tab; add
   `audio.filesTab` (+ show/hide aria labels) to GnauralCore i18n en/ru. Verify `vue-tsc` + `bun`.
 
 **Phase 3 — AppCore control-bar occlusion fix**
