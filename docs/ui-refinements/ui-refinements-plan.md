@@ -1,6 +1,6 @@
 # UI refinements batch 1
 
-Status: **active** (plan written; approval gate RF0.2 before execution)
+Status: **complete** (all phases done 2026-07-01; manual/visual acceptance left to owner)
 Created: 2026-07-01
 Authoritative progress ledger: [ui-refinements-progress.json](ui-refinements-progress.json)
 
@@ -98,13 +98,12 @@ Goal: three independent refinements requested by the owner —
 ## 5. Steps (checklist mirrors the ledger)
 **Phase 0 — Plan & approval**
 - [x] **RF0.1 — Plan & ledger.**
-- [ ] **RF0.2 — Approval gate.** Owner confirms RF-D2 (padding→0, keep inter-panel gaps),
-  RF-D4 (toggle = button left of Воспроизведение), RF-D5 (foreground-based hide). PAUSE.
+- [x] **RF0.2 — Approval gate.** Owner approved (RF-D4 revised to top-level menu, left of "Плеер").
 
 **Phase 1 — Remove the outer page gap (all screens)**
-- [ ] **RF1.1 — Zero outer page padding.** Set the `<page>__inner` padding to 0 (base + media
-  queries) across SettingsPage, LogPage, LogArchivePage, AudioPage, and the three BodyMonitor
-  pages; keep inter-panel `gap`. Verify `vue-tsc`.
+- [x] **RF1.1 — Zero outer page padding.** Zeroed `<page>__inner` padding (base + media queries)
+  on SettingsPage/LogArchivePage/AudioPage (kept inter-panel `gap`) and dropped the q-page
+  `padding` prop on LogPage + the three BodyMonitor pages. `vue-tsc` clean.
 
 **Phase 2 — Collapsible presets sidebar + "Файлы" toggle**
 - [ ] **RF2.1 — Make the presets sidebar collapsible + add the toggle.** In AudioPage: add
@@ -112,15 +111,21 @@ Goal: three independent refinements requested by the owner —
   (matching the Tracks panel), set the files↔player gap to **5px** (same as the Tracks panel),
   and add a `folder`/"Файлы" toggle in the top-level menu bar left of the "Плеер" tab; add
   `audio.filesTab` (+ show/hide aria labels) to GnauralCore i18n en/ru. Verify `vue-tsc` + `bun`.
-- [ ] **RF2.2 — Start-button offset + files-panel close button.** Add horizontal padding to the
+  **Done** (vue-tsc clean; GnauralCore bun 56/0).
+- [x] **RF2.2 — Start-button offset + files-panel close button.** Added `padding: 0 16px` to the
   embedded gnaural schedule toolbar so the Start button matches the top menu's edge offset
-  (RF-D6); add a Tracks-style close (×) button to the files panel header (RF-D7). Verify
-  `vue-tsc` + `bun`.
+  (RF-D6); added a Tracks-style close (×) button to the files panel header → `closeFilesPanel`
+  (RF-D7). `vue-tsc` clean; GnauralCore bun 56/0.
 
 **Phase 3 — AppCore control-bar occlusion fix**
-- [ ] **RF3.1 — Hide the bar with the main window's foreground state.** Edit AppBar.pas
-  `updateBar` (+ helper) per RF-D5; build AppCore (`build_app.bat`); commit in the AppCore
-  repo; re-sync `AppMain.exe` into MindWave (`server/sync-appcore-launcher.ps1`, sync-only).
+- [x] **RF3.1 — Hide the bar with the main window's foreground state.** Added
+  `mainWindowIsActive` (foreground root-owner check) + updated `updateBar` guard in AppBar.pas;
+  built AppCore (`build_app.bat` OK); committed in the AppCore repo; re-synced `AppMain.exe`
+  into MindWave (sync-only, gitignored).
+
+**Plan complete.** All three refinements landed; automated checks (vue-tsc, bun, FPC build)
+green. Manual/visual acceptance (page layout flush with the window; sidebar collapse; Start
+offset; bar hides when backgrounded) is the owner's gate.
 
 ## 6. References
 - Collapsible pattern: [GnauralScheduleView.vue](../../../GnauralCore/ui/components/GnauralScheduleView.vue) (`trackPanelOpen`)

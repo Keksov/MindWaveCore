@@ -3,9 +3,9 @@
   "plan": "ui-refinements",
   "planDoc": "docs/ui-refinements/ui-refinements-plan.md",
   "title": "UI refinements batch 1 (page gap, collapsible presets sidebar, AppCore bar occlusion)",
-  "status": "active",
+  "status": "complete",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-01T17:35:00Z",
+  "updatedAt": "2026-07-01T17:55:00Z",
   "decisions": [
     { "id": "RF-D1", "text": "Scope & process: 3 independent items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green for UI steps. Item 3 commits in the AppCore repo; the re-synced AppMain.exe in MindWave stays gitignored (not committed)." },
     { "id": "RF-D2", "text": "Gap removal: zero the OUTER page padding (the <page>__inner wrapper) on all in-scope pages so the central block is flush with the window; inter-panel gaps stay (only padding -> 0, keep gap). Applies to base rule + responsive media-query overrides." },
@@ -109,14 +109,20 @@
       "id": "RF3.1",
       "phase": 3,
       "title": "AppCore control-bar occlusion fix",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": ["RF0.2"],
       "artifacts": [
         "Games/AppCore/src/AppBar.pas",
         "MindWaveCore/server/sync-appcore-launcher.ps1 (re-sync, sync-only binary)"
       ],
       "verify": "updateBar hides the bar when the main window is not foreground (behind other apps) + when minimized; shows when app returns to foreground; AppCore build_app.bat succeeds; AppMain.exe re-synced; committed in the AppCore repo",
-      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+      "startedAt": "2026-07-01T17:40:00Z", "finishedAt": "2026-07-01T17:55:00Z", "blockedReason": null,
+      "evidence": [
+        "AppBar.pas: added mainWindowIsActive() (GetForegroundWindow + GetAncestor(fg, GA_ROOTOWNER)=gMainWnd, also matching gMainWnd/gBarWnd; bar is WS_EX_NOACTIVATE so it never steals foreground). updateBar guard now hides the bar on `IsIconic OR not mainWindowIsActive OR not GetWindowRect` -> the TOPMOST bar no longer floats over other apps when MindWave is backgrounded; the 30ms timer re-shows it (SWP_SHOWWINDOW) when the app returns to foreground.",
+        "Built via build/win_x64/build_app.bat -> 'Build successful' (confirms GetAncestor/GA_ROOTOWNER available in the FPC Windows unit). Re-synced AppMain.exe (+libwebview.dll) into MindWaveCore/server via sync-appcore-launcher.ps1; both remain gitignored (git check-ignore confirms) and are NOT staged in MindWave.",
+        "Committed in the AppCore repo (source only). Manual/visual gate (send window behind another app -> bar hides; bring forward -> bar shows) left for the owner.",
+        "NOTE: build_app.bat also deploys AppMain.exe/libwebview.dll to Games/KKLeftRight/server (existing script behavior, unrelated to MindWave)."
+      ]
     }
   ],
   "log": [
@@ -126,6 +132,8 @@
     { "ts": "2026-07-01T16:40:00Z", "step": "RF1.1", "event": "done", "note": "Removed the outer page gap on all screens: zeroed __inner padding (Settings/LogArchive/Audio, base+media, kept inter-panel gap) and dropped the q-page `padding` prop (LogPage + BodyMonitor Monitoring/AlphaRelaxation/Calibration). vue-tsc clean. Committed per-repo (MindWaveCore/GnauralCore/BodyMonitorCore)." },
     { "ts": "2026-07-01T16:55:00Z", "step": "RF-D3", "event": "revised", "note": "Owner addition: the files<->player gap must match the Tracks panel (5px). Confirmed Tracks uses plain v-if (no transition) + __content gap:5px; RF-D3/RF2.1 updated accordingly. Proceeding to implement RF2.1." },
     { "ts": "2026-07-01T17:10:00Z", "step": "RF2.1", "event": "done", "note": "Presets sidebar now collapsible (v-if filesPanelOpen, localStorage-persisted, default open) with a folder/'Файлы' toggle in the top-level menu left of 'Плеер'; files<->player gap set to 5px (== Tracks). i18n filesTab/filesShow/filesHide (en/ru). vue-tsc clean; GnauralCore bun 56/0. Committed: GnauralCore (impl) + MindWaveCore (plan+ledger)." },
-    { "ts": "2026-07-01T17:35:00Z", "step": "RF2.2", "event": "done", "note": "Owner additions: (RF-D6) schedule toolbar padding 0 16px -> Start button no longer flush, matches top-menu edge offset (canvas stays full-bleed); (RF-D7) Tracks-style close (x) button added to the files panel header -> closeFilesPanel. vue-tsc clean; GnauralCore bun 56/0. Committed: GnauralCore (impl) + MindWaveCore (plan+ledger)." }
+    { "ts": "2026-07-01T17:35:00Z", "step": "RF2.2", "event": "done", "note": "Owner additions: (RF-D6) schedule toolbar padding 0 16px -> Start button no longer flush, matches top-menu edge offset (canvas stays full-bleed); (RF-D7) Tracks-style close (x) button added to the files panel header -> closeFilesPanel. vue-tsc clean; GnauralCore bun 56/0. Committed: GnauralCore (impl) + MindWaveCore (plan+ledger)." },
+    { "ts": "2026-07-01T17:55:00Z", "step": "RF3.1", "event": "done", "note": "AppCore control-bar occlusion fixed: AppBar.pas updateBar now hides the TOPMOST bar when MindWave is not the foreground app (mainWindowIsActive via GetForegroundWindow/GetAncestor GA_ROOTOWNER) in addition to minimized; re-shows on return to foreground. build_app.bat OK; AppMain.exe re-synced into MindWave (gitignored). Committed in AppCore repo. Manual visual gate left to owner." },
+    { "ts": "2026-07-01T17:55:00Z", "step": "-", "event": "complete", "note": "UI-refinements batch 1 COMPLETE. RF1.1 (page gap removed on all screens), RF2.1 (collapsible presets sidebar + Files toggle, 5px gap), RF2.2 (Start-button offset + files close button), RF3.1 (AppCore bar hides when backgrounded). Manual/visual acceptance (layout + window occlusion) left to owner." }
   ]
 }
