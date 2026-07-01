@@ -65,6 +65,18 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
 - **SF-D5 — Toggle placement.** The "Параметры" toggle lives in the `SpectrogramView` toolbar
   (next to zoom/fit), so open/close state + overlay are self-contained in the view. State may
   be local to the view (not persisted) unless the owner wants persistence.
+- **SF-D7 — Audacity-like default track height.** Give the spectrogram plot a taller default
+  height matching the Audacity reference (per-channel ~240px; a stereo split ~2× that). Applies
+  to `SpectrogramView`/its host in AudioPage instead of the current `min-height: 280px` flex fill.
+  *(Owner addition 2026-07-01, "Сделать UI похожим на Audacity" #1.)*
+- **SF-D8 — Drag-to-resize track height.** A drag handle on the **bottom border** of the
+  spectrogram track resizes its height (pointer drag), like Audacity; the chosen height is
+  persisted (localStorage). *(Owner addition #2.)*
+- **SF-D9 — Split stereo into left/right tracks.** For stereo sources, stack two spectrogram
+  panes (Left over Right) like Audacity, each analysing one channel (`channel: 0` / `channel: 1`,
+  its own worker analysis); mono renders a single pane. Detect channel count from the decoded
+  `AudioBuffer.numberOfChannels` (`audio.spectrogramBuffer`); label the panes L/R. *(Owner
+  addition #3.)*
 - **SF-D6 — Prepare the spectrum when the Спектрограмма tab is opened.** The Спектрограмма tab
   only renders when `audio.spectrogramBuffer !== null` (decoded); RF4.1 decodes on tree
   *selection*, but if a local audio file is already selected (or selected-but-undecoded) and the
@@ -110,6 +122,15 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
 - [ ] **SF3.1 — Overlay + rename.** Convert the settings panel to a toggleable overlay (no
   main-content resize) titled "Параметры" with a toolbar toggle + backdrop + close; i18n en/ru.
   Verify `vue-tsc` + `bun`.
+
+**Phase 5 — Make the UI Audacity-like** *(owner addition 2026-07-01)*
+- [ ] **SF5.1 — Audacity-like default track height (SF-D7).** Set the spectrogram plot default
+  height to match the reference. Verify `vue-tsc`.
+- [ ] **SF5.2 — Drag-resize track height (SF-D8).** Bottom-border drag handle resizes the track;
+  persist the height. Verify `vue-tsc` + `bun`.
+- [ ] **SF5.3 — Stereo left/right split (SF-D9).** Stack Left/Right per-channel spectrogram panes
+  for stereo (single pane for mono), detected via `AudioBuffer.numberOfChannels`. Verify
+  `vue-tsc` + `bun`.
 
 **Phase 4 — Prepare spectrum on tab open**
 - [x] **SF4.1 — Auto-prepare on Спектрограмма tab.** `ensureSpectrogramPrepared()` + a watch

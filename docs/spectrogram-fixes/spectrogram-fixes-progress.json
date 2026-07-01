@@ -5,13 +5,16 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-01T21:25:00Z",
+  "updatedAt": "2026-07-01T21:45:00Z",
   "decisions": [
     { "id": "SF-D1", "text": "Scope & process: 3 items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green each step. Code in GnauralCore; ledger in MindWaveCore." },
     { "id": "SF-D2", "text": "Loading indicator: surface worker/tile loading in SpectrogramView as an overlay spinner driven by spec.loading (analysis open + tiles pending); keep audio.spectrogramLoading (decode) in AudioPage so an indicator covers the whole prepare span (decode -> open -> first tiles)." },
     { "id": "SF-D3", "text": "Only-last-frame fix: make the rendered tile set persist/accumulate during load: (a) guard setView/applyView to no-op when the effective view (time window + zoom + viewBinCount) is unchanged (kill viewSeq churn); (b) re-assembleVisibleTiles on every tile arrival against the current cache (not only when pending.seq===viewSeq); (c) final assemble+redraw when loading clears. Root cause confirmed at execution via instrumentation; add a composable unit test for tile accumulation across a binCount/seq change. Confirmed repro (owner): happens on OPEN, no playback; a one-tile strip runs L->R and only the last tile stays." },
     { "id": "SF-D4", "text": "Settings panel = overlay named 'Параметры': convert the fixed 264px side column into a toggleable overlay mirroring the schedule settings panel (absolute aside over the plot, no main-content resize, backdrop, <transition>); header title 'Параметры' (audio.spectrogramSettingsTitle: en 'Parameters' / ru 'Параметры') + close (x). Default closed." },
     { "id": "SF-D5", "text": "Toggle placement: the 'Параметры' toggle lives in the SpectrogramView toolbar (next to zoom/fit); open/close state + overlay are self-contained in the view; state local (not persisted) unless owner asks otherwise." },
+    { "id": "SF-D7", "text": "Owner addition 2026-07-01 (Audacity-like UI #1): give the spectrogram plot a taller default height matching the Audacity reference (per-channel ~240px; stereo split ~2x) instead of the current min-height:280px flex fill." },
+    { "id": "SF-D8", "text": "Owner addition (Audacity-like UI #2): a drag handle on the bottom border of the spectrogram track resizes its height via pointer drag (like Audacity); persist the chosen height (localStorage)." },
+    { "id": "SF-D9", "text": "Owner addition (Audacity-like UI #3): split stereo into stacked Left-over-Right panes, each analysing one channel (channel:0/channel:1, its own worker analysis); mono = single pane. Detect channel count from the decoded AudioBuffer.numberOfChannels (audio.spectrogramBuffer); label panes L/R." },
     { "id": "SF-D6", "text": "Owner addition 2026-07-01: prepare the spectrum when the Спектрограмма tab is opened. The tab renders only when audio.spectrogramBuffer!=null; RF4.1 decodes on tree selection, but selecting a file on the Воспроизведение tab then switching to Спектрограмма (or a selected-but-undecoded file) leaves the stale 'start local playback' message with nothing happening. Fix: when the Спектрограмма view becomes active for a selected LOCAL audio file (wav/flac) with no decoded buffer and no decode in flight, trigger audio.ensureLocalAudioReady(selectedPath, kind) (same non-playback decode as RF4.1); update the obsolete audio.noSpectrogram wording to cover only the no-file-selected case. .gnaural unchanged." }
   ],
   "steps": [
@@ -93,6 +96,36 @@
       "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
     },
     {
+      "id": "SF5.1",
+      "phase": 5,
+      "title": "Audacity-like default track height",
+      "status": "not-started",
+      "dependsOn": ["SF0.2"],
+      "artifacts": ["GnauralCore/ui/components/SpectrogramView.vue", "GnauralCore/ui/pages/AudioPage.vue"],
+      "verify": "spectrogram plot default height matches the Audacity reference; vue-tsc clean",
+      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+    },
+    {
+      "id": "SF5.2",
+      "phase": 5,
+      "title": "Drag-resize track height",
+      "status": "not-started",
+      "dependsOn": ["SF5.1"],
+      "artifacts": ["GnauralCore/ui/components/SpectrogramView.vue"],
+      "verify": "a bottom-border drag handle resizes the track height (pointer drag); height persisted in localStorage; vue-tsc + bun green",
+      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+    },
+    {
+      "id": "SF5.3",
+      "phase": 5,
+      "title": "Split stereo into left/right tracks",
+      "status": "not-started",
+      "dependsOn": ["SF5.1"],
+      "artifacts": ["GnauralCore/ui/pages/AudioPage.vue", "GnauralCore/ui/components/SpectrogramView.vue"],
+      "verify": "stereo files render stacked Left/Right per-channel panes (channel 0/1, separate analyses); mono renders one pane; channel count from AudioBuffer.numberOfChannels; panes labelled L/R; vue-tsc + bun green",
+      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+    },
+    {
       "id": "SF4.1",
       "phase": 4,
       "title": "Auto-prepare spectrum when the Спектрограмма tab is opened",
@@ -123,6 +156,7 @@
     { "ts": "2026-07-01T20:20:00Z", "step": "SF2.1", "event": "done", "note": "Fixed only-last-frame render: tiles now persist/accumulate. Cache getByTileIndex binCount-fallback + assembleVisibleTiles uses it; always re-assemble on tile arrival; setView no-op guard against churn; viewBinCount rounded to 32-step. +4 unit tests (incl. explicit regression). vue-tsc clean; GnauralCore bun 60/0. Owner visual confirm pending." },
     { "ts": "2026-07-01T20:45:00Z", "step": "SF2.1", "event": "fixed", "note": "Owner screenshot: bug persisted (strip runs L->R then vanishes; spinner stuck). REAL root cause: planVisibleTiles used a fixed 256 full-res frames/tile regardless of zoom -> a long file's full view plans hundreds of tiles that overflow the 128-LRU cache -> only rightmost survive. Fix: tile span = tileFrames*2^zoom full-res frames, so zoomed-out views need only a handful of tiles that fit the cache and all render. +1 unit test. vue-tsc clean; bun 61/0." },
     { "ts": "2026-07-01T21:05:00Z", "step": "SF2.1", "event": "reopened", "note": "Owner screenshot after the zoom fix: spinner clears but the plot is fully blank (no tiles AND no axes). Since the spinner clears when pending tiles drain (incl. on error), the wide/high-zoom get-tile requests are most likely erroring -> pending drained -> empty. Added diagnostics/robustness (no behavioural fix yet): (1) SpectrogramView draws axes whenever an analysis is present (blank plot != no analysis); (2) surfaces spec.error as an on-screen overlay; (3) close() resets currentView so the no-op guard can't skip the post-open setView. Need the on-screen error text / browser console to pin the worker failure before the real fix. vue-tsc clean; bun 61/0." },
-    { "ts": "2026-07-01T21:25:00Z", "step": "SF2.1", "event": "fixed", "note": "Owner error surfaced: 'worker request timed out after 15000ms' on a 25-min FLAC (d:\\bin\\Presets\\01 - Elation Galaxy.flac). Root cause of the blank: heavy worker ops (full-file STFT open-analysis / wide overview get-tile) exceed the flat 15s SpectrogramWorkerManager timeout, which poisons + restarts the worker -> analysis/tiles never arrive -> blank. Fix: spectrogram-session.ts now passes generous per-command timeouts (open-analysis/reconfigure 120s, get-tile 60s). BACKEND change -> requires bun server restart (not UI HMR). server tests 17/0." }
+    { "ts": "2026-07-01T21:25:00Z", "step": "SF2.1", "event": "fixed", "note": "Owner error surfaced: 'worker request timed out after 15000ms' on a 25-min FLAC (d:\\bin\\Presets\\01 - Elation Galaxy.flac). Root cause of the blank: heavy worker ops (full-file STFT open-analysis / wide overview get-tile) exceed the flat 15s SpectrogramWorkerManager timeout, which poisons + restarts the worker -> analysis/tiles never arrive -> blank. Fix: spectrogram-session.ts now passes generous per-command timeouts (open-analysis/reconfigure 120s, get-tile 60s). BACKEND change -> requires bun server restart (not UI HMR). server tests 17/0." },
+    { "ts": "2026-07-01T21:45:00Z", "step": "SF5", "event": "planned", "note": "Owner addition (attached Audacity reference): new Phase 5 'Make the UI Audacity-like' — SF5.1 default track height, SF5.2 drag-resize via bottom border, SF5.3 stereo left/right split. Decisions SF-D7/D8/D9. Awaiting owner 'go'." }
   ]
 }
