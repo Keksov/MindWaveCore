@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-01T18:55:00Z",
+  "updatedAt": "2026-07-01T19:05:00Z",
   "decisions": [
     { "id": "SF-D1", "text": "Scope & process: 3 items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green each step. Code in GnauralCore; ledger in MindWaveCore." },
     { "id": "SF-D2", "text": "Loading indicator: surface worker/tile loading in SpectrogramView as an overlay spinner driven by spec.loading (analysis open + tiles pending); keep audio.spectrogramLoading (decode) in AudioPage so an indicator covers the whole prepare span (decode -> open -> first tiles)." },
@@ -32,21 +32,26 @@
       "id": "SF0.2",
       "phase": 0,
       "title": "Approval gate (SF-D2..SF-D5)",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": ["SF0.1"],
       "artifacts": ["docs/spectrogram-fixes/spectrogram-fixes-plan.md"],
       "verify": "owner confirms SF-D2 (loading overlay), SF-D3 (accumulate-tiles fix + unit test), SF-D4 (overlay 'Параметры'), SF-D5 (toggle in view toolbar). PAUSE before Phase 1.",
-      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+      "startedAt": "2026-07-01T18:55:00Z", "finishedAt": "2026-07-01T19:00:00Z", "blockedReason": null,
+      "evidence": ["Owner approved ('go'); SF-D2..SF-D5 locked. Also confirmed the bug-2 repro (on open, no playback: one-tile strip runs L->R, only last stays)."]
     },
     {
       "id": "SF1.1",
       "phase": 1,
       "title": "Loading indicator during spectrogram preparation",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": ["SF0.2"],
-      "artifacts": ["GnauralCore/ui/components/SpectrogramView.vue"],
+      "artifacts": ["GnauralCore/ui/components/SpectrogramView.vue", "GnauralCore/ui/i18n/en.json", "GnauralCore/ui/i18n/ru.json"],
       "verify": "an overlay spinner shows while spec.loading (analysis open + tiles pending) and clears when ready; vue-tsc clean",
-      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+      "startedAt": "2026-07-01T19:00:00Z", "finishedAt": "2026-07-01T19:05:00Z", "blockedReason": null,
+      "evidence": [
+        "SpectrogramView: added isPreparing = computed(spec.loading) and an absolute overlay (spectrogram-view__loading) with q-spinner-hourglass + label shown while preparing; container set position:relative. i18n audio.spectrogramPreparing added (en 'Preparing spectrogram…' / ru 'Подготовка спектрограммы…').",
+        "spec.loading is true while the analysis is opening and while tiles are pending (updateLoading), so the indicator covers the worker prepare span; AudioPage keeps its decode spinner. vue-tsc clean; i18n JSON parses."
+      ]
     },
     {
       "id": "SF2.1",
@@ -80,6 +85,8 @@
     }
   ],
   "log": [
-    { "ts": "2026-07-01T18:55:00Z", "step": "SF0.1", "event": "done", "note": "Spectrogram-fixes plan + ledger created. 3 items: (1) loading indicator during prepare; (2) fix only-last-frame render (tiles don't accumulate; owner repro = on open, one-tile strip runs L->R, only last stays); (3) settings side panel -> overlay named 'Параметры' (no main-content resize). Decisions SF-D1..SF-D5 drafted; next = SF0.2 approval gate." }
+    { "ts": "2026-07-01T18:55:00Z", "step": "SF0.1", "event": "done", "note": "Spectrogram-fixes plan + ledger created. 3 items: (1) loading indicator during prepare; (2) fix only-last-frame render (tiles don't accumulate; owner repro = on open, one-tile strip runs L->R, only last stays); (3) settings side panel -> overlay named 'Параметры' (no main-content resize). Decisions SF-D1..SF-D5 drafted; next = SF0.2 approval gate." },
+    { "ts": "2026-07-01T19:00:00Z", "step": "SF0.2", "event": "done", "note": "Owner approved ('go'). SF-D2..SF-D5 locked. Proceeding to Phase 1." },
+    { "ts": "2026-07-01T19:05:00Z", "step": "SF1.1", "event": "done", "note": "Added a loading overlay (spinner + 'Подготовка спектрограммы…') in SpectrogramView driven by spec.loading (analysis open + tiles pending). vue-tsc clean." }
   ]
 }

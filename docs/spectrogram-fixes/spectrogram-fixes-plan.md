@@ -85,11 +85,11 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
 ## 5. Steps (checklist mirrors the ledger)
 **Phase 0 — Plan & approval**
 - [x] **SF0.1 — Plan & ledger.**
-- [ ] **SF0.2 — Approval gate.** Owner confirms SF-D2/SF-D3/SF-D4/SF-D5. PAUSE.
+- [x] **SF0.2 — Approval gate.** Owner approved (`go`); SF-D2..SF-D5 locked.
 
 **Phase 1 — Loading indicator**
-- [ ] **SF1.1 — Surface spectrogram preparation loading.** Overlay spinner in `SpectrogramView`
-  driven by `spec.loading`. Verify `vue-tsc`.
+- [x] **SF1.1 — Surface spectrogram preparation loading.** Overlay spinner in `SpectrogramView`
+  driven by `spec.loading` (+ `audio.spectrogramPreparing` i18n en/ru). `vue-tsc` clean.
 
 **Phase 2 — Fix only-last-frame render**
 - [ ] **SF2.1 — Persist/accumulate tiles.** Instrument + fix per SF-D3 so the full spectrogram
