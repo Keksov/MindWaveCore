@@ -14,6 +14,12 @@ const BASE_RECONNECT_MS = 1_000
 
 const connectionState: Ref<ConnectionState> = ref('disconnected')
 const eventHandlers = new Set<WsEventHandler>()
+// Spectrogram messages are multicast to ALL subscribers (each SpectrogramView has
+// its own composable; a stereo split has two). The single-consumer `dispatch`
+// (stop-at-first-true) would otherwise deliver every spectrogram message to only
+// the first-registered handler, so the second view (e.g. the right channel) would
+// never receive its responses and spin forever.
+const spectrogramHandlers = new Set<(message: SpectrogramServerMessage) => void>()
 let socket: WebSocket | null = null
 let reconnectAttempt = 0
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null
@@ -79,6 +85,13 @@ function connect(): void {
       return
     }
     if (typeof parsed === 'object' && parsed !== null && 'type' in parsed) {
+      const type = (parsed as { type?: unknown }).type
+      if (typeof type === 'string' && type.startsWith('spectrogram:')) {
+        for (const handler of spectrogramHandlers) {
+          handler(parsed as SpectrogramServerMessage)
+        }
+        return
+      }
       dispatch(parsed as ServerEvent)
     }
   })
@@ -97,14 +110,10 @@ function sendSpectrogram(msg: SpectrogramClientMessage): boolean {
 }
 
 function onSpectrogram(handler: (message: SpectrogramServerMessage) => void): () => void {
-  return registerHandler((event) => {
-    const type = (event as { type?: unknown }).type
-    if (typeof type === 'string' && type.startsWith('spectrogram:')) {
-      handler(event as unknown as SpectrogramServerMessage)
-      return true
-    }
-    return false
-  })
+  spectrogramHandlers.add(handler)
+  return () => {
+    spectrogramHandlers.delete(handler)
+  }
 }
 
 function init(): void {
