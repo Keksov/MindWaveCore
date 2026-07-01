@@ -5,12 +5,12 @@
   "title": "UI refinements batch 1 (page gap, collapsible presets sidebar, AppCore bar occlusion)",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-01T16:10:00Z",
+  "updatedAt": "2026-07-01T16:20:00Z",
   "decisions": [
     { "id": "RF-D1", "text": "Scope & process: 3 independent items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green for UI steps. Item 3 commits in the AppCore repo; the re-synced AppMain.exe in MindWave stays gitignored (not committed)." },
     { "id": "RF-D2", "text": "Gap removal: zero the OUTER page padding (the <page>__inner wrapper) on all in-scope pages so the central block is flush with the window; inter-panel gaps stay (only padding -> 0, keep gap). Applies to base rule + responsive media-query overrides." },
     { "id": "RF-D3", "text": "Presets sidebar collapse: reuse the Tracks-panel pattern -- filesPanelOpen ref persisted to localStorage, slide <transition>, sidebar removed from flow when closed. Default OPEN." },
-    { "id": "RF-D4", "text": "Toggle placement: a toggle control in the player-view tabs bar, LEFT of 'Воспроизведение', icon folder, label audio.filesTab (ru 'Файлы' / en 'Files'), aria-expanded/controls, active styling when open; toggles the shared filesPanelOpen. Sidebar is shared by player+editor tabs; toggle lives in the player menu as requested." },
+    { "id": "RF-D4", "text": "REVISED (owner 2026-07-01): toggle in the TOP-LEVEL menu bar (audio-page__tabs-bar), LEFT of the 'Плеер' tab (audio.playerTab), icon folder, label audio.filesTab (ru 'Файлы' / en 'Files'), aria-expanded/controls, active styling when open; toggles the shared filesPanelOpen. Top-level placement fits the shared presets sidebar (used by both Плеер and Редактор tabs). Not the player-view submenu." },
     { "id": "RF-D5", "text": "AppCore fix: in updateBar hide the bar when the main window is NOT the foreground app (occluded/behind other windows) in addition to when minimized; show when the app returns to foreground. Detect via GetForegroundWindow + GetAncestor(GA_ROOTOWNER) identity, counting the bar (WS_EX_NOACTIVATE) as app-active." }
   ],
   "steps": [
@@ -67,7 +67,7 @@
         "GnauralCore/ui/i18n/en.json",
         "GnauralCore/ui/i18n/ru.json"
       ],
-      "verify": "filesPanelOpen (localStorage-persisted) + slide transition hide/show the presets sidebar; 'Файлы'/'Files' toggle (folder icon, aria) sits left of 'Воспроизведение' in the player-view tabs; audio.filesTab (+ show/hide aria) added to en/ru; vue-tsc + bun green",
+      "verify": "filesPanelOpen (localStorage-persisted) + slide transition hide/show the presets sidebar; 'Файлы'/'Files' toggle (folder icon, aria) sits left of the 'Плеер' tab in the top-level menu bar; audio.filesTab (+ show/hide aria) added to en/ru; vue-tsc + bun green",
       "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
     },
     {
@@ -85,6 +85,7 @@
     }
   ],
   "log": [
-    { "ts": "2026-07-01T16:10:00Z", "step": "RF0.1", "event": "done", "note": "UI-refinements batch-1 plan + ledger created. 3 items: (1) remove outer page gap on all screens; (2) collapsible presets sidebar mirroring the Tracks panel + 'Файлы'/'Files' toggle left of 'Воспроизведение'; (3) AppCore control-bar hides/shows with the main window's foreground state. Decisions RF-D1..RF-D5 drafted; next = RF0.2 approval gate." }
+    { "ts": "2026-07-01T16:10:00Z", "step": "RF0.1", "event": "done", "note": "UI-refinements batch-1 plan + ledger created. 3 items: (1) remove outer page gap on all screens; (2) collapsible presets sidebar mirroring the Tracks panel + 'Файлы'/'Files' toggle left of 'Воспроизведение'; (3) AppCore control-bar hides/shows with the main window's foreground state. Decisions RF-D1..RF-D5 drafted; next = RF0.2 approval gate." },
+    { "ts": "2026-07-01T16:20:00Z", "step": "RF-D4", "event": "revised", "note": "Owner clarified: the 'Файлы'/'Files' toggle goes in the TOP-LEVEL menu bar, left of the 'Плеер' tab (not the player-view submenu). RF-D4 + RF2.1 verify updated. Still at approval gate RF0.2." }
   ]
 }

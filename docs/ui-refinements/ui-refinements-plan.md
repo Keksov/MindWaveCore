@@ -52,11 +52,13 @@ Goal: three independent refinements requested by the owner —
 - **RF-D3 — Presets sidebar collapse.** Reuse the Tracks-panel pattern: a `filesPanelOpen` ref
   persisted to localStorage (per-key like the tracks panel), a slide `<transition>`, and the
   sidebar removed from layout flow when closed. Default **open**.
-- **RF-D4 — "Файлы"/"Files" toggle placement.** A toggle control in the player-view tabs bar,
-  **left of "Воспроизведение"**, icon `folder`, label `audio.filesTab` (ru "Файлы"/en
-  "Files"), `aria-expanded`/`aria-controls`, active styling when open. It toggles the shared
-  `filesPanelOpen` state. (The sidebar is shared by the player+editor tabs; the toggle lives
-  in the player menu as requested and controls that shared state.)
+- **RF-D4 — "Файлы"/"Files" toggle placement.** A toggle control in the **top-level menu bar**
+  (`audio-page__tabs-bar`), **left of the "Плеер" tab** (`audio.playerTab`), icon `folder`,
+  label `audio.filesTab` (ru "Файлы"/en "Files"), `aria-expanded`/`aria-controls`, active
+  styling when open. It toggles the shared `filesPanelOpen` state. Placing it at the top level
+  (rather than inside the player menu) matches the fact that the presets sidebar is shared by
+  both the Плеер and Редактор tabs. *(Owner clarification 2026-07-01: top-level menu, left of
+  "Плеер" — not the player-view submenu.)*
 - **RF-D5 — AppCore fix.** In `updateBar`, hide the bar when the main window is **not the
   foreground app** (occluded/behind other windows) in addition to when it is minimized; show
   it when the main app returns to the foreground. Detect via the foreground window's root/owner
@@ -94,8 +96,8 @@ Goal: three independent refinements requested by the owner —
 **Phase 2 — Collapsible presets sidebar + "Файлы" toggle**
 - [ ] **RF2.1 — Make the presets sidebar collapsible + add the toggle.** In AudioPage: add
   `filesPanelOpen` (localStorage-persisted), a slide transition, hide the sidebar when closed,
-  and a `folder`/"Файлы" toggle left of the player-view tabs; add `audio.filesTab` (+ show/hide
-  aria labels) to GnauralCore i18n en/ru. Verify `vue-tsc` + `bun`.
+  and a `folder`/"Файлы" toggle in the top-level menu bar left of the "Плеер" tab; add
+  `audio.filesTab` (+ show/hide aria labels) to GnauralCore i18n en/ru. Verify `vue-tsc` + `bun`.
 
 **Phase 3 — AppCore control-bar occlusion fix**
 - [ ] **RF3.1 — Hide the bar with the main window's foreground state.** Edit AppBar.pas
