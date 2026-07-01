@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-01T19:55:00Z",
+  "updatedAt": "2026-07-01T20:20:00Z",
   "decisions": [
     { "id": "SF-D1", "text": "Scope & process: 3 items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green each step. Code in GnauralCore; ledger in MindWaveCore." },
     { "id": "SF-D2", "text": "Loading indicator: surface worker/tile loading in SpectrogramView as an overlay spinner driven by spec.loading (analysis open + tiles pending); keep audio.spectrogramLoading (decode) in AudioPage so an indicator covers the whole prepare span (decode -> open -> first tiles)." },
@@ -59,15 +59,21 @@
       "id": "SF2.1",
       "phase": 2,
       "title": "Fix only-last-frame render (persist/accumulate tiles)",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": ["SF0.2"],
       "artifacts": [
         "GnauralCore/ui/components/SpectrogramView.vue",
         "GnauralCore/ui/composables/use-spectrogram.ts",
-        "GnauralCore/ui/composables/use-spectrogram.test.ts (new/updated)"
+        "GnauralCore/ui/composables/spectrogram-tiles.ts",
+        "GnauralCore/ui/composables/spectrogram-tiles.test.ts"
       ],
       "verify": "opening a file renders the whole spectrogram and it stays (no single-tile strip / only-last-frame); pan/zoom still work; new composable unit test (tiles accumulate across binCount/seq change) green; vue-tsc + bun green",
-      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+      "startedAt": "2026-07-01T20:00:00Z", "finishedAt": "2026-07-01T20:20:00Z", "blockedReason": null,
+      "evidence": [
+        "Root cause (reasoned): tiles were cached keyed on viewBinCount and the render only used the EXACT-key tile for the current view; during initial load the canvas height settles (ResizeObserver + double applyView), so viewBinCount/tile-keys churn (viewSeq bumps) and assembleVisibleTiles matched only the newest-fetched tile -> a single strip that runs L->R and leaves only the last tile.",
+        "Fix (SF-D3): (a) SpectrogramTileCache.getByTileIndex(analysisId, zoom, tileIndex) returns any cached tile for that tile regardless of binCount; assembleVisibleTiles now uses exact key OR this fallback so already-fetched tiles keep rendering across a binCount change. (b) tile arrivals ALWAYS re-assemble (dropped the pending.seq===viewSeq gate for assembly; seq still used for loading). (c) setView no-ops when the view (time window + zoom + viewBinCount) is unchanged, killing redundant applyView/ResizeObserver churn. (d) SpectrogramView rounds viewBinCount to a 32-step so small height jitter doesn't change keys.",
+        "Guarded by unit tests: SpectrogramTileCache.getByTileIndex (fallback, MRU preference, prefix-boundary, and an explicit only-last-frame regression case where tiles 0..2 fetched at binCount 128 all still resolve when the plan asks for 256). vue-tsc clean; GnauralCore bun 60 pass / 0 fail (+4). Final visual confirmation = owner (quasar dev)."
+      ]
     },
     {
       "id": "SF3.1",
@@ -112,6 +118,7 @@
     { "ts": "2026-07-01T19:10:00Z", "step": "-", "event": "note", "note": "Owner: none of the session's UI changes were visible -> the prod app served the stale built server/public. Rebuilt UI (quasar build). Owner then switched to quasar dev for live HMR." },
     { "ts": "2026-07-01T19:25:00Z", "step": "SF1.1", "event": "fixed", "note": "Owner: spinner still not appearing. Root cause: spec.loading only counted pending tiles, so it was false during the slow worker open()/reconfigure() and tiles arrived too fast. Added an `opening` flag (open/reconfigure -> loading true; cleared at refetch/error/close) so the indicator covers the whole prepare span. vue-tsc + bun green." },
     { "ts": "2026-07-01T19:40:00Z", "step": "SF4.1", "event": "planned", "note": "New owner item (SF-D6): on the Воспроизведение tab select a file, switch to Спектрограмма -> stale 'start local playback' message and nothing happens. Add Phase 4: auto-decode (ensureLocalAudioReady) when the Спектрограмма tab opens for a selected undecoded local file + refresh noSpectrogram wording. Awaiting owner 'go'." },
-    { "ts": "2026-07-01T19:55:00Z", "step": "SF4.1", "event": "done", "note": "AudioPage now auto-prepares the spectrum when the Спектрограмма tab is opened for a selected undecoded local file (ensureSpectrogramPrepared + watch); stale noSpectrogram wording refreshed (en/ru). vue-tsc + bun 56/0." }
+    { "ts": "2026-07-01T19:55:00Z", "step": "SF4.1", "event": "done", "note": "AudioPage now auto-prepares the spectrum when the Спектрограмма tab is opened for a selected undecoded local file (ensureSpectrogramPrepared + watch); stale noSpectrogram wording refreshed (en/ru). vue-tsc + bun 56/0." },
+    { "ts": "2026-07-01T20:20:00Z", "step": "SF2.1", "event": "done", "note": "Fixed only-last-frame render: tiles now persist/accumulate. Cache getByTileIndex binCount-fallback + assembleVisibleTiles uses it; always re-assemble on tile arrival; setView no-op guard against churn; viewBinCount rounded to 32-step. +4 unit tests (incl. explicit regression). vue-tsc clean; GnauralCore bun 60/0. Owner visual confirm pending." }
   ]
 }

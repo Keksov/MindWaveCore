@@ -102,9 +102,9 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   driven by `spec.loading` (+ `audio.spectrogramPreparing` i18n en/ru). `vue-tsc` clean.
 
 **Phase 2 — Fix only-last-frame render**
-- [ ] **SF2.1 — Persist/accumulate tiles.** Instrument + fix per SF-D3 so the full spectrogram
-  renders and stays; add a composable unit test for tile accumulation across view/binCount
-  change. Verify `vue-tsc` + `bun`.
+- [x] **SF2.1 — Persist/accumulate tiles.** Cache `getByTileIndex` binCount-fallback used by
+  `assembleVisibleTiles`; always re-assemble on tile arrival; `setView` no-op guard; rounded
+  `viewBinCount`. +4 unit tests (incl. only-last-frame regression). `vue-tsc` clean; bun 60/0.
 
 **Phase 3 — Settings panel overlay "Параметры"**
 - [ ] **SF3.1 — Overlay + rename.** Convert the settings panel to a toggleable overlay (no
