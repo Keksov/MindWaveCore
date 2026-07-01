@@ -128,9 +128,10 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   AudioPage `spectrogramTrackHeight` (default 260px per track). `vue-tsc` clean.
 - [x] **SF5.2 — Drag-resize track height (SF-D8).** Bottom-edge drag handle (pointer-capture,
   clamp 120–1200) via `v-model:height`; height persisted in localStorage. `vue-tsc` + bun 61/0.
-- [ ] **SF5.3 — Stereo left/right split (SF-D9).** Stack Left/Right per-channel spectrogram panes
-  for stereo (single pane for mono), detected via `AudioBuffer.numberOfChannels`. Verify
-  `vue-tsc` + `bun`.
+- [x] **SF5.3 — Stereo left/right split (SF-D9).** Stacked L/R per-channel panes for stereo
+  (single pane for mono), detected via `AudioBuffer.numberOfChannels`. **Required a server
+  change:** `SpectrogramSession` now supports multiple concurrent analyses keyed by `analysisId`
+  (was single-analysis). server 17/0, ui 61/0, `vue-tsc` clean. **Phase 5 complete.**
 
 **Phase 4 — Prepare spectrum on tab open**
 - [x] **SF4.1 — Auto-prepare on Спектрограмма tab.** `ensureSpectrogramPrepared()` + a watch
