@@ -7,6 +7,11 @@ import { fileURLToPath } from 'node:url'
 const currentDir = dirname(fileURLToPath(import.meta.url))
 const toVitePath = (pathValue: string) => pathValue.replace(/\\/g, '/')
 
+// Backend port for the dev proxy. AppCore may relocate the server to a free port
+// (multiple apps at once) and passes it via PORT — follow it, else default 3300.
+const backendPort = Number(process.env.PORT) || Number(process.env.SERVER_PORT) || 3300
+const proxyTarget = `http://localhost:${backendPort}`
+
 export default function (/* ctx */) {
   return {
     boot: ['i18n', 'module-plugins'],
@@ -75,10 +80,10 @@ export default function (/* ctx */) {
       open: false,
       proxy: {
         '/api': {
-          target: 'http://localhost:3300'
+          target: proxyTarget
         },
         '/ws/ui': {
-          target: 'http://localhost:3300',
+          target: proxyTarget,
           ws: true
         }
       }
