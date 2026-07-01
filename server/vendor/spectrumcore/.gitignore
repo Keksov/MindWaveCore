@@ -1,0 +1,7 @@
+# Bundled SpectrumCore worker binaries are SYNC-ONLY (worker-packaging WP-D3):
+# produced by SpectrumCore/scripts/bundle-worker.ps1 from the SpectrumCore build.
+# Only the per-platform manifest.json (sha256 provenance) is tracked in git.
+*
+!.gitignore
+!*/
+!**/manifest.json

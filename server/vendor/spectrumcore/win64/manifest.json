@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "platform": "win64",
+  "generatedAtUtc": "2026-07-01T09:46:10Z",
+  "sourceDir": "C:\\projects\\KKMindWave\\SpectrumCore\\build\\win64",
+  "files": [
+    {
+      "name": "SpectrumCoreFftwWorkerProbe.exe",
+      "bytes": 2523772,
+      "sha256": "0fbf2a9a49a1ea2f7c6dd8b8067d878c45d6bc414b5ce5a34d194920a8ebe351"
+    },
+    {
+      "name": "LibSndFile-64.dll",
+      "bytes": 1530880,
+      "sha256": "e1d88dfc7a12d12536c2e1f8c304b99bfb811ea9827a5689d6fc71789fb5b5e0"
+    },
+    {
+      "name": "LibMpg123-64.dll",
+      "bytes": 311188,
+      "sha256": "ae735ba34de985df93553722d4b79ce8160e2b885dfbcd3e49ae11bfa7b319e4"
+    },
+    {
+      "name": "LibOpusFile-64.dll",
+      "bytes": 50702,
+      "sha256": "5f25c3fa2feaae3d6e7c129b043b1a5b51ae4db1bdfc2c9d4f77030e24bd8f74"
+    },
+    {
+      "name": "libopus.dll",
+      "bytes": 560640,
+      "sha256": "6773bfe340accda951f471f8c2059bfb1dc3a19203e1253e1e1c08f8da8692e4"
+    },
+    {
+      "name": "libogg.dll",
+      "bytes": 59392,
+      "sha256": "e35a9031e9cedc995618a8cfd9018da6229b7982c969edf35a620d56bc291c46"
+    }
+  ]
+}
