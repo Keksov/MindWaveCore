@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-01T21:45:00Z",
+  "updatedAt": "2026-07-01T22:10:00Z",
   "decisions": [
     { "id": "SF-D1", "text": "Scope & process: 3 items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green each step. Code in GnauralCore; ledger in MindWaveCore." },
     { "id": "SF-D2", "text": "Loading indicator: surface worker/tile loading in SpectrogramView as an overlay spinner driven by spec.loading (analysis open + tiles pending); keep audio.spectrogramLoading (decode) in AudioPage so an indicator covers the whole prepare span (decode -> open -> first tiles)." },
@@ -99,11 +99,15 @@
       "id": "SF5.1",
       "phase": 5,
       "title": "Audacity-like default track height",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": ["SF0.2"],
       "artifacts": ["GnauralCore/ui/components/SpectrogramView.vue", "GnauralCore/ui/pages/AudioPage.vue"],
       "verify": "spectrogram plot default height matches the Audacity reference; vue-tsc clean",
-      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+      "startedAt": "2026-07-01T22:00:00Z", "finishedAt": "2026-07-01T22:10:00Z", "blockedReason": null,
+      "evidence": [
+        "SpectrogramView gained a `height?: number` prop -> fixed track height via rootStyle (height + minHeight); canvas min-height 240px -> 0 so it flex-fills the fixed track. AudioPage passes :height=spectrogramTrackHeight (ref, default SPECTROGRAM_TRACK_HEIGHT_DEFAULT=260px) and the spectrogram row is items-start (no vertical stretch). This becomes the per-pane height reused by SF5.2 (resize) + SF5.3 (stereo L/R).",
+        "vue-tsc clean. Visual confirm = owner (quasar dev)."
+      ]
     },
     {
       "id": "SF5.2",
@@ -157,6 +161,8 @@
     { "ts": "2026-07-01T20:45:00Z", "step": "SF2.1", "event": "fixed", "note": "Owner screenshot: bug persisted (strip runs L->R then vanishes; spinner stuck). REAL root cause: planVisibleTiles used a fixed 256 full-res frames/tile regardless of zoom -> a long file's full view plans hundreds of tiles that overflow the 128-LRU cache -> only rightmost survive. Fix: tile span = tileFrames*2^zoom full-res frames, so zoomed-out views need only a handful of tiles that fit the cache and all render. +1 unit test. vue-tsc clean; bun 61/0." },
     { "ts": "2026-07-01T21:05:00Z", "step": "SF2.1", "event": "reopened", "note": "Owner screenshot after the zoom fix: spinner clears but the plot is fully blank (no tiles AND no axes). Since the spinner clears when pending tiles drain (incl. on error), the wide/high-zoom get-tile requests are most likely erroring -> pending drained -> empty. Added diagnostics/robustness (no behavioural fix yet): (1) SpectrogramView draws axes whenever an analysis is present (blank plot != no analysis); (2) surfaces spec.error as an on-screen overlay; (3) close() resets currentView so the no-op guard can't skip the post-open setView. Need the on-screen error text / browser console to pin the worker failure before the real fix. vue-tsc clean; bun 61/0." },
     { "ts": "2026-07-01T21:25:00Z", "step": "SF2.1", "event": "fixed", "note": "Owner error surfaced: 'worker request timed out after 15000ms' on a 25-min FLAC (d:\\bin\\Presets\\01 - Elation Galaxy.flac). Root cause of the blank: heavy worker ops (full-file STFT open-analysis / wide overview get-tile) exceed the flat 15s SpectrogramWorkerManager timeout, which poisons + restarts the worker -> analysis/tiles never arrive -> blank. Fix: spectrogram-session.ts now passes generous per-command timeouts (open-analysis/reconfigure 120s, get-tile 60s). BACKEND change -> requires bun server restart (not UI HMR). server tests 17/0." },
-    { "ts": "2026-07-01T21:45:00Z", "step": "SF5", "event": "planned", "note": "Owner addition (attached Audacity reference): new Phase 5 'Make the UI Audacity-like' — SF5.1 default track height, SF5.2 drag-resize via bottom border, SF5.3 stereo left/right split. Decisions SF-D7/D8/D9. Awaiting owner 'go'." }
+    { "ts": "2026-07-01T21:45:00Z", "step": "SF5", "event": "planned", "note": "Owner addition (attached Audacity reference): new Phase 5 'Make the UI Audacity-like' — SF5.1 default track height, SF5.2 drag-resize via bottom border, SF5.3 stereo left/right split. Decisions SF-D7/D8/D9. Awaiting owner 'go'." },
+    { "ts": "2026-07-01T22:00:00Z", "step": "-", "event": "note", "note": "Owner: prioritize the Audacity-like UI (Phase 5) first so the remaining spectrum-render issue can be described in detail afterwards. SF2.1 left in-progress, SF3.1 deferred; proceeding with Phase 5." },
+    { "ts": "2026-07-01T22:10:00Z", "step": "SF5.1", "event": "done", "note": "SpectrogramView takes a height prop (fixed track height); AudioPage sets default 260px per track (items-start row). Reused by SF5.2/SF5.3. vue-tsc clean." }
   ]
 }

@@ -124,8 +124,8 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   Verify `vue-tsc` + `bun`.
 
 **Phase 5 — Make the UI Audacity-like** *(owner addition 2026-07-01)*
-- [ ] **SF5.1 — Audacity-like default track height (SF-D7).** Set the spectrogram plot default
-  height to match the reference. Verify `vue-tsc`.
+- [x] **SF5.1 — Audacity-like default track height (SF-D7).** `SpectrogramView` `height` prop +
+  AudioPage `spectrogramTrackHeight` (default 260px per track). `vue-tsc` clean.
 - [ ] **SF5.2 — Drag-resize track height (SF-D8).** Bottom-border drag handle resizes the track;
   persist the height. Verify `vue-tsc` + `bun`.
 - [ ] **SF5.3 — Stereo left/right split (SF-D9).** Stack Left/Right per-channel spectrogram panes
