@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-01T19:05:00Z",
+  "updatedAt": "2026-07-01T19:25:00Z",
   "decisions": [
     { "id": "SF-D1", "text": "Scope & process: 3 items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green each step. Code in GnauralCore; ledger in MindWaveCore." },
     { "id": "SF-D2", "text": "Loading indicator: surface worker/tile loading in SpectrogramView as an overlay spinner driven by spec.loading (analysis open + tiles pending); keep audio.spectrogramLoading (decode) in AudioPage so an indicator covers the whole prepare span (decode -> open -> first tiles)." },
@@ -45,12 +45,13 @@
       "title": "Loading indicator during spectrogram preparation",
       "status": "done",
       "dependsOn": ["SF0.2"],
-      "artifacts": ["GnauralCore/ui/components/SpectrogramView.vue", "GnauralCore/ui/i18n/en.json", "GnauralCore/ui/i18n/ru.json"],
-      "verify": "an overlay spinner shows while spec.loading (analysis open + tiles pending) and clears when ready; vue-tsc clean",
-      "startedAt": "2026-07-01T19:00:00Z", "finishedAt": "2026-07-01T19:05:00Z", "blockedReason": null,
+      "artifacts": ["GnauralCore/ui/components/SpectrogramView.vue", "GnauralCore/ui/composables/use-spectrogram.ts", "GnauralCore/ui/i18n/en.json", "GnauralCore/ui/i18n/ru.json"],
+      "verify": "an overlay spinner shows while spec.loading (analysis open/reconfigure + tiles pending) and clears when ready; vue-tsc clean",
+      "startedAt": "2026-07-01T19:00:00Z", "finishedAt": "2026-07-01T19:25:00Z", "blockedReason": null,
       "evidence": [
         "SpectrogramView: added isPreparing = computed(spec.loading) and an absolute overlay (spectrogram-view__loading) with q-spinner-hourglass + label shown while preparing; container set position:relative. i18n audio.spectrogramPreparing added (en 'Preparing spectrogram…' / ru 'Подготовка спектрограммы…').",
-        "spec.loading is true while the analysis is opening and while tiles are pending (updateLoading), so the indicator covers the worker prepare span; AudioPage keeps its decode spinner. vue-tsc clean; i18n JSON parses."
+        "FOLLOW-UP FIX (owner: spinner never appeared): spec.loading originally reflected only pending tiles, so it stayed false during the slow worker open()/reconfigure() analysis and tiles arrived too fast to show. use-spectrogram.ts now tracks an `opening` flag set at the start of open()/reconfigure() (updateLoading -> loading=true) and cleared when refetch() starts (then loading = pending tiles) or on error/close. The indicator now covers the whole prepare span (open analysis -> first tiles).",
+        "vue-tsc clean; GnauralCore bun 56/0. Live-verify in quasar dev (owner)."
       ]
     },
     {
@@ -87,6 +88,8 @@
   "log": [
     { "ts": "2026-07-01T18:55:00Z", "step": "SF0.1", "event": "done", "note": "Spectrogram-fixes plan + ledger created. 3 items: (1) loading indicator during prepare; (2) fix only-last-frame render (tiles don't accumulate; owner repro = on open, one-tile strip runs L->R, only last stays); (3) settings side panel -> overlay named 'Параметры' (no main-content resize). Decisions SF-D1..SF-D5 drafted; next = SF0.2 approval gate." },
     { "ts": "2026-07-01T19:00:00Z", "step": "SF0.2", "event": "done", "note": "Owner approved ('go'). SF-D2..SF-D5 locked. Proceeding to Phase 1." },
-    { "ts": "2026-07-01T19:05:00Z", "step": "SF1.1", "event": "done", "note": "Added a loading overlay (spinner + 'Подготовка спектрограммы…') in SpectrogramView driven by spec.loading (analysis open + tiles pending). vue-tsc clean." }
+    { "ts": "2026-07-01T19:05:00Z", "step": "SF1.1", "event": "done", "note": "Added a loading overlay (spinner + 'Подготовка спектрограммы…') in SpectrogramView driven by spec.loading (analysis open + tiles pending). vue-tsc clean." },
+    { "ts": "2026-07-01T19:10:00Z", "step": "-", "event": "note", "note": "Owner: none of the session's UI changes were visible -> the prod app served the stale built server/public. Rebuilt UI (quasar build). Owner then switched to quasar dev for live HMR." },
+    { "ts": "2026-07-01T19:25:00Z", "step": "SF1.1", "event": "fixed", "note": "Owner: spinner still not appearing. Root cause: spec.loading only counted pending tiles, so it was false during the slow worker open()/reconfigure() and tiles arrived too fast. Added an `opening` flag (open/reconfigure -> loading true; cleared at refetch/error/close) so the indicator covers the whole prepare span. vue-tsc + bun green." }
   ]
 }
