@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "plan": "spectrogram-fixes",
+  "planDoc": "docs/spectrogram-fixes/spectrogram-fixes-plan.md",
+  "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
+  "status": "active",
+  "createdAt": "2026-07-01",
+  "updatedAt": "2026-07-01T18:55:00Z",
+  "decisions": [
+    { "id": "SF-D1", "text": "Scope & process: 3 items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green each step. Code in GnauralCore; ledger in MindWaveCore." },
+    { "id": "SF-D2", "text": "Loading indicator: surface worker/tile loading in SpectrogramView as an overlay spinner driven by spec.loading (analysis open + tiles pending); keep audio.spectrogramLoading (decode) in AudioPage so an indicator covers the whole prepare span (decode -> open -> first tiles)." },
+    { "id": "SF-D3", "text": "Only-last-frame fix: make the rendered tile set persist/accumulate during load: (a) guard setView/applyView to no-op when the effective view (time window + zoom + viewBinCount) is unchanged (kill viewSeq churn); (b) re-assembleVisibleTiles on every tile arrival against the current cache (not only when pending.seq===viewSeq); (c) final assemble+redraw when loading clears. Root cause confirmed at execution via instrumentation; add a composable unit test for tile accumulation across a binCount/seq change. Confirmed repro (owner): happens on OPEN, no playback; a one-tile strip runs L->R and only the last tile stays." },
+    { "id": "SF-D4", "text": "Settings panel = overlay named 'Параметры': convert the fixed 264px side column into a toggleable overlay mirroring the schedule settings panel (absolute aside over the plot, no main-content resize, backdrop, <transition>); header title 'Параметры' (audio.spectrogramSettingsTitle: en 'Parameters' / ru 'Параметры') + close (x). Default closed." },
+    { "id": "SF-D5", "text": "Toggle placement: the 'Параметры' toggle lives in the SpectrogramView toolbar (next to zoom/fit); open/close state + overlay are self-contained in the view; state local (not persisted) unless owner asks otherwise." }
+  ],
+  "steps": [
+    {
+      "id": "SF0.1",
+      "phase": 0,
+      "title": "Plan & ledger",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": ["docs/spectrogram-fixes/spectrogram-fixes-plan.md", "docs/spectrogram-fixes/spectrogram-fixes-progress.json"],
+      "verify": "ledger JSON parses; dependsOn DAG acyclic; plan + ledger committed",
+      "startedAt": "2026-07-01T18:55:00Z", "finishedAt": "2026-07-01T18:55:00Z", "blockedReason": null,
+      "evidence": [
+        "Grounded in code: item1 = spec.loading exists in use-spectrogram.ts but SpectrogramView never surfaces it; AudioPage only shows audio.spectrogramLoading (decode). item2 = tiling/cache sound, analysisParams/renderOptions stable computeds; owner repro = on OPEN, one-tile strip runs L->R, only last tile stays -> rendered set holds one tile at a time; leading cause = view/seq/viewBinCount churn (ResizeObserver + double applyView) so assembleVisibleTiles matches only the newest tile. item3 = SpectrogramSettingsPanel is a fixed 264px column in AudioPage; mirror GnauralScheduleView settings overlay.",
+        "DAG acyclic: SF0.1 -> SF0.2 -> {SF1.1, SF2.1, SF3.1}."
+      ]
+    },
+    {
+      "id": "SF0.2",
+      "phase": 0,
+      "title": "Approval gate (SF-D2..SF-D5)",
+      "status": "not-started",
+      "dependsOn": ["SF0.1"],
+      "artifacts": ["docs/spectrogram-fixes/spectrogram-fixes-plan.md"],
+      "verify": "owner confirms SF-D2 (loading overlay), SF-D3 (accumulate-tiles fix + unit test), SF-D4 (overlay 'Параметры'), SF-D5 (toggle in view toolbar). PAUSE before Phase 1.",
+      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+    },
+    {
+      "id": "SF1.1",
+      "phase": 1,
+      "title": "Loading indicator during spectrogram preparation",
+      "status": "not-started",
+      "dependsOn": ["SF0.2"],
+      "artifacts": ["GnauralCore/ui/components/SpectrogramView.vue"],
+      "verify": "an overlay spinner shows while spec.loading (analysis open + tiles pending) and clears when ready; vue-tsc clean",
+      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+    },
+    {
+      "id": "SF2.1",
+      "phase": 2,
+      "title": "Fix only-last-frame render (persist/accumulate tiles)",
+      "status": "not-started",
+      "dependsOn": ["SF0.2"],
+      "artifacts": [
+        "GnauralCore/ui/components/SpectrogramView.vue",
+        "GnauralCore/ui/composables/use-spectrogram.ts",
+        "GnauralCore/ui/composables/use-spectrogram.test.ts (new/updated)"
+      ],
+      "verify": "opening a file renders the whole spectrogram and it stays (no single-tile strip / only-last-frame); pan/zoom still work; new composable unit test (tiles accumulate across binCount/seq change) green; vue-tsc + bun green",
+      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+    },
+    {
+      "id": "SF3.1",
+      "phase": 3,
+      "title": "Settings panel overlay named 'Параметры'",
+      "status": "not-started",
+      "dependsOn": ["SF0.2"],
+      "artifacts": [
+        "GnauralCore/ui/pages/AudioPage.vue",
+        "GnauralCore/ui/components/SpectrogramView.vue",
+        "GnauralCore/ui/components/SpectrogramSettingsPanel.vue",
+        "GnauralCore/ui/i18n/en.json",
+        "GnauralCore/ui/i18n/ru.json"
+      ],
+      "verify": "settings panel is a toggleable overlay over the plot (no main-content resize), titled 'Параметры', with toolbar toggle + backdrop + close; i18n en/ru; vue-tsc + bun green",
+      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+    }
+  ],
+  "log": [
+    { "ts": "2026-07-01T18:55:00Z", "step": "SF0.1", "event": "done", "note": "Spectrogram-fixes plan + ledger created. 3 items: (1) loading indicator during prepare; (2) fix only-last-frame render (tiles don't accumulate; owner repro = on open, one-tile strip runs L->R, only last stays); (3) settings side panel -> overlay named 'Параметры' (no main-content resize). Decisions SF-D1..SF-D5 drafted; next = SF0.2 approval gate." }
+  ]
+}
