@@ -3,9 +3,9 @@
   "plan": "ui-refinements",
   "planDoc": "docs/ui-refinements/ui-refinements-plan.md",
   "title": "UI refinements batch 1 (page gap, collapsible presets sidebar, AppCore bar occlusion)",
-  "status": "active",
+  "status": "complete",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-01T18:10:00Z",
+  "updatedAt": "2026-07-01T18:25:00Z",
   "decisions": [
     { "id": "RF-D1", "text": "Scope & process: 3 independent items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green for UI steps. Item 3 commits in the AppCore repo; the re-synced AppMain.exe in MindWave stays gitignored (not committed)." },
     { "id": "RF-D2", "text": "Gap removal: zero the OUTER page padding (the <page>__inner wrapper) on all in-scope pages so the central block is flush with the window; inter-panel gaps stay (only padding -> 0, keep gap). Applies to base rule + responsive media-query overrides." },
@@ -14,7 +14,7 @@
     { "id": "RF-D5", "text": "AppCore fix: in updateBar hide the bar when the main window is NOT the foreground app (occluded/behind other windows) in addition to when minimized; show when the app returns to foreground. Detect via GetForegroundWindow + GetAncestor(GA_ROOTOWNER) identity, counting the bar (WS_EX_NOACTIVATE) as app-active." },
     { "id": "RF-D6", "text": "Owner addition 2026-07-01: Start-button edge offset. After RF1.1 the embedded gnaural schedule toolbar (output-section--schedule, padding 0) leaves the Start button flush to the window edge. Give the schedule toolbar horizontal padding 16px (app standard unit ~= top-menu inset) so the Start button matches the top menu's edge offset; canvas stays full-bleed. Standalone + spectrogram toolbars already at 16px." },
     { "id": "RF-D7", "text": "Owner addition 2026-07-01: files-panel close button. Add a close (x) button to the files panel header mirroring the Tracks panel header (q-btn flat round dense icon=close -> closeFilesPanel)." },
-    { "id": "RF-D8", "text": "Owner addition 2026-07-01: show the spectrum immediately on clicking an audio file. Today the spectrogram data (wavAudioBuffer) is only decoded on playback start (ensureLocalAudioReady), so on mere selection spectrogramBuffer=null and the tab shows 'no spectrogram'. Fix: export ensureLocalAudioReady from the audio store; in AudioPage handleSelectedPathChange, on a non-autoplay selection of a LOCAL audio file (wav/flac) set activeContentTab=player + activePlayerViewTab=spectrogram and trigger ensureLocalAudioReady(path, kind) to decode + populate the buffer without starting playback. SCOPE: wav/flac only; .gnaural keeps the schedule view (rendering a gnaural to WAV for its spectrum is out of scope for this item). PROPOSED — awaiting owner go." }
+    { "id": "RF-D8", "text": "Owner addition 2026-07-01 (APPROVED, go): show the spectrum immediately on clicking an audio file. Today the spectrogram data (wavAudioBuffer) is only decoded on playback start (ensureLocalAudioReady), so on mere selection spectrogramBuffer=null and the tab shows 'no spectrogram'. Fix: export ensureLocalAudioReady from the audio store; in AudioPage handleSelectedPathChange, on a non-autoplay selection of a LOCAL audio file (wav/flac) set activeContentTab=player + activePlayerViewTab=spectrogram and trigger ensureLocalAudioReady(path, kind) to decode + populate the buffer without starting playback. SCOPE: wav/flac only; .gnaural keeps the schedule view (rendering a gnaural to WAV for its spectrum is out of scope for this item)." }
   ],
   "steps": [
     {
@@ -110,14 +110,19 @@
       "id": "RF4.1",
       "phase": 4,
       "title": "Show spectrum immediately on audio-file click",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": ["RF2.1"],
       "artifacts": [
         "GnauralCore/ui/stores/audio.ts",
         "GnauralCore/ui/pages/AudioPage.vue"
       ],
       "verify": "clicking a wav/flac preset (without playing) decodes it and shows its spectrum: activeContentTab=player, activePlayerViewTab=spectrogram, SpectrogramView renders (spectrogramBuffer populated via ensureLocalAudioReady); .gnaural keeps the schedule view; vue-tsc + bun green",
-      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+      "startedAt": "2026-07-01T18:15:00Z", "finishedAt": "2026-07-01T18:25:00Z", "blockedReason": null,
+      "evidence": [
+        "audio.ts: exported ensureLocalAudioReady from the store return.",
+        "AudioPage handleSelectedPathChange: after selectPath, when the selected path is a local audio file (isLocalAudioFileKind(nextFileKind)) -> activeContentTab='player' + activePlayerViewTab='spectrogram'; for non-autoplay selection also `void audio.ensureLocalAudioReady(path, nextFileKind)` to decode + populate spectrogramBuffer without starting playback (autoplay path still decodes via startLocalPlayback). .gnaural untouched -> keeps the schedule view.",
+        "Verify: vue-tsc --noEmit clean; GnauralCore bun test 56 pass / 0 fail. Visual gate (click a wav/flac -> spectrum appears without pressing play) left to owner."
+      ]
     },
     {
       "id": "RF3.1",
@@ -149,6 +154,8 @@
     { "ts": "2026-07-01T17:35:00Z", "step": "RF2.2", "event": "done", "note": "Owner additions: (RF-D6) schedule toolbar padding 0 16px -> Start button no longer flush, matches top-menu edge offset (canvas stays full-bleed); (RF-D7) Tracks-style close (x) button added to the files panel header -> closeFilesPanel. vue-tsc clean; GnauralCore bun 56/0. Committed: GnauralCore (impl) + MindWaveCore (plan+ledger)." },
     { "ts": "2026-07-01T17:55:00Z", "step": "RF3.1", "event": "done", "note": "AppCore control-bar occlusion fixed: AppBar.pas updateBar now hides the TOPMOST bar when MindWave is not the foreground app (mainWindowIsActive via GetForegroundWindow/GetAncestor GA_ROOTOWNER) in addition to minimized; re-shows on return to foreground. build_app.bat OK; AppMain.exe re-synced into MindWave (gitignored). Committed in AppCore repo. Manual visual gate left to owner." },
     { "ts": "2026-07-01T17:55:00Z", "step": "-", "event": "complete", "note": "UI-refinements batch 1 COMPLETE. RF1.1 (page gap removed on all screens), RF2.1 (collapsible presets sidebar + Files toggle, 5px gap), RF2.2 (Start-button offset + files close button), RF3.1 (AppCore bar hides when backgrounded). Manual/visual acceptance (layout + window occlusion) left to owner." },
-    { "ts": "2026-07-01T18:10:00Z", "step": "RF4.1", "event": "planned", "note": "REOPENED for a new owner item (RF-D8): show the spectrum immediately on clicking an audio file (wav/flac) by decoding on selection + switching to the spectrogram view, without requiring playback. Grounded: spectrogramBuffer is populated only by ensureLocalAudioReady (today play-only); SpectrogramView is worker/file-path based and gated on spectrogramBuffer!=null. Awaiting owner 'go'." }
+    { "ts": "2026-07-01T18:10:00Z", "step": "RF4.1", "event": "planned", "note": "REOPENED for a new owner item (RF-D8): show the spectrum immediately on clicking an audio file (wav/flac) by decoding on selection + switching to the spectrogram view, without requiring playback. Grounded: spectrogramBuffer is populated only by ensureLocalAudioReady (today play-only); SpectrogramView is worker/file-path based and gated on spectrogramBuffer!=null. Awaiting owner 'go'." },
+    { "ts": "2026-07-01T18:25:00Z", "step": "RF4.1", "event": "done", "note": "Clicking a wav/flac preset now shows its spectrum immediately: exported ensureLocalAudioReady; AudioPage switches to player+spectrogram and decodes on non-autoplay selection (no playback needed). .gnaural keeps the schedule view. vue-tsc clean; GnauralCore bun 56/0." },
+    { "ts": "2026-07-01T18:25:00Z", "step": "-", "event": "complete", "note": "UI-refinements plan COMPLETE again (RF1.1, RF2.1, RF2.2, RF3.1, RF4.1). Visual/manual acceptance left to owner." }
   ]
 }

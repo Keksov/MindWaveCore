@@ -1,6 +1,6 @@
 # UI refinements batch 1
 
-Status: **active** (batch 1 phases 1–3 done; reopened 2026-07-01 for RF4 — spectrum on file click)
+Status: **complete** (phases 1–4 done 2026-07-01; manual/visual acceptance left to owner)
 Created: 2026-07-01
 Authoritative progress ledger: [ui-refinements-progress.json](ui-refinements-progress.json)
 
@@ -136,10 +136,12 @@ acceptance (page layout flush with the window; sidebar collapse; Start offset; b
 backgrounded) is the owner's gate.
 
 **Phase 4 — Show spectrum on audio-file click** *(reopened 2026-07-01)*
-- [ ] **RF4.1 — Decode + show spectrum on selection.** Export `ensureLocalAudioReady`; in
-  AudioPage `handleSelectedPathChange`, on a non-autoplay wav/flac selection switch to the
-  player's Spectrogram view and decode so the spectrum shows without playback (RF-D8). Verify
-  `vue-tsc` + `bun`.
+- [x] **RF4.1 — Decode + show spectrum on selection.** Exported `ensureLocalAudioReady`; in
+  AudioPage `handleSelectedPathChange`, a non-autoplay wav/flac selection now switches to the
+  player's Spectrogram view and decodes so the spectrum shows without playback (RF-D8). `.gnaural`
+  keeps the schedule view. `vue-tsc` clean; GnauralCore bun 56/0.
+
+**Plan complete** (phases 1–4).
 
 ## 6. References
 - Collapsible pattern: [GnauralScheduleView.vue](../../../GnauralCore/ui/components/GnauralScheduleView.vue) (`trackPanelOpen`)
