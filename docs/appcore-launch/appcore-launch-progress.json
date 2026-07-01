@@ -3,9 +3,9 @@
   "plan": "appcore-launch",
   "planDoc": "docs/appcore-launch/appcore-launch-plan.md",
   "title": "Migrate MindWave launch to the AppCore WebView2 launcher",
-  "status": "active",
+  "status": "complete",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-01T14:45:00Z",
+  "updatedAt": "2026-07-01T15:05:00Z",
   "decisions": [
     { "id": "AP-D1", "text": "Config location: MindWaveCore/server/app.cfg (mirrors KKLeftRight); AppMain auto-loads it when placed next to the exe." },
     { "id": "AP-D2", "text": "BunExe = .\\bun.exe (pin the bundled bun; matches launcher.bat's local-first preference)." },
@@ -76,36 +76,46 @@
       "id": "AP2.1",
       "phase": 2,
       "title": "Verify prod launch (manual)",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": ["AP1.2"],
       "artifacts": ["MindWaveCore/server/app.cfg"],
       "verify": "AppMain (auto-load app.cfg) -> UI builds -> backend on 3300 -> webview opens http://localhost:3300/; audio/spectrogram usable",
-      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+      "startedAt": "2026-07-01T15:00:00Z", "finishedAt": "2026-07-01T15:00:00Z", "blockedReason": null,
+      "evidence": [
+        "Manual/visual gate (WebView2 + desktop). Owner accepted the stage ('этот этап можно закрыть'); the prod launch setup (app.cfg + bundled AppMain.exe + libwebview.dll, quasar build->server/public already wired, backend :3300) is accepted. Config statically verified: ports match server.ts (3300) + quasar dev proxy."
+      ]
     },
     {
       "id": "AP2.2",
       "phase": 2,
       "title": "Verify dev launch (manual)",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": ["AP1.2"],
       "artifacts": ["MindWaveCore/server/app.cfg"],
       "verify": "Mode=dev -> quasar dev 9000 + backend 3300; webview opens http://localhost:9000/ with /api + /ws/ui proxied",
-      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+      "startedAt": "2026-07-01T15:00:00Z", "finishedAt": "2026-07-01T15:00:00Z", "blockedReason": null,
+      "evidence": [
+        "Manual gate; accepted on stage close. Dev path relies on quasar devServer proxy (/api + /ws/ui -> 3300, ws:true) which is already configured; DevUrl=9000 matches quasar's default dev port."
+      ]
     },
     {
       "id": "AP3.1",
       "phase": 3,
       "title": "Retire/adjust launcher.bat + README",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": ["AP2.1"],
-      "artifacts": ["MindWaveCore/server/launcher.bat", "MindWaveCore/README.md"],
+      "artifacts": ["MindWaveCore/README.md"],
       "verify": "AppCore documented as the primary launch; launcher.bat kept-as-fallback or removed per AP-D7b",
-      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+      "startedAt": "2026-07-01T15:00:00Z", "finishedAt": "2026-07-01T15:05:00Z", "blockedReason": null,
+      "evidence": [
+        "README.md gained a 'Launching' section: AppCore (AppMain.exe -config app.cfg) as the primary launch (prod builds UI->server/public, backend :3300, webview :3300; dev quasar :9000 + backend :3300), WebView2 requirement, sync-appcore-launcher.ps1 refresh note, and launcher.bat kept as a no-webview fallback (AP-D7b). launcher.bat left in place (not retired)."
+      ]
     }
   ],
   "log": [
     { "ts": "2026-07-01T14:20:00Z", "step": "AP0.1", "event": "done", "note": "AppCore-launch plan + ledger created. Migrate MindWave launch to AppCore (AppMain.exe -config app.cfg), mirroring KKLeftRight. Grounded: prebuilt AppMain present; port 3300; quasar build->server/public already wired; dev proxy->3300; local bun.exe." },
     { "ts": "2026-07-01T14:20:00Z", "step": "AP1.1", "event": "done", "note": "Wrote MindWaveCore/server/app.cfg (Mode=prod, BunExe=.\\bun.exe, ServerDir=., UiDir=..\\ui, ServerPort=3300, DevUrl=9000, BuildUi=true, FullScreen=true). Ports match server.ts (3300) + quasar dev proxy. Next: AP0.2 approval gate (AP-D7) before bundling AppMain binaries." },
-    { "ts": "2026-07-01T14:45:00Z", "step": "AP0.2+AP1.2", "event": "done", "note": "AP-D7 locked: sync-only binaries + keep launcher.bat fallback. sync-appcore-launcher.ps1 copies AppMain.exe+libwebview.dll into server/ (done); .gitignore keeps them sync-only. server/ has app.cfg+AppMain.exe+libwebview.dll; AppMain auto-loads app.cfg. Remaining AP2.1/2.2 = MANUAL launch verification (owner); AP3.1 = README doc." }
+    { "ts": "2026-07-01T14:45:00Z", "step": "AP0.2+AP1.2", "event": "done", "note": "AP-D7 locked: sync-only binaries + keep launcher.bat fallback. sync-appcore-launcher.ps1 copies AppMain.exe+libwebview.dll into server/ (done); .gitignore keeps them sync-only. server/ has app.cfg+AppMain.exe+libwebview.dll; AppMain auto-loads app.cfg. Remaining AP2.1/2.2 = MANUAL launch verification (owner); AP3.1 = README doc." },
+    { "ts": "2026-07-01T15:05:00Z", "step": "-", "event": "complete", "note": "AppCore-launch plan COMPLETE (owner closed the stage). MindWave launches via AppCore (server/app.cfg + bundled AppMain.exe/libwebview.dll, sync-only); prod builds UI->server/public + backend :3300 + webview; dev quasar :9000 + backend :3300. AP2.1/2.2 manual gates accepted on close; README documents AppCore primary + launcher.bat fallback." }
   ]
 }

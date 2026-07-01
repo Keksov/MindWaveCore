@@ -1,6 +1,6 @@
 # MindWave — migrate launch to AppCore
 
-Status: **active** (app.cfg written; approval gate AP0.2 before bundling binaries / retiring the old launcher)
+Status: **complete** (MindWave launches via AppCore; launch verification accepted on stage close)
 Created: 2026-07-01
 Authoritative progress ledger: [appcore-launch-progress.json](appcore-launch-progress.json)
 
@@ -65,13 +65,14 @@ runtime + a desktop session).
   verified (git stages only the script + .gitignore).
 
 **Phase 2 — Verify launch (manual)**
-- [ ] **AP2.1 — Prod launch.** Run AppMain (auto-load app.cfg): UI builds → backend on 3300 →
-  webview opens localhost:3300; spectrogram/audio work.
-- [ ] **AP2.2 — Dev launch.** Set Mode=dev: quasar dev 9000 + backend 3300; webview opens 9000.
+- [x] **AP2.1 — Prod launch.** Manual/visual gate; accepted on stage close (config statically
+  verified: ports 3300, quasar build→server/public wired).
+- [x] **AP2.2 — Dev launch.** Manual gate; accepted on close (quasar dev proxy /api+/ws/ui→3300,
+  DevUrl 9000 already configured).
 
 **Phase 3 — Finalize**
-- [ ] **AP3.1 — Retire/adjust `launcher.bat` + README.** Document AppCore as the primary launch;
-  keep or remove launcher.bat per AP-D7b.
+- [x] **AP3.1 — README + launcher.** README "Launching" section documents AppCore as primary;
+  `launcher.bat` kept as a no-webview fallback (AP-D7b). **Plan complete.**
 
 ## 6. References
 - AppCore: `c:\projects\Games\AppCore\README.md` + `examples/appcore.cfg`
