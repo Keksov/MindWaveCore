@@ -71,7 +71,7 @@ function pageStyle(offset: number, height: number) {
   height: 100%;
   min-height: 0;
   overflow: hidden;
-  padding: 16px;
+  padding: 0;
 }
 
 .settings-page__card {
@@ -103,7 +103,7 @@ function pageStyle(offset: number, height: number) {
 
 @media (max-width: 768px) {
   .settings-page__inner {
-    padding: 12px;
+    padding: 0;
   }
 
   .settings-page__panel {

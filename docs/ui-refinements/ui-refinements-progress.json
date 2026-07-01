@@ -5,7 +5,7 @@
   "title": "UI refinements batch 1 (page gap, collapsible presets sidebar, AppCore bar occlusion)",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-01T16:20:00Z",
+  "updatedAt": "2026-07-01T16:40:00Z",
   "decisions": [
     { "id": "RF-D1", "text": "Scope & process: 3 independent items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green for UI steps. Item 3 commits in the AppCore repo; the re-synced AppMain.exe in MindWave stays gitignored (not committed)." },
     { "id": "RF-D2", "text": "Gap removal: zero the OUTER page padding (the <page>__inner wrapper) on all in-scope pages so the central block is flush with the window; inter-panel gaps stay (only padding -> 0, keep gap). Applies to base rule + responsive media-query overrides." },
@@ -32,17 +32,20 @@
       "id": "RF0.2",
       "phase": 0,
       "title": "Approval gate (RF-D2/RF-D4/RF-D5)",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": ["RF0.1"],
       "artifacts": ["docs/ui-refinements/ui-refinements-plan.md"],
-      "verify": "owner confirms RF-D2 (padding->0, keep inter-panel gaps), RF-D4 (toggle button left of Воспроизведение), RF-D5 (foreground-based hide). PAUSE before Phase 1.",
-      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+      "verify": "owner confirms RF-D2 (padding->0, keep inter-panel gaps), RF-D4 (toggle button left of Плеер), RF-D5 (foreground-based hide). PAUSE before Phase 1.",
+      "startedAt": "2026-07-01T16:20:00Z", "finishedAt": "2026-07-01T16:30:00Z", "blockedReason": null,
+      "evidence": [
+        "Owner approved ('go') after RF-D4 revised to the top-level menu (left of 'Плеер'). RF-D2/RF-D3/RF-D5 accepted as drafted."
+      ]
     },
     {
       "id": "RF1.1",
       "phase": 1,
       "title": "Zero outer page padding (all screens)",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": ["RF0.2"],
       "artifacts": [
         "MindWaveCore/ui/pages/SettingsPage.vue",
@@ -54,7 +57,12 @@
         "BodyMonitorCore/ui/pages/MonitoringPage.vue"
       ],
       "verify": "<page>__inner padding set to 0 (base + media queries) on all in-scope pages; inter-panel gap kept; vue-tsc clean; content flush with window edge (visual owner check)",
-      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+      "startedAt": "2026-07-01T16:30:00Z", "finishedAt": "2026-07-01T16:40:00Z", "blockedReason": null,
+      "evidence": [
+        "Zeroed outer padding on __inner wrappers (base + ≤768/960 media queries), keeping inter-panel gap: MindWaveCore SettingsPage (.settings-page__inner), LogArchivePage (.archive-page__inner). GnauralCore AudioPage (.audio-page__inner, keeps gap:16px).",
+        "Dropped the Quasar `padding` prop on q-page for the pages that used it (no __inner wrapper): MindWaveCore LogPage; BodyMonitorCore MonitoringPage, AlphaRelaxationPage, CalibrationPage.",
+        "Verify: `bun run typecheck` (vue-tsc --noEmit) in MindWaveCore/ui passed clean. Changes span 3 repos -> one RF1.1 commit each (MindWaveCore, GnauralCore, BodyMonitorCore)."
+      ]
     },
     {
       "id": "RF2.1",
@@ -86,6 +94,8 @@
   ],
   "log": [
     { "ts": "2026-07-01T16:10:00Z", "step": "RF0.1", "event": "done", "note": "UI-refinements batch-1 plan + ledger created. 3 items: (1) remove outer page gap on all screens; (2) collapsible presets sidebar mirroring the Tracks panel + 'Файлы'/'Files' toggle left of 'Воспроизведение'; (3) AppCore control-bar hides/shows with the main window's foreground state. Decisions RF-D1..RF-D5 drafted; next = RF0.2 approval gate." },
-    { "ts": "2026-07-01T16:20:00Z", "step": "RF-D4", "event": "revised", "note": "Owner clarified: the 'Файлы'/'Files' toggle goes in the TOP-LEVEL menu bar, left of the 'Плеер' tab (not the player-view submenu). RF-D4 + RF2.1 verify updated. Still at approval gate RF0.2." }
+    { "ts": "2026-07-01T16:20:00Z", "step": "RF-D4", "event": "revised", "note": "Owner clarified: the 'Файлы'/'Files' toggle goes in the TOP-LEVEL menu bar, left of the 'Плеер' tab (not the player-view submenu). RF-D4 + RF2.1 verify updated. Still at approval gate RF0.2." },
+    { "ts": "2026-07-01T16:30:00Z", "step": "RF0.2", "event": "done", "note": "Owner approved ('go'). Decisions RF-D2..RF-D5 locked. Proceeding to Phase 1." },
+    { "ts": "2026-07-01T16:40:00Z", "step": "RF1.1", "event": "done", "note": "Removed the outer page gap on all screens: zeroed __inner padding (Settings/LogArchive/Audio, base+media, kept inter-panel gap) and dropped the q-page `padding` prop (LogPage + BodyMonitor Monitoring/AlphaRelaxation/Calibration). vue-tsc clean. Committed per-repo (MindWaveCore/GnauralCore/BodyMonitorCore)." }
   ]
 }

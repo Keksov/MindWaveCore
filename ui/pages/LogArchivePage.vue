@@ -960,7 +960,7 @@ onMounted(() => {
   gap: 16px;
   min-height: 0;
   overflow: hidden;
-  padding: 16px;
+  padding: 0;
 }
 
 .archive-page__card {
@@ -1153,7 +1153,7 @@ onMounted(() => {
 
 @media (max-width: 768px) {
   .archive-page__inner {
-    padding: 12px;
+    padding: 0;
   }
 
   .archive-page__actions-cell {

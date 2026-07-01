@@ -1,5 +1,5 @@
 <template>
-  <q-page padding class="log-page column no-wrap">
+  <q-page class="log-page column no-wrap">
     <q-banner v-if="replay.isReplayMode" class="bg-amber-5 text-dark rounded-borders q-mb-md">
       <div class="row items-center justify-between q-gutter-sm">
         <div>
