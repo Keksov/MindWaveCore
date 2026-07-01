@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-02T01:20:00Z",
+  "updatedAt": "2026-07-02T01:30:00Z",
   "decisions": [
     { "id": "SF-D1", "text": "Scope & process: 3 items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green each step. Code in GnauralCore; ledger in MindWaveCore." },
     { "id": "SF-D2", "text": "Loading indicator: surface worker/tile loading in SpectrogramView as an overlay spinner driven by spec.loading (analysis open + tiles pending); keep audio.spectrogramLoading (decode) in AudioPage so an indicator covers the whole prepare span (decode -> open -> first tiles)." },
@@ -14,6 +14,7 @@
     { "id": "SF-D5", "text": "Toggle placement: the 'Параметры' toggle lives in the SpectrogramView toolbar (next to zoom/fit); open/close state + overlay are self-contained in the view; state local (not persisted) unless owner asks otherwise." },
     { "id": "SF-D7", "text": "Owner addition 2026-07-01 (Audacity-like UI #1): give the spectrogram plot a taller default height matching the Audacity reference (per-channel ~240px; stereo split ~2x) instead of the current min-height:280px flex fill." },
     { "id": "SF-D8", "text": "Owner addition (Audacity-like UI #2): a drag handle on the bottom border of the spectrogram track resizes its height via pointer drag (like Audacity); persist the chosen height (localStorage)." },
+    { "id": "SF-D11", "text": "Owner addition 2026-07-02: performance optimization approach A->B->C, each measured + UI-verified before the next. A (SF6.2): skip computing/storing phase + unwrapped-phase unless the data mode needs them (default magnitude doesn't) -> removes ~350M ArcTan2 + per-frame unwrap + 2 of 3 ~1.4GB matrices. B (SF6.3): multithread the independent per-frame FFT loop (per-thread FFTW plan/buffers). C (SF6.4): lazy/progressive per-visible STFT with a bounded cache (Audacity-style). All are worker (Pascal) changes -> rebuild + re-bundle + backend restart; per-step commit; pause for manual UI verification each. Owner: plan all three, implement A first with a UI-verification pause." },
     { "id": "SF-D10", "text": "Owner addition 2026-07-02 (SF2.1 real concern = SPEED): the only-last-frame visual bug is resolved; the remaining SF2.1 problem is spectrogram GENERATION SPEED (Audacity is much faster). PROFILE FIRST, optimize second (approval gate before any optimization). Measure each pipeline stage on d:\\bin\\Presets\\1_Orientation.flac: worker open-analysis, per-tile get-tile (sample-load/FLAC-decode vs FFT), tile payload bytes + JSON serialize/parse, WS transfer, UI render. Suspects to confirm/refute: single-threaded worker FFT; JSON (not binary) tile transport of large float arrays; repeated per-request FLAC decode (worker reads FLAC directly, no cached PCM)." },
     { "id": "SF-D9", "text": "Owner addition (Audacity-like UI #3): split stereo into stacked Left-over-Right panes, each analysing one channel (channel:0/channel:1, its own worker analysis); mono = single pane. Detect channel count from the decoded AudioBuffer.numberOfChannels (audio.spectrogramBuffer); label panes L/R. PREREQUISITE discovered at execution: the server kept one SpectrogramSession per WS and it was single-analysis (a 2nd open closed the 1st; get-tile used the session's stored analysisId). Refactored SpectrogramSession to hold multiple concurrent analyses keyed by analysisId (worker already multiplexes; client msgs already carry analysisId), so two channel analyses coexist over one socket. Backend change -> server restart." },
     { "id": "SF-D6", "text": "Owner addition 2026-07-01: prepare the spectrum when the Спектрограмма tab is opened. The tab renders only when audio.spectrogramBuffer!=null; RF4.1 decodes on tree selection, but selecting a file on the Воспроизведение tab then switching to Спектрограмма (or a selected-but-undecoded file) leaves the stale 'start local playback' message with nothing happening. Fix: when the Спектрограмма view becomes active for a selected LOCAL audio file (wav/flac) with no decoded buffer and no decode in flight, trigger audio.ensureLocalAudioReady(selectedPath, kind) (same non-playback decode as RF4.1); update the obsolete audio.noSpectrogram wording to cover only the no-file-selected case. .gnaural unchanged." }
@@ -144,7 +145,7 @@
       "id": "SF6.1",
       "phase": 6,
       "title": "Profile the spectrogram generation pipeline",
-      "status": "in-progress",
+      "status": "done",
       "dependsOn": ["SF0.2"],
       "artifacts": ["SpectrumCore or a scratch harness (profiling)", "spectrogram-fixes ledger (findings)"],
       "verify": "stage-by-stage timing + payload breakdown on d:\\bin\\Presets\\1_Orientation.flac (open-analysis, get-tile sample-load vs FFT, tile bytes + serialize/parse, WS, UI render); bottleneck named; owner approval gate on the fix",
@@ -155,6 +156,36 @@
         "Instrumentation was temporary (StdErr timers) and has been reverted; worker rebuilt + re-bundled clean.",
         "PROPOSED FIXES (owner gate): (A) low-risk quick win: skip phase/unwrapped-phase compute+store unless data mode needs them (phase/uphase) -> removes ~350M ArcTan2 + unwrap + 2/3 of the ~4GB memory writes for the default magnitude mode; expected large cut of the 18.8 s. (B) multithread the frame loop (frames independent) -> ~/cores. (C) architectural: lazy/progressive per-visible STFT (Audacity-style). Recommend A first (biggest bang/lowest risk), then measure, then consider B."
       ]
+    },
+    {
+      "id": "SF6.2",
+      "phase": 6,
+      "title": "Optimization A: skip unused phase work",
+      "status": "in-progress",
+      "dependsOn": ["SF6.1"],
+      "artifacts": ["SpectrumCore/src/core/SpectrumCoreFftwAnalysis.pas", "MindWaveCore bundle (rebuild+rebundle)"],
+      "verify": "worker computes/stores phase + unwrapped-phase only when the data mode needs them; magnitude/reassign/pitch modes skip ArcTan2 + unwrap + the 2 phase matrices; point/area-query phase reads guarded; open-analysis time drops (re-profile on 1_Orientation.flac); PAUSE for manual UI verification (spectrum still correct)",
+      "startedAt": "2026-07-02T01:30:00Z", "finishedAt": null, "blockedReason": null, "evidence": []
+    },
+    {
+      "id": "SF6.3",
+      "phase": 6,
+      "title": "Optimization B: multithread the STFT loop",
+      "status": "not-started",
+      "dependsOn": ["SF6.2"],
+      "artifacts": ["SpectrumCore/src/core/SpectrumCoreFftwAnalysis.pas"],
+      "verify": "per-frame FFT loop parallelized across threads (per-thread plan/buffers); output identical; open-analysis time ~/cores (re-profile); PAUSE for manual UI verification",
+      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+    },
+    {
+      "id": "SF6.4",
+      "phase": 6,
+      "title": "Optimization C: lazy/progressive per-visible STFT",
+      "status": "not-started",
+      "dependsOn": ["SF6.2"],
+      "artifacts": ["SpectrumCore (worker analysis)", "GnauralCore (protocol/session if needed)"],
+      "verify": "open-analysis cheap; STFT computed on demand for the visible window with a bounded cache; cost scales with what is shown; re-profile; PAUSE for manual UI verification",
+      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
     },
     {
       "id": "SF5.4",

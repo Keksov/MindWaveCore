@@ -82,6 +82,14 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   confirm/refute: single-threaded worker FFT; JSON (not binary) tile transport of large float
   arrays; repeated per-request FLAC decode (worker reads FLAC directly, no cached PCM). *(Owner
   addition 2026-07-02.)*
+- **SF-D11 — Performance optimization approach (A→B→C).** Fix the SF6.1 bottleneck in stages,
+  each measured + owner-verified via the UI before the next: **A** (SF6.2) skip computing/storing
+  phase + unwrapped-phase unless the data mode needs them (default `magnitude` doesn't) — removes
+  ~350M ArcTan2 + the per-frame unwrap + 2 of the 3 ~1.4 GB matrices; **B** (SF6.3) multithread
+  the independent per-frame FFT loop; **C** (SF6.4) lazy/progressive per-visible STFT with a
+  bounded cache. Order A→B→C, each re-profiled. All are worker (Pascal) changes → rebuild +
+  re-bundle + backend restart; per-step commit; pause for manual UI verification each. *(Owner:
+  plan all three; implement A first with a UI-verification pause.)*
 - **SF-D9 — Split stereo into left/right tracks.** For stereo sources, stack two spectrogram
   panes (Left over Right) like Audacity, each analysing one channel (`channel: 0` / `channel: 1`,
   its own worker analysis); mono renders a single pane. Detect channel count from the decoded
@@ -144,10 +152,20 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   (was single-analysis). server 17/0, ui 61/0, `vue-tsc` clean. **Phase 5 complete.**
 
 **Phase 6 — Spectrogram generation performance** *(owner addition 2026-07-02; SF-D10)*
-- [ ] **SF6.1 — Profile the pipeline.** Build a profiling harness and measure each stage on
-  `d:\bin\Presets\1_Orientation.flac` (worker open-analysis; per-tile get-tile with sample-load
-  vs FFT split; tile payload bytes + serialize/parse; WS; UI render). Produce a stage breakdown
-  and name the bottleneck. **PAUSE at an approval gate** to choose the optimization.
+- [x] **SF6.1 — Profile the pipeline.** Done. Bottleneck = eager full-file STFT in
+  `TFftwAnalysis.Create` (18.8 s of a 22.2 s open on the 33-min FLAC); decode 3.4 s; JSON/WS +
+  get-tile are fine. Root cause: phase + unwrapped-phase computed/stored for every frame even
+  for `data=magnitude`.
+- [ ] **SF6.2 — Optimization A: skip unused phase work (SF-D11).** In the worker, compute + store
+  phase / unwrapped-phase (and their arrays) only when the data mode needs them (phase/uphase);
+  guard point/area-query phase reads. Rebuild + re-bundle. **PAUSE for manual UI verification**;
+  re-profile to measure the open-analysis cut.
+- [ ] **SF6.3 — Optimization B: multithread the STFT loop (SF-D11).** Parallelize the
+  independent per-frame FFT loop across worker threads (each thread its own FFTW plan/buffers);
+  re-profile; PAUSE for manual UI verification.
+- [ ] **SF6.4 — Optimization C: lazy / progressive STFT (SF-D11).** Compute the STFT only for the
+  visible window on demand (Audacity-style), with a bounded cache, so `open-analysis` is cheap
+  and cost scales with what's shown; re-profile; PAUSE for manual UI verification.
 
 **Phase 4 — Prepare spectrum on tab open**
 - [x] **SF4.1 — Auto-prepare on Спектрограмма tab.** `ensureSpectrogramPrepared()` + a watch
