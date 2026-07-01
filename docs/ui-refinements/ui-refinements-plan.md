@@ -68,6 +68,15 @@ Goal: three independent refinements requested by the owner —
   it when the main app returns to the foreground. Detect via the foreground window's root/owner
   identity (`GetForegroundWindow` + `GetAncestor(..., GA_ROOTOWNER)`), counting the bar itself
   (`WS_EX_NOACTIVATE`, so it never steals foreground) as "app active".
+- **RF-D6 — Start-button edge offset (audio player).** After RF1.1 the embedded gnaural
+  schedule toolbar (`output-section--schedule`, padding 0) leaves the Start button flush to the
+  window/card edge. Give the schedule toolbar horizontal padding (**16px**, the app's standard
+  unit ≈ the effective inset of the top menu items) so the Start button gets the same edge
+  offset as the top menu; the canvas below stays full-bleed. Standalone player + spectrogram
+  toolbars already sit at 16px. *(Owner addition 2026-07-01.)*
+- **RF-D7 — Files-panel close button.** Add a close (×) button to the files panel header,
+  mirroring the Tracks panel header (`q-btn flat round dense icon="close"` → `closeFilesPanel`).
+  *(Owner addition 2026-07-01.)*
 
 ## 3. Acceptance / gates
 - Item 1: on every in-scope page the content card touches the window edge (no outer margin);
@@ -103,6 +112,10 @@ Goal: three independent refinements requested by the owner —
   (matching the Tracks panel), set the files↔player gap to **5px** (same as the Tracks panel),
   and add a `folder`/"Файлы" toggle in the top-level menu bar left of the "Плеер" tab; add
   `audio.filesTab` (+ show/hide aria labels) to GnauralCore i18n en/ru. Verify `vue-tsc` + `bun`.
+- [ ] **RF2.2 — Start-button offset + files-panel close button.** Add horizontal padding to the
+  embedded gnaural schedule toolbar so the Start button matches the top menu's edge offset
+  (RF-D6); add a Tracks-style close (×) button to the files panel header (RF-D7). Verify
+  `vue-tsc` + `bun`.
 
 **Phase 3 — AppCore control-bar occlusion fix**
 - [ ] **RF3.1 — Hide the bar with the main window's foreground state.** Edit AppBar.pas
