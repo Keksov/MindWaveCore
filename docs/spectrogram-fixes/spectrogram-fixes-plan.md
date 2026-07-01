@@ -112,10 +112,10 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   Verify `vue-tsc` + `bun`.
 
 **Phase 4 — Prepare spectrum on tab open**
-- [ ] **SF4.1 — Auto-prepare on Спектрограмма tab.** When the Спектрограмма view becomes active
-  for a selected local audio file with no decoded buffer, trigger the (non-playback) decode so
-  the spectrum prepares instead of showing the stale "start playback" message; refresh the
-  `audio.noSpectrogram` wording (SF-D6). Verify `vue-tsc` + `bun`.
+- [x] **SF4.1 — Auto-prepare on Спектрограмма tab.** `ensureSpectrogramPrepared()` + a watch
+  decode the selected local file when the Спектрограмма view opens (no buffer / not loading), so
+  it prepares instead of showing the stale message; `audio.noSpectrogram` wording refreshed
+  (SF-D6). `vue-tsc` clean; GnauralCore bun 56/0.
 
 ## 6. References
 - View/render: [SpectrogramView.vue](../../../GnauralCore/ui/components/SpectrogramView.vue),

@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-01T19:40:00Z",
+  "updatedAt": "2026-07-01T19:55:00Z",
   "decisions": [
     { "id": "SF-D1", "text": "Scope & process: 3 items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green each step. Code in GnauralCore; ledger in MindWaveCore." },
     { "id": "SF-D2", "text": "Loading indicator: surface worker/tile loading in SpectrogramView as an overlay spinner driven by spec.loading (analysis open + tiles pending); keep audio.spectrogramLoading (decode) in AudioPage so an indicator covers the whole prepare span (decode -> open -> first tiles)." },
@@ -89,7 +89,7 @@
       "id": "SF4.1",
       "phase": 4,
       "title": "Auto-prepare spectrum when the Спектрограмма tab is opened",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": ["SF0.2"],
       "artifacts": [
         "GnauralCore/ui/pages/AudioPage.vue",
@@ -97,7 +97,12 @@
         "GnauralCore/ui/i18n/ru.json"
       ],
       "verify": "switching to the Спектрограмма tab with a selected local audio file (no decoded buffer) triggers ensureLocalAudioReady so the spectrum prepares (spinner -> spectrum) instead of the stale 'start local playback' message; noSpectrogram wording updated; .gnaural unchanged; vue-tsc + bun green",
-      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+      "startedAt": "2026-07-01T19:40:00Z", "finishedAt": "2026-07-01T19:55:00Z", "blockedReason": null,
+      "evidence": [
+        "AudioPage: added ensureSpectrogramPrepared() — when the player Спектрограмма view is active and a local audio file (wav/flac) is selected with no decoded buffer and no decode in flight, it calls audio.ensureLocalAudioReady(path, kind) (same non-playback decode as RF4.1). Wired via watch([activePlayerViewTab, activeContentTab, () => audio.selectedPath], immediate) guarded to the player content tab. Guard skips when already loading/decoded, so it won't double-fetch with RF4.1's selection decode (wavLoading is set synchronously first).",
+        "Updated stale audio.noSpectrogram wording (a selected file now auto-prepares): en 'Select an audio file to view its spectrum.' / ru 'Выберите аудиофайл, чтобы посмотреть его спектр.'. .gnaural (noGnauralSpectrogram) unchanged.",
+        "Verify: vue-tsc --noEmit clean; GnauralCore bun 56/0; i18n JSON parses. Live-verify in quasar dev (owner): select on Воспроизведение -> switch to Спектрограмма -> spinner then spectrum (no dead message)."
+      ]
     }
   ],
   "log": [
@@ -106,6 +111,7 @@
     { "ts": "2026-07-01T19:05:00Z", "step": "SF1.1", "event": "done", "note": "Added a loading overlay (spinner + 'Подготовка спектрограммы…') in SpectrogramView driven by spec.loading (analysis open + tiles pending). vue-tsc clean." },
     { "ts": "2026-07-01T19:10:00Z", "step": "-", "event": "note", "note": "Owner: none of the session's UI changes were visible -> the prod app served the stale built server/public. Rebuilt UI (quasar build). Owner then switched to quasar dev for live HMR." },
     { "ts": "2026-07-01T19:25:00Z", "step": "SF1.1", "event": "fixed", "note": "Owner: spinner still not appearing. Root cause: spec.loading only counted pending tiles, so it was false during the slow worker open()/reconfigure() and tiles arrived too fast. Added an `opening` flag (open/reconfigure -> loading true; cleared at refetch/error/close) so the indicator covers the whole prepare span. vue-tsc + bun green." },
-    { "ts": "2026-07-01T19:40:00Z", "step": "SF4.1", "event": "planned", "note": "New owner item (SF-D6): on the Воспроизведение tab select a file, switch to Спектрограмма -> stale 'start local playback' message and nothing happens. Add Phase 4: auto-decode (ensureLocalAudioReady) when the Спектрограмма tab opens for a selected undecoded local file + refresh noSpectrogram wording. Awaiting owner 'go'." }
+    { "ts": "2026-07-01T19:40:00Z", "step": "SF4.1", "event": "planned", "note": "New owner item (SF-D6): on the Воспроизведение tab select a file, switch to Спектрограмма -> stale 'start local playback' message and nothing happens. Add Phase 4: auto-decode (ensureLocalAudioReady) when the Спектрограмма tab opens for a selected undecoded local file + refresh noSpectrogram wording. Awaiting owner 'go'." },
+    { "ts": "2026-07-01T19:55:00Z", "step": "SF4.1", "event": "done", "note": "AudioPage now auto-prepares the spectrum when the Спектрограмма tab is opened for a selected undecoded local file (ensureSpectrogramPrepared + watch); stale noSpectrogram wording refreshed (en/ru). vue-tsc + bun 56/0." }
   ]
 }
