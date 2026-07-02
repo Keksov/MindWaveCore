@@ -208,8 +208,10 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   placeholder replaced by a small persistent progress dialog over the tracks screen. `vue-tsc` clean.
 - [x] **SF7.2 — Track-height resize without recompute (SF-D13 = option b).** `viewBinCount` fixed
   (`MAX_VIEW_BINS`); height resize scales the raster only (setView no-op guard). `vue-tsc` + bun 61/0.
-- [ ] **SF7.3 — Cache spectrograms across file switches (SF-D14).** LRU of open worker analyses
-  (or client tile cache) so returning to a file doesn't recompute. Verify (server tests) + owner.
+- [x] **SF7.3 — Cache spectrograms across file switches (SF-D14).** SpectrogramSession keeps
+  analyses warm as an LRU (file+params key; MAX 4 / 1.5 GB samples); reopen reuses → skips
+  re-decode; close keeps warm. Contract test updated + reuse test; server 18/0. **PAUSE for owner
+  UI verification.**
 
 **Phase 8 — Audacity multi-track polish** *(owner addition 2026-07-02)*
 - [ ] **SF8.1 — Multi-track chrome like Audacity (SF-D15).** Icons/toolbar on the first track

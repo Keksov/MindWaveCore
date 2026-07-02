@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-02T05:55:00Z",
+  "updatedAt": "2026-07-02T06:20:00Z",
   "decisions": [
     { "id": "SF-D1", "text": "Scope & process: 3 items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green each step. Code in GnauralCore; ledger in MindWaveCore." },
     { "id": "SF-D2", "text": "Loading indicator: surface worker/tile loading in SpectrogramView as an overlay spinner driven by spec.loading (analysis open + tiles pending); keep audio.spectrogramLoading (decode) in AudioPage so an indicator covers the whole prepare span (decode -> open -> first tiles)." },
@@ -283,11 +283,14 @@
       "id": "SF7.3",
       "phase": 7,
       "title": "Cache spectrograms across file switches",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": ["SF0.2"],
-      "artifacts": ["GnauralCore/server/spectrogram-session.ts (or SpectrumCore worker)", "GnauralCore/ui/composables/use-spectrogram.ts"],
-      "verify": "switching back to a previously-opened file reuses the cached analysis/tiles (no full recompute); memory bounded (LRU eviction); server tests green; owner verification",
-      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+      "artifacts": ["GnauralCore/server/spectrogram-session.ts", "GnauralCore/server/spectrogram-session.test.ts"],
+      "verify": "switching back to a previously-opened file reuses the cached analysis (no full recompute); memory bounded (LRU eviction); server tests green; owner verification",
+      "startedAt": "2026-07-02T06:00:00Z", "finishedAt": "2026-07-02T06:20:00Z", "blockedReason": null, "evidence": [
+        "SpectrogramSession now keeps analyses WARM as an LRU keyed by file+fileKind+params: onOpen reuses a matching warm analysis (returns its analysisId + cached info -> skips the ~seconds full-file decode/open); onClose keeps the entry alive (no free); requireAnalysis bumps LRU on get-tile/point/area. Eviction on open past caps (ANALYSIS_CACHE_MAX=4 OR ANALYSIS_CACHE_BUDGET_BYTES=1.5GB of kept samples, whichever first), never evicting the just-opened. dispose frees all. Because Opt C made analyses lazy (samples-only), keeping a few warm is affordable and bounded.",
+        "Behavior change: close no longer frees the worker analysis (kept warm). Updated the contract test accordingly; added a reuse test (reopen same file+params -> same analysisId; different params -> new). GnauralCore server tests 18/0 (bridge + session, real worker). Backend change -> restart (worker binary unchanged, no re-bundle). Owner UI verification (A -> B -> back to A returns fast) = the pause."
+      ]
     },
     {
       "id": "SF4.1",
@@ -330,6 +333,7 @@
     { "ts": "2026-07-02T01:20:00Z", "step": "SF6.1", "event": "profiled", "note": "Bottleneck found: open-analysis 22.2s = FLAC decode 3.4s + eager full-file STFT loop 18.8s (dominant). The loop computes phase+unwrapped-phase (350M ArcTan2 + unwrap) + 3x ~1.4GB matrices EVEN for data=magnitude (unused). JSON/WS transport + get-tile are fine (full view 2.3s / 1.6MB / parse 7ms). Proposed: (A) skip phase/uphase unless needed [quick win], (B) multithread the loop, (C) lazy per-visible STFT. Awaiting owner gate. Profiling timers reverted; worker rebuilt+rebundled clean." },
     { "ts": "2026-07-02T04:20:00Z", "step": "SF7", "event": "planned", "note": "Owner added Phase 7: SF7.1 immediate tracks + Audacity-style load-progress dialog overlay (SF-D12); SF7.2 track-height resize without full recompute (SF-D13, options a/b/c - owner to choose); SF7.3 cache spectrograms across file switches (SF-D14, LRU of lazy open analyses). Awaiting owner choice on SF-D13 then go." },
     { "ts": "2026-07-02T04:30:00Z", "step": "SF-D13", "event": "decided", "note": "Owner chose option (b): never recompute on resize -> fixed viewBinCount decoupled from track height; height resize scales the raster only (setView no-op guard skips refetch). SF7.2 unblocked." },
+    { "ts": "2026-07-02T06:20:00Z", "step": "SF7.3", "event": "done", "note": "Spectrogram cache across file switches: SpectrogramSession keeps analyses warm as an LRU (file+params key); reopen reuses -> skips re-decode. onClose keeps warm; eviction on open past caps (MAX 4 / 1.5GB samples). Contract test updated (close keeps warm) + reuse test added; server 18/0. Backend restart (no re-bundle). PAUSED for owner UI verification. Remaining: SF8.1 (multi-track chrome, big)." },
     { "ts": "2026-07-02T05:55:00Z", "step": "SF8.2", "event": "done", "note": "SF8.3: dropped immediate from the ensureSpectrogramPrepared watch -> opening the Audio tab with a restored selection no longer auto-builds; builds only on file click / switch to Спектрограмма. SF8.2: frequency-axis tick count now scales with plot height (~1 per 42px, clamp 3..20) -> more levels on taller tracks (Audacity-like). vue-tsc + bun 61/0. UI-only (HMR). Remaining Phase 8: SF8.1 (multi-track chrome, big). Also pending: SF7.3 (backend cache)." },
     { "ts": "2026-07-02T05:40:00Z", "step": "SF-D17", "event": "decided", "note": "Owner chose option (a): build only on explicit action (file click / switch to Спектрограмма sub-tab), not on mount for a restored selection -> drop immediate:true from the SF4.1 watch. SF8.3 unblocked." },
     { "ts": "2026-07-02T05:30:00Z", "step": "SF8", "event": "planned", "note": "Owner added Phase 8: SF8.1 Audacity-style multi-track chrome (icons on first track, per-track resize, unified span selector, no inter-track gap; SF-D15); SF8.2 adaptive frequency-axis tick density with height (SF-D16); SF8.3 don't auto-build on Audio-tab open (SF-D17, options a/b/c - owner to choose)." },
