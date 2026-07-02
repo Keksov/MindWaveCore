@@ -90,6 +90,25 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   bounded cache. Order A→B→C, each re-profiled. All are worker (Pascal) changes → rebuild +
   re-bundle + backend restart; per-step commit; pause for manual UI verification each. *(Owner:
   plan all three; implement A first with a UI-verification pause.)*
+- **SF-D12 — Non-blocking load progress (item 1).** On selecting a file, render the tracks
+  (spectrogram/schedule) view immediately and show a small **progress dialog overlay** (Audacity
+  style) while the audio decode / spectrogram prepare runs — instead of the current full-panel
+  "Загрузка выбранного аудиофайла и расчёт спектрограммы…" placeholder that hides the tracks.
+  *(Owner addition 2026-07-02.)*
+- **SF-D13 — Track-height resize without full recompute (item 2, TO DISCUSS).** Resizing a track
+  currently changes `viewBinCount` → refetches/recomputes tiles mid-drag. Options: **(a)** debounce
+  the refetch to drag-end — the raster already stretches to the canvas height during the drag, so
+  recompute once on release (simplest, keeps full vertical resolution); **(b)** decouple
+  `viewBinCount` from height (fixed vertical bin resolution) → pure raster scaling, never recompute
+  on resize (slightly softer when enlarged); **(c)** hybrid lazy — stretch the raster immediately,
+  recompute in the background and swap in. Owner to choose; risk to guard = readout/click mapping
+  must stay correct. *(Owner addition 2026-07-02.)*
+- **SF-D14 — Cache computed spectrograms across file switches (item 3).** Returning to a
+  previously-opened file recomputes from scratch. Since Opt C made analyses lazy (samples-only,
+  ~350 MB each, no giant matrix), keep an **LRU of a few open worker analyses** keyed by
+  file+params so switching back reuses the open analysis (bounded by memory); evict oldest.
+  Alternative: a client-side tile cache keyed by file+params. Recommend the worker-analysis LRU;
+  refine cap at execution. *(Owner addition 2026-07-02.)*
 - **SF-D9 — Split stereo into left/right tracks.** For stereo sources, stack two spectrogram
   panes (Left over Right) like Audacity, each analysing one channel (`channel: 0` / `channel: 1`,
   its own worker analysis); mono renders a single pane. Detect channel count from the decoded
@@ -170,6 +189,15 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   buffer that a biased `FMagnitudeData` maps onto (readers unchanged); reassignment stays eager.
   Fixes the `open-analysis Out of memory` on `1_Orientation.flac` stereo. open 2.6 s (decode-only);
   tiles byte-identical; bridge 17/0. **PAUSE for manual UI verification.**
+
+**Phase 7 — UX & perf refinements** *(owner addition 2026-07-02)*
+- [ ] **SF7.1 — Immediate tracks + progress-dialog overlay (SF-D12).** Show the tracks view at
+  once; overlay a small non-blocking load-progress dialog while preparing. Verify `vue-tsc`.
+- [ ] **SF7.2 — Track-height resize without full recompute (SF-D13).** Implement the chosen
+  option (a/b/c) so dragging the track height doesn't recompute per step; keep readout/click
+  mapping correct. Verify `vue-tsc` + `bun`.
+- [ ] **SF7.3 — Cache spectrograms across file switches (SF-D14).** LRU of open worker analyses
+  (or client tile cache) so returning to a file doesn't recompute. Verify (server tests) + owner.
 
 **Phase 4 — Prepare spectrum on tab open**
 - [x] **SF4.1 — Auto-prepare on Спектрограмма tab.** `ensureSpectrogramPrepared()` + a watch
