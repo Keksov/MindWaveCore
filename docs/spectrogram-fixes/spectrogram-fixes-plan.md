@@ -255,8 +255,8 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
 - [x] **SF10.1 — Common header above the stack (SF-D21).** Shared header bar over the stack holds
   the zoom/fit buttons (once), driving the shared view; buttons removed from SpectrogramView.
   `vue-tsc` clean.
-- [ ] **SF10.2 — L/R labels as top-left overlays (SF-D22).** `L` overlay matches `R`'s position;
-  labels removed from the toolbar. Verify `vue-tsc`.
+- [x] **SF10.2 — L/R labels as top-left overlays (SF-D22).** Channel label is a top-left plot
+  overlay for every track (same place); toolbar label removed. `vue-tsc` clean.
 - [ ] **SF10.3 — Time axis top-of-first + bottom-of-last only (SF-D23).** Time ruler drawn only
   above the first and below the last track; frequency axis stays per-track. Verify `vue-tsc`.
 - [ ] **SF10.4 — Fixed bottom minimap-overview selector (SF-D24).** Canvas minimap-overview bar
