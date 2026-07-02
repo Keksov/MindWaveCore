@@ -266,8 +266,9 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   UI verification.**
 
 **Phase 11 — i18n, caching fix, tile-generation speed** *(owner addition 2026-07-03)*
-- [ ] **SF11.1 — i18n for the Параметры panel (SF-D27).** Localize remaining hardcoded strings in
-  `SpectrogramSettingsPanel` (en/ru). Verify `vue-tsc` + `bun`.
+- [x] **SF11.1 — i18n for the Параметры panel (SF-D27).** Localized all field + slider labels in
+  `SpectrogramSettingsPanel` (18 keys, en/ru; sliders computed for reactivity). Technical option
+  values + preset names left untranslated by design. `vue-tsc` + bun 61/0.
 - [ ] **SF11.2 — Fix spectrogram caching across file switches (SF-D28).** Diagnose why the SF7.3
   warm-analysis LRU is not reused (A→B→A recomputes) and fix it. Verify server tests + owner.
 - [ ] **SF11.3 — Profile + speed up tile generation (SF-D29).** Profile our `get-tile` pipeline,

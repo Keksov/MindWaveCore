@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-03T01:45:00Z",
+  "updatedAt": "2026-07-03T02:05:00Z",
   "decisions": [
     { "id": "SF-D1", "text": "Scope & process: 3 items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green each step. Code in GnauralCore; ledger in MindWaveCore." },
     { "id": "SF-D2", "text": "Loading indicator: surface worker/tile loading in SpectrogramView as an overlay spinner driven by spec.loading (analysis open + tiles pending); keep audio.spectrogramLoading (decode) in AudioPage so an indicator covers the whole prepare span (decode -> open -> first tiles)." },
@@ -239,11 +239,15 @@
       "id": "SF11.1",
       "phase": 11,
       "title": "i18n for the Параметры panel",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": ["SF3.1"],
       "artifacts": ["GnauralCore/ui/components/SpectrogramSettingsPanel.vue", "GnauralCore/ui/i18n/en.json", "GnauralCore/ui/i18n/ru.json"],
       "verify": "no hardcoded user-facing strings left in the settings panel; en/ru localized; vue-tsc + bun green",
-      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+      "startedAt": "2026-07-03T01:50:00Z", "finishedAt": "2026-07-03T02:05:00Z", "blockedReason": null,
+      "evidence": [
+        "SpectrogramSettingsPanel: routed all field labels through i18n (Window/Zero-pad/Hop/Window func/Data/Freq scale/Channel mode/Channel/Start Hz/Stop Hz/Intensity scale/Palette) and the 6 slider labels (Overlap/Gain/Frequency gain/Dynamic range/Limit/Saturation). Slider list is now a computed so labels stay reactive on language switch. Added 18 audio.spectrogram* keys in en/ru.",
+        "Left as-is (intentional): dropdown OPTION values (winFunc/data/fscale/mode/scale/palette) are technical algorithm identifiers (hann, magnitude, log, rainbow, ...) and preset names ('Audacity', 'ffmpeg showspectrumpic') are proper names -> not translated. vue-tsc + bun 61/0; i18n JSON parses."
+      ]
     },
     {
       "id": "SF11.2",
@@ -487,6 +491,7 @@
     { "ts": "2026-07-02T04:20:00Z", "step": "SF7", "event": "planned", "note": "Owner added Phase 7: SF7.1 immediate tracks + Audacity-style load-progress dialog overlay (SF-D12); SF7.2 track-height resize without full recompute (SF-D13, options a/b/c - owner to choose); SF7.3 cache spectrograms across file switches (SF-D14, LRU of lazy open analyses). Awaiting owner choice on SF-D13 then go." },
     { "ts": "2026-07-02T04:30:00Z", "step": "SF-D13", "event": "decided", "note": "Owner chose option (b): never recompute on resize -> fixed viewBinCount decoupled from track height; height resize scales the raster only (setView no-op guard skips refetch). SF7.2 unblocked." },
     { "ts": "2026-07-03T00:20:00Z", "step": "SF10.4", "event": "fixed", "note": "PARTIAL/WRONG first attempt: made SpectrogramMinimap a static import (still correct + kept), but that alone did NOT fix the blank tracks." },
+    { "ts": "2026-07-03T02:05:00Z", "step": "SF11.1", "event": "done", "note": "Localized all field + slider labels in SpectrogramSettingsPanel (18 new audio.spectrogram* keys, en/ru); sliders now a computed for reactive labels. Technical option values + preset names left untranslated by design. vue-tsc + bun 61/0. UI-only. Next: SF11.2 (caching fix)." },
     { "ts": "2026-07-03T01:45:00Z", "step": "SF11", "event": "planned", "note": "Owner added Phase 11: SF11.1 i18n for the Параметры panel (SF-D27); SF11.2 fix spectrogram caching across file switches - A->B->A recomputes despite SF7.3 warm LRU (SF-D28); SF11.3 profile + speed up tile generation, then owner verifies, then (if needed) study Audacity 3.7.8 sources (SF-D29). Executing next." },
     { "ts": "2026-07-03T01:30:00Z", "step": "SF3.1", "event": "done", "note": "Settings panel converted to a toggleable overlay 'Параметры' (SF-D4/D5): removed the fixed 264px side column (no more plot shrink); dark absolute <aside> + backdrop + slide/fade transitions over the spectrogram section; toggle 'tune' button in the common header (aria-expanded/controls), close via button/backdrop/Escape; default closed. i18n en/ru added. vue-tsc + prod build + bun 61/0. UI-only. Last remaining planned step done -> the spectrogram-fixes plan is functionally complete (optional follow-up: minimap spectrogram thumbnail)." },
     { "ts": "2026-07-03T01:00:00Z", "step": "SF9-10", "event": "verified", "note": "Owner confirmed the spectrogram tracks render again after the static-SpectrogramView fix ('Исправлено!'). Phase 9 (square corners + per-track resize model) and Phase 10 (header/labels/axes/bottom minimap + cursor tooltip) are visually working. Proceeding to SF3.1 (deferred Параметры overlay)." },
