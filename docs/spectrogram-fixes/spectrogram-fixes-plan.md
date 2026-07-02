@@ -165,9 +165,11 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   `ProcessorCount` threads (per-thread plan/buffers; reassignment stays serial). open-analysis
   6.2 s → ~3.06 s (16 CPUs; cumulative A+B 22.2 → 3.06, ~7×); tiles byte-identical; bridge 17/0.
   **PAUSE for manual UI verification.**
-- [ ] **SF6.4 — Optimization C: lazy / progressive STFT (SF-D11).** Compute the STFT only for the
-  visible window on demand (Audacity-style), with a bounded cache, so `open-analysis` is cheap
-  and cost scales with what's shown; re-profile; PAUSE for manual UI verification.
+- [x] **SF6.4 — Optimization C: lazy / progressive STFT (SF-D11).** No persistent full-file
+  matrix: keep samples; compute the requested frame range on demand (parallel) into a transient
+  buffer that a biased `FMagnitudeData` maps onto (readers unchanged); reassignment stays eager.
+  Fixes the `open-analysis Out of memory` on `1_Orientation.flac` stereo. open 2.6 s (decode-only);
+  tiles byte-identical; bridge 17/0. **PAUSE for manual UI verification.**
 
 **Phase 4 — Prepare spectrum on tab open**
 - [x] **SF4.1 — Auto-prepare on Спектрограмма tab.** `ensureSpectrogramPrepared()` + a watch
