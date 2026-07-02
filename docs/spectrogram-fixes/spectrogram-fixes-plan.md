@@ -207,9 +207,9 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   `viewBinCount`. +4 unit tests (incl. only-last-frame regression). `vue-tsc` clean; bun 60/0.
 
 **Phase 3 — Settings panel overlay "Параметры"**
-- [ ] **SF3.1 — Overlay + rename.** Convert the settings panel to a toggleable overlay (no
-  main-content resize) titled "Параметры" with a toolbar toggle + backdrop + close; i18n en/ru.
-  Verify `vue-tsc` + `bun`.
+- [x] **SF3.1 — Overlay + rename.** Settings panel is now a toggleable overlay (no main-content
+  resize) titled "Параметры" with a common-header toggle (`tune`) + backdrop + close (button /
+  backdrop / Escape); default closed; i18n en/ru. `vue-tsc` + prod build + bun 61/0.
 
 **Phase 5 — Make the UI Audacity-like** *(owner addition 2026-07-01)*
 - [x] **SF5.1 — Audacity-like default track height (SF-D7).** `SpectrogramView` `height` prop +

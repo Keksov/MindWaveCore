@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-03T00:45:00Z",
+  "updatedAt": "2026-07-03T01:30:00Z",
   "decisions": [
     { "id": "SF-D1", "text": "Scope & process: 3 items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green each step. Code in GnauralCore; ledger in MindWaveCore." },
     { "id": "SF-D2", "text": "Loading indicator: surface worker/tile loading in SpectrogramView as an overlay spinner driven by spec.loading (analysis open + tiles pending); keep audio.spectrogramLoading (decode) in AudioPage so an indicator covers the whole prepare span (decode -> open -> first tiles)." },
@@ -100,17 +100,19 @@
       "id": "SF3.1",
       "phase": 3,
       "title": "Settings panel overlay named 'Параметры'",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": ["SF0.2"],
       "artifacts": [
         "GnauralCore/ui/pages/AudioPage.vue",
-        "GnauralCore/ui/components/SpectrogramView.vue",
-        "GnauralCore/ui/components/SpectrogramSettingsPanel.vue",
         "GnauralCore/ui/i18n/en.json",
         "GnauralCore/ui/i18n/ru.json"
       ],
       "verify": "settings panel is a toggleable overlay over the plot (no main-content resize), titled 'Параметры', with toolbar toggle + backdrop + close; i18n en/ru; vue-tsc + bun green",
-      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+      "startedAt": "2026-07-03T01:05:00Z", "finishedAt": "2026-07-03T01:30:00Z", "blockedReason": null,
+      "evidence": [
+        "AudioPage: removed the fixed 264px settings side column (which shrank the plot). SpectrogramSettingsPanel now lives in a toggleable OVERLAY mirroring the schedule settings pattern: an absolutely-positioned <aside> (right/top/bottom, 300px, dark #0f172a) over the .audio-page__output-section--spectrogram (now position:relative), a click backdrop, and enter/leave <transition>s (fade + slide-in). Header = title 'Параметры' + close (x). Default CLOSED.",
+        "Toggle = a 'tune' q-btn in the SF10.1 common header (after fit, pushed right with q-space); active color when open; aria-expanded/aria-controls wired. Backdrop click, the close button, and Escape (handlePlayerKeyDown) all close it. i18n audio.spectrogramSettingsTitle (en 'Parameters' / ru 'Параметры') + spectrogramSettingsClose. vue-tsc + prod build + bun 61/0."
+      ]
     },
     {
       "id": "SF5.1",
@@ -452,6 +454,8 @@
     { "ts": "2026-07-02T04:20:00Z", "step": "SF7", "event": "planned", "note": "Owner added Phase 7: SF7.1 immediate tracks + Audacity-style load-progress dialog overlay (SF-D12); SF7.2 track-height resize without full recompute (SF-D13, options a/b/c - owner to choose); SF7.3 cache spectrograms across file switches (SF-D14, LRU of lazy open analyses). Awaiting owner choice on SF-D13 then go." },
     { "ts": "2026-07-02T04:30:00Z", "step": "SF-D13", "event": "decided", "note": "Owner chose option (b): never recompute on resize -> fixed viewBinCount decoupled from track height; height resize scales the raster only (setView no-op guard skips refetch). SF7.2 unblocked." },
     { "ts": "2026-07-03T00:20:00Z", "step": "SF10.4", "event": "fixed", "note": "PARTIAL/WRONG first attempt: made SpectrogramMinimap a static import (still correct + kept), but that alone did NOT fix the blank tracks." },
+    { "ts": "2026-07-03T01:30:00Z", "step": "SF3.1", "event": "done", "note": "Settings panel converted to a toggleable overlay 'Параметры' (SF-D4/D5): removed the fixed 264px side column (no more plot shrink); dark absolute <aside> + backdrop + slide/fade transitions over the spectrogram section; toggle 'tune' button in the common header (aria-expanded/controls), close via button/backdrop/Escape; default closed. i18n en/ru added. vue-tsc + prod build + bun 61/0. UI-only. Last remaining planned step done -> the spectrogram-fixes plan is functionally complete (optional follow-up: minimap spectrogram thumbnail)." },
+    { "ts": "2026-07-03T01:00:00Z", "step": "SF9-10", "event": "verified", "note": "Owner confirmed the spectrogram tracks render again after the static-SpectrogramView fix ('Исправлено!'). Phase 9 (square corners + per-track resize model) and Phase 10 (header/labels/axes/bottom minimap + cursor tooltip) are visually working. Proceeding to SF3.1 (deferred Параметры overlay)." },
     { "ts": "2026-07-03T00:45:00Z", "step": "SF9.2", "event": "fixed", "note": "ROOT CAUSE of the blank spectrogram tracks (regression from SF9.2's v-for). Console showed '[Vue warn] Invalid vnode type when creating vnode: null' in the spectrogram QTabPanel; a temp diagnostic proved spectrogramTracks=2 and heights=[338,338] with NO thrown error -> the tracks were in the vdom but never resolved. Cause: SpectrogramView is an ASYNC component (createAsyncAudioPanel, delay:120) that returns a NULL vnode during its loading-delay phase. In Phase 8 the tracks sat in static v-if/v-else positions (fine). SF9.2 moved them into a keyed <template v-for> -> an async component that yields null as a keyed v-for child breaks the fragment reconciliation, so the tracks never advance past null (settings panel is async too but NOT in a v-for, so it resolved fine -> the earlier 'harmless warn' read was wrong). Fix: import SpectrogramView STATICALLY (no null loading phase). vue-tsc + prod build + bun 61/0. Removed the temp diagnostic (onErrorCaptured/watchEffect)." },
     { "ts": "2026-07-02T09:50:00Z", "step": "SF10.4", "event": "done", "note": "Bottom minimap-overview: new SpectrogramMinimap.vue (canvas overview + draggable/resizable visible-window handle; body=pan, edges=zoom, outside=recenter) at the very bottom of the stack, driving the shared view (SF-D24). Readout moved to a cursor tooltip on the plot; SpectrogramView's q-range/readout toolbar fully removed (SF-D25). i18n spectrogramTimespan added. vue-tsc + bun 61/0. Phase 10 (chrome layout) COMPLETE. UI-only. PAUSED for owner UI verification. NOTE: minimap has no rendered spectrogram thumbnail yet (plain overview track) - possible follow-up." },
     { "ts": "2026-07-02T09:15:00Z", "step": "SF10.3", "event": "done", "note": "Time ruler now only above the first track and below the last (dynamic top/bottom margins; middle tracks none); frequency axis stays per-track. AudioPage passes first/last flags by index. vue-tsc clean. UI-only. Next: SF10.4 (bottom minimap-overview + cursor-tooltip readout), the big one." },
