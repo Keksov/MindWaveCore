@@ -252,8 +252,9 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   UI verification.**
 
 **Phase 10 — Track chrome layout (header / labels / axes / bottom selector)** *(owner addition 2026-07-02)*
-- [ ] **SF10.1 — Common header above the stack (SF-D21).** Shared header bar over the first track
-  holding the zoom/fit buttons (once for all tracks). Verify `vue-tsc`.
+- [x] **SF10.1 — Common header above the stack (SF-D21).** Shared header bar over the stack holds
+  the zoom/fit buttons (once), driving the shared view; buttons removed from SpectrogramView.
+  `vue-tsc` clean.
 - [ ] **SF10.2 — L/R labels as top-left overlays (SF-D22).** `L` overlay matches `R`'s position;
   labels removed from the toolbar. Verify `vue-tsc`.
 - [ ] **SF10.3 — Time axis top-of-first + bottom-of-last only (SF-D23).** Time ruler drawn only
