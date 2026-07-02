@@ -257,8 +257,9 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   `vue-tsc` clean.
 - [x] **SF10.2 — L/R labels as top-left overlays (SF-D22).** Channel label is a top-left plot
   overlay for every track (same place); toolbar label removed. `vue-tsc` clean.
-- [ ] **SF10.3 — Time axis top-of-first + bottom-of-last only (SF-D23).** Time ruler drawn only
-  above the first and below the last track; frequency axis stays per-track. Verify `vue-tsc`.
+- [x] **SF10.3 — Time axis top-of-first + bottom-of-last only (SF-D23).** `showTimeAxisTop/Bottom`
+  props + dynamic margins; time ruler above the first and below the last track only; frequency
+  axis stays per-track. `vue-tsc` clean.
 - [ ] **SF10.4 — Fixed bottom minimap-overview selector (SF-D24).** Canvas minimap-overview bar
   fixed at the bottom (draggable/resizable visible window), player-style; removed from header.
   Readout becomes a cursor tooltip (SF-D25). Verify `vue-tsc` + `bun`.
