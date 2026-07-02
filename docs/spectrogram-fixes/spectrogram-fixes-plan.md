@@ -95,14 +95,13 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   style) while the audio decode / spectrogram prepare runs — instead of the current full-panel
   "Загрузка выбранного аудиофайла и расчёт спектрограммы…" placeholder that hides the tracks.
   *(Owner addition 2026-07-02.)*
-- **SF-D13 — Track-height resize without full recompute (item 2, TO DISCUSS).** Resizing a track
-  currently changes `viewBinCount` → refetches/recomputes tiles mid-drag. Options: **(a)** debounce
-  the refetch to drag-end — the raster already stretches to the canvas height during the drag, so
-  recompute once on release (simplest, keeps full vertical resolution); **(b)** decouple
-  `viewBinCount` from height (fixed vertical bin resolution) → pure raster scaling, never recompute
-  on resize (slightly softer when enlarged); **(c)** hybrid lazy — stretch the raster immediately,
-  recompute in the background and swap in. Owner to choose; risk to guard = readout/click mapping
-  must stay correct. *(Owner addition 2026-07-02.)*
+- **SF-D13 — Track-height resize without recompute (item 2) — DECIDED: option (b).** Owner chose
+  "never recompute on resize". `viewBinCount` becomes a **fixed constant** (decoupled from track
+  height; e.g. 512) so a height-only resize leaves the view (time window + zoom + viewBinCount)
+  unchanged → the existing `setView` no-op guard skips any refetch, and the raster simply scales
+  to the new height (`drawImage` already stretches to the plot height). Tradeoff (accepted):
+  enlarging a track shows the fixed-resolution raster stretched (slightly softer), never recomputed.
+  Width/time zoom still refetch as before. *(Owner addition 2026-07-02; decided.)*
 - **SF-D14 — Cache computed spectrograms across file switches (item 3).** Returning to a
   previously-opened file recomputes from scratch. Since Opt C made analyses lazy (samples-only,
   ~350 MB each, no giant matrix), keep an **LRU of a few open worker analyses** keyed by
