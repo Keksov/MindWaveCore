@@ -267,9 +267,9 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
 **Phase 9 — Track resize model (Audacity boundaries)** *(owner addition 2026-07-02)*
 - [x] **SF9.1 — Square track corners (SF-D18).** Removed `border-radius` on `.spectrogram-view`.
   `vue-tsc` clean.
-- [ ] **SF9.2 — Per-track heights + 2px mutual-resize divider (SF-D19).** AudioPage owns per-track
-  heights; a 2px divider between adjacent tracks drags to trade height (one up / one down).
-  Verify `vue-tsc` + `bun`.
+- [x] **SF9.2 — Per-track heights + 2px mutual-resize divider (SF-D19).** AudioPage owns per-track
+  heights (`spectrogramTrackHeights[]`, persisted); a 2px divider between adjacent tracks trades
+  height (one up / one down). SpectrogramView's own SF5.2 handle retired. `vue-tsc` + bun 61/0.
 - [ ] **SF9.3 — Bottom handle = uniform resize of all tracks (SF-D20).** The bottom handle below
   the last track resizes every track equally; move resize handling to the AudioPage stack (retire
   the per-view SF5.2 handle). Verify `vue-tsc` + `bun`.
