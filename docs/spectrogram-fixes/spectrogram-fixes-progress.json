@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-02T07:00:00Z",
+  "updatedAt": "2026-07-02T07:15:00Z",
   "decisions": [
     { "id": "SF-D1", "text": "Scope & process: 3 items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green each step. Code in GnauralCore; ledger in MindWaveCore." },
     { "id": "SF-D2", "text": "Loading indicator: surface worker/tile loading in SpectrogramView as an overlay spinner driven by spec.loading (analysis open + tiles pending); keep audio.spectrogramLoading (decode) in AudioPage so an indicator covers the whole prepare span (decode -> open -> first tiles)." },
@@ -14,6 +14,9 @@
     { "id": "SF-D5", "text": "Toggle placement: the 'Параметры' toggle lives in the SpectrogramView toolbar (next to zoom/fit); open/close state + overlay are self-contained in the view; state local (not persisted) unless owner asks otherwise." },
     { "id": "SF-D7", "text": "Owner addition 2026-07-01 (Audacity-like UI #1): give the spectrogram plot a taller default height matching the Audacity reference (per-channel ~240px; stereo split ~2x) instead of the current min-height:280px flex fill." },
     { "id": "SF-D8", "text": "Owner addition (Audacity-like UI #2): a drag handle on the bottom border of the spectrogram track resizes its height via pointer drag (like Audacity); persist the chosen height (localStorage)." },
+    { "id": "SF-D18", "text": "Owner addition 2026-07-02 (Phase 9 item 1): remove border-radius on the spectrogram track block (.spectrogram-view) -> square corners like Audacity." },
+    { "id": "SF-D19", "text": "Owner addition 2026-07-02 (Phase 9 item 2): a 2px horizontal divider between adjacent tracks; dragging it MUTUALLY resizes the two (track above and below change in opposite directions, combined height ~constant). Requires per-track heights (not one shared value). NOTE: owner wrote 'одна уменьшается, вторая уменьшается' - interpreted as one shrinks / other grows (standard boundary drag); confirm if different." },
+    { "id": "SF-D20", "text": "Owner addition 2026-07-02 (Phase 9 item 3): the resize area at the bottom of the LAST track resizes ALL tracks by the same amount (equal heights), unlike the divider (mutual). Move resize handling to the AudioPage stack (per-track dividers + one bottom handle); SpectrogramView takes height as a plain prop, retiring its SF5.2 self-resize handle." },
     { "id": "SF-D15", "text": "Owner addition 2026-07-02 (Phase 8 item 1): Audacity-style multi-track chrome. For >1 track (stereo): control icons/toolbar (zoom/fit/range/readout) on the FIRST track only; per-track bottom resize handle; UNIFIED span/area selector across all tracks (selection on any track applies to + renders on all -> lift selection state to parent/shared store); remove inter-track chrome/gap so tracks abut. Guard: per-track click->seek + hover readout still correct." },
     { "id": "SF-D16", "text": "Owner addition 2026-07-02 (Phase 8 item 2): adaptive frequency-axis tick density. Reveal more level labels as the track height grows (fewer when short), like Audacity, instead of a fixed ~6 ticks; derive the tick target from plot height." },
     { "id": "SF-D17", "text": "Owner addition 2026-07-02 (Phase 8 item 3) DECIDED = option (a): build only on explicit user action - tree file click (RF4.1) or switching TO the Спектрограмма sub-tab - NOT on tab/page mount for a restored selection. Implementation: drop immediate:true from the SF4.1 ensureSpectrogramPrepared watch so it fires only on subsequent changes, not on mount." },
@@ -222,6 +225,36 @@
       ]
     },
     {
+      "id": "SF9.1",
+      "phase": 9,
+      "title": "Square track corners",
+      "status": "not-started",
+      "dependsOn": ["SF0.2"],
+      "artifacts": ["GnauralCore/ui/components/SpectrogramView.vue"],
+      "verify": "no border-radius on the spectrogram track block (square corners); vue-tsc clean",
+      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+    },
+    {
+      "id": "SF9.2",
+      "phase": 9,
+      "title": "Per-track heights + 2px mutual-resize divider",
+      "status": "not-started",
+      "dependsOn": ["SF8.1"],
+      "artifacts": ["GnauralCore/ui/pages/AudioPage.vue", "GnauralCore/ui/components/SpectrogramView.vue"],
+      "verify": "AudioPage owns per-track heights; a 2px divider between adjacent tracks drags to trade height (one up / one down); vue-tsc + bun green",
+      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+    },
+    {
+      "id": "SF9.3",
+      "phase": 9,
+      "title": "Bottom handle uniform-resizes all tracks",
+      "status": "not-started",
+      "dependsOn": ["SF9.2"],
+      "artifacts": ["GnauralCore/ui/pages/AudioPage.vue", "GnauralCore/ui/components/SpectrogramView.vue"],
+      "verify": "bottom handle below the last track resizes every track equally; resize handling moved to the AudioPage stack (per-view SF5.2 handle retired); vue-tsc + bun green",
+      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+    },
+    {
       "id": "SF8.1",
       "phase": 8,
       "title": "Audacity-style multi-track chrome",
@@ -337,6 +370,7 @@
     { "ts": "2026-07-02T01:20:00Z", "step": "SF6.1", "event": "profiled", "note": "Bottleneck found: open-analysis 22.2s = FLAC decode 3.4s + eager full-file STFT loop 18.8s (dominant). The loop computes phase+unwrapped-phase (350M ArcTan2 + unwrap) + 3x ~1.4GB matrices EVEN for data=magnitude (unused). JSON/WS transport + get-tile are fine (full view 2.3s / 1.6MB / parse 7ms). Proposed: (A) skip phase/uphase unless needed [quick win], (B) multithread the loop, (C) lazy per-visible STFT. Awaiting owner gate. Profiling timers reverted; worker rebuilt+rebundled clean." },
     { "ts": "2026-07-02T04:20:00Z", "step": "SF7", "event": "planned", "note": "Owner added Phase 7: SF7.1 immediate tracks + Audacity-style load-progress dialog overlay (SF-D12); SF7.2 track-height resize without full recompute (SF-D13, options a/b/c - owner to choose); SF7.3 cache spectrograms across file switches (SF-D14, LRU of lazy open analyses). Awaiting owner choice on SF-D13 then go." },
     { "ts": "2026-07-02T04:30:00Z", "step": "SF-D13", "event": "decided", "note": "Owner chose option (b): never recompute on resize -> fixed viewBinCount decoupled from track height; height resize scales the raster only (setView no-op guard skips refetch). SF7.2 unblocked." },
+    { "ts": "2026-07-02T07:15:00Z", "step": "SF9", "event": "planned", "note": "Owner added Phase 9 (track resize model): SF9.1 remove track border-radius (SF-D18); SF9.2 per-track heights + 2px mutual-resize divider between adjacent tracks (SF-D19; owner text 'обе уменьшаются' read as one-up/one-down - to confirm); SF9.3 bottom handle uniform-resizes all tracks (SF-D20), moving resize to the AudioPage stack + retiring the per-view SF5.2 handle." },
     { "ts": "2026-07-02T07:00:00Z", "step": "SF8.1", "event": "done", "note": "Audacity-style multi-track chrome: stacked stereo tracks share one time window + area selection (provide/inject spectrogramShared); toolbar/icons/readout on the first (primary) track only, non-primary shows just a label overlay; per-track resize handle; inter-track gap 8->1px. Shared zoom/pan/select across tracks; area-query readout on primary via commitSeq. SpectrogramSelection type added. vue-tsc + bun 61/0. UI-only. PAUSED for owner verification. Phase 8 complete pending sign-off (SF3.1 still deferred)." },
     { "ts": "2026-07-02T06:20:00Z", "step": "SF7.3", "event": "done", "note": "Spectrogram cache across file switches: SpectrogramSession keeps analyses warm as an LRU (file+params key); reopen reuses -> skips re-decode. onClose keeps warm; eviction on open past caps (MAX 4 / 1.5GB samples). Contract test updated (close keeps warm) + reuse test added; server 18/0. Backend restart (no re-bundle). PAUSED for owner UI verification. Remaining: SF8.1 (multi-track chrome, big)." },
     { "ts": "2026-07-02T05:55:00Z", "step": "SF8.2", "event": "done", "note": "SF8.3: dropped immediate from the ensureSpectrogramPrepared watch -> opening the Audio tab with a restored selection no longer auto-builds; builds only on file click / switch to Спектрограмма. SF8.2: frequency-axis tick count now scales with plot height (~1 per 42px, clamp 3..20) -> more levels on taller tracks (Audacity-like). vue-tsc + bun 61/0. UI-only (HMR). Remaining Phase 8: SF8.1 (multi-track chrome, big). Also pending: SF7.3 (backend cache)." },

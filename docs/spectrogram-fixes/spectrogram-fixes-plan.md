@@ -90,6 +90,21 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   bounded cache. Order A→B→C, each re-profiled. All are worker (Pascal) changes → rebuild +
   re-bundle + backend restart; per-step commit; pause for manual UI verification each. *(Owner:
   plan all three; implement A first with a UI-verification pause.)*
+- **SF-D18 — Square track corners (Phase 9 item 1).** Remove the `border-radius` on the
+  spectrogram track block (`.spectrogram-view`) so tracks are square-cornered like Audacity.
+  *(Owner 2026-07-02.)*
+- **SF-D19 — 2px divider = mutual resize between adjacent tracks (Phase 9 item 2).** Between
+  stacked tracks render a 2px horizontal divider line; dragging it does a MUTUAL resize — the
+  track above and the track below change in opposite directions (one shrinks, the other grows;
+  their combined height stays ~constant). Requires per-track heights (not one shared value).
+  *(Owner 2026-07-02. NOTE: owner wrote "одна уменьшается, вторая уменьшается" — read as
+  one shrinks / the other grows, the standard boundary drag; confirm if a different behaviour is
+  intended.)*
+- **SF-D20 — Bottom handle = uniform resize of all tracks (Phase 9 item 3).** The resize area at
+  the bottom of the LAST track resizes ALL tracks by the same amount (equal heights), unlike the
+  divider (which is mutual). Move resize handling to the AudioPage stack: per-track dividers +
+  one bottom handle; SpectrogramView takes height as a plain prop (its own SF5.2 handle is removed
+  / superseded). *(Owner 2026-07-02.)*
 - **SF-D15 — Audacity-style multi-track chrome (Phase 8 item 1).** For a stereo split (>1 track):
   show the control icons/toolbar (zoom / fit / range / readout) on the **first track only**; give
   **each** track its own bottom resize handle; make the **span/area selector unified across all
@@ -212,6 +227,16 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   analyses warm as an LRU (file+params key; MAX 4 / 1.5 GB samples); reopen reuses → skips
   re-decode; close keeps warm. Contract test updated + reuse test; server 18/0. **PAUSE for owner
   UI verification.**
+
+**Phase 9 — Track resize model (Audacity boundaries)** *(owner addition 2026-07-02)*
+- [ ] **SF9.1 — Square track corners (SF-D18).** Remove `border-radius` on `.spectrogram-view`.
+  Verify `vue-tsc`.
+- [ ] **SF9.2 — Per-track heights + 2px mutual-resize divider (SF-D19).** AudioPage owns per-track
+  heights; a 2px divider between adjacent tracks drags to trade height (one up / one down).
+  Verify `vue-tsc` + `bun`.
+- [ ] **SF9.3 — Bottom handle = uniform resize of all tracks (SF-D20).** The bottom handle below
+  the last track resizes every track equally; move resize handling to the AudioPage stack (retire
+  the per-view SF5.2 handle). Verify `vue-tsc` + `bun`.
 
 **Phase 8 — Audacity multi-track polish** *(owner addition 2026-07-02)*
 - [x] **SF8.1 — Multi-track chrome like Audacity (SF-D15).** Shared time window + area selection
