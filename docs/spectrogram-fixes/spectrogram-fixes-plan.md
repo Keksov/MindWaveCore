@@ -97,6 +97,20 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
 - **SF-D26 — Remove the "Спектрограмма" subtitle under the transport (Phase 10 item 5).** Drop
   the `audio.spectrogramTitle` `text-subtitle2` line between the Старт/transport toolbar and the
   plot in the spectrogram tab. *(Owner 2026-07-02.)*
+- **SF-D27 — i18n for the Параметры panel (Phase 11 item 1).** Audit `SpectrogramSettingsPanel`
+  (and any spectrogram controls) for hardcoded/untranslated strings and route them through
+  i18n (en/ru), so the whole parameters panel is localized. *(Owner 2026-07-03.)*
+- **SF-D28 — Fix spectrogram caching across file switches (Phase 11 item 2).** SF7.3's warm
+  analysis LRU is not actually reused: switching A → B → A recomputes A from scratch. Find why
+  the reuse path misses (cache key mismatch, close/dispose evicting, per-socket session
+  lifecycle, or the UI re-opening with changed params) and make returning to a recent file skip
+  the re-decode/STFT. *(Owner 2026-07-03.)*
+- **SF-D29 — Speed up tile generation (Phase 11 item 3).** Audacity renders faster on the same
+  files. Step 1 (this phase): profile OUR pipeline's `get-tile` path (worker STFT-on-demand +
+  tile build + JSON/WS + UI raster) and apply any wins found, then owner verifies. Step 2 (only
+  if step 1 is insufficient): study the Audacity 3.7.8 sources at
+  `c:\projects\KKMindWave\SpectrumCore\lib\vendor\audacity\3.7.8` to learn why it's faster and
+  port the approach. *(Owner 2026-07-03.)*
 - **SF-D25 — Readout as a cursor tooltip (Phase 10).** The area/point readout (peak dB / value
   under the pointer) is shown as a tooltip at the mouse position on the plot, not in the header
   or the bottom bar. *(Owner 2026-07-02.)*
@@ -250,6 +264,14 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   analyses warm as an LRU (file+params key; MAX 4 / 1.5 GB samples); reopen reuses → skips
   re-decode; close keeps warm. Contract test updated + reuse test; server 18/0. **PAUSE for owner
   UI verification.**
+
+**Phase 11 — i18n, caching fix, tile-generation speed** *(owner addition 2026-07-03)*
+- [ ] **SF11.1 — i18n for the Параметры panel (SF-D27).** Localize remaining hardcoded strings in
+  `SpectrogramSettingsPanel` (en/ru). Verify `vue-tsc` + `bun`.
+- [ ] **SF11.2 — Fix spectrogram caching across file switches (SF-D28).** Diagnose why the SF7.3
+  warm-analysis LRU is not reused (A→B→A recomputes) and fix it. Verify server tests + owner.
+- [ ] **SF11.3 — Profile + speed up tile generation (SF-D29).** Profile our `get-tile` pipeline,
+  apply wins, owner verifies; if insufficient, study Audacity 3.7.8 sources next. Verify + owner.
 
 **Phase 10 — Track chrome layout (header / labels / axes / bottom selector)** *(owner addition 2026-07-02)*
 - [x] **SF10.1 — Common header above the stack (SF-D21).** Shared header bar over the stack holds
