@@ -270,9 +270,9 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
 - [x] **SF9.2 — Per-track heights + 2px mutual-resize divider (SF-D19).** AudioPage owns per-track
   heights (`spectrogramTrackHeights[]`, persisted); a 2px divider between adjacent tracks trades
   height (one up / one down). SpectrogramView's own SF5.2 handle retired. `vue-tsc` + bun 61/0.
-- [ ] **SF9.3 — Bottom handle = uniform resize of all tracks (SF-D20).** The bottom handle below
-  the last track resizes every track equally; move resize handling to the AudioPage stack (retire
-  the per-view SF5.2 handle). Verify `vue-tsc` + `bun`.
+- [x] **SF9.3 — Bottom handle = uniform resize of all tracks (SF-D20).** Bottom handle below the
+  last track applies the same delta to every track (clamped to [120,1200]); resize handling now
+  fully in the AudioPage stack. `vue-tsc` + bun 61/0. **Phase 9 complete.**
 
 **Phase 8 — Audacity multi-track polish** *(owner addition 2026-07-02)*
 - [x] **SF8.1 — Multi-track chrome like Audacity (SF-D15).** Shared time window + area selection
