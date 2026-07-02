@@ -215,11 +215,11 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
 - [ ] **SF8.1 — Multi-track chrome like Audacity (SF-D15).** Icons/toolbar on the first track
   only; per-track resize handle; unified span/area selector across tracks; remove inter-track
   chrome/gap. Verify `vue-tsc` + `bun`.
-- [ ] **SF8.2 — Adaptive frequency-axis tick density (SF-D16).** More level labels as the track
-  height grows. Verify `vue-tsc` + `bun`.
-- [ ] **SF8.3 — Don't auto-build spectrum on Audio-tab open (SF-D17).** Per the chosen option,
-  build only on explicit user action, not on tab/page mount for a restored selection. Verify
-  `vue-tsc` + `bun`.
+- [x] **SF8.2 — Adaptive frequency-axis tick density (SF-D16).** Freq tick count scales with plot
+  height (~1/42px, clamp 3..20). `vue-tsc` + bun 61/0.
+- [x] **SF8.3 — Don't auto-build on Audio-tab open (SF-D17 = option a).** Dropped `immediate` from
+  the `ensureSpectrogramPrepared` watch; builds only on file click / switch to Спектрограмма.
+  `vue-tsc` + bun 61/0.
 
 **Phase 4 — Prepare spectrum on tab open**
 - [x] **SF4.1 — Auto-prepare on Спектрограмма tab.** `ensureSpectrogramPrepared()` + a watch
