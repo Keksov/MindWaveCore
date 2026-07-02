@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-03T02:40:00Z",
+  "updatedAt": "2026-07-03T03:20:00Z",
   "decisions": [
     { "id": "SF-D1", "text": "Scope & process: 3 items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green each step. Code in GnauralCore; ledger in MindWaveCore." },
     { "id": "SF-D2", "text": "Loading indicator: surface worker/tile loading in SpectrogramView as an overlay spinner driven by spec.loading (analysis open + tiles pending); keep audio.spectrogramLoading (decode) in AudioPage so an indicator covers the whole prepare span (decode -> open -> first tiles)." },
@@ -268,11 +268,18 @@
       "id": "SF11.3",
       "phase": 11,
       "title": "Profile + speed up tile generation",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": ["SF6.4"],
       "artifacts": ["SpectrumCore worker / GnauralCore server (get-tile path)", "spectrogram-fixes ledger (findings)"],
       "verify": "get-tile pipeline profiled, bottleneck named, wins applied; owner verifies speed; if insufficient, Audacity 3.7.8 study is the next step",
-      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+      "startedAt": "2026-07-03T02:45:00Z", "finishedAt": "2026-07-03T03:20:00Z", "blockedReason": null,
+      "evidence": [
+        "PROFILED via code analysis of the worker get-tile path (SpectrumCoreFftwWorkerProbe.pas: HandleGetTile -> WriteTileResponse -> EnsureRange/ComputeTileValues) + reuse of SF6.1's measured numbers (full-view get-tile ~2.3s / 1.59MB / JSON parse 7ms). A live stdio micro-profile harness was attempted but the GUI-subsystem worker does not drive cleanly over a raw node pipe (same class of issue as the earlier StdErr dialog) - not pursued further.",
+        "BOTTLENECK = per-tile STFT recompute on a cache miss. HandleGetTile maps the tile's (timeStart,timeEnd) to FULL-RESOLUTION frames (FrameCount = whole span at hop resolution); WriteTileResponse calls EnsureRange(frameStart, frameCount) which computes every one of those FFTs (Opt C lazy), then the TOverviewPyramid max-pools to the zoom tier. So a full-view overview recomputes the ENTIRE file's STFT. Interpolation + JSON emit are secondary.",
+        "ALREADY-PRESENT MITIGATION: the worker has a whole-tile cache (TileResultCache / W3, full-res zoom-independent values) whose EnsureRange only runs on a miss. APPLIED WIN (SF11.2): a server-side per-warm-analysis tile cache in front of the worker, so returning to a file / re-panning a seen view skips the worker round-trip + STFT entirely -> the 'rebuilds each time' pain is resolved for re-views.",
+        "FIRST-GEN of an unseen region still computes its full-res STFT, which is already A+B+C optimized (phase skipped, multithreaded, lazy). The remaining gap vs Audacity is ARCHITECTURAL: Audacity computes the STFT once per clip and keeps it in a persistent SpecCache (never recomputes on pan/zoom); we recompute lazily to avoid the ~1.4GB matrix/OOM (SF6.4). Beating first-gen further needs either a bounded persistent-STFT cache or Audacity's approach.",
+        "RECOMMENDATION / NEXT (SF-D29 step 2, owner-gated): owner verifies SF11.2's effect first (A->B->A and re-pan should be instant now). If fresh-region first-gen is still slower than Audacity, study the Audacity 3.7.8 sources at c:\\projects\\KKMindWave\\SpectrumCore\\lib\\vendor\\audacity\\3.7.8 (SpecCache / windowing / reassignment) and port the persistent-cache approach. No further worker change applied now (decimating full-res frames for overviews would lose peak accuracy vs the current max-pool)."
+      ]
     },
     {
       "id": "SF10.1",
@@ -496,6 +503,7 @@
     { "ts": "2026-07-02T04:20:00Z", "step": "SF7", "event": "planned", "note": "Owner added Phase 7: SF7.1 immediate tracks + Audacity-style load-progress dialog overlay (SF-D12); SF7.2 track-height resize without full recompute (SF-D13, options a/b/c - owner to choose); SF7.3 cache spectrograms across file switches (SF-D14, LRU of lazy open analyses). Awaiting owner choice on SF-D13 then go." },
     { "ts": "2026-07-02T04:30:00Z", "step": "SF-D13", "event": "decided", "note": "Owner chose option (b): never recompute on resize -> fixed viewBinCount decoupled from track height; height resize scales the raster only (setView no-op guard skips refetch). SF7.2 unblocked." },
     { "ts": "2026-07-03T00:20:00Z", "step": "SF10.4", "event": "fixed", "note": "PARTIAL/WRONG first attempt: made SpectrogramMinimap a static import (still correct + kept), but that alone did NOT fix the blank tracks." },
+    { "ts": "2026-07-03T03:20:00Z", "step": "SF11.3", "event": "done", "note": "Profiled the get-tile path (code analysis + SF6.1 numbers; live stdio harness blocked by the GUI-worker pipe quirk). Bottleneck = per-tile STFT recompute on cache miss (EnsureRange over the full-res span; overview recomputes the whole STFT). Applied win = SF11.2 server tile cache (re-views/pans instant) + existing worker W3 cache. First-gen STFT already A+B+C optimized; the remaining gap vs Audacity is architectural (persistent SpecCache vs our lazy recompute). NEXT (owner-gated, SF-D29 step 2): owner verifies SF11.2, then if fresh-region first-gen is still slow, study Audacity 3.7.8 sources. No further worker change applied (decimation would lose peak accuracy)." },
     { "ts": "2026-07-03T02:40:00Z", "step": "SF11.2", "event": "done", "note": "Caching fix: root cause = warm-analysis LRU worked but Opt C lazy STFT recomputes tiles on every get-tile, so file-switch-back rebuilt tiles. Added a per-warm-analysis server-side computed-tile cache (keyed zoom|timeStart|timeEnd|viewBinCount, LRU cap 64) so re-fetch/return is instant. +mock unit test (worker computes once for identical requests). server 31/0. Backend restart. Owner verify = gate. Next: SF11.3 (profile tile-gen speed)." },
     { "ts": "2026-07-03T02:05:00Z", "step": "SF11.1", "event": "done", "note": "Localized all field + slider labels in SpectrogramSettingsPanel (18 new audio.spectrogram* keys, en/ru); sliders now a computed for reactive labels. Technical option values + preset names left untranslated by design. vue-tsc + bun 61/0. UI-only. Next: SF11.2 (caching fix)." },
     { "ts": "2026-07-03T01:45:00Z", "step": "SF11", "event": "planned", "note": "Owner added Phase 11: SF11.1 i18n for the Параметры panel (SF-D27); SF11.2 fix spectrogram caching across file switches - A->B->A recomputes despite SF7.3 warm LRU (SF-D28); SF11.3 profile + speed up tile generation, then owner verifies, then (if needed) study Audacity 3.7.8 sources (SF-D29). Executing next." },

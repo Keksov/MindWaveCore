@@ -273,8 +273,12 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   analysis LRU worked, but Opt C's lazy STFT recomputes tiles on every `get-tile`. Added a
   per-warm-analysis server-side computed-tile cache (keyed `zoom|timeStart|timeEnd|viewBinCount`,
   LRU cap 64) so returning to a file / re-panning is instant. +mock unit test; server 31/0.
-- [ ] **SF11.3 — Profile + speed up tile generation (SF-D29).** Profile our `get-tile` pipeline,
-  apply wins, owner verifies; if insufficient, study Audacity 3.7.8 sources next. Verify + owner.
+- [x] **SF11.3 — Profile + speed up tile generation (SF-D29).** Profiled (code analysis + SF6.1
+  data): bottleneck = per-tile STFT recompute on cache miss (`EnsureRange` over the full-res
+  span; overview recomputes the whole STFT). Applied win = SF11.2 server tile cache (re-views
+  instant) + existing worker W3 cache. First-gen STFT already A+B+C optimized; remaining gap vs
+  Audacity is architectural (persistent SpecCache). **Step 2 (owner-gated): study Audacity 3.7.8
+  after owner verifies SF11.2.**
 
 **Phase 10 — Track chrome layout (header / labels / axes / bottom selector)** *(owner addition 2026-07-02)*
 - [x] **SF10.1 — Common header above the stack (SF-D21).** Shared header bar over the stack holds
