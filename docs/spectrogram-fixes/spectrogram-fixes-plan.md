@@ -99,12 +99,11 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
 - **SF-D16 — Adaptive frequency-axis tick density (Phase 8 item 2).** The vertical (frequency)
   axis should reveal more level labels as the track grows (fewer when short) — like Audacity —
   instead of a fixed ~6 ticks. Derive the tick target from the plot height. *(Owner 2026-07-02.)*
-- **SF-D17 — Don't auto-build on Audio-tab open (Phase 8 item 3, TO DISCUSS).** Opening the Audio
-  tab with a file already selected currently starts building the spectrum (the SF4.1 immediate/
-  mount trigger). Options: **(a)** build only on an explicit user action — a tree file *click* or
-  switching *to* the Спектрограмма sub-tab — not on tab/page mount for a restored selection
-  (drop the `immediate` mount fire); **(b)** never auto-build — only on file click; **(c)** add an
-  explicit "Build spectrum" affordance, nothing automatic. Owner to choose. *(Owner 2026-07-02.)*
+- **SF-D17 — Don't auto-build on Audio-tab open (Phase 8 item 3) — DECIDED: option (a).** Build
+  the spectrum only on an explicit user action — a tree file *click* (RF4.1 handleSelectedPathChange)
+  or switching *to* the Спектрограмма sub-tab — NOT on tab/page mount for a restored selection.
+  Implementation: drop `immediate: true` from the SF4.1 `ensureSpectrogramPrepared` watch so it
+  only fires on real subsequent changes, not on mount. *(Owner 2026-07-02; decided.)*
 - **SF-D12 — Non-blocking load progress (item 1).** On selecting a file, render the tracks
   (spectrogram/schedule) view immediately and show a small **progress dialog overlay** (Audacity
   style) while the audio decode / spectrogram prepare runs — instead of the current full-panel
