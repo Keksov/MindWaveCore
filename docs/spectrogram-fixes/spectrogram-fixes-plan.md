@@ -190,11 +190,10 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   tiles byte-identical; bridge 17/0. **PAUSE for manual UI verification.**
 
 **Phase 7 — UX & perf refinements** *(owner addition 2026-07-02)*
-- [ ] **SF7.1 — Immediate tracks + progress-dialog overlay (SF-D12).** Show the tracks view at
-  once; overlay a small non-blocking load-progress dialog while preparing. Verify `vue-tsc`.
-- [ ] **SF7.2 — Track-height resize without full recompute (SF-D13).** Implement the chosen
-  option (a/b/c) so dragging the track height doesn't recompute per step; keep readout/click
-  mapping correct. Verify `vue-tsc` + `bun`.
+- [x] **SF7.1 — Immediate tracks + progress-dialog overlay (SF-D12).** Full-panel loading
+  placeholder replaced by a small persistent progress dialog over the tracks screen. `vue-tsc` clean.
+- [x] **SF7.2 — Track-height resize without recompute (SF-D13 = option b).** `viewBinCount` fixed
+  (`MAX_VIEW_BINS`); height resize scales the raster only (setView no-op guard). `vue-tsc` + bun 61/0.
 - [ ] **SF7.3 — Cache spectrograms across file switches (SF-D14).** LRU of open worker analyses
   (or client tile cache) so returning to a file doesn't recompute. Verify (server tests) + owner.
 
