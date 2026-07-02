@@ -90,6 +90,21 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   bounded cache. Order A→B→C, each re-profiled. All are worker (Pascal) changes → rebuild +
   re-bundle + backend restart; per-step commit; pause for manual UI verification each. *(Owner:
   plan all three; implement A first with a UI-verification pause.)*
+- **SF-D15 — Audacity-style multi-track chrome (Phase 8 item 1).** For a stereo split (>1 track):
+  show the control icons/toolbar (zoom / fit / range / readout) on the **first track only**; give
+  **each** track its own bottom resize handle; make the **span/area selector unified across all
+  tracks** (a time-span selection on any track applies to + renders on all; lift the selection
+  state to the parent/shared store); remove the inter-track chrome/gap so tracks abut like
+  Audacity. Guard: click→seek + hover readout still map correctly per track. *(Owner 2026-07-02.)*
+- **SF-D16 — Adaptive frequency-axis tick density (Phase 8 item 2).** The vertical (frequency)
+  axis should reveal more level labels as the track grows (fewer when short) — like Audacity —
+  instead of a fixed ~6 ticks. Derive the tick target from the plot height. *(Owner 2026-07-02.)*
+- **SF-D17 — Don't auto-build on Audio-tab open (Phase 8 item 3, TO DISCUSS).** Opening the Audio
+  tab with a file already selected currently starts building the spectrum (the SF4.1 immediate/
+  mount trigger). Options: **(a)** build only on an explicit user action — a tree file *click* or
+  switching *to* the Спектрограмма sub-tab — not on tab/page mount for a restored selection
+  (drop the `immediate` mount fire); **(b)** never auto-build — only on file click; **(c)** add an
+  explicit "Build spectrum" affordance, nothing automatic. Owner to choose. *(Owner 2026-07-02.)*
 - **SF-D12 — Non-blocking load progress (item 1).** On selecting a file, render the tracks
   (spectrogram/schedule) view immediately and show a small **progress dialog overlay** (Audacity
   style) while the audio decode / spectrogram prepare runs — instead of the current full-panel
@@ -196,6 +211,16 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   (`MAX_VIEW_BINS`); height resize scales the raster only (setView no-op guard). `vue-tsc` + bun 61/0.
 - [ ] **SF7.3 — Cache spectrograms across file switches (SF-D14).** LRU of open worker analyses
   (or client tile cache) so returning to a file doesn't recompute. Verify (server tests) + owner.
+
+**Phase 8 — Audacity multi-track polish** *(owner addition 2026-07-02)*
+- [ ] **SF8.1 — Multi-track chrome like Audacity (SF-D15).** Icons/toolbar on the first track
+  only; per-track resize handle; unified span/area selector across tracks; remove inter-track
+  chrome/gap. Verify `vue-tsc` + `bun`.
+- [ ] **SF8.2 — Adaptive frequency-axis tick density (SF-D16).** More level labels as the track
+  height grows. Verify `vue-tsc` + `bun`.
+- [ ] **SF8.3 — Don't auto-build spectrum on Audio-tab open (SF-D17).** Per the chosen option,
+  build only on explicit user action, not on tab/page mount for a restored selection. Verify
+  `vue-tsc` + `bun`.
 
 **Phase 4 — Prepare spectrum on tab open**
 - [x] **SF4.1 — Auto-prepare on Спектрограмма tab.** `ensureSpectrogramPrepared()` + a watch
