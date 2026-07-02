@@ -214,9 +214,10 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   UI verification.**
 
 **Phase 8 — Audacity multi-track polish** *(owner addition 2026-07-02)*
-- [ ] **SF8.1 — Multi-track chrome like Audacity (SF-D15).** Icons/toolbar on the first track
-  only; per-track resize handle; unified span/area selector across tracks; remove inter-track
-  chrome/gap. Verify `vue-tsc` + `bun`.
+- [x] **SF8.1 — Multi-track chrome like Audacity (SF-D15).** Shared time window + area selection
+  across stacked tracks (provide/inject); toolbar/icons/readout on the primary track only,
+  non-primary label overlay; per-track resize handle; inter-track gap 8→1px. `vue-tsc` + bun 61/0.
+  **PAUSE for manual UI verification.**
 - [x] **SF8.2 — Adaptive frequency-axis tick density (SF-D16).** Freq tick count scales with plot
   height (~1/42px, clamp 3..20). `vue-tsc` + bun 61/0.
 - [x] **SF8.3 — Don't auto-build on Audio-tab open (SF-D17 = option a).** Dropped `immediate` from
