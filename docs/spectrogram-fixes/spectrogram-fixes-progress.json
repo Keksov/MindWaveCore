@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-03T02:05:00Z",
+  "updatedAt": "2026-07-03T02:40:00Z",
   "decisions": [
     { "id": "SF-D1", "text": "Scope & process: 3 items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green each step. Code in GnauralCore; ledger in MindWaveCore." },
     { "id": "SF-D2", "text": "Loading indicator: surface worker/tile loading in SpectrogramView as an overlay spinner driven by spec.loading (analysis open + tiles pending); keep audio.spectrogramLoading (decode) in AudioPage so an indicator covers the whole prepare span (decode -> open -> first tiles)." },
@@ -253,11 +253,16 @@
       "id": "SF11.2",
       "phase": 11,
       "title": "Fix spectrogram caching across file switches",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": ["SF7.3"],
       "artifacts": ["GnauralCore/server/spectrogram-session.ts", "GnauralCore/server/spectrogram-session.test.ts"],
       "verify": "A->B->A reuses the warm analysis (no full recompute); root cause identified; server tests green; owner verifies",
-      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+      "startedAt": "2026-07-03T02:10:00Z", "finishedAt": "2026-07-03T02:40:00Z", "blockedReason": null,
+      "evidence": [
+        "ROOT CAUSE: SF7.3's warm-analysis LRU DID work (skips re-decode; the reuse test passes), but Opt C (SF6.4) made the STFT lazy -> every get-tile recomputes the STFT for the requested range. On a file switch A->B->A the client re-fetches all tiles (its per-composable tile cache is cleared on unmount), and the worker recomputes each -> the spectrum visibly rebuilds. So the *analysis* was cached but the *tiles* were not.",
+        "FIX: added a per-warm-analysis server-side computed-tile cache in SpectrogramSession (CachedAnalysis.tiles Map keyed by zoom|timeStart|timeEnd|viewBinCount, rounded; insertion-order LRU, cap TILE_CACHE_MAX_PER_ANALYSIS=64). onGetTile serves a cached tile without touching the worker; on miss it fetches + stores + bounds. The cache lives with the warm analysis (kept across close; freed on eviction/reconfigure/dispose), so returning to a file (same analysisId) or re-panning to a seen view is instant.",
+        "New unit test (mock worker manager + audio source, no exe needed): two identical get-tile requests -> the worker computes only once (getTileCalls==1); a different view range recomputes (==2). GnauralCore server tests 31/0 (was 30 + new). Backend change -> restart. Owner UI verification (A->B->A returns without rebuilding) = the gate."
+      ]
     },
     {
       "id": "SF11.3",
@@ -491,6 +496,7 @@
     { "ts": "2026-07-02T04:20:00Z", "step": "SF7", "event": "planned", "note": "Owner added Phase 7: SF7.1 immediate tracks + Audacity-style load-progress dialog overlay (SF-D12); SF7.2 track-height resize without full recompute (SF-D13, options a/b/c - owner to choose); SF7.3 cache spectrograms across file switches (SF-D14, LRU of lazy open analyses). Awaiting owner choice on SF-D13 then go." },
     { "ts": "2026-07-02T04:30:00Z", "step": "SF-D13", "event": "decided", "note": "Owner chose option (b): never recompute on resize -> fixed viewBinCount decoupled from track height; height resize scales the raster only (setView no-op guard skips refetch). SF7.2 unblocked." },
     { "ts": "2026-07-03T00:20:00Z", "step": "SF10.4", "event": "fixed", "note": "PARTIAL/WRONG first attempt: made SpectrogramMinimap a static import (still correct + kept), but that alone did NOT fix the blank tracks." },
+    { "ts": "2026-07-03T02:40:00Z", "step": "SF11.2", "event": "done", "note": "Caching fix: root cause = warm-analysis LRU worked but Opt C lazy STFT recomputes tiles on every get-tile, so file-switch-back rebuilt tiles. Added a per-warm-analysis server-side computed-tile cache (keyed zoom|timeStart|timeEnd|viewBinCount, LRU cap 64) so re-fetch/return is instant. +mock unit test (worker computes once for identical requests). server 31/0. Backend restart. Owner verify = gate. Next: SF11.3 (profile tile-gen speed)." },
     { "ts": "2026-07-03T02:05:00Z", "step": "SF11.1", "event": "done", "note": "Localized all field + slider labels in SpectrogramSettingsPanel (18 new audio.spectrogram* keys, en/ru); sliders now a computed for reactive labels. Technical option values + preset names left untranslated by design. vue-tsc + bun 61/0. UI-only. Next: SF11.2 (caching fix)." },
     { "ts": "2026-07-03T01:45:00Z", "step": "SF11", "event": "planned", "note": "Owner added Phase 11: SF11.1 i18n for the Параметры panel (SF-D27); SF11.2 fix spectrogram caching across file switches - A->B->A recomputes despite SF7.3 warm LRU (SF-D28); SF11.3 profile + speed up tile generation, then owner verifies, then (if needed) study Audacity 3.7.8 sources (SF-D29). Executing next." },
     { "ts": "2026-07-03T01:30:00Z", "step": "SF3.1", "event": "done", "note": "Settings panel converted to a toggleable overlay 'Параметры' (SF-D4/D5): removed the fixed 264px side column (no more plot shrink); dark absolute <aside> + backdrop + slide/fade transitions over the spectrogram section; toggle 'tune' button in the common header (aria-expanded/controls), close via button/backdrop/Escape; default closed. i18n en/ru added. vue-tsc + prod build + bun 61/0. UI-only. Last remaining planned step done -> the spectrogram-fixes plan is functionally complete (optional follow-up: minimap spectrogram thumbnail)." },

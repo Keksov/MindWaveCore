@@ -269,8 +269,10 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
 - [x] **SF11.1 — i18n for the Параметры panel (SF-D27).** Localized all field + slider labels in
   `SpectrogramSettingsPanel` (18 keys, en/ru; sliders computed for reactivity). Technical option
   values + preset names left untranslated by design. `vue-tsc` + bun 61/0.
-- [ ] **SF11.2 — Fix spectrogram caching across file switches (SF-D28).** Diagnose why the SF7.3
-  warm-analysis LRU is not reused (A→B→A recomputes) and fix it. Verify server tests + owner.
+- [x] **SF11.2 — Fix spectrogram caching across file switches (SF-D28).** Root cause: the warm
+  analysis LRU worked, but Opt C's lazy STFT recomputes tiles on every `get-tile`. Added a
+  per-warm-analysis server-side computed-tile cache (keyed `zoom|timeStart|timeEnd|viewBinCount`,
+  LRU cap 64) so returning to a file / re-panning is instant. +mock unit test; server 31/0.
 - [ ] **SF11.3 — Profile + speed up tile generation (SF-D29).** Profile our `get-tile` pipeline,
   apply wins, owner verifies; if insufficient, study Audacity 3.7.8 sources next. Verify + owner.
 
