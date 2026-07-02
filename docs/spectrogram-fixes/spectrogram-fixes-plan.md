@@ -94,6 +94,9 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   render one shared header bar that holds ALL control buttons (zoom in / zoom out / fit). The
   buttons leave the per-track toolbar; they exist once for the whole spectrogram. The readout
   does NOT live in the header — see SF-D25 (cursor tooltip). *(Owner 2026-07-02.)*
+- **SF-D26 — Remove the "Спектрограмма" subtitle under the transport (Phase 10 item 5).** Drop
+  the `audio.spectrogramTitle` `text-subtitle2` line between the Старт/transport toolbar and the
+  plot in the spectrogram tab. *(Owner 2026-07-02.)*
 - **SF-D25 — Readout as a cursor tooltip (Phase 10).** The area/point readout (peak dB / value
   under the pointer) is shown as a tooltip at the mouse position on the plot, not in the header
   or the bottom bar. *(Owner 2026-07-02.)*
@@ -258,6 +261,8 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
 - [ ] **SF10.4 — Fixed bottom minimap-overview selector (SF-D24).** Canvas minimap-overview bar
   fixed at the bottom (draggable/resizable visible window), player-style; removed from header.
   Readout becomes a cursor tooltip (SF-D25). Verify `vue-tsc` + `bun`.
+- [x] **SF10.5 — Remove the "Спектрограмма" subtitle under the transport (SF-D26).** Dropped the
+  `audio.spectrogramTitle` line in the spectrogram tab. `vue-tsc` clean.
 
 **Phase 9 — Track resize model (Audacity boundaries)** *(owner addition 2026-07-02)*
 - [ ] **SF9.1 — Square track corners (SF-D18).** Remove `border-radius` on `.spectrogram-view`.
