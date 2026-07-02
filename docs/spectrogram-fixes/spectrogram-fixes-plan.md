@@ -260,9 +260,11 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
 - [x] **SF10.3 — Time axis top-of-first + bottom-of-last only (SF-D23).** `showTimeAxisTop/Bottom`
   props + dynamic margins; time ruler above the first and below the last track only; frequency
   axis stays per-track. `vue-tsc` clean.
-- [ ] **SF10.4 — Fixed bottom minimap-overview selector (SF-D24).** Canvas minimap-overview bar
-  fixed at the bottom (draggable/resizable visible window), player-style; removed from header.
-  Readout becomes a cursor tooltip (SF-D25). Verify `vue-tsc` + `bun`.
+- [x] **SF10.4 — Fixed bottom minimap-overview selector (SF-D24).** New `SpectrogramMinimap.vue`
+  (canvas overview + draggable/resizable visible-window handle) at the bottom of the stack, driving
+  the shared view; the q-range/readout toolbar removed and the readout is now a cursor tooltip
+  (SF-D25). `vue-tsc` + bun 61/0. **Phase 10 complete.** *(Minimap has no spectrogram thumbnail yet
+  — possible follow-up.)*
 - [x] **SF10.5 — Remove the "Спектрограмма" subtitle under the transport (SF-D26).** Dropped the
   `audio.spectrogramTitle` line in the spectrogram tab. `vue-tsc` clean.
 
