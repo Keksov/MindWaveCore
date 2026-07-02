@@ -2,13 +2,13 @@
   "schemaVersion": 1,
   "platform": "win64",
   "workerProtocol": 1,
-  "generatedAtUtc": "2026-07-01T22:25:02Z",
+  "generatedAtUtc": "2026-07-02T04:35:10Z",
   "sourceDir": "C:\\projects\\KKMindWave\\SpectrumCore\\build\\win64",
   "files": [
     {
       "name": "SpectrumCoreFftwWorkerProbe.exe",
-      "bytes": 2526353,
-      "sha256": "94068229b42a9245f2596dde1a053323dc148b842c9fba2d4160ec01a8e1f078"
+      "bytes": 2545507,
+      "sha256": "2b35cbfaed3e0188be9b7251cb01ed16d10ac14761f22930936883f18f43dee0"
     },
     {
       "name": "LibSndFile-64.dll",

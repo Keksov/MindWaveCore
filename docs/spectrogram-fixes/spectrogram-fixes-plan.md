@@ -160,9 +160,11 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   phase / unwrapped-phase (and their arrays) only when the data mode needs them (phase/uphase);
   guard point/area-query phase reads. Rebuild + re-bundle. **PAUSE for manual UI verification**;
   re-profile to measure the open-analysis cut.
-- [ ] **SF6.3 — Optimization B: multithread the STFT loop (SF-D11).** Parallelize the
-  independent per-frame FFT loop across worker threads (each thread its own FFTW plan/buffers);
-  re-profile; PAUSE for manual UI verification.
+- [x] **SF6.3 — Optimization B: multithread the STFT loop (SF-D11).** `TStftFrameWorker` +
+  `ComputeStandardStftParallel` split the independent per-frame FFTs across
+  `ProcessorCount` threads (per-thread plan/buffers; reassignment stays serial). open-analysis
+  6.2 s → ~3.06 s (16 CPUs; cumulative A+B 22.2 → 3.06, ~7×); tiles byte-identical; bridge 17/0.
+  **PAUSE for manual UI verification.**
 - [ ] **SF6.4 — Optimization C: lazy / progressive STFT (SF-D11).** Compute the STFT only for the
   visible window on demand (Audacity-style), with a bounded cache, so `open-analysis` is cheap
   and cost scales with what's shown; re-profile; PAUSE for manual UI verification.
