@@ -92,8 +92,11 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   plan all three; implement A first with a UI-verification pause.)*
 - **SF-D21 — Common header above the track stack (Phase 10 item 1).** Above the first track
   render one shared header bar that holds ALL control buttons (zoom in / zoom out / fit). The
-  buttons leave the per-track toolbar; they exist once for the whole spectrogram. *(Owner
-  2026-07-02.)*
+  buttons leave the per-track toolbar; they exist once for the whole spectrogram. The readout
+  does NOT live in the header — see SF-D25 (cursor tooltip). *(Owner 2026-07-02.)*
+- **SF-D25 — Readout as a cursor tooltip (Phase 10).** The area/point readout (peak dB / value
+  under the pointer) is shown as a tooltip at the mouse position on the plot, not in the header
+  or the bottom bar. *(Owner 2026-07-02.)*
 - **SF-D22 — L/R labels as matching top-left overlays (Phase 10 item 2).** The `L` label must
   sit in the SAME place as `R` — a top-left corner overlay on the plot — not in the toolbar.
   Both channel labels become plot overlays. *(Owner 2026-07-02.)*
@@ -101,12 +104,12 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   time ruler is drawn only above the first track and below the last track (so with >2 tracks the
   middle ones carry no time ruler). The vertical frequency axis stays on every track. *(Owner
   2026-07-02.)*
-- **SF-D24 — Fixed bottom timespan selector (Phase 10 item 4).** Move the timespan/range selector
-  out of the header to a fixed bar at the very bottom of the spectrogram window (position does not
-  change), modelled on the player's bottom minimap. **TBD (asking owner):** whether this is a
-  full minimap-style overview (canvas overview + draggable window, like the schedule view's 68px
-  minimap) or simply the existing `q-range` slider relocated to the bottom bar; and where the
-  area-query / hover readout lives (header vs bottom bar). *(Owner 2026-07-02.)*
+- **SF-D24 — Fixed bottom minimap-overview selector (Phase 10 item 4) — DECIDED.** Move the
+  timespan selector out of the header to a fixed bar at the very bottom of the spectrogram window
+  (position does not change). Owner chose a **full minimap-style overview** (canvas overview +
+  draggable/resizable visible-window handle), modelled on the schedule view's 68px bottom minimap
+  — NOT a relocated `q-range` slider. The readout moves to a cursor tooltip (SF-D25), so the
+  header holds only buttons. *(Owner 2026-07-02; decided.)*
 - **SF-D18 — Square track corners (Phase 9 item 1).** Remove the `border-radius` on the
   spectrogram track block (`.spectrogram-view`) so tracks are square-cornered like Audacity.
   *(Owner 2026-07-02.)*
@@ -252,9 +255,9 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   labels removed from the toolbar. Verify `vue-tsc`.
 - [ ] **SF10.3 — Time axis top-of-first + bottom-of-last only (SF-D23).** Time ruler drawn only
   above the first and below the last track; frequency axis stays per-track. Verify `vue-tsc`.
-- [ ] **SF10.4 — Fixed bottom timespan selector (SF-D24).** Timespan selector moved to a fixed
-  bottom bar (removed from header), player-minimap style. *Blocked on owner answer (minimap vs
-  relocated slider; readout placement).* Verify `vue-tsc` + `bun`.
+- [ ] **SF10.4 — Fixed bottom minimap-overview selector (SF-D24).** Canvas minimap-overview bar
+  fixed at the bottom (draggable/resizable visible window), player-style; removed from header.
+  Readout becomes a cursor tooltip (SF-D25). Verify `vue-tsc` + `bun`.
 
 **Phase 9 — Track resize model (Audacity boundaries)** *(owner addition 2026-07-02)*
 - [ ] **SF9.1 — Square track corners (SF-D18).** Remove `border-radius` on `.spectrogram-view`.
