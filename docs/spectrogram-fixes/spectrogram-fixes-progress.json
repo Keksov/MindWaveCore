@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-02T07:42:00Z",
+  "updatedAt": "2026-07-02T07:52:00Z",
   "decisions": [
     { "id": "SF-D1", "text": "Scope & process: 3 items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green each step. Code in GnauralCore; ledger in MindWaveCore." },
     { "id": "SF-D2", "text": "Loading indicator: surface worker/tile loading in SpectrogramView as an overlay spinner driven by spec.loading (analysis open + tiles pending); keep audio.spectrogramLoading (decode) in AudioPage so an indicator covers the whole prepare span (decode -> open -> first tiles)." },
@@ -285,11 +285,12 @@
       "id": "SF9.1",
       "phase": 9,
       "title": "Square track corners",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": ["SF0.2"],
       "artifacts": ["GnauralCore/ui/components/SpectrogramView.vue"],
       "verify": "no border-radius on the spectrogram track block (square corners); vue-tsc clean",
-      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+      "startedAt": "2026-07-02T07:50:00Z", "finishedAt": "2026-07-02T07:52:00Z", "blockedReason": null,
+      "evidence": ["SpectrogramView.vue: removed border-radius:12px from .spectrogram-view -> square corners like Audacity. overflow:hidden retained. vue-tsc clean."]
     },
     {
       "id": "SF9.2",
@@ -427,6 +428,7 @@
     { "ts": "2026-07-02T01:20:00Z", "step": "SF6.1", "event": "profiled", "note": "Bottleneck found: open-analysis 22.2s = FLAC decode 3.4s + eager full-file STFT loop 18.8s (dominant). The loop computes phase+unwrapped-phase (350M ArcTan2 + unwrap) + 3x ~1.4GB matrices EVEN for data=magnitude (unused). JSON/WS transport + get-tile are fine (full view 2.3s / 1.6MB / parse 7ms). Proposed: (A) skip phase/uphase unless needed [quick win], (B) multithread the loop, (C) lazy per-visible STFT. Awaiting owner gate. Profiling timers reverted; worker rebuilt+rebundled clean." },
     { "ts": "2026-07-02T04:20:00Z", "step": "SF7", "event": "planned", "note": "Owner added Phase 7: SF7.1 immediate tracks + Audacity-style load-progress dialog overlay (SF-D12); SF7.2 track-height resize without full recompute (SF-D13, options a/b/c - owner to choose); SF7.3 cache spectrograms across file switches (SF-D14, LRU of lazy open analyses). Awaiting owner choice on SF-D13 then go." },
     { "ts": "2026-07-02T04:30:00Z", "step": "SF-D13", "event": "decided", "note": "Owner chose option (b): never recompute on resize -> fixed viewBinCount decoupled from track height; height resize scales the raster only (setView no-op guard skips refetch). SF7.2 unblocked." },
+    { "ts": "2026-07-02T07:52:00Z", "step": "SF9.1", "event": "done", "note": "Removed border-radius:12px from .spectrogram-view -> square track corners (Audacity-like). vue-tsc clean. UI-only. Next: SF9.2 (per-track heights + 2px mutual-resize divider)." },
     { "ts": "2026-07-02T07:42:00Z", "step": "SF10.5", "event": "done", "note": "Owner: removed the 'Спектрограмма' subtitle (audio.spectrogramTitle) shown under the Старт/transport toolbar in the spectrogram tab. vue-tsc clean. UI-only (HMR). Remaining Phase 10: SF10.1-10.4 (header/labels/axes/bottom minimap) pending owner 'go'." },
     { "ts": "2026-07-02T07:35:00Z", "step": "SF10.4", "event": "decided", "note": "Owner answered the Phase 10 questions: (SF-D24) bottom selector = FULL minimap-overview like the player (canvas + draggable window), not a relocated q-range slider; (SF-D25) readout = tooltip at the cursor, not in the header/bottom bar (header holds only buttons); (SF-D23) time ruler both above the first and below the last track. SF10.4 unblocked." },
     { "ts": "2026-07-02T07:25:00Z", "step": "SF10", "event": "planned", "note": "Owner added Phase 10 (track chrome layout): SF10.1 common header above the stack with all buttons (SF-D21); SF10.2 L/R labels as matching top-left overlays (SF-D22); SF10.3 time axis only top-of-first + bottom-of-last (SF-D23); SF10.4 fixed bottom timespan selector player-minimap style (SF-D24, blocked on owner: minimap vs relocated slider + readout placement)." },
