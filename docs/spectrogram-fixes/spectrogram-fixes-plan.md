@@ -294,9 +294,11 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   analysis LRU worked, but Opt C's lazy STFT recomputes tiles on every `get-tile`. Added a
   per-warm-analysis server-side computed-tile cache (keyed `zoom|timeStart|timeEnd|viewBinCount`,
   LRU cap 64) so returning to a file / re-panning is instant. +mock unit test; server 31/0.
-- [ ] **SF11.4 — Audacity-style display-resolution STFT (SF-D30).** Worker computes one FFT per
-  display column at `samplesPerPixel` stride (not full-res + max-pool) → instant zoom/overview.
-  *Awaiting owner go (big worker change).* Rebuild + rebundle + tests + re-profile + UI verify.
+- [x] **SF11.4 — Audacity-style display-resolution STFT (SF-D30).** Worker computes one FFT per
+  emitted column at stride `Factor=2^zoom` (via `EnsureColumns`, column-based parallel STFT) for
+  zoom>0 lazy magnitude/phase modes, instead of full-res + max-pool. **Profiled: overview
+  3949ms → 545ms (~7×)**; JSON emit is the new floor (backlog B4). zoom0/pitch/reassignment +
+  cursor readout unchanged. Rebuilt + rebundled; bridge+session 31/0. *Owner UI verify pending.*
 - [x] **SF11.3 — Profile + speed up tile generation (SF-D29).** Profiled (code analysis + SF6.1
   data): bottleneck = per-tile STFT recompute on cache miss (`EnsureRange` over the full-res
   span; overview recomputes the whole STFT). Applied win = SF11.2 server tile cache (re-views

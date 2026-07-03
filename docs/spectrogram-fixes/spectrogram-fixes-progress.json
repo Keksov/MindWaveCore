@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-03T04:35:00Z",
+  "updatedAt": "2026-07-03T06:10:00Z",
   "decisions": [
     { "id": "SF-D1", "text": "Scope & process: 3 items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green each step. Code in GnauralCore; ledger in MindWaveCore." },
     { "id": "SF-D2", "text": "Loading indicator: surface worker/tile loading in SpectrogramView as an overlay spinner driven by spec.loading (analysis open + tiles pending); keep audio.spectrogramLoading (decode) in AudioPage so an indicator covers the whole prepare span (decode -> open -> first tiles)." },
@@ -240,12 +240,17 @@
       "id": "SF11.4",
       "phase": 11,
       "title": "Audacity-style display-resolution STFT",
-      "status": "blocked",
+      "status": "done",
       "dependsOn": ["SF11.3"],
-      "artifacts": ["SpectrumCore/src/core/SpectrumCoreFftwAnalysis.pas", "SpectrumCore/src/apps/SpectrumCoreFftwWorkerProbe.pas", "MindWaveCore bundle"],
+      "artifacts": ["SpectrumCore/src/core/SpectrumCoreFftwAnalysis.pas", "SpectrumCore/src/apps/SpectrumCoreFftwWorkerProbe.pas", "MindWaveCore/server/vendor/spectrumcore/win64/manifest.json"],
       "verify": "get-tile computes one FFT per display column at samplesPerPixel stride (not full-res + max-pool); cold overview ~3.9s -> <~100ms; instant zoom; SpectrumCore + bridge/session tests green; owner UI verify",
-      "blockedReason": "APPROVAL GATE: big SpectrumCore worker rearchitecture (SF-D30). Study done; awaiting owner go before implementing.",
-      "startedAt": null, "finishedAt": null, "evidence": []
+      "blockedReason": null, "startedAt": "2026-07-03T05:00:00Z", "finishedAt": "2026-07-03T06:10:00Z",
+      "evidence": [
+        "IMPLEMENTED. Analysis (SpectrumCoreFftwAnalysis.pas): generalized the Opt-B parallel STFT worker + ComputeStandardStftParallel to be COLUMN-based with an AStride param (column c -> absolute frame ABaseFrame + c*Stride, output row c; Stride=1 = the unchanged contiguous full-res path). Added EnsureColumns(ABaseFrame, AStride, AColumns): computes AColumns DECIMATED frames at stride AStride into the range buffer and presents them as contiguous frames 0..N-1 (bias 0) so tile readers index one column per emitted pixel; magnitude(+phase when needed); returns actual columns (clamped); IsLazy property added.",
+        "Worker (SpectrumCoreFftwWorkerProbe.pas WriteTileResponse): for zoom>0 lazy magnitude/phase/uphase modes (NOT pitch-EAC, NOT reassignment), take the DISPLAY-RESOLUTION path: Factor=1<<zoom, EmitFrames=ceil(FrameCount/Factor), EnsureColumns(FrameStart, Factor, EmitFrames) then ComputeTileValues(0, EmitFrames) -> emit columns directly (no max-pool pyramid). zoom=0/narrow/eager keep the full-res path (W3 cache + EnsureRange + pyramid) unchanged. Emit loop unchanged (columns by index, timeSec via Factor).",
+        "PROFILED (fresh worker, 1_Orientation.flac 33min): whole-clip overview zoom=10 COLD 3949ms -> 545ms (~7x); the STFT is now negligible and JSON emit (~500ms for 770KB / 86k floats) is the new floor (backlog B4 = binary transport). Byte sizes identical to the old path (same output shape); zoom=0 full-res path unchanged. Cursor readout unaffected (point/area-query stay full-res).",
+        "TRADEOFF (as designed / Audacity-equivalent): zoomed-out columns are one FFT at stride Factor*hop -> samples between columns are skipped (approximation; loses the old max-pool peak preservation on overviews). Rebuilt worker + rebundled into MindWave (manifest refreshed; exe gitignored). GnauralCore bridge+session integration tests 31/0 against the rebundled worker. Backend restart to pick it up. Owner UI verify (instant zoom/overview; overview looks acceptable) = the gate."
+      ]
     },
     {
       "id": "SF11.1",
@@ -515,6 +520,7 @@
     { "ts": "2026-07-02T04:20:00Z", "step": "SF7", "event": "planned", "note": "Owner added Phase 7: SF7.1 immediate tracks + Audacity-style load-progress dialog overlay (SF-D12); SF7.2 track-height resize without full recompute (SF-D13, options a/b/c - owner to choose); SF7.3 cache spectrograms across file switches (SF-D14, LRU of lazy open analyses). Awaiting owner choice on SF-D13 then go." },
     { "ts": "2026-07-02T04:30:00Z", "step": "SF-D13", "event": "decided", "note": "Owner chose option (b): never recompute on resize -> fixed viewBinCount decoupled from track height; height resize scales the raster only (setView no-op guard skips refetch). SF7.2 unblocked." },
     { "ts": "2026-07-03T00:20:00Z", "step": "SF10.4", "event": "fixed", "note": "PARTIAL/WRONG first attempt: made SpectrogramMinimap a static import (still correct + kept), but that alone did NOT fix the blank tracks." },
+    { "ts": "2026-07-03T06:10:00Z", "step": "SF11.4", "event": "done", "note": "Audacity-style display-resolution STFT implemented + owner-gated go. Analysis: column-based parallel STFT with a stride param + EnsureColumns (decimated frames presented as contiguous, bias 0). Worker: zoom>0 lazy magnitude/phase modes compute one FFT per emitted column (Factor=1<<zoom) instead of full-res + max-pool pyramid; zoom0/pitch/reassignment unchanged. Profiled: overview zoom=10 cold 3949ms -> 545ms (~7x); JSON emit is now the floor (~500ms; backlog B4). Rebuilt + rebundled; bridge+session 31/0. Cursor readout unaffected. Backend restart. Owner UI verify = gate. Tradeoff: overviews approximate (skip samples between columns), like Audacity." },
     { "ts": "2026-07-03T04:35:00Z", "step": "backlog", "event": "parked", "note": "Owner: collect the set-aside Phase-11 speed ideas in the plan under 'Backlog - требует последующего обсуждения' so nothing is lost; none committed, each requires later discussion and may be dropped/reshaped after SF11.4 is verified. Items: B1 progressive two-level rendering (fast + idle-refine, refined pass = bounded oversample 4-8x not full-res, setting toggle) [owner's idea]; B2 bounded persistent per-frame STFT cache (Audacity SpecCache-style); B3 detail-level setting granularity; B4 binary tile transport; B5 readout<->pixel consistency on deep overviews; B6 tile-cache tuning after SF11.4; B7 minimap spectrogram thumbnail (SF10.4 follow-up); B8 worker robustness/hardening (GUI-subsystem dialogs / raw-pipe drive). See plan Backlog section." },
     { "ts": "2026-07-03T04:20:00Z", "step": "SF11.4", "event": "planned", "note": "Studied Audacity 3.7.8 SpectrumCache.cpp: SpecCache::Populate computes ONE windowSize FFT per DISPLAY column (CalculateOneSpectrum: from=where[0]+xx*samplesPerPixel), FFT count = display width, independent of clip length -> instant zoom. Designed SF11.4 (SF-D30): add a display-resolution STFT path to our worker so overview/zoom compute ~columns FFTs not full-res. Big SpectrumCore worker change -> APPROVAL GATE; presenting design, awaiting owner go." },
     { "ts": "2026-07-03T04:00:00Z", "step": "SF11.3", "event": "feedback", "note": "Owner verified after restart: STILL slow - file switching recomputes, ZOOM is slow (Audacity zoom is instant), initial spectrum display is slow. So SF11.2 (final-tile cache) only helped exact re-views; the dominant pain is COLD tile compute. Confirmed by profiling: an overview computes the FULL-resolution STFT (171144 FFTs) to emit ~168 columns. => SF-D29 step 2 is now active: study Audacity 3.7.8 to learn how it computes at display resolution (hop/samplesPerPixel scaling with zoom) so overview/zoom compute ~columns FFTs, not full-res. Added SF11.4." },
