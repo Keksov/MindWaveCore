@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-03T07:30:00Z",
+  "updatedAt": "2026-07-03T08:30:00Z",
   "decisions": [
     { "id": "SF-D1", "text": "Scope & process: 3 items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green each step. Code in GnauralCore; ledger in MindWaveCore." },
     { "id": "SF-D2", "text": "Loading indicator: surface worker/tile loading in SpectrogramView as an overlay spinner driven by spec.loading (analysis open + tiles pending); keep audio.spectrogramLoading (decode) in AudioPage so an indicator covers the whole prepare span (decode -> open -> first tiles)." },
@@ -256,11 +256,16 @@
       "id": "SF11.6",
       "phase": 11,
       "title": "Binary tile transport",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": ["SF11.5"],
-      "artifacts": ["SpectrumCore worker", "GnauralCore server/protocol/client"],
+      "artifacts": ["SharedPasCore/ts/spectrogram-protocol.ts", "SpectrumCore/src/apps/SpectrumCoreFftwWorkerProbe.pas", "GnauralCore/server/spectrogram-session.ts", "GnauralCore/ui/composables/spectrogram-render.ts", "MindWaveCore/server/vendor/spectrumcore/win64/manifest.json"],
       "verify": "tile bins sent as float32 blob (not JSON text); per-tile time drops from the ~500ms JSON floor; tests green; owner verify",
-      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+      "startedAt": "2026-07-03T07:35:00Z", "finishedAt": "2026-07-03T08:30:00Z", "blockedReason": null,
+      "evidence": [
+        "Tile bins now travel as a base64 little-endian Float32 blob (row-major [frame][bin], length emittedFrameCount*binCount) instead of per-bin JSON numbers. Protocol: added SpectrogramTile.binsB64 (frames[].bins made optional). Worker: WriteTileResponse gathers the values into a Single buffer and emits binsB64 via EncodeStringBase64 (base64 unit); 'frames' emitted as [] -> NO FloatToStrF over the bulk data. Server: toTile passes binsB64 straight through (no per-value parse). Client: spectrogram-render.tileToImage decodes binsB64 -> Float32Array (atob, memoized in a WeakMap per tile) and indexes it; falls back to frames[].bins for legacy/tests.",
+        "PROFILED (worker, 1_Orientation.flac): overview zoom=10 272ms->76ms; zoom=8 1062ms->217ms; 120s zoom=5 530ms->111ms; 2s zoom=0 220ms->17ms. Decode verified: float count == emittedFrameCount*binCount, values identical (max/mean match). base64 payload (~460KB overview) is also SMALLER than the old JSON (~770KB). The FloatToStrF/JSON-number floor is gone at every hop (worker emit, server parse, WS stringify, client parse).",
+        "Tests updated (bridge + session contract now assert binsB64 decodes to emittedFrameCount*binCount*4 bytes; render tests keep the frames[] fallback path). vue-tsc clean; GnauralCore server 31/0, ui 61/0. Rebuilt worker + rebundled (manifest refreshed). Cumulative Phase-11 speed: overview 3949ms -> 76ms (~52x) at restored quality. Backend restart. Owner UI verify = the gate."
+      ]
     },
     {
       "id": "SF11.4",
@@ -546,6 +551,7 @@
     { "ts": "2026-07-02T04:20:00Z", "step": "SF7", "event": "planned", "note": "Owner added Phase 7: SF7.1 immediate tracks + Audacity-style load-progress dialog overlay (SF-D12); SF7.2 track-height resize without full recompute (SF-D13, options a/b/c - owner to choose); SF7.3 cache spectrograms across file switches (SF-D14, LRU of lazy open analyses). Awaiting owner choice on SF-D13 then go." },
     { "ts": "2026-07-02T04:30:00Z", "step": "SF-D13", "event": "decided", "note": "Owner chose option (b): never recompute on resize -> fixed viewBinCount decoupled from track height; height resize scales the raster only (setView no-op guard skips refetch). SF7.2 unblocked." },
     { "ts": "2026-07-03T00:20:00Z", "step": "SF10.4", "event": "fixed", "note": "PARTIAL/WRONG first attempt: made SpectrogramMinimap a static import (still correct + kept), but that alone did NOT fix the blank tracks." },
+    { "ts": "2026-07-03T08:30:00Z", "step": "SF11.6", "event": "done", "note": "Binary tile transport: tile bins now a base64 float32 blob (binsB64) instead of per-bin JSON. Worker EncodeStringBase64 (no FloatToStrF); server passes it through; client decodes with atob -> Float32Array (memoized) in tileToImage (frames[] fallback kept). Profiled overview zoom=10 272ms->76ms (JSON floor gone); payload smaller than JSON too. Cumulative Phase-11: overview 3949ms->76ms (~52x) at restored quality. Protocol binsB64 added; tests updated; vue-tsc + server 31/0 + ui 61/0. Rebuilt+rebundled. Backend restart. Owner verify = gate. Phase 11 core speed/quality work COMPLETE." },
     { "ts": "2026-07-03T07:30:00Z", "step": "SF11.5", "event": "done", "note": "Bounded-oversample max-pool restores overview quality. New EnsureColumnsMaxPooled max-pools K=min(Factor,32) RAW magnitude sub-columns per output column (in-place, magnitude-only), so the frequency interpolation runs once per output column (a naive pool-after-interpolation was 3-5x slower). Profiled overview zoom=10 272ms (vs 3949ms old full-res, ~14x) with peak brightness restored (max~0.10). Rebuilt+rebundled; bridge+session 31/0. Backend restart. Owner verify = gate. Next: SF11.6 binary transport (JSON is still the floor)." },
     { "ts": "2026-07-03T06:40:00Z", "step": "SF11.4", "event": "feedback", "note": "Owner verified: speedup MINIMAL and quality visually MUCH WORSE (Audacity is both faster and better). Root cause: SF11.4's one-FFT-per-column dropped the old max-pool (256:1 info loss) -> dim/sparse overview; and the perceived-speed win is masked because JSON emit (~500ms/tile) is now the floor (compute is negligible). Agreed plan: SF11.5 bounded-oversample max-pool (K=min(Factor,32), restore quality ~free since JSON-bound) -> verify -> SF11.6 binary tile transport (kill the JSON floor = real speed) -> verify." },
     { "ts": "2026-07-03T06:10:00Z", "step": "SF11.4", "event": "done", "note": "Audacity-style display-resolution STFT implemented + owner-gated go. Analysis: column-based parallel STFT with a stride param + EnsureColumns (decimated frames presented as contiguous, bias 0). Worker: zoom>0 lazy magnitude/phase modes compute one FFT per emitted column (Factor=1<<zoom) instead of full-res + max-pool pyramid; zoom0/pitch/reassignment unchanged. Profiled: overview zoom=10 cold 3949ms -> 545ms (~7x); JSON emit is now the floor (~500ms; backlog B4). Rebuilt + rebundled; bridge+session 31/0. Cursor readout unaffected. Backend restart. Owner UI verify = gate. Tradeoff: overviews approximate (skip samples between columns), like Audacity." },

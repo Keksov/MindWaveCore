@@ -309,8 +309,10 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   magnitude of K=min(Factor,32) sub-columns per output column (interpolate once per output column).
   Overview zoom=10 272ms (old full-res 3949ms, ~14×) with peak brightness restored. bridge+session
   31/0. *Owner UI verify pending.*
-- [ ] **SF11.6 — Binary tile transport (SF-D32).** Float32 blob tiles instead of JSON text (the
-  ~500 ms/tile floor). *After SF11.5 verified.* Worker + server + client + tests.
+- [x] **SF11.6 — Binary tile transport (SF-D32).** Tile bins as a base64 float32 blob (`binsB64`)
+  instead of per-bin JSON — no `FloatToStrF`/number JSON at any hop. Worker `EncodeStringBase64`,
+  server pass-through, client `atob`→Float32Array in `tileToImage`. Overview zoom=10 272→76ms
+  (cumulative 3949→76ms, **~52×**). vue-tsc + server 31/0 + ui 61/0. *Owner UI verify pending.*
 - [x] **SF11.4 — Audacity-style display-resolution STFT (SF-D30).** Worker computes one FFT per
   emitted column at stride `Factor=2^zoom` (via `EnsureColumns`, column-based parallel STFT) for
   zoom>0 lazy magnitude/phase modes, instead of full-res + max-pool. **Profiled: overview
