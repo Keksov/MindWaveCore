@@ -105,6 +105,23 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   the reuse path misses (cache key mismatch, close/dispose evicting, per-socket session
   lifecycle, or the UI re-opening with changed params) and make returning to a recent file skip
   the re-decode/STFT. *(Owner 2026-07-03.)*
+- **SF-D30 — Audacity-style display-resolution STFT (Phase 11 item 3, step 2) — DESIGN, awaiting go.**
+  Root cause (measured): our worker computes the FULL-resolution STFT for a tile's whole span
+  (e.g. 171144 FFTs for a 33-min overview) then max-pools to ~168 columns → cold overview ~3.9 s;
+  zoom/pan to new tiles recompute. Audacity (`SpecCache::Populate`/`CalculateOneSpectrum`,
+  `lib/vendor/audacity/3.7.8/src/tracks/playabletrack/wavetrack/ui/SpectrumCache.cpp`) computes
+  exactly ONE windowSize FFT **per display column** at `from = where[0] + xx*samplesPerPixel`
+  (`samplesPerPixel = sampleRate/pixelsPerSecond`), reusing overlapping columns on pan, cached by
+  `samplesPerPixel`. So its FFT count = display width (~1–2k), independent of clip length → instant
+  zoom/overview. **Plan:** add a display-resolution STFT path to the worker: for a get-tile,
+  compute `emittedColumns` windowSize FFTs at stride `samplesPerPixel = spanSamples/emittedColumns`
+  (reuse the Opt-B parallel pool + Opt-A magnitude-only), map each to `viewBinCount` display bins,
+  and drop the full-res EnsureRange+pyramid for zoomed views (zoom≈0/full-res path unchanged). Keep
+  the W3 + SF11.2 caches (now caching cheap tiles) and the existing pan copy-range reuse. **Tradeoff
+  (accept):** zoomed-out views become an approximation (windows spaced > windowSize skip samples
+  between columns) — exactly Audacity's behaviour; loses the current max-pool peak preservation for
+  overviews. Expected: cold overview ~3.9 s → <~100 ms. *(Owner-gated: study done; awaiting go to
+  implement the worker change — rebuild + rebundle + tests + re-profile + UI verify.)*
 - **SF-D29 — Speed up tile generation (Phase 11 item 3).** Audacity renders faster on the same
   files. Step 1 (this phase): profile OUR pipeline's `get-tile` path (worker STFT-on-demand +
   tile build + JSON/WS + UI raster) and apply any wins found, then owner verifies. Step 2 (only
@@ -273,6 +290,9 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   analysis LRU worked, but Opt C's lazy STFT recomputes tiles on every `get-tile`. Added a
   per-warm-analysis server-side computed-tile cache (keyed `zoom|timeStart|timeEnd|viewBinCount`,
   LRU cap 64) so returning to a file / re-panning is instant. +mock unit test; server 31/0.
+- [ ] **SF11.4 — Audacity-style display-resolution STFT (SF-D30).** Worker computes one FFT per
+  display column at `samplesPerPixel` stride (not full-res + max-pool) → instant zoom/overview.
+  *Awaiting owner go (big worker change).* Rebuild + rebundle + tests + re-profile + UI verify.
 - [x] **SF11.3 — Profile + speed up tile generation (SF-D29).** Profiled (code analysis + SF6.1
   data): bottleneck = per-tile STFT recompute on cache miss (`EnsureRange` over the full-res
   span; overview recomputes the whole STFT). Applied win = SF11.2 server tile cache (re-views
