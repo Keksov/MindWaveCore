@@ -348,6 +348,41 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   it prepares instead of showing the stale message; `audio.noSpectrogram` wording refreshed
   (SF-D6). `vue-tsc` clean; GnauralCore bun 56/0.
 
+## Backlog — parked ideas (**требует последующего обсуждения**)
+Ideas raised during the Phase 11 speed work that were set aside — kept here so nothing is lost.
+None are committed; **each requires later discussion** and may be dropped or reshaped after the
+SF11.4 (display-resolution STFT) results are verified. *(Owner request 2026-07-03.)*
+
+- **B1 — Progressive two-level rendering (owner's idea).** Draw the fast display-res raster first
+  (SF11.4), then on a UI idle-timeout (~300–400 ms) compute a more detailed pass in the background
+  and swap the image. Key refinement: the detailed pass should be a **bounded oversample** (≈4–8
+  FFTs/column, max-pooled to the column) — NOT full hop resolution — so it stays O(display width),
+  not O(clip length) (overview refine ≈ 168×8 ≈ 1.3k FFTs ≈ ~30 ms, vs 171144 / ~3.9 s). Reuses the
+  existing tile-accumulate pipeline; `oversample` folds into the tile cache key; cancel stale
+  refinements via `viewSeq`. Expose as a **setting** (toggle "refine on idle"; off = fast-only).
+  *Revisit after SF11.4 — may be unnecessary if the fast pass already looks good enough.*
+- **B2 — Bounded persistent per-frame STFT cache (Audacity SpecCache-style).** Cache computed
+  full-res frames by frame index (LRU + memory budget) so overlapping pans / different zoom levels
+  don't recompute the same frames; a middle ground between Opt C (recompute-all) and the old eager
+  full matrix (OOM). Alternative/complement to SF11.4; revisit if fresh-region first-gen still
+  matters after SF11.4.
+- **B3 — Detail-level setting granularity.** Fast / Balanced / High oversample levels (vs a single
+  constant) for B1's refined pass. UI/UX decision, deferred.
+- **B4 — Binary tile transport.** Send tiles as a float32 blob instead of JSON floats to cut
+  serialize/parse for large tiles. Secondary win; revisit if JSON emit shows up as a cost after
+  SF11.4 makes tiles cheaper.
+- **B5 — Readout ↔ pixel consistency on deep overviews.** Decide whether the cursor readout should
+  match the displayed (approximated) pixel by reading the display-res cache, vs staying exact
+  full-res (current/planned — see SF-D30). Minor UX call.
+- **B6 — Tile-cache tuning.** Revisit `TILE_CACHE_MAX_PER_ANALYSIS` / the memory budget once tiles
+  become cheaper/smaller with SF11.4.
+- **B7 — Minimap spectrogram thumbnail (SF10.4 follow-up).** Render an actual low-res spectrogram in
+  the bottom minimap overview (needs a dedicated low-zoom tile fetch), instead of the plain
+  navigator bar.
+- **B8 — Worker robustness / hardening.** The GUI-subsystem worker pops dialogs on unhandled
+  exceptions and doesn't drive cleanly over a raw stdio pipe (hit during SF6.1 + SF11.3 profiling);
+  consider a console-subsystem build or a global exception handler for cleaner profiling/ops.
+
 ## 6. References
 - View/render: [SpectrogramView.vue](../../../GnauralCore/ui/components/SpectrogramView.vue),
   [spectrogram-render.ts](../../../GnauralCore/ui/composables/spectrogram-render.ts)
