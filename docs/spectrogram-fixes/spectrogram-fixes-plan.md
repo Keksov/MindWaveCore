@@ -120,8 +120,12 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   the W3 + SF11.2 caches (now caching cheap tiles) and the existing pan copy-range reuse. **Tradeoff
   (accept):** zoomed-out views become an approximation (windows spaced > windowSize skip samples
   between columns) — exactly Audacity's behaviour; loses the current max-pool peak preservation for
-  overviews. Expected: cold overview ~3.9 s → <~100 ms. *(Owner-gated: study done; awaiting go to
-  implement the worker change — rebuild + rebundle + tests + re-profile + UI verify.)*
+  overviews. Expected: cold overview ~3.9 s → <~100 ms. **Cursor readout unaffected:** point-query /
+  area-query keep their own full-resolution path (`PointQuery` → `EnsureRange(frameIndex, 1)` at the
+  exact time/bin), so time/freq/dB under the mouse stay accurate (independent of the raster). Minor:
+  on deep overviews the exact readout may differ slightly from the approximated pixel — same as
+  Audacity, and arguably more accurate. *(Owner-gated: study done; awaiting go to implement the
+  worker change — rebuild + rebundle + tests + re-profile + UI verify.)*
 - **SF-D29 — Speed up tile generation (Phase 11 item 3).** Audacity renders faster on the same
   files. Step 1 (this phase): profile OUR pipeline's `get-tile` path (worker STFT-on-demand +
   tile build + JSON/WS + UI raster) and apply any wins found, then owner verifies. Step 2 (only
