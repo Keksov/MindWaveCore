@@ -105,6 +105,17 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   the reuse path misses (cache key mismatch, close/dispose evicting, per-socket session
   lifecycle, or the UI re-opening with changed params) and make returning to a recent file skip
   the re-decode/STFT. *(Owner 2026-07-03.)*
+- **SF-D31 — Bounded-oversample max-pool (Phase 11, quality fix for SF11.4).** SF11.4 (one FFT per
+  column) restored speed but dropped the old max-pool (256:1 info loss) → visually much worse
+  overview. Fix: in the display-res path compute **K = min(Factor, KMAX≈32)** FFTs per output
+  column (sub-stride `Factor/K`) and take the **max** per display bin → restores the bright,
+  transient-preserving overview close to the old full-res look, at a fraction of the cost. Since
+  JSON emit is now the floor (~500 ms/tile), the extra FFTs are ~free. Adaptive: shallow zoom
+  (`Factor ≤ KMAX`) computes the whole bucket (full quality). *(Owner 2026-07-03, agreed.)*
+- **SF-D32 — Binary tile transport (Phase 11, speed — promotes backlog B4).** JSON float
+  serialization (`FloatToStrF` per value, ~500 ms/tile) is the real remaining bottleneck (compute
+  is now negligible). Send tile bins as a float32 blob instead of JSON text → the actual perceived
+  speedup. *(Owner 2026-07-03, agreed — after SF11.5 quality is verified.)*
 - **SF-D30 — Audacity-style display-resolution STFT (Phase 11 item 3, step 2) — DESIGN, awaiting go.**
   Root cause (measured): our worker computes the FULL-resolution STFT for a tile's whole span
   (e.g. 171144 FFTs for a 33-min overview) then max-pools to ~168 columns → cold overview ~3.9 s;
@@ -294,6 +305,12 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   analysis LRU worked, but Opt C's lazy STFT recomputes tiles on every `get-tile`. Added a
   per-warm-analysis server-side computed-tile cache (keyed `zoom|timeStart|timeEnd|viewBinCount`,
   LRU cap 64) so returning to a file / re-panning is instant. +mock unit test; server 31/0.
+- [x] **SF11.5 — Bounded-oversample max-pool (SF-D31).** `EnsureColumnsMaxPooled` max-pools the RAW
+  magnitude of K=min(Factor,32) sub-columns per output column (interpolate once per output column).
+  Overview zoom=10 272ms (old full-res 3949ms, ~14×) with peak brightness restored. bridge+session
+  31/0. *Owner UI verify pending.*
+- [ ] **SF11.6 — Binary tile transport (SF-D32).** Float32 blob tiles instead of JSON text (the
+  ~500 ms/tile floor). *After SF11.5 verified.* Worker + server + client + tests.
 - [x] **SF11.4 — Audacity-style display-resolution STFT (SF-D30).** Worker computes one FFT per
   emitted column at stride `Factor=2^zoom` (via `EnsureColumns`, column-based parallel STFT) for
   zoom>0 lazy magnitude/phase modes, instead of full-res + max-pool. **Profiled: overview

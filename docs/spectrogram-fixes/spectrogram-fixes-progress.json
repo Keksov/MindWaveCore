@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-03T06:10:00Z",
+  "updatedAt": "2026-07-03T07:30:00Z",
   "decisions": [
     { "id": "SF-D1", "text": "Scope & process: 3 items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green each step. Code in GnauralCore; ledger in MindWaveCore." },
     { "id": "SF-D2", "text": "Loading indicator: surface worker/tile loading in SpectrogramView as an overlay spinner driven by spec.loading (analysis open + tiles pending); keep audio.spectrogramLoading (decode) in AudioPage so an indicator covers the whole prepare span (decode -> open -> first tiles)." },
@@ -235,6 +235,32 @@
         "Set DEFAULT_SPECTROGRAM_SETTINGS to Audacity defaults per the owner screenshot: fscale log, startHz 80, stopHz 4000, gain 1 (0 dB), drange 120, frequencyGain 0, data magnitude (Frequencies), window 2048, winFunc hann, zeroPaddingFactor 2, scale log. Changed from prior defaults: zeroPaddingFactor 1->2, startHz 0->80, stopHz 0->4000, palette intensity->rainbow. Aligned the 'audacity' preset to match. vue-tsc clean; bun 61/0.",
         "NOTES: (1) palette = 'rainbow' is our closest COLOURED option to Audacity's 'Color (pink)' — we don't have the exact Audacity pink colormap. (2) Existing localStorage settings override defaults, so a user with saved settings must Reset / pick the Audacity preset to see the new defaults."
       ]
+    },
+    {
+      "id": "SF11.5",
+      "phase": 11,
+      "title": "Bounded-oversample max-pool (quality fix)",
+      "status": "done",
+      "dependsOn": ["SF11.4"],
+      "artifacts": ["SpectrumCore/src/core/SpectrumCoreFftwAnalysis.pas", "SpectrumCore/src/apps/SpectrumCoreFftwWorkerProbe.pas", "MindWaveCore/server/vendor/spectrumcore/win64/manifest.json"],
+      "verify": "display-res path computes K=min(Factor,32) FFTs/column max-pooled; overview looks close to the old full-res quality; still fast; bridge/session tests green; owner UI verify",
+      "startedAt": "2026-07-03T06:45:00Z", "finishedAt": "2026-07-03T07:30:00Z", "blockedReason": null,
+      "evidence": [
+        "Added TFftwAnalysis.EnsureColumnsMaxPooled(ABaseFrame, ASubStride, AGroups, AGroupSize): computes AGroups*AGroupSize decimated sub-frames at ASubStride then MAX-POOLs each group of AGroupSize RAW magnitude spectra into one column, in place at the front of FRangeMag (forward in-place pass is safe: output slot G <= its inputs). Magnitude-only (phase/uphase fall back to 1 col/group). Presents AGroups pooled columns as contiguous frames (bias 0).",
+        "Worker WriteTileResponse display-res branch: KPool = min(Factor, DISPLAY_RES_MAX_OVERSAMPLE=32), SubStride = Factor div KPool; EnsureColumnsMaxPooled + ComputeTileValues(0, EmitFrames). CRUCIAL: pooling the RAW spectra BEFORE the frequency interpolation keeps interpolation at one pass per OUTPUT column (not per sub-frame) -> a first naive attempt (pool after interpolation) was 3-5x slower.",
+        "PROFILED (1_Orientation.flac): overview zoom=10 272ms (single-FFT SF11.4 was 545ms; old full-res 3949ms); zoom=8 (one 669-col tile) 1062ms; 120s zoom=5 530ms; 2s zoom=0 220ms. Brightness restored: overview max~0.10 (vs the quiet 2s window max~0.008) confirms the max-pool captures peaks again -> quality close to old full-res, ~14x faster. zoom=0/full-res + cursor readout unchanged.",
+        "Rebuilt worker + rebundled (manifest refreshed). GnauralCore bridge+session integration tests 31/0 against the rebundled worker. Backend restart to pick it up. Owner UI verify (overview looks good AND fast) = the gate. JSON emit is still the floor -> SF11.6 (binary transport) next."
+      ]
+    },
+    {
+      "id": "SF11.6",
+      "phase": 11,
+      "title": "Binary tile transport",
+      "status": "not-started",
+      "dependsOn": ["SF11.5"],
+      "artifacts": ["SpectrumCore worker", "GnauralCore server/protocol/client"],
+      "verify": "tile bins sent as float32 blob (not JSON text); per-tile time drops from the ~500ms JSON floor; tests green; owner verify",
+      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
     },
     {
       "id": "SF11.4",
@@ -520,6 +546,8 @@
     { "ts": "2026-07-02T04:20:00Z", "step": "SF7", "event": "planned", "note": "Owner added Phase 7: SF7.1 immediate tracks + Audacity-style load-progress dialog overlay (SF-D12); SF7.2 track-height resize without full recompute (SF-D13, options a/b/c - owner to choose); SF7.3 cache spectrograms across file switches (SF-D14, LRU of lazy open analyses). Awaiting owner choice on SF-D13 then go." },
     { "ts": "2026-07-02T04:30:00Z", "step": "SF-D13", "event": "decided", "note": "Owner chose option (b): never recompute on resize -> fixed viewBinCount decoupled from track height; height resize scales the raster only (setView no-op guard skips refetch). SF7.2 unblocked." },
     { "ts": "2026-07-03T00:20:00Z", "step": "SF10.4", "event": "fixed", "note": "PARTIAL/WRONG first attempt: made SpectrogramMinimap a static import (still correct + kept), but that alone did NOT fix the blank tracks." },
+    { "ts": "2026-07-03T07:30:00Z", "step": "SF11.5", "event": "done", "note": "Bounded-oversample max-pool restores overview quality. New EnsureColumnsMaxPooled max-pools K=min(Factor,32) RAW magnitude sub-columns per output column (in-place, magnitude-only), so the frequency interpolation runs once per output column (a naive pool-after-interpolation was 3-5x slower). Profiled overview zoom=10 272ms (vs 3949ms old full-res, ~14x) with peak brightness restored (max~0.10). Rebuilt+rebundled; bridge+session 31/0. Backend restart. Owner verify = gate. Next: SF11.6 binary transport (JSON is still the floor)." },
+    { "ts": "2026-07-03T06:40:00Z", "step": "SF11.4", "event": "feedback", "note": "Owner verified: speedup MINIMAL and quality visually MUCH WORSE (Audacity is both faster and better). Root cause: SF11.4's one-FFT-per-column dropped the old max-pool (256:1 info loss) -> dim/sparse overview; and the perceived-speed win is masked because JSON emit (~500ms/tile) is now the floor (compute is negligible). Agreed plan: SF11.5 bounded-oversample max-pool (K=min(Factor,32), restore quality ~free since JSON-bound) -> verify -> SF11.6 binary tile transport (kill the JSON floor = real speed) -> verify." },
     { "ts": "2026-07-03T06:10:00Z", "step": "SF11.4", "event": "done", "note": "Audacity-style display-resolution STFT implemented + owner-gated go. Analysis: column-based parallel STFT with a stride param + EnsureColumns (decimated frames presented as contiguous, bias 0). Worker: zoom>0 lazy magnitude/phase modes compute one FFT per emitted column (Factor=1<<zoom) instead of full-res + max-pool pyramid; zoom0/pitch/reassignment unchanged. Profiled: overview zoom=10 cold 3949ms -> 545ms (~7x); JSON emit is now the floor (~500ms; backlog B4). Rebuilt + rebundled; bridge+session 31/0. Cursor readout unaffected. Backend restart. Owner UI verify = gate. Tradeoff: overviews approximate (skip samples between columns), like Audacity." },
     { "ts": "2026-07-03T04:35:00Z", "step": "backlog", "event": "parked", "note": "Owner: collect the set-aside Phase-11 speed ideas in the plan under 'Backlog - требует последующего обсуждения' so nothing is lost; none committed, each requires later discussion and may be dropped/reshaped after SF11.4 is verified. Items: B1 progressive two-level rendering (fast + idle-refine, refined pass = bounded oversample 4-8x not full-res, setting toggle) [owner's idea]; B2 bounded persistent per-frame STFT cache (Audacity SpecCache-style); B3 detail-level setting granularity; B4 binary tile transport; B5 readout<->pixel consistency on deep overviews; B6 tile-cache tuning after SF11.4; B7 minimap spectrogram thumbnail (SF10.4 follow-up); B8 worker robustness/hardening (GUI-subsystem dialogs / raw-pipe drive). See plan Backlog section." },
     { "ts": "2026-07-03T04:20:00Z", "step": "SF11.4", "event": "planned", "note": "Studied Audacity 3.7.8 SpectrumCache.cpp: SpecCache::Populate computes ONE windowSize FFT per DISPLAY column (CalculateOneSpectrum: from=where[0]+xx*samplesPerPixel), FFT count = display width, independent of clip length -> instant zoom. Designed SF11.4 (SF-D30): add a display-resolution STFT path to our worker so overview/zoom compute ~columns FFTs not full-res. Big SpectrumCore worker change -> APPROVAL GATE; presenting design, awaiting owner go." },
