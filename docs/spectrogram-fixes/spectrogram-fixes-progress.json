@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-04T17:05:00Z",
+  "updatedAt": "2026-07-04T17:30:00Z",
   "decisions": [
     { "id": "SF-D1", "text": "Scope & process: 3 items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green each step. Code in GnauralCore; ledger in MindWaveCore." },
     { "id": "SF-D2", "text": "Loading indicator: surface worker/tile loading in SpectrogramView as an overlay spinner driven by spec.loading (analysis open + tiles pending); keep audio.spectrogramLoading (decode) in AudioPage so an indicator covers the whole prepare span (decode -> open -> first tiles)." },
@@ -274,12 +274,13 @@
       "id": "SF15.2",
       "phase": 15,
       "title": "Channel param: clarify/remove (vestigial)",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": ["SF14.2"],
-      "artifacts": ["GnauralCore/ui/components/SpectrogramSettingsPanel.vue", "GnauralCore/ui/composables/spectrogram-settings.ts"],
+      "artifacts": ["GnauralCore/ui/components/SpectrogramSettingsPanel.vue", "GnauralCore/ui/composables/spectrogram-settings.ts", "GnauralCore/ui/composables/spectrogram-settings.test.ts"],
       "verify": "per owner (recommend remove the Channel field since the L/R split overrides it); vue-tsc + bun green",
-      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": [
-        "INVESTIGATED: AudioPage.vue:771-772 spectrogramLeftAnalysis={...analysisParams, channel:0} / right channel:1 -> the L/R tracks always override the panel channel; mono uses analysisParams (channel 0 only). So the panel 'Channel' field is vestigial (like the removed 'mode'). Recommend remove."
+      "startedAt": "2026-07-04T17:15:00Z", "finishedAt": "2026-07-04T17:30:00Z", "blockedReason": null, "evidence": [
+        "INVESTIGATED: AudioPage spectrogramLeftAnalysis={...analysisParams, channel:0} / right channel:1 -> the L/R tracks always override the panel channel; mono uses analysisParams (channel 0 only). So the panel 'Channel' field is vestigial (like the removed 'mode').",
+        "REMOVED (owner go): dropped the Channel field from the panel + the channelOptions helper; removed `channel` from the SpectrogramSettings model (interface + DEFAULT + mergeStoredSettings + toAnalysisParams). The L/R split still sets channel 0/1 per track; mono omits channel so the worker defaults to 0. Updated the capability-coverage test (dropped 'channel'). vue-tsc + bun 63/0. (Unused i18n channel keys left in place, harmless.)"
       ]
     },
     {
@@ -709,6 +710,7 @@
   ],
   "log": [
     { "ts": "2026-07-04T15:40:00Z", "step": "SF14", "event": "planned", "note": "Owner added Phase 14 (channel params): SF14.1 'Channel mode' is a NO-OP (investigation: worker only echoes mode; L/R split is UI-driven) -> owner to decide remove vs implement combined/separate (SF-D38, blocked on decision); SF14.2 'Channel' field -> localized Left/Right select instead of 0/1 (SF-D39). Plan-only ('Добавь в план', no go) — awaiting go + the SF14.1 decision." },
+    { "ts": "2026-07-04T17:30:00Z", "step": "SF15.2", "event": "done", "note": "Removed the vestigial 'Channel' field (overridden by the L/R split): dropped from panel + model (interface/DEFAULT/mergeStoredSettings/toAnalysisParams); L/R split still sets channel 0/1 per track, mono omits it (worker defaults 0). vue-tsc + bun 63/0. Now doing SF15.1 (Audacity navigation)." },
     { "ts": "2026-07-04T17:05:00Z", "step": "SF15", "event": "planned", "note": "Owner added Phase 15: SF15.1 Audacity-style mouse navigation (Ctrl/Alt/Shift + wheel/drag; research Audacity 3.7.8 HandleWheelRotation + SpectrumVZoomHandle first) (SF-D42); SF15.2 the 'Channel' param is vestigial (overridden by the L/R split) -> recommend remove (SF-D43). Plan-only ('Добавь в план', no go) — awaiting go." },
     { "ts": "2026-07-04T16:45:00Z", "step": "SF14.4", "event": "done", "note": "Owner chose variant (b) for the overlap finding: overlap is now the frame-step control (Audacity/ffmpeg style); removed the redundant `hop` field from the model + panel; toAnalysisParams derives hop = max(1, round(window*(1-overlap))). Default unchanged (0.75->512). +2 settings-test updates. vue-tsc + build + ui 63/0. Phase 14 complete." },
     { "ts": "2026-07-04T16:20:00Z", "step": "SF14", "event": "done", "note": "Phase 14: SF14.3 audit done -> all params USED except 'mode' (dead, echoed only) and 'overlap' (effectively dead: hop always wins, overlap re-computed from hop). SF14.1 removed the dead 'Channel mode' field (kept the harmless model default). SF14.2 'Channel' -> localized Left/Right select. vue-tsc + bun 63/0. OPEN: owner decision on 'overlap' (remove the slider vs make it the control). UI-only." },

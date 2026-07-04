@@ -378,8 +378,8 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
 - [ ] **SF15.1 — Audacity-style mouse navigation (SF-D42).** Research Audacity's Ctrl/Alt/Shift +
   wheel/drag gestures (incl. frequency zoom) and implement matching navigation in SpectrogramView.
   Verify `vue-tsc` + `bun` + owner.
-- [ ] **SF15.2 — "Channel" param: clarify/remove (SF-D43).** Confirmed vestigial (overridden by the
-  L/R split). *Recommend remove; awaiting go.*
+- [x] **SF15.2 — "Channel" param removed (SF-D43).** Confirmed vestigial (overridden by the L/R
+  split); removed from the panel + model. `vue-tsc` + bun 63/0.
 
 **Phase 14 — Channel params cleanup** *(owner addition 2026-07-04)*
 - [x] **SF14.1 — "Channel mode": removed (SF-D38).** Confirmed no-op; removed the dead field from
