@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-04T09:00:00Z",
+  "updatedAt": "2026-07-04T10:45:00Z",
   "decisions": [
     { "id": "SF-D1", "text": "Scope & process: 3 items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green each step. Code in GnauralCore; ledger in MindWaveCore." },
     { "id": "SF-D2", "text": "Loading indicator: surface worker/tile loading in SpectrogramView as an overlay spinner driven by spec.loading (analysis open + tiles pending); keep audio.spectrogramLoading (decode) in AudioPage so an indicator covers the whole prepare span (decode -> open -> first tiles)." },
@@ -234,6 +234,22 @@
       "evidence": [
         "Set DEFAULT_SPECTROGRAM_SETTINGS to Audacity defaults per the owner screenshot: fscale log, startHz 80, stopHz 4000, gain 1 (0 dB), drange 120, frequencyGain 0, data magnitude (Frequencies), window 2048, winFunc hann, zeroPaddingFactor 2, scale log. Changed from prior defaults: zeroPaddingFactor 1->2, startHz 0->80, stopHz 0->4000, palette intensity->rainbow. Aligned the 'audacity' preset to match. vue-tsc clean; bun 61/0.",
         "NOTES: (1) palette = 'rainbow' is our closest COLOURED option to Audacity's 'Color (pink)' — we don't have the exact Audacity pink colormap. (2) Existing localStorage settings override defaults, so a user with saved settings must Reset / pick the Audacity preset to see the new defaults."
+      ]
+    },
+    {
+      "id": "SF11.7",
+      "phase": 11,
+      "title": "Shared decode for stereo",
+      "status": "done",
+      "dependsOn": ["SF11.6"],
+      "artifacts": ["SpectrumCore/src/core/SpectrumCoreAudioReader.pas", "MindWaveCore/server/vendor/spectrumcore/win64/manifest.json"],
+      "verify": "opening a file's 2nd channel skips the FLAC decode (reuses the once-decoded PCM); stereo first-load ~halved on decode; bridge/session tests green; owner verify",
+      "startedAt": "2026-07-04T10:10:00Z", "finishedAt": "2026-07-04T10:45:00Z", "blockedReason": null,
+      "evidence": [
+        "Implemented a 1-file shared-decode cache INSIDE SpectrumCoreAudioReader.AudioLoadChannel (sndfile/flac/ogg path) - no analysis/worker changes. New SndfileLoadAllChannels decodes all channels in one libsndfile pass into per-channel buffers (same indexing as SndfileLoadChannel). SndfileLoadChannelCached: cache hit for the same file returns a not-yet-taken channel (transfers ownership); miss frees any prior cache, decodes all, caches the siblings, returns the requested channel. Cache cleared when all channels taken / on the next different-file miss / finalization.",
+        "MEMORY-SAFE (no OOM regression): each analysis already keeps its channel's samples; the cache only holds the not-yet-taken SIBLING buffers for ONE file, transiently (freed as consumed). Peak memory unchanged. Single-threaded (open-analysis is serial stdio).",
+        "PROFILED (fresh worker, 1_Orientation.flac stereo): open ch0 2934ms (decode all), open ch1 1ms (from cache) [was ~2665ms]; different file re-decodes, its ch1 also 1-3ms. So stereo first-load decode ~8.3s -> ~2.9s (one decode). In production a returning file is served by the SF11.2 warm-LRU (0ms, decode skipped entirely).",
+        "Rebuilt worker + rebundled (manifest refreshed). GnauralCore bridge+session integration tests 31/0 against the rebundled worker. B2 closed as obsolete (decode, not STFT, was the bottleneck). Backend restart. Owner UI verify (stereo file opens noticeably faster) = the gate."
       ]
     },
     {
@@ -551,6 +567,8 @@
     { "ts": "2026-07-02T04:20:00Z", "step": "SF7", "event": "planned", "note": "Owner added Phase 7: SF7.1 immediate tracks + Audacity-style load-progress dialog overlay (SF-D12); SF7.2 track-height resize without full recompute (SF-D13, options a/b/c - owner to choose); SF7.3 cache spectrograms across file switches (SF-D14, LRU of lazy open analyses). Awaiting owner choice on SF-D13 then go." },
     { "ts": "2026-07-02T04:30:00Z", "step": "SF-D13", "event": "decided", "note": "Owner chose option (b): never recompute on resize -> fixed viewBinCount decoupled from track height; height resize scales the raster only (setView no-op guard skips refetch). SF7.2 unblocked." },
     { "ts": "2026-07-03T00:20:00Z", "step": "SF10.4", "event": "fixed", "note": "PARTIAL/WRONG first attempt: made SpectrogramMinimap a static import (still correct + kept), but that alone did NOT fix the blank tracks." },
+    { "ts": "2026-07-04T10:45:00Z", "step": "SF11.7", "event": "done", "note": "Shared decode for stereo: 1-file decode cache inside AudioLoadChannel (sndfile path) - decode all channels once, hand each to its analysis, stash siblings transiently. ch1 open 2665ms -> 1ms; stereo first-load decode ~8.3s -> ~2.9s. Memory-safe (no extra steady-state; cache holds only not-yet-taken siblings for one file). Rebuilt+rebundled; bridge+session 31/0. B2 closed obsolete. Backend restart. Owner verify = gate. Phase 11 complete." },
+    { "ts": "2026-07-04T10:00:00Z", "step": "B2/SF11.7", "event": "planned", "note": "End-to-end profile (real SpectrogramSession): after first load everything is fast (full-view tiles 1222ms/6 tiles cold, 0ms repeat via SF11.2, 0ms after file return via warm LRU); DOMINANT first-load cost = FLAC decode (open-analysis) ~5.6s ch0 + ~2.7s ch1 (stereo decodes the file TWICE). So B2 (persistent STFT cache) targets the wrong thing (STFT already fast+cached) -> CLOSED as obsolete (see backlog). Added SF11.7 (SF-D33): decode a file's PCM once, both channel analyses reuse it so the 2nd channel skips the decode. Owner: close B2, do SF11.7." },
     { "ts": "2026-07-04T09:00:00Z", "step": "SF11.4-11.6", "event": "verified", "note": "Owner verified after restart: 'стало быстро и красиво' (fast AND good-looking). Phase 11 speed/quality complete: SF11.4 display-resolution STFT + SF11.5 bounded-oversample max-pool (quality) + SF11.6 base64 float32 tile transport -> overview 3949ms -> 76ms (~52x) with restored quality. Spectrogram-fixes initiative core work done; remaining items are backlog (B1/B2 optional, B5/B7 minor)." },
     { "ts": "2026-07-03T08:30:00Z", "step": "SF11.6", "event": "done", "note": "Binary tile transport: tile bins now a base64 float32 blob (binsB64) instead of per-bin JSON. Worker EncodeStringBase64 (no FloatToStrF); server passes it through; client decodes with atob -> Float32Array (memoized) in tileToImage (frames[] fallback kept). Profiled overview zoom=10 272ms->76ms (JSON floor gone); payload smaller than JSON too. Cumulative Phase-11: overview 3949ms->76ms (~52x) at restored quality. Protocol binsB64 added; tests updated; vue-tsc + server 31/0 + ui 61/0. Rebuilt+rebundled. Backend restart. Owner verify = gate. Phase 11 core speed/quality work COMPLETE." },
     { "ts": "2026-07-03T07:30:00Z", "step": "SF11.5", "event": "done", "note": "Bounded-oversample max-pool restores overview quality. New EnsureColumnsMaxPooled max-pools K=min(Factor,32) RAW magnitude sub-columns per output column (in-place, magnitude-only), so the frequency interpolation runs once per output column (a naive pool-after-interpolation was 3-5x slower). Profiled overview zoom=10 272ms (vs 3949ms old full-res, ~14x) with peak brightness restored (max~0.10). Rebuilt+rebundled; bridge+session 31/0. Backend restart. Owner verify = gate. Next: SF11.6 binary transport (JSON is still the floor)." },

@@ -112,6 +112,12 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   transient-preserving overview close to the old full-res look, at a fraction of the cost. Since
   JSON emit is now the floor (~500 ms/tile), the extra FFTs are ~free. Adaptive: shallow zoom
   (`Factor ≤ KMAX`) computes the whole bucket (full quality). *(Owner 2026-07-03, agreed.)*
+- **SF-D33 — Shared decode for stereo (Phase 11, SF11.7).** End-to-end profile: after first load
+  everything is fast (tiles 0.4–1.2 s, repeat/return 0 ms via SF11.2 + warm LRU); the first-load
+  bottleneck is the FLAC **decode** (~2.7–5.6 s/channel), and stereo decodes the file TWICE (once
+  per channel analysis: ~8.3 s total). Fix: decode a file's PCM once and let both channel analyses
+  reuse it, so the 2nd channel skips the FLAC decode. B2 closed as obsolete (decode, not STFT, is
+  the bottleneck). *(Owner 2026-07-04, agreed.)*
 - **SF-D32 — Binary tile transport (Phase 11, speed — promotes backlog B4).** JSON float
   serialization (`FloatToStrF` per value, ~500 ms/tile) is the real remaining bottleneck (compute
   is now negligible). Send tile bins as a float32 blob instead of JSON text → the actual perceived
@@ -309,6 +315,10 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   magnitude of K=min(Factor,32) sub-columns per output column (interpolate once per output column).
   Overview zoom=10 272ms (old full-res 3949ms, ~14×) with peak brightness restored. bridge+session
   31/0. *Owner UI verify pending.*
+- [x] **SF11.7 — Shared decode for stereo (SF-D33).** 1-file decode cache in `AudioLoadChannel`
+  (sndfile path): decode all channels once, hand each to its analysis, stash siblings transiently
+  (memory-safe). ch1 open 2665ms → 1ms; stereo first-load decode ~8.3s → ~2.9s. bridge+session
+  31/0. *Owner UI verify pending.*
 - [x] **SF11.6 — Binary tile transport (SF-D32).** Tile bins as a base64 float32 blob (`binsB64`)
   instead of per-bin JSON — no `FloatToStrF`/number JSON at any hop. Worker `EncodeStringBase64`,
   server pass-through, client `atob`→Float32Array in `tileToImage`. Overview zoom=10 272→76ms
@@ -382,11 +392,11 @@ SF11.4 (display-resolution STFT) results are verified. *(Owner request 2026-07-0
   existing tile-accumulate pipeline; `oversample` folds into the tile cache key; cancel stale
   refinements via `viewSeq`. Expose as a **setting** (toggle "refine on idle"; off = fast-only).
   *Revisit after SF11.4 — may be unnecessary if the fast pass already looks good enough.*
-- **B2 — Bounded persistent per-frame STFT cache (Audacity SpecCache-style).** Cache computed
-  full-res frames by frame index (LRU + memory budget) so overlapping pans / different zoom levels
-  don't recompute the same frames; a middle ground between Opt C (recompute-all) and the old eager
-  full matrix (OOM). Alternative/complement to SF11.4; revisit if fresh-region first-gen still
-  matters after SF11.4.
+- **B2 — Bounded persistent per-frame STFT cache (Audacity SpecCache-style). ❌ CLOSED as obsolete
+  (2026-07-04).** Superseded by SF11.4–11.6 + SF11.2: tile compute is now fast (overview 76 ms) and
+  boundary-aligned tiles already reuse across pans via the SF11.2 cache; an end-to-end profile
+  showed the real first-load bottleneck is the FLAC **decode** (~2.7–5.6 s/channel), which B2 does
+  not touch. Building B2 = complexity + OOM risk for ~0 gain. Real lever = SF11.7 (shared decode).
 - **B3 — Detail-level setting granularity.** Fast / Balanced / High oversample levels (vs a single
   constant) for B1's refined pass. UI/UX decision, deferred.
 - **B4 — Binary tile transport.** Send tiles as a float32 blob instead of JSON floats to cut
