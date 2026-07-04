@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-04T14:55:00Z",
+  "updatedAt": "2026-07-04T15:20:00Z",
   "decisions": [
     { "id": "SF-D1", "text": "Scope & process: 3 items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green each step. Code in GnauralCore; ledger in MindWaveCore." },
     { "id": "SF-D2", "text": "Loading indicator: surface worker/tile loading in SpectrogramView as an overlay spinner driven by spec.loading (analysis open + tiles pending); keep audio.spectrogramLoading (decode) in AudioPage so an indicator covers the whole prepare span (decode -> open -> first tiles)." },
@@ -627,6 +627,7 @@
     }
   ],
   "log": [
+    { "ts": "2026-07-04T15:20:00Z", "step": "SF11.8", "event": "fixed", "note": "BUG (owner: switching preset to ffmpeg -> 'no open analysis to reconfigure', though a spectrum still draws). Root cause = B7 regression: the minimap REUSES the primary track's analysis (same analysisId via the warm-LRU key) but had its OWN reconfigure watch; a preset switch fires reconfigure from both the track and the minimap on the same id, and reconfigure = close+reopen-with-a-NEW-id (deletes the old), so whichever fires second throws. Fix: the minimap no longer reconfigures — on a params change it RE-OPENS (openForPath) with the new params; the server serializes per session so the track reconfigures first (150ms debounce) and the minimap re-open (300ms) reuses the reconfigured analysis via findByKey (no id conflict, no duplicate). vue-tsc + ui 63/0." },
     { "ts": "2026-07-04T14:55:00Z", "step": "SF13", "event": "done", "note": "Phase 13 done in one data-driven rewrite of SpectrogramSettingsPanel: SF13.1 3 Audacity groups (Масштаб/Цвет/FFT-фильтр); SF13.2 localized dropdown VALUES (nested audio.spectrogram*Opt namespaces incl 24 window funcs, en/ru); SF13.3 per-field '?' help icon (q-menu) with bilingual help text (17 params). vue-tsc + prod build + bun 63/0. UI-only. Owner verify = gate." },
     { "ts": "2026-07-04T14:00:00Z", "step": "SF13", "event": "planned", "note": "Owner added Phase 13 (settings panel Audacity parity): SF13.1 regroup into Масштаб/Цвет/FFT-фильтр (SF-D35); SF13.2 i18n for parameter VALUES / dropdown options (SF-D36); SF13.3 per-parameter '?' help icon + bilingual help text (SF-D37). Executing. (Push: all repos already in sync; SF12.1 FFT bug already done in a prior session.)" },
     { "ts": "2026-07-01T18:55:00Z", "step": "SF0.1", "event": "done", "note": "Spectrogram-fixes plan + ledger created. 3 items: (1) loading indicator during prepare; (2) fix only-last-frame render (tiles don't accumulate; owner repro = on open, one-tile strip runs L->R, only last stays); (3) settings side panel -> overlay named 'Параметры' (no main-content resize). Decisions SF-D1..SF-D5 drafted; next = SF0.2 approval gate." },
