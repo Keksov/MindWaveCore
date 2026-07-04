@@ -315,6 +315,10 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   magnitude of K=min(Factor,32) sub-columns per output column (interpolate once per output column).
   Overview zoom=10 272ms (old full-res 3949ms, ~14×) with peak brightness restored. bridge+session
   31/0. *Owner UI verify pending.*
+- [x] **SF11.8 — Minimap spectrogram thumbnail (backlog B7).** The bottom minimap renders a
+  whole-clip spectrogram thumbnail (its own `useSpectrogram`, fixed whole-clip view; reuses the
+  primary track's warm analysis + tile cache, so ~free) behind the draggable navigator. UI-only;
+  `vue-tsc` + build + ui 61/0.
 - [x] **SF11.7 — Shared decode for stereo (SF-D33).** 1-file decode cache in `AudioLoadChannel`
   (sndfile path): decode all channels once, hand each to its analysis, stash siblings transiently
   (memory-safe). ch1 open 2665ms → 1ms; stereo first-load decode ~8.3s → ~2.9s. bridge+session
@@ -407,9 +411,8 @@ SF11.4 (display-resolution STFT) results are verified. *(Owner request 2026-07-0
   full-res (current/planned — see SF-D30). Minor UX call.
 - **B6 — Tile-cache tuning.** Revisit `TILE_CACHE_MAX_PER_ANALYSIS` / the memory budget once tiles
   become cheaper/smaller with SF11.4.
-- **B7 — Minimap spectrogram thumbnail (SF10.4 follow-up).** Render an actual low-res spectrogram in
-  the bottom minimap overview (needs a dedicated low-zoom tile fetch), instead of the plain
-  navigator bar.
+- **B7 — Minimap spectrogram thumbnail (SF10.4 follow-up). ✅ DONE as SF11.8 (2026-07-04).** The
+  bottom minimap now renders a whole-clip spectrogram thumbnail behind the navigator.
 - **B8 — Worker robustness / hardening.** The GUI-subsystem worker pops dialogs on unhandled
   exceptions and doesn't drive cleanly over a raw stdio pipe (hit during SF6.1 + SF11.3 profiling);
   consider a console-subsystem build or a global exception handler for cleaner profiling/ops.

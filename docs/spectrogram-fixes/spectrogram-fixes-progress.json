@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-04T10:45:00Z",
+  "updatedAt": "2026-07-04T11:30:00Z",
   "decisions": [
     { "id": "SF-D1", "text": "Scope & process: 3 items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green each step. Code in GnauralCore; ledger in MindWaveCore." },
     { "id": "SF-D2", "text": "Loading indicator: surface worker/tile loading in SpectrogramView as an overlay spinner driven by spec.loading (analysis open + tiles pending); keep audio.spectrogramLoading (decode) in AudioPage so an indicator covers the whole prepare span (decode -> open -> first tiles)." },
@@ -234,6 +234,21 @@
       "evidence": [
         "Set DEFAULT_SPECTROGRAM_SETTINGS to Audacity defaults per the owner screenshot: fscale log, startHz 80, stopHz 4000, gain 1 (0 dB), drange 120, frequencyGain 0, data magnitude (Frequencies), window 2048, winFunc hann, zeroPaddingFactor 2, scale log. Changed from prior defaults: zeroPaddingFactor 1->2, startHz 0->80, stopHz 0->4000, palette intensity->rainbow. Aligned the 'audacity' preset to match. vue-tsc clean; bun 61/0.",
         "NOTES: (1) palette = 'rainbow' is our closest COLOURED option to Audacity's 'Color (pink)' — we don't have the exact Audacity pink colormap. (2) Existing localStorage settings override defaults, so a user with saved settings must Reset / pick the Audacity preset to see the new defaults."
+      ]
+    },
+    {
+      "id": "SF11.8",
+      "phase": 11,
+      "title": "Minimap spectrogram thumbnail (backlog B7)",
+      "status": "done",
+      "dependsOn": ["SF10.4", "SF11.6"],
+      "artifacts": ["GnauralCore/ui/components/SpectrogramMinimap.vue", "GnauralCore/ui/pages/AudioPage.vue"],
+      "verify": "the bottom minimap shows a whole-clip spectrogram thumbnail behind the navigator; reuses the primary track's warm analysis; vue-tsc + build + ui green; owner verify",
+      "startedAt": "2026-07-04T11:00:00Z", "finishedAt": "2026-07-04T11:30:00Z", "blockedReason": null,
+      "evidence": [
+        "SpectrogramMinimap gained its own useSpectrogram: openForPath(props.filePath) + applyMinimapView() sets a FIXED whole-clip view at a minimap-width zoom (viewportZoomTier, viewBinCount ~= minimap height) -> one overview fetch (per file/params/width), not tied to the interactive view. draw() renders spec.tiles as the thumbnail behind the dim/window/ticks navigator (tileToImage + offscreen drawImage positioned by tile time), falling back to the plain baseline until tiles arrive. reconfigure on analysis-param change; close on unmount.",
+        "AudioPage passes :file-path, :analysis=spectrogramTracks[0].analysis (primary channel), :render. Because the params match the first track, the server's SF11.2 findByKey REUSES the primary track's warm analysis (same analysisId) -> no extra analysis/decode (SF11.7 shared decode also applies), and the overview tile is cached (SF11.2). So the thumbnail is near-free.",
+        "UI-only. vue-tsc clean; GnauralCore ui 61/0; prod build succeeds. Closes backlog B7. Owner UI verify = the gate."
       ]
     },
     {
@@ -567,6 +582,7 @@
     { "ts": "2026-07-02T04:20:00Z", "step": "SF7", "event": "planned", "note": "Owner added Phase 7: SF7.1 immediate tracks + Audacity-style load-progress dialog overlay (SF-D12); SF7.2 track-height resize without full recompute (SF-D13, options a/b/c - owner to choose); SF7.3 cache spectrograms across file switches (SF-D14, LRU of lazy open analyses). Awaiting owner choice on SF-D13 then go." },
     { "ts": "2026-07-02T04:30:00Z", "step": "SF-D13", "event": "decided", "note": "Owner chose option (b): never recompute on resize -> fixed viewBinCount decoupled from track height; height resize scales the raster only (setView no-op guard skips refetch). SF7.2 unblocked." },
     { "ts": "2026-07-03T00:20:00Z", "step": "SF10.4", "event": "fixed", "note": "PARTIAL/WRONG first attempt: made SpectrogramMinimap a static import (still correct + kept), but that alone did NOT fix the blank tracks." },
+    { "ts": "2026-07-04T11:30:00Z", "step": "SF11.8", "event": "done", "note": "Backlog B7 done: the bottom minimap now renders a whole-clip spectrogram thumbnail behind the navigator. Own useSpectrogram, fixed whole-clip view at minimap-width zoom; AudioPage passes the primary track's analysis so the server reuses its warm analysis (no extra decode/analysis; overview tile cached) -> near-free. UI-only; vue-tsc + build + ui 61/0. B7 marked done in backlog. Owner verify = gate." },
     { "ts": "2026-07-04T10:45:00Z", "step": "SF11.7", "event": "done", "note": "Shared decode for stereo: 1-file decode cache inside AudioLoadChannel (sndfile path) - decode all channels once, hand each to its analysis, stash siblings transiently. ch1 open 2665ms -> 1ms; stereo first-load decode ~8.3s -> ~2.9s. Memory-safe (no extra steady-state; cache holds only not-yet-taken siblings for one file). Rebuilt+rebundled; bridge+session 31/0. B2 closed obsolete. Backend restart. Owner verify = gate. Phase 11 complete." },
     { "ts": "2026-07-04T10:00:00Z", "step": "B2/SF11.7", "event": "planned", "note": "End-to-end profile (real SpectrogramSession): after first load everything is fast (full-view tiles 1222ms/6 tiles cold, 0ms repeat via SF11.2, 0ms after file return via warm LRU); DOMINANT first-load cost = FLAC decode (open-analysis) ~5.6s ch0 + ~2.7s ch1 (stereo decodes the file TWICE). So B2 (persistent STFT cache) targets the wrong thing (STFT already fast+cached) -> CLOSED as obsolete (see backlog). Added SF11.7 (SF-D33): decode a file's PCM once, both channel analyses reuse it so the 2nd channel skips the decode. Owner: close B2, do SF11.7." },
     { "ts": "2026-07-04T09:00:00Z", "step": "SF11.4-11.6", "event": "verified", "note": "Owner verified after restart: 'стало быстро и красиво' (fast AND good-looking). Phase 11 speed/quality complete: SF11.4 display-resolution STFT + SF11.5 bounded-oversample max-pool (quality) + SF11.6 base64 float32 tile transport -> overview 3949ms -> 76ms (~52x) with restored quality. Spectrogram-fixes initiative core work done; remaining items are backlog (B1/B2 optional, B5/B7 minor)." },
