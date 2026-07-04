@@ -112,6 +112,21 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   transient-preserving overview close to the old full-res look, at a fraction of the cost. Since
   JSON emit is now the floor (~500 ms/tile), the extra FFTs are ~free. Adaptive: shallow zoom
   (`Factor ≤ KMAX`) computes the whole bucket (full quality). *(Owner 2026-07-03, agreed.)*
+- **SF-D34 — Fix the TSpecFft real-FFT mirror bug (Phase 12).** `TSpecFft.RealFFTf` +
+  `ReorderToFreq` (`SpectrumCore/src/core/SpectrumCoreFft.pas`, ported from Audacity `hfft.cpp`)
+  produce a spurious mirror peak at bin `N/2−k` for a real cosine at bin `k` — up to ~80 % of the
+  true peak, bin-dependent — folding the magnitude spectrum about `N/4`. Also affects
+  `SpectrumCoreStft.pas` (same `RealFFTf`+`ReorderToFreq`+`Sqrt(re²+im²)` pattern) and anything
+  built on it. **SCOPE NOTE — independent of the spectrogram work:** the MindWave spectrogram
+  worker uses the **FFTW** path (`TFftwAnalysis` / `fftwf_*`), which is NOT affected; this is a
+  distinct SpectrumCore core bug (surfaced by the SoundCore voice engine, worked around there by
+  band-limiting ≤10 kHz). Root-cause hypotheses (per the report): a bit-reversal indexing error in
+  `ReorderToFreq` (`FBitReversed`), or the `RealFFTf` conjugate-symmetric "massage" leaving the
+  negative-freq half where the positive half is read; compare bin-by-bin against the original
+  Audacity `RealFFTf`/`ReorderToFreq` for a transcription error. Verify with the report's 10 cases
+  (cosine/sine sweep, impulse, DC, Nyquist, two-tone, FFTW/NumPy reference match < 1e-3, Parseval,
+  inverse round-trip) across `N ∈ {256,512,1024,2048,4096}`; **clean = every non-signal bin < 0.1 %
+  of the true peak**. Ref: `SpectrumCore/TSPECFFT-MIRROR-BUG.md`. *(Owner addition 2026-07-04.)*
 - **SF-D33 — Shared decode for stereo (Phase 11, SF11.7).** End-to-end profile: after first load
   everything is fast (tiles 0.4–1.2 s, repeat/return 0 ms via SF11.2 + warm LRU); the first-load
   bottleneck is the FLAC **decode** (~2.7–5.6 s/channel), and stereo decodes the file TWICE (once
@@ -302,6 +317,14 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   analyses warm as an LRU (file+params key; MAX 4 / 1.5 GB samples); reopen reuses → skips
   re-decode; close keeps warm. Contract test updated + reuse test; server 18/0. **PAUSE for owner
   UI verification.**
+
+**Phase 12 — TSpecFft real-FFT mirror bug** *(owner addition 2026-07-04; independent of the FFTW spectrogram path)*
+- [ ] **SF12.1 — Diagnose + fix the TSpecFft mirror bug (SF-D34).** Root-cause `RealFFTf` /
+  `ReorderToFreq` (vs the original Audacity `hfft.cpp`), fix the indexing, and add the 10-case
+  assertion suite (cosine/sine sweep, impulse, DC, Nyquist, two-tone, FFTW reference < 1e-3,
+  Parseval, inverse round-trip) across N ∈ {256..4096}; clean = non-signal bins < 0.1 % of peak.
+  Also covers `SpectrumCoreStft`. SpectrumCore-only; no MindWave rebundle. Ref:
+  `SpectrumCore/TSPECFFT-MIRROR-BUG.md`.
 
 **Phase 11 — i18n, caching fix, tile-generation speed** *(owner addition 2026-07-03)*
 - [x] **SF11.1 — i18n for the Параметры panel (SF-D27).** Localized all field + slider labels in
