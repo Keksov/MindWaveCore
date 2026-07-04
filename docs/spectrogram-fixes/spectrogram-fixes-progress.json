@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-04T11:30:00Z",
+  "updatedAt": "2026-07-04T12:10:00Z",
   "decisions": [
     { "id": "SF-D1", "text": "Scope & process: 3 items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green each step. Code in GnauralCore; ledger in MindWaveCore." },
     { "id": "SF-D2", "text": "Loading indicator: surface worker/tile loading in SpectrogramView as an overlay spinner driven by spec.loading (analysis open + tiles pending); keep audio.spectrogramLoading (decode) in AudioPage so an indicator covers the whole prepare span (decode -> open -> first tiles)." },
@@ -234,6 +234,21 @@
       "evidence": [
         "Set DEFAULT_SPECTROGRAM_SETTINGS to Audacity defaults per the owner screenshot: fscale log, startHz 80, stopHz 4000, gain 1 (0 dB), drange 120, frequencyGain 0, data magnitude (Frequencies), window 2048, winFunc hann, zeroPaddingFactor 2, scale log. Changed from prior defaults: zeroPaddingFactor 1->2, startHz 0->80, stopHz 0->4000, palette intensity->rainbow. Aligned the 'audacity' preset to match. vue-tsc clean; bun 61/0.",
         "NOTES: (1) palette = 'rainbow' is our closest COLOURED option to Audacity's 'Color (pink)' — we don't have the exact Audacity pink colormap. (2) Existing localStorage settings override defaults, so a user with saved settings must Reset / pick the Audacity preset to see the new defaults."
+      ]
+    },
+    {
+      "id": "SF11.9",
+      "phase": 11,
+      "title": "Responsiveness: cross-zoom tile fallback (backlog B1)",
+      "status": "done",
+      "dependsOn": ["SF11.6", "SF11.8"],
+      "artifacts": ["GnauralCore/ui/composables/spectrogram-tiles.ts", "GnauralCore/ui/composables/use-spectrogram.ts", "GnauralCore/ui/composables/spectrogram-tiles.test.ts"],
+      "verify": "on zoom/pan the plot shows instant coarse content (a cached covering tile from another zoom) instead of blank, refined as exact tiles arrive; vue-tsc + ui green",
+      "startedAt": "2026-07-04T11:40:00Z", "finishedAt": "2026-07-04T12:10:00Z", "blockedReason": null,
+      "evidence": [
+        "Owner chose the responsiveness variant of B1 (the original fast->detailed was superseded: SF11.5 made the detailed max-pool the fast default, SF11.6 base64 made it fast). Implemented client-only: SpectrogramTileCache.findBest(scorer) picks the best cached tile by a caller score. assembleVisibleTiles: when the exact-zoom tile (and binCount fallback) is missing, fall back to a cached tile from ANOTHER zoom that fully covers the range (prefer the finest = smallest span), rendered stretched. Final tiles sorted by span DESC so coarse paints under the sharp exact tiles (draw() iterates in order).",
+        "Effect: zoom/pan no longer flashes blank when the exact tiles aren't cached yet — it shows instant coarse content from the whole-clip overview (B7/minimap) or a previous zoom, refined in ~100ms as exact-zoom tiles arrive. No regression: the fallback only triggers when an exact tile is missing AND a covering one is cached; otherwise identical to before. No worker/protocol/server change.",
+        "+2 unit tests (findBest: highest score / null-skip / none; finest-covering preference). vue-tsc clean; GnauralCore ui 63/0 (was 61 + 2). UI-only. Closes backlog B1. Owner UI verify = the gate."
       ]
     },
     {
@@ -582,6 +597,7 @@
     { "ts": "2026-07-02T04:20:00Z", "step": "SF7", "event": "planned", "note": "Owner added Phase 7: SF7.1 immediate tracks + Audacity-style load-progress dialog overlay (SF-D12); SF7.2 track-height resize without full recompute (SF-D13, options a/b/c - owner to choose); SF7.3 cache spectrograms across file switches (SF-D14, LRU of lazy open analyses). Awaiting owner choice on SF-D13 then go." },
     { "ts": "2026-07-02T04:30:00Z", "step": "SF-D13", "event": "decided", "note": "Owner chose option (b): never recompute on resize -> fixed viewBinCount decoupled from track height; height resize scales the raster only (setView no-op guard skips refetch). SF7.2 unblocked." },
     { "ts": "2026-07-03T00:20:00Z", "step": "SF10.4", "event": "fixed", "note": "PARTIAL/WRONG first attempt: made SpectrogramMinimap a static import (still correct + kept), but that alone did NOT fix the blank tracks." },
+    { "ts": "2026-07-04T12:10:00Z", "step": "SF11.9", "event": "done", "note": "Backlog B1 done (responsiveness variant; original fast->detailed superseded by SF11.5/11.6). Client-only cross-zoom tile fallback: assembleVisibleTiles falls back to a cached covering tile from another zoom (rendered stretched, coarse-under-exact) when the exact tile isn't cached -> zoom/pan shows instant coarse content (whole-clip overview / prev zoom) instead of blank, refined in ~100ms. SpectrogramTileCache.findBest + 2 tests. vue-tsc + ui 63/0. No worker/protocol change. Owner verify = gate. Phase 11 + backlog B1/B7 done." },
     { "ts": "2026-07-04T11:30:00Z", "step": "SF11.8", "event": "done", "note": "Backlog B7 done: the bottom minimap now renders a whole-clip spectrogram thumbnail behind the navigator. Own useSpectrogram, fixed whole-clip view at minimap-width zoom; AudioPage passes the primary track's analysis so the server reuses its warm analysis (no extra decode/analysis; overview tile cached) -> near-free. UI-only; vue-tsc + build + ui 61/0. B7 marked done in backlog. Owner verify = gate." },
     { "ts": "2026-07-04T10:45:00Z", "step": "SF11.7", "event": "done", "note": "Shared decode for stereo: 1-file decode cache inside AudioLoadChannel (sndfile path) - decode all channels once, hand each to its analysis, stash siblings transiently. ch1 open 2665ms -> 1ms; stereo first-load decode ~8.3s -> ~2.9s. Memory-safe (no extra steady-state; cache holds only not-yet-taken siblings for one file). Rebuilt+rebundled; bridge+session 31/0. B2 closed obsolete. Backend restart. Owner verify = gate. Phase 11 complete." },
     { "ts": "2026-07-04T10:00:00Z", "step": "B2/SF11.7", "event": "planned", "note": "End-to-end profile (real SpectrogramSession): after first load everything is fast (full-view tiles 1222ms/6 tiles cold, 0ms repeat via SF11.2, 0ms after file return via warm LRU); DOMINANT first-load cost = FLAC decode (open-analysis) ~5.6s ch0 + ~2.7s ch1 (stereo decodes the file TWICE). So B2 (persistent STFT cache) targets the wrong thing (STFT already fast+cached) -> CLOSED as obsolete (see backlog). Added SF11.7 (SF-D33): decode a file's PCM once, both channel analyses reuse it so the 2nd channel skips the decode. Owner: close B2, do SF11.7." },

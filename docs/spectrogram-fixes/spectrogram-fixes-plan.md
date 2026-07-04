@@ -315,6 +315,10 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   magnitude of K=min(Factor,32) sub-columns per output column (interpolate once per output column).
   Overview zoom=10 272ms (old full-res 3949ms, ~14×) with peak brightness restored. bridge+session
   31/0. *Owner UI verify pending.*
+- [x] **SF11.9 — Responsiveness: cross-zoom tile fallback (backlog B1).** When an exact-zoom tile
+  isn't cached yet, `assembleVisibleTiles` falls back to a cached covering tile from another zoom
+  (rendered stretched, coarse-under-exact), so zoom/pan shows instant coarse content instead of
+  blank. Client-only; `SpectrogramTileCache.findBest` + a unit test; vue-tsc + ui 63/0.
 - [x] **SF11.8 — Minimap spectrogram thumbnail (backlog B7).** The bottom minimap renders a
   whole-clip spectrogram thumbnail (its own `useSpectrogram`, fixed whole-clip view; reuses the
   primary track's warm analysis + tile cache, so ~free) behind the draggable navigator. UI-only;
@@ -388,14 +392,13 @@ Ideas raised during the Phase 11 speed work that were set aside — kept here so
 None are committed; **each requires later discussion** and may be dropped or reshaped after the
 SF11.4 (display-resolution STFT) results are verified. *(Owner request 2026-07-03.)*
 
-- **B1 — Progressive two-level rendering (owner's idea).** Draw the fast display-res raster first
-  (SF11.4), then on a UI idle-timeout (~300–400 ms) compute a more detailed pass in the background
-  and swap the image. Key refinement: the detailed pass should be a **bounded oversample** (≈4–8
-  FFTs/column, max-pooled to the column) — NOT full hop resolution — so it stays O(display width),
-  not O(clip length) (overview refine ≈ 168×8 ≈ 1.3k FFTs ≈ ~30 ms, vs 171144 / ~3.9 s). Reuses the
-  existing tile-accumulate pipeline; `oversample` folds into the tile cache key; cancel stale
-  refinements via `viewSeq`. Expose as a **setting** (toggle "refine on idle"; off = fast-only).
-  *Revisit after SF11.4 — may be unnecessary if the fast pass already looks good enough.*
+- **B1 — Progressive two-level rendering (owner's idea). ✅ DONE as SF11.9 (responsiveness variant,
+  2026-07-04).** The original "fast → detailed" was superseded by SF11.5 (the detailed max-pool is
+  already the fast default) + SF11.6 (base64). Owner chose the responsiveness variant: instead of a
+  second worker pass, the client now falls back to a cached covering tile from another zoom tier
+  (e.g. the whole-clip overview / minimap tile) rendered stretched, so zoom/pan shows instant coarse
+  content instead of going blank, refined as the exact-zoom tiles arrive. Client-only, no
+  worker/protocol change.
 - **B2 — Bounded persistent per-frame STFT cache (Audacity SpecCache-style). ❌ CLOSED as obsolete
   (2026-07-04).** Superseded by SF11.4–11.6 + SF11.2: tile compute is now fast (overview 76 ms) and
   boundary-aligned tiles already reuse across pans via the SF11.2 cache; an end-to-end profile
