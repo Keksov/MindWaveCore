@@ -353,13 +353,13 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   UI verification.**
 
 **Phase 14 — Channel params cleanup** *(owner addition 2026-07-04)*
-- [ ] **SF14.1 — "Channel mode": remove or implement (SF-D38).** Investigation done (it's a no-op,
-  echoed only; L/R split is UI-driven). *Blocked on owner decision: remove the field vs implement
-  a real combined/separate mode.* Verify per the chosen path.
-- [ ] **SF14.2 — "Channel" → Left/Right select (SF-D39).** Localized Left/Right (value 0/1) instead
-  of a raw number. Verify `vue-tsc` + `bun`.
-- [ ] **SF14.3 — Audit all parameters for real use (SF-D40).** Per-parameter verdict (used / partial
-  / no-op with code path) across analysis + render params; propose remove/wire/fix for dead ones.
+- [x] **SF14.1 — "Channel mode": removed (SF-D38).** Confirmed no-op; removed the dead field from
+  the panel (kept the harmless model default). `vue-tsc` + bun 63/0.
+- [x] **SF14.2 — "Channel" → Left/Right select (SF-D39).** Localized Left/Right (value 0/1).
+  `vue-tsc` + bun 63/0.
+- [x] **SF14.3 — Audit all parameters for real use (SF-D40).** All used except `mode` (dead, removed)
+  and `overlap` (effectively dead — `hop` always wins). *Open: owner decision on `overlap` (remove
+  slider vs make it the control).*
 
 **Phase 13 — Settings panel: Audacity parity** *(owner addition 2026-07-04)*
 - [x] **SF13.1 — Audacity-style parameter grouping (SF-D35).** Data-driven rewrite into Масштаб /

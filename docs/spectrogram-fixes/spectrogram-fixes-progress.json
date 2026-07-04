@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-04T15:55:00Z",
+  "updatedAt": "2026-07-04T16:20:00Z",
   "decisions": [
     { "id": "SF-D1", "text": "Scope & process: 3 items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green each step. Code in GnauralCore; ledger in MindWaveCore." },
     { "id": "SF-D2", "text": "Loading indicator: surface worker/tile loading in SpectrogramView as an overlay spinner driven by spec.loading (analysis open + tiles pending); keep audio.spectrogramLoading (decode) in AudioPage so an indicator covers the whole prepare span (decode -> open -> first tiles)." },
@@ -247,34 +247,40 @@
       "id": "SF14.1",
       "phase": 14,
       "title": "Channel mode: remove or implement",
-      "status": "blocked",
+      "status": "done",
       "dependsOn": ["SF13.1"],
-      "artifacts": ["GnauralCore/ui/components/SpectrogramSettingsPanel.vue", "GnauralCore/ui/composables/spectrogram-settings.ts"],
+      "artifacts": ["GnauralCore/ui/components/SpectrogramSettingsPanel.vue"],
       "verify": "per the owner-chosen path (remove the field, or implement a real combined/separate mode)",
-      "blockedReason": "Investigation done (mode is a no-op, echoed only; L/R split is UI-driven). Awaiting owner decision: remove vs implement.",
-      "startedAt": null, "finishedAt": null, "evidence": [
-        "INVESTIGATED: worker parses 'mode' -> Config.ChannelMode (SpectrumCoreFftwWorkerProbe.pas:1197) and only echoes it (AnalysisChannelModeName in responses / matrix manifest); the STFT ignores it and analyses the single ChannelIdx. AudioPage does the L/R split by opening channel 0 + channel 1 (spectrogramLeftAnalysis/spectrogramRightAnalysis), independent of mode. So 'Combined' draws both channels because the UI splits, not because mode does anything."
+      "blockedReason": null,
+      "startedAt": "2026-07-04T16:00:00Z", "finishedAt": "2026-07-04T16:20:00Z", "evidence": [
+        "INVESTIGATED: worker parses 'mode' -> Config.ChannelMode (SpectrumCoreFftwWorkerProbe.pas:1197) and only echoes it (AnalysisChannelModeName in responses / matrix manifest); the STFT ignores it and analyses the single ChannelIdx. AudioPage does the L/R split by opening channel 0 + channel 1, independent of mode. So 'Combined' draws both channels because the UI splits, not because mode does anything.",
+        "RESOLUTION (owner 'go' + recommendation): REMOVED the 'Channel mode' field from the panel (dead control). Kept the model field `mode` (defaulted 'combined', harmlessly sent+echoed) to avoid a protocol/store ripple; a full protocol removal can be a follow-up. Removed the now-unused SPECTROGRAM_CHANNEL_MODES import. vue-tsc + bun 63/0."
       ]
     },
     {
       "id": "SF14.3",
       "phase": 14,
       "title": "Audit all parameters for real use",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": ["SF3.1"],
       "artifacts": ["SpectrumCore worker", "GnauralCore server + ui (render)", "spectrogram-fixes ledger (findings)"],
       "verify": "per-parameter verdict (used / partial / no-op with code path) for all analysis + render params; a remove/wire/fix proposal for each dead one; owner reviews",
-      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+      "startedAt": "2026-07-04T16:00:00Z", "finishedAt": "2026-07-04T16:20:00Z", "blockedReason": null, "evidence": [
+        "AUDIT (all 18 params). USED: window (FWindowSize), zeroPaddingFactor (FFftLength), hop (FHopSize), channel (FChannelIdx), winFunc (window LUT), data (DataMode), fscale (FrequencyScale), startHz/stopHz (EffectiveStart/StopFrequencyHz) -> all traced into the worker STFT. RENDER params scale/gain/frequencyGain/drange/limit/saturation/palette all consumed in spectrogram-render.ts (magnitudeToScaled + paletteColor + frequencyGainFactor). saturation confirmed (rainbow HSV saturation).",
+        "DEAD/NO-OP found: (1) mode -> echoed only, never affects the STFT (removed from the panel, SF14.1). (2) overlap -> EFFECTIVELY DEAD: NormalizeSpectrumAnalysisConfig only derives HopSize from Overlap when HopSize<=0, but the UI always sends hop=512, so overlap is ignored and then RE-COMPUTED from hop (SpectrumCoreAnalysisConfig.pas:381-386). The panel's Overlap slider does nothing while hop is set.",
+        "PROPOSAL for overlap (owner decision): (a) remove the Overlap slider (hop is the real control); OR (b) make overlap the control -> UI sends overlap + hop=0 so the worker derives hop (Audacity/ffmpeg-style). Not applied yet — presented to owner. Everything else confirmed working."
+      ]
     },
     {
       "id": "SF14.2",
       "phase": 14,
       "title": "Channel -> Left/Right select",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": ["SF13.1"],
       "artifacts": ["GnauralCore/ui/components/SpectrogramSettingsPanel.vue", "GnauralCore/ui/i18n/en.json", "GnauralCore/ui/i18n/ru.json"],
       "verify": "the Channel field is a localized Left/Right select (value 0/1); vue-tsc + bun green",
-      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+      "startedAt": "2026-07-04T16:00:00Z", "finishedAt": "2026-07-04T16:20:00Z", "blockedReason": null,
+      "evidence": ["The Channel field is now a localized Left/Right select (channelOptions() -> [{Left,0},{Right,1}]) instead of a raw 0/1 number. i18n spectrogramChannelLeft/Right (en Left/Right, ru Левый/Правый). vue-tsc + bun 63/0. (For stereo this is overridden per track by the SF5.3 split; mainly a clarity change.)"]
     },
     {
       "id": "SF13.1",
@@ -664,6 +670,7 @@
   ],
   "log": [
     { "ts": "2026-07-04T15:40:00Z", "step": "SF14", "event": "planned", "note": "Owner added Phase 14 (channel params): SF14.1 'Channel mode' is a NO-OP (investigation: worker only echoes mode; L/R split is UI-driven) -> owner to decide remove vs implement combined/separate (SF-D38, blocked on decision); SF14.2 'Channel' field -> localized Left/Right select instead of 0/1 (SF-D39). Plan-only ('Добавь в план', no go) — awaiting go + the SF14.1 decision." },
+    { "ts": "2026-07-04T16:20:00Z", "step": "SF14", "event": "done", "note": "Phase 14: SF14.3 audit done -> all params USED except 'mode' (dead, echoed only) and 'overlap' (effectively dead: hop always wins, overlap re-computed from hop). SF14.1 removed the dead 'Channel mode' field (kept the harmless model default). SF14.2 'Channel' -> localized Left/Right select. vue-tsc + bun 63/0. OPEN: owner decision on 'overlap' (remove the slider vs make it the control). UI-only." },
     { "ts": "2026-07-04T15:55:00Z", "step": "SF14.3", "event": "planned", "note": "Owner added SF14.3 (SF-D40): audit ALL spectrogram parameters for real use (motivated by the mode no-op). Trace each analysis param into the worker STFT + each render param into the client render; deliver a per-parameter used/partial/no-op verdict + remove/wire/fix proposals. Plan-only, awaiting go." },
     { "ts": "2026-07-04T15:20:00Z", "step": "SF11.8", "event": "fixed", "note": "BUG (owner: switching preset to ffmpeg -> 'no open analysis to reconfigure', though a spectrum still draws). Root cause = B7 regression: the minimap REUSES the primary track's analysis (same analysisId via the warm-LRU key) but had its OWN reconfigure watch; a preset switch fires reconfigure from both the track and the minimap on the same id, and reconfigure = close+reopen-with-a-NEW-id (deletes the old), so whichever fires second throws. Fix: the minimap no longer reconfigures — on a params change it RE-OPENS (openForPath) with the new params; the server serializes per session so the track reconfigures first (150ms debounce) and the minimap re-open (300ms) reuses the reconfigured analysis via findByKey (no id conflict, no duplicate). vue-tsc + ui 63/0." },
     { "ts": "2026-07-04T14:55:00Z", "step": "SF13", "event": "done", "note": "Phase 13 done in one data-driven rewrite of SpectrogramSettingsPanel: SF13.1 3 Audacity groups (Масштаб/Цвет/FFT-фильтр); SF13.2 localized dropdown VALUES (nested audio.spectrogram*Opt namespaces incl 24 window funcs, en/ru); SF13.3 per-field '?' help icon (q-menu) with bilingual help text (17 params). vue-tsc + prod build + bun 63/0. UI-only. Owner verify = gate." },
