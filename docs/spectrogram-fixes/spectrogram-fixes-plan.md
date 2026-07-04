@@ -494,6 +494,61 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   it prepares instead of showing the stale message; `audio.noSpectrogram` wording refreshed
   (SF-D6). `vue-tsc` clean; GnauralCore bun 56/0.
 
+## Phase 16 — Audacity parameter/UX parity, round 2 *(owner addition 2026-07-05)*
+Six owner requests to bring the settings panel, palettes, zoom, keyboard nav, look, and time
+ruler closer to Audacity. **Not yet approved — awaiting `go`.** Two carry open questions
+(flagged below); the rest are locked characterizations.
+
+- [ ] **SF16.1 — Numeric-input (spinbox) fields for the render dials (SF-D44).** Replace the
+  sliders for **Усиление / Динамический диапазон / Порог / Частотное усиление / Насыщенность**
+  (`gain`, `drange`, `limit`, `frequencyGain`, `saturation`) with number-entry fields carrying
+  step +/- arrows (Quasar `q-input type="number"` already renders spin controls; alternative =
+  a compact field with explicit +/- buttons + keyboard ↑/↓). Client-only render dials
+  ([spectrogram-render.ts](../../../GnauralCore/ui/composables/spectrogram-render.ts) /
+  [SpectrogramSettingsPanel.vue](../../../GnauralCore/ui/components/SpectrogramSettingsPanel.vue)),
+  no worker change. **OPEN QUESTION — "default 0" cannot apply literally to all five:** our
+  `gain` is a linear *multiplier* (1 = neutral; 0 = silence) and `drange`/`saturation` of 0 are
+  degenerate (blank image). To make "default 0" meaningful I'd switch **gain → dB** (0 dB
+  neutral, `mult = 10^(dB/20)`) and **frequencyGain** is already dB/dec (0 neutral) and
+  **limit** already 0 dBFS — those three get default 0. `drange` stays 120 dB, `saturation`
+  stays 1 (Audacity has no saturation). Confirm this mapping, or specify defaults per field.
+- [ ] **SF16.2 — Full Audacity palette set (SF-D45).** Add the four Audacity color schemes and
+  label them per the owner: **Розовый** = Audacity *Color (default/New)* — port the exact
+  `specColormap[256][3]` LUT from `SpectrumCore/lib/vendor/audacity/3.7.8/libraries/lib-theme/AColorResources.h`
+  (magma-like pink→orange→yellow); **Классика** = *Color (classic)* HSV blue→red (≈ our current
+  `rainbow`); **Оттенки серого** = *Grayscale* (our current `intensity`); **Инверсия оттенков
+  серого** = *Inverse grayscale* (`1 − v`). Extend `SpectrogramPalette` + `paletteColor()` +
+  `SPECTROGRAM_PALETTES` + the palette i18n options + the coverage test. Client-only. Розовый
+  becomes the palette that makes our screenshot match Audacity's look (feeds SF16.5).
+- [ ] **SF16.3 — Zoom preset popover (SF-D46).** A zoom control that opens on **right-click**
+  (Windows context-menu; on macOS = Ctrl-click / right-click, same handler) offering presets
+  **×1 ×2 ×3 ×4 ×8 ×16** plus a **% field** that both shows the current zoom and accepts an
+  exact value (Illustrator-style). "Zoom" here = the time-axis zoom; ×1/100 % = whole-clip fit,
+  ×N = N× into the clip about the view centre. New small popover component wired to the existing
+  view zoom state in [SpectrogramView.vue](../../../GnauralCore/ui/components/SpectrogramView.vue).
+  **OPEN QUESTION:** confirm ×1 = "fit whole clip" (my assumption) vs ×1 = "1 px per sample".
+- [ ] **SF16.4 — Home/End/arrow keyboard navigation (SF-D47).** Match Audacity: **Home** →
+  view start, **End** → view end, **←/→** → scroll by a step (Audacity: ~one screenful with
+  modifiers; page vs nudge to be pinned from the key table during execution), within the
+  spectrogram focus. Extends the SF15.1 nav (wheel/modifiers) with a keydown handler + tabindex
+  on the canvas. Client-only.
+- [ ] **SF16.5 — Diagnose our-vs-Audacity image difference (SF-D48).** Investigation (owner's
+  two end-of-recording screenshots differ). Known contributor: palette (ours rainbow-green vs
+  Audacity magma-pink) → largely absorbed by SF16.2. Remaining structural differences (Audacity
+  shows stronger vertical transient striations / more visible low-level detail) to be traced to
+  gain/range/gamma mapping, window/overlap, or the display-res max-pool (SF11.5) vs Audacity's
+  per-pixel rendering. Deliverable = a short written finding + any config/render fix it implies
+  (best done **after** SF16.2 so comparison is on the same palette). No code committed under
+  this id beyond what the finding justifies.
+- [ ] **SF16.6 — Denser time ruler with minor ticks (SF-D49).** Rework the time axis in
+  `SpectrogramView.drawAxes` to Audacity's density: more frequent labelled marks on a
+  "nice" 1/2/5 step chosen from the visible span + pixel budget, plus short **minor tick**
+  marks between labels (no label). Client-only, draw-layer change.
+
+**Phase 16 ordering (proposed):** SF16.2 → SF16.5 (needs same palette) → SF16.6 → SF16.1 →
+SF16.4 → SF16.3. Each: atomic commit (step-id prefixed, Co-Authored-By), `vue-tsc` + `bun`
+green, **no push**, phase-boundary pause.
+
 ## Backlog — parked ideas (**требует последующего обсуждения**)
 Ideas raised during the Phase 11 speed work that were set aside — kept here so nothing is lost.
 None are committed; **each requires later discussion** and may be dropped or reshaped after the
