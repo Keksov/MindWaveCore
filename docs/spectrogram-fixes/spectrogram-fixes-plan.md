@@ -375,9 +375,10 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   UI verification.**
 
 **Phase 15 — Audacity navigation + channel param** *(owner addition 2026-07-04)*
-- [ ] **SF15.1 — Audacity-style mouse navigation (SF-D42).** Research Audacity's Ctrl/Alt/Shift +
-  wheel/drag gestures (incl. frequency zoom) and implement matching navigation in SpectrogramView.
-  Verify `vue-tsc` + `bun` + owner.
+- [x] **SF15.1 — Audacity-style mouse navigation (SF-D42).** Researched Audacity 3.7.8; implemented:
+  wheel/Ctrl+wheel = time zoom about pointer, Shift+wheel = time pan, **Alt+wheel = frequency zoom**,
+  Alt+Shift+wheel = freq pan, double-click = reset. Added shared frequency-window (new freq-zoom
+  capability). `vue-tsc` + build + bun 63/0. **Phase 15 complete.**
 - [x] **SF15.2 — "Channel" param removed (SF-D43).** Confirmed vestigial (overridden by the L/R
   split); removed from the panel + model. `vue-tsc` + bun 63/0.
 

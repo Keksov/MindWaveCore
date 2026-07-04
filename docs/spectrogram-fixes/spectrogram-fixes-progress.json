@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-04T17:30:00Z",
+  "updatedAt": "2026-07-04T18:20:00Z",
   "decisions": [
     { "id": "SF-D1", "text": "Scope & process: 3 items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green each step. Code in GnauralCore; ledger in MindWaveCore." },
     { "id": "SF-D2", "text": "Loading indicator: surface worker/tile loading in SpectrogramView as an overlay spinner driven by spec.loading (analysis open + tiles pending); keep audio.spectrogramLoading (decode) in AudioPage so an indicator covers the whole prepare span (decode -> open -> first tiles)." },
@@ -264,11 +264,16 @@
       "id": "SF15.1",
       "phase": 15,
       "title": "Audacity-style mouse navigation (Ctrl/Alt/Shift)",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": ["SF8.1"],
-      "artifacts": ["GnauralCore/ui/components/SpectrogramView.vue", "GnauralCore/ui/components/SpectrogramMinimap.vue"],
+      "artifacts": ["GnauralCore/ui/components/SpectrogramView.vue", "GnauralCore/ui/pages/AudioPage.vue"],
       "verify": "Ctrl/Alt/Shift + wheel/drag gestures match Audacity (time zoom/scroll + frequency zoom); gesture table documented; vue-tsc + bun green; owner verify",
-      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+      "startedAt": "2026-07-04T17:35:00Z", "finishedAt": "2026-07-04T18:20:00Z", "blockedReason": null, "evidence": [
+        "RESEARCH: Audacity 3.7.8 MouseWheelHandler.cpp -> track area: plain wheel = vertical scroll, Shift+wheel = horizontal (time) scroll, Ctrl+wheel = time zoom about the pointer. SpectrumVRulerControls.cpp / SpectrumVZoomHandle.cpp -> frequency (vertical) zoom on the freq ruler (Ctrl+wheel over ruler = freq zoom, Shift+wheel = freq scroll; drag = zoom to a freq range, Shift+click = zoom out, reset via menu).",
+        "IMPLEMENTED (mapped onto our single-canvas SpectrogramView): wheel / Ctrl+wheel = TIME zoom about the pointer; Shift+wheel = TIME pan (scroll left/right); Alt+wheel = FREQUENCY zoom about the pointer; Alt+Shift+wheel = FREQUENCY pan (scroll up/down); double-click = reset time + freq to full. Drag = area select, click = seek (unchanged).",
+        "NEW CAPABILITY = frequency zoom. Added a shared FreqWindow {lo,hi} (bin-axis fractions, default full) alongside the time view (AudioPage spectrogramShared.freqView, reset per file). draw() crops each tile vertically to the freq window; drawAxes labels the sliced freq sub-range; point/area queries remap the plot y-fraction through the freq window (freqTopFraction) so the cursor readout + selection stay accurate; a freqView watch redraws (no refetch — pure client crop). Stacked stereo tracks freq-zoom together via the shared window.",
+        "vue-tsc + prod build + GnauralCore ui 63/0. UI-only. Phase 15 complete. Owner UI verify = the gate."
+      ]
     },
     {
       "id": "SF15.2",
@@ -710,6 +715,7 @@
   ],
   "log": [
     { "ts": "2026-07-04T15:40:00Z", "step": "SF14", "event": "planned", "note": "Owner added Phase 14 (channel params): SF14.1 'Channel mode' is a NO-OP (investigation: worker only echoes mode; L/R split is UI-driven) -> owner to decide remove vs implement combined/separate (SF-D38, blocked on decision); SF14.2 'Channel' field -> localized Left/Right select instead of 0/1 (SF-D39). Plan-only ('Добавь в план', no go) — awaiting go + the SF14.1 decision." },
+    { "ts": "2026-07-04T18:20:00Z", "step": "SF15.1", "event": "done", "note": "Audacity-style mouse navigation (researched MouseWheelHandler.cpp + SpectrumVZoomHandle.cpp). Mapped to our single canvas: wheel/Ctrl+wheel=time zoom about pointer, Shift+wheel=time pan, Alt+wheel=FREQ zoom about pointer, Alt+Shift+wheel=freq pan, double-click=reset time+freq. NEW capability = frequency zoom (shared FreqWindow {lo,hi}, tile vertical crop + axis slice + query remap; stereo tracks share it). vue-tsc + build + ui 63/0. Phase 15 complete. Owner verify = gate." },
     { "ts": "2026-07-04T17:30:00Z", "step": "SF15.2", "event": "done", "note": "Removed the vestigial 'Channel' field (overridden by the L/R split): dropped from panel + model (interface/DEFAULT/mergeStoredSettings/toAnalysisParams); L/R split still sets channel 0/1 per track, mono omits it (worker defaults 0). vue-tsc + bun 63/0. Now doing SF15.1 (Audacity navigation)." },
     { "ts": "2026-07-04T17:05:00Z", "step": "SF15", "event": "planned", "note": "Owner added Phase 15: SF15.1 Audacity-style mouse navigation (Ctrl/Alt/Shift + wheel/drag; research Audacity 3.7.8 HandleWheelRotation + SpectrumVZoomHandle first) (SF-D42); SF15.2 the 'Channel' param is vestigial (overridden by the L/R split) -> recommend remove (SF-D43). Plan-only ('Добавь в план', no go) — awaiting go." },
     { "ts": "2026-07-04T16:45:00Z", "step": "SF14.4", "event": "done", "note": "Owner chose variant (b) for the overlap finding: overlap is now the frame-step control (Audacity/ffmpeg style); removed the redundant `hop` field from the model + panel; toAnalysisParams derives hop = max(1, round(window*(1-overlap))). Default unchanged (0.75->512). +2 settings-test updates. vue-tsc + build + ui 63/0. Phase 14 complete." },
