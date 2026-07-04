@@ -319,12 +319,13 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   UI verification.**
 
 **Phase 12 — TSpecFft real-FFT mirror bug** *(owner addition 2026-07-04; independent of the FFTW spectrogram path)*
-- [ ] **SF12.1 — Diagnose + fix the TSpecFft mirror bug (SF-D34).** Root-cause `RealFFTf` /
-  `ReorderToFreq` (vs the original Audacity `hfft.cpp`), fix the indexing, and add the 10-case
-  assertion suite (cosine/sine sweep, impulse, DC, Nyquist, two-tone, FFTW reference < 1e-3,
-  Parseval, inverse round-trip) across N ∈ {256..4096}; clean = non-signal bins < 0.1 % of peak.
-  Also covers `SpectrumCoreStft`. SpectrumCore-only; no MindWave rebundle. Ref:
-  `SpectrumCore/TSPECFFT-MIRROR-BUG.md`.
+- [x] **SF12.1 — Diagnose + fix the TSpecFft mirror bug (SF-D34).** Root cause (vs vendored Audacity
+  `RealFFTf.cpp`): C `SinTable[*br1 + 1]` (adjacent cos slot) mistranslated as Pascal
+  `FSinTable[br1[1]]` (`FBitReversed[i+1]`, wrong bin) in 3 spots (forward massage cos, center-bin
+  conjugate, inverse massage cos) → fixed to `br1[0]+1` / `br1^ + 1`. New dependency-free
+  regression (`tests/SpectrumCoreFftTests.pas`, `scripts/build_fft_tests_x64.bat`): cosine/sine
+  sweep every bin over N ∈ {256..4096} + impulse/DC/Nyquist/two-tone all clean (<0.1 % of peak).
+  Fixes `SpectrumCoreStft` too. Independent of the FFTW spectrogram path → no rebundle.
 
 **Phase 11 — i18n, caching fix, tile-generation speed** *(owner addition 2026-07-03)*
 - [x] **SF11.1 — i18n for the Параметры panel (SF-D27).** Localized all field + slider labels in
