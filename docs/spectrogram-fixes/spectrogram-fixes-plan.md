@@ -122,6 +122,23 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   or (b) IMPLEMENT it — "Combined" = one track mixing both channels, "Separate" = the current L/R
   split (a bigger change: the UI would switch between 1 combined analysis and 2 per-channel ones).
   *(Owner 2026-07-04; awaiting decision + go.)*
+- **SF-D42 — Audacity-style mouse navigation (Ctrl/Alt/Shift + wheel/drag) (Phase 15 item 1).**
+  Match Audacity's track navigation: modifier+mouse combos for time zoom/scroll and frequency
+  (vertical) zoom. RESEARCH FIRST in the vendored Audacity 3.7.8 sources — the wheel scheme is in
+  `src/tracks/ui/CommonTrackPanelCell.cpp` (`HandleWheelRotation`: plain wheel = scroll, Ctrl = time
+  zoom about the pointer, Shift = horizontal scroll, and combos), and vertical/frequency zoom in
+  `SpectrumVZoomHandle.cpp` / `WaveChannelVZoomHandle.cpp` / `SpectrumVRulerControls.cpp` (drag/wheel
+  on the freq ruler). Owner suspects there are modes they don't know — enumerate ALL of Audacity's
+  modifier+mouse gestures, then map them onto our SpectrogramView (currently: wheel = time zoom,
+  drag = area select, click = seek; minimap = pan/zoom). Deliverable = the gesture table + the
+  implementation. *(Owner 2026-07-04; research + go.)*
+- **SF-D43 — "Channel" param is vestigial — clarify/remove (Phase 15 item 2).** Owner: it says "Left"
+  yet both channels draw. INVESTIGATION: the panel `channel` is OVERRIDDEN — AudioPage always opens
+  channel 0 (L) + channel 1 (R) as two tracks (`spectrogramLeftAnalysis`/`spectrogramRightAnalysis`
+  spread `{...analysisParams, channel: 0/1}`), ignoring the panel value; for a mono file only channel
+  0 exists (so "Right" would be invalid). So the panel `channel` field does nothing useful (like the
+  removed `mode`). **Proposal: remove the "Channel" field** (it's decided by the L/R split, not the
+  panel). *(Owner 2026-07-04; recommend remove — awaiting go.)*
 - **SF-D41 — Overlap is the frame-step control; hop derived (Phase 14, variant b) — DECIDED.**
   Owner chose variant (b) from SF-D40: make `overlap` the control (Audacity/ffmpeg style) and DROP
   the redundant `hop` field. `hop` removed from the settings model; `toAnalysisParams` derives it as
@@ -356,6 +373,13 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   analyses warm as an LRU (file+params key; MAX 4 / 1.5 GB samples); reopen reuses → skips
   re-decode; close keeps warm. Contract test updated + reuse test; server 18/0. **PAUSE for owner
   UI verification.**
+
+**Phase 15 — Audacity navigation + channel param** *(owner addition 2026-07-04)*
+- [ ] **SF15.1 — Audacity-style mouse navigation (SF-D42).** Research Audacity's Ctrl/Alt/Shift +
+  wheel/drag gestures (incl. frequency zoom) and implement matching navigation in SpectrogramView.
+  Verify `vue-tsc` + `bun` + owner.
+- [ ] **SF15.2 — "Channel" param: clarify/remove (SF-D43).** Confirmed vestigial (overridden by the
+  L/R split). *Recommend remove; awaiting go.*
 
 **Phase 14 — Channel params cleanup** *(owner addition 2026-07-04)*
 - [x] **SF14.1 — "Channel mode": removed (SF-D38).** Confirmed no-op; removed the dead field from

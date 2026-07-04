@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-04T16:45:00Z",
+  "updatedAt": "2026-07-04T17:05:00Z",
   "decisions": [
     { "id": "SF-D1", "text": "Scope & process: 3 items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green each step. Code in GnauralCore; ledger in MindWaveCore." },
     { "id": "SF-D2", "text": "Loading indicator: surface worker/tile loading in SpectrogramView as an overlay spinner driven by spec.loading (analysis open + tiles pending); keep audio.spectrogramLoading (decode) in AudioPage so an indicator covers the whole prepare span (decode -> open -> first tiles)." },
@@ -21,6 +21,8 @@
     { "id": "SF-D26", "text": "Owner addition 2026-07-02 (Phase 10 item 5): remove the 'Спектрограмма' subtitle (audio.spectrogramTitle, text-subtitle2) shown between the Старт/transport toolbar and the plot in the spectrogram tab." },
     { "id": "SF-D30", "text": "Owner addition 2026-07-03 (Phase 11 item 3, step 2) DESIGN awaiting go: Audacity-style display-resolution STFT. Root cause (measured): the worker computes the FULL-res STFT for a tile's whole span (e.g. 171144 FFTs for a 33-min overview) then max-pools -> cold overview ~3.9s; zoom/pan recompute. Audacity SpecCache::Populate/CalculateOneSpectrum computes ONE windowSize FFT per DISPLAY column at from=where[0]+xx*samplesPerPixel (samplesPerPixel=sampleRate/pixelsPerSecond), so FFT count = display width, independent of clip length -> instant zoom. Plan: add a display-resolution STFT path to the worker (compute emittedColumns FFTs at stride spanSamples/emittedColumns, reuse Opt-B parallel pool + Opt-A magnitude-only, map to viewBinCount display bins, drop full-res EnsureRange+pyramid for zoomed views; zoom0/full-res path unchanged); keep W3 + SF11.2 caches + pan copy-range reuse. Tradeoff accepted: zoomed-out views approximate (skip samples between columns), exactly Audacity's behaviour. Expected cold overview ~3.9s -> <~100ms. Worker rebuild+rebundle+tests+re-profile+UI verify. APPROVAL GATE before implementing." },
     { "id": "SF-D38", "text": "Owner addition 2026-07-04 (Phase 14 item 1): 'Channel mode' (Режим каналов) is a NO-OP. Owner saw 'Combined' yet both channels draw. Investigation: the worker only parses mode -> Config.ChannelMode and echoes it (responses/matrix manifest); it does NOT affect the STFT (always analyses the single ChannelIdx). The stereo L/R split is UI-driven (AudioPage opens channel 0 + channel 1 as two analyses, SF5.3), independent of mode. Owner decision needed: (a) REMOVE the field (matches our always-separate L/R split), or (b) IMPLEMENT it (Combined = one mixed track, Separate = current L/R split; bigger UI change). Awaiting decision + go." },
+    { "id": "SF-D42", "text": "Owner addition 2026-07-04 (Phase 15 item 1): match Audacity's track mouse navigation (Ctrl/Alt/Shift + wheel/drag combos for time zoom/scroll + frequency/vertical zoom). RESEARCH the vendored Audacity 3.7.8 sources first: src/tracks/ui/CommonTrackPanelCell.cpp (HandleWheelRotation: plain wheel=scroll, Ctrl=time zoom about the pointer, Shift=horizontal scroll, + combos), and SpectrumVZoomHandle.cpp / WaveChannelVZoomHandle.cpp / SpectrumVRulerControls.cpp (freq-ruler drag/wheel vertical zoom). Enumerate ALL modifier+mouse gestures, then map onto SpectrogramView (currently wheel=time zoom, drag=area select, click=seek; minimap=pan/zoom). Deliverable = gesture table + implementation. Research + go." },
+    { "id": "SF-D43", "text": "Owner addition 2026-07-04 (Phase 15 item 2): the panel 'Channel' param is VESTIGIAL. Owner: says 'Left' yet both channels draw. Investigation: AudioPage always opens channel 0 (L) + channel 1 (R) as two tracks (spectrogramLeftAnalysis/spectrogramRightAnalysis spread {...analysisParams, channel:0/1}), IGNORING the panel value; a mono file has only channel 0 (so 'Right' is invalid). So the Channel field does nothing useful (like the removed 'mode'). Proposal: REMOVE the Channel field. Recommend remove; awaiting go." },
     { "id": "SF-D41", "text": "Owner addition 2026-07-04 (Phase 14 variant b) DECIDED: overlap is the frame-step control (Audacity/ffmpeg style); drop the redundant hop field. Removed hop from the SpectrogramSettings model; toAnalysisParams derives hop = max(1, round(window * (1 - overlap))) (same formula as the worker's NormalizeSpectrumAnalysisConfig). Default unchanged (overlap 0.75 -> hop 512)." },
     { "id": "SF-D40", "text": "Owner addition 2026-07-04 (Phase 14 item 3): audit ALL spectrogram parameters for real use (motivated by the mode no-op, SF-D38). Trace each analysis param (window, zeroPaddingFactor, hop, overlap, channel, winFunc, data, fscale, startHz, stopHz, mode) into the worker STFT, and each render param (scale, gain, frequencyGain, drange, limit, saturation, palette) into the client tile render. Deliverable = per-parameter verdict (used/partial/no-op + code path) + a proposal (remove/wire/fix) for each dead one. Known suspects: mode (dead), overlap vs hop (redundancy?), limit/saturation (confirm). Awaiting go." },
     { "id": "SF-D39", "text": "Owner addition 2026-07-04 (Phase 14 item 2): change the 'Channel' field from a raw 0/1 number to a localized Left/Right select (value 0/1). Note: for stereo this is overridden per track (L=0, R=1) by the SF5.3 split, so mostly a display/clarity change. Awaiting go." },
@@ -256,6 +258,28 @@
       "startedAt": "2026-07-04T16:00:00Z", "finishedAt": "2026-07-04T16:20:00Z", "evidence": [
         "INVESTIGATED: worker parses 'mode' -> Config.ChannelMode (SpectrumCoreFftwWorkerProbe.pas:1197) and only echoes it (AnalysisChannelModeName in responses / matrix manifest); the STFT ignores it and analyses the single ChannelIdx. AudioPage does the L/R split by opening channel 0 + channel 1, independent of mode. So 'Combined' draws both channels because the UI splits, not because mode does anything.",
         "RESOLUTION (owner 'go' + recommendation): REMOVED the 'Channel mode' field from the panel (dead control). Kept the model field `mode` (defaulted 'combined', harmlessly sent+echoed) to avoid a protocol/store ripple; a full protocol removal can be a follow-up. Removed the now-unused SPECTROGRAM_CHANNEL_MODES import. vue-tsc + bun 63/0."
+      ]
+    },
+    {
+      "id": "SF15.1",
+      "phase": 15,
+      "title": "Audacity-style mouse navigation (Ctrl/Alt/Shift)",
+      "status": "not-started",
+      "dependsOn": ["SF8.1"],
+      "artifacts": ["GnauralCore/ui/components/SpectrogramView.vue", "GnauralCore/ui/components/SpectrogramMinimap.vue"],
+      "verify": "Ctrl/Alt/Shift + wheel/drag gestures match Audacity (time zoom/scroll + frequency zoom); gesture table documented; vue-tsc + bun green; owner verify",
+      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+    },
+    {
+      "id": "SF15.2",
+      "phase": 15,
+      "title": "Channel param: clarify/remove (vestigial)",
+      "status": "not-started",
+      "dependsOn": ["SF14.2"],
+      "artifacts": ["GnauralCore/ui/components/SpectrogramSettingsPanel.vue", "GnauralCore/ui/composables/spectrogram-settings.ts"],
+      "verify": "per owner (recommend remove the Channel field since the L/R split overrides it); vue-tsc + bun green",
+      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": [
+        "INVESTIGATED: AudioPage.vue:771-772 spectrogramLeftAnalysis={...analysisParams, channel:0} / right channel:1 -> the L/R tracks always override the panel channel; mono uses analysisParams (channel 0 only). So the panel 'Channel' field is vestigial (like the removed 'mode'). Recommend remove."
       ]
     },
     {
@@ -685,6 +709,7 @@
   ],
   "log": [
     { "ts": "2026-07-04T15:40:00Z", "step": "SF14", "event": "planned", "note": "Owner added Phase 14 (channel params): SF14.1 'Channel mode' is a NO-OP (investigation: worker only echoes mode; L/R split is UI-driven) -> owner to decide remove vs implement combined/separate (SF-D38, blocked on decision); SF14.2 'Channel' field -> localized Left/Right select instead of 0/1 (SF-D39). Plan-only ('Добавь в план', no go) — awaiting go + the SF14.1 decision." },
+    { "ts": "2026-07-04T17:05:00Z", "step": "SF15", "event": "planned", "note": "Owner added Phase 15: SF15.1 Audacity-style mouse navigation (Ctrl/Alt/Shift + wheel/drag; research Audacity 3.7.8 HandleWheelRotation + SpectrumVZoomHandle first) (SF-D42); SF15.2 the 'Channel' param is vestigial (overridden by the L/R split) -> recommend remove (SF-D43). Plan-only ('Добавь в план', no go) — awaiting go." },
     { "ts": "2026-07-04T16:45:00Z", "step": "SF14.4", "event": "done", "note": "Owner chose variant (b) for the overlap finding: overlap is now the frame-step control (Audacity/ffmpeg style); removed the redundant `hop` field from the model + panel; toAnalysisParams derives hop = max(1, round(window*(1-overlap))). Default unchanged (0.75->512). +2 settings-test updates. vue-tsc + build + ui 63/0. Phase 14 complete." },
     { "ts": "2026-07-04T16:20:00Z", "step": "SF14", "event": "done", "note": "Phase 14: SF14.3 audit done -> all params USED except 'mode' (dead, echoed only) and 'overlap' (effectively dead: hop always wins, overlap re-computed from hop). SF14.1 removed the dead 'Channel mode' field (kept the harmless model default). SF14.2 'Channel' -> localized Left/Right select. vue-tsc + bun 63/0. OPEN: owner decision on 'overlap' (remove the slider vs make it the control). UI-only." },
     { "ts": "2026-07-04T15:55:00Z", "step": "SF14.3", "event": "planned", "note": "Owner added SF14.3 (SF-D40): audit ALL spectrogram parameters for real use (motivated by the mode no-op). Trace each analysis param into the worker STFT + each render param into the client render; deliver a per-parameter used/partial/no-op verdict + remove/wire/fix proposals. Plan-only, awaiting go." },
