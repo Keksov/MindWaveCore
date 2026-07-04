@@ -330,12 +330,12 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   UI verification.**
 
 **Phase 13 — Settings panel: Audacity parity** *(owner addition 2026-07-04)*
-- [ ] **SF13.1 — Audacity-style parameter grouping (SF-D35).** Regroup into Масштаб / Цвет /
-  FFT-фильтр sections. Verify `vue-tsc` + `bun`.
-- [ ] **SF13.2 — i18n for parameter values (SF-D36).** Localized dropdown option labels (en/ru).
-  Verify `vue-tsc` + `bun`.
-- [ ] **SF13.3 — Per-parameter help "?" (SF-D37).** Help icon + bilingual help popover per param.
-  Verify `vue-tsc` + `bun`.
+- [x] **SF13.1 — Audacity-style parameter grouping (SF-D35).** Data-driven rewrite into Масштаб /
+  Цвет / FFT-фильтр groups. `vue-tsc` + bun 63/0.
+- [x] **SF13.2 — i18n for parameter values (SF-D36).** Localized dropdown option labels via nested
+  `audio.spectrogram*Opt` namespaces (incl. 24 window functions), en/ru. `vue-tsc` + bun 63/0.
+- [x] **SF13.3 — Per-parameter help "?" (SF-D37).** `help_outline` icon + q-menu popover per field
+  with bilingual help text (17 params). `vue-tsc` + prod build + bun 63/0. **Phase 13 complete.**
 
 **Phase 12 — TSpecFft real-FFT mirror bug** *(owner addition 2026-07-04; independent of the FFTW spectrogram path)*
 - [x] **SF12.1 — Diagnose + fix the TSpecFft mirror bug (SF-D34).** Root cause (vs vendored Audacity

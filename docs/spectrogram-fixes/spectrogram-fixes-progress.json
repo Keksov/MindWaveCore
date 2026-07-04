@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-04T14:00:00Z",
+  "updatedAt": "2026-07-04T14:55:00Z",
   "decisions": [
     { "id": "SF-D1", "text": "Scope & process: 3 items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green each step. Code in GnauralCore; ledger in MindWaveCore." },
     { "id": "SF-D2", "text": "Loading indicator: surface worker/tile loading in SpectrogramView as an overlay spinner driven by spec.loading (analysis open + tiles pending); keep audio.spectrogramLoading (decode) in AudioPage so an indicator covers the whole prepare span (decode -> open -> first tiles)." },
@@ -244,31 +244,34 @@
       "id": "SF13.1",
       "phase": 13,
       "title": "Audacity-style parameter grouping",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": ["SF3.1"],
       "artifacts": ["GnauralCore/ui/components/SpectrogramSettingsPanel.vue", "GnauralCore/ui/i18n/en.json", "GnauralCore/ui/i18n/ru.json"],
       "verify": "settings panel grouped into Масштаб / Цвет / FFT-фильтр like Audacity; vue-tsc + bun green",
-      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+      "startedAt": "2026-07-04T14:05:00Z", "finishedAt": "2026-07-04T14:55:00Z", "blockedReason": null,
+      "evidence": ["Rewrote SpectrogramSettingsPanel data-driven: a `groups` computed = 3 Audacity-style sections. Масштаб (fscale, startHz, stopHz); Цвет (intensity scale, gain, drange, limit, frequencyGain, saturation, palette); FFT-фильтр (algorithm/data, window, winFunc, zeroPaddingFactor, hop, overlap, channel mode, channel). Each field renders a label-row + the right control (select/number/slider). vue-tsc + bun 63/0."]
     },
     {
       "id": "SF13.2",
       "phase": 13,
       "title": "i18n for parameter values",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": ["SF13.1"],
       "artifacts": ["GnauralCore/ui/components/SpectrogramSettingsPanel.vue", "GnauralCore/ui/i18n/en.json", "GnauralCore/ui/i18n/ru.json"],
       "verify": "dropdown option values localized (en/ru); vue-tsc + bun green",
-      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+      "startedAt": "2026-07-04T14:05:00Z", "finishedAt": "2026-07-04T14:55:00Z", "blockedReason": null,
+      "evidence": ["Dropdown option VALUES localized via nested i18n namespaces (audio.spectrogram*Opt.<value>): fscale (6), intensity scale (6), data/algorithm (5), channel mode (2), palette (2, incl 'Цвет (розовый)'), window functions (24, e.g. Ханна/Хэмминга/Блэкмана). enumOptions()/numberOptions() build {label:t(...),value}; the groups computed re-resolves on locale change. window sizes + zero-pad stay numeric (with 'x'). vue-tsc + bun 63/0."]
     },
     {
       "id": "SF13.3",
       "phase": 13,
       "title": "Per-parameter help icon + text",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": ["SF13.1"],
       "artifacts": ["GnauralCore/ui/components/SpectrogramSettingsPanel.vue", "GnauralCore/ui/i18n/en.json", "GnauralCore/ui/i18n/ru.json"],
       "verify": "a ? icon per parameter opens a bilingual help popover; vue-tsc + bun green",
-      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+      "startedAt": "2026-07-04T14:05:00Z", "finishedAt": "2026-07-04T14:55:00Z", "blockedReason": null,
+      "evidence": ["Each field's label-row has a 'help_outline' q-icon with a q-menu popover showing that parameter's help text (one bilingual key per field, audio.spectrogram*Help; 17 params). Icon has cursor:help, hover highlight, aria-label 'Help for {field}' + tabindex. vue-tsc + prod build + bun 63/0. Phase 13 complete. Owner UI verify = gate."]
     },
     {
       "id": "SF12.1",
@@ -624,6 +627,7 @@
     }
   ],
   "log": [
+    { "ts": "2026-07-04T14:55:00Z", "step": "SF13", "event": "done", "note": "Phase 13 done in one data-driven rewrite of SpectrogramSettingsPanel: SF13.1 3 Audacity groups (Масштаб/Цвет/FFT-фильтр); SF13.2 localized dropdown VALUES (nested audio.spectrogram*Opt namespaces incl 24 window funcs, en/ru); SF13.3 per-field '?' help icon (q-menu) with bilingual help text (17 params). vue-tsc + prod build + bun 63/0. UI-only. Owner verify = gate." },
     { "ts": "2026-07-04T14:00:00Z", "step": "SF13", "event": "planned", "note": "Owner added Phase 13 (settings panel Audacity parity): SF13.1 regroup into Масштаб/Цвет/FFT-фильтр (SF-D35); SF13.2 i18n for parameter VALUES / dropdown options (SF-D36); SF13.3 per-parameter '?' help icon + bilingual help text (SF-D37). Executing. (Push: all repos already in sync; SF12.1 FFT bug already done in a prior session.)" },
     { "ts": "2026-07-01T18:55:00Z", "step": "SF0.1", "event": "done", "note": "Spectrogram-fixes plan + ledger created. 3 items: (1) loading indicator during prepare; (2) fix only-last-frame render (tiles don't accumulate; owner repro = on open, one-tile strip runs L->R, only last stays); (3) settings side panel -> overlay named 'Параметры' (no main-content resize). Decisions SF-D1..SF-D5 drafted; next = SF0.2 approval gate." },
     { "ts": "2026-07-01T19:00:00Z", "step": "SF0.2", "event": "done", "note": "Owner approved ('go'). SF-D2..SF-D5 locked. Proceeding to Phase 1." },
