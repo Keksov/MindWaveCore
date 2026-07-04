@@ -112,6 +112,20 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   transient-preserving overview close to the old full-res look, at a fraction of the cost. Since
   JSON emit is now the floor (~500 ms/tile), the extra FFTs are ~free. Adaptive: shallow zoom
   (`Factor ≤ KMAX`) computes the whole bucket (full quality). *(Owner 2026-07-03, agreed.)*
+- **SF-D38 — "Channel mode" is a no-op — decide remove vs implement (Phase 14 item 1).** Owner:
+  the panel shows "Combined" yet both channels draw. INVESTIGATION: the worker only PARSES `mode`
+  (→ `Config.ChannelMode`) and echoes it back (responses / matrix manifest) — it does NOT affect
+  the STFT, which always analyses the single `ChannelIdx`. The stereo L/R split is UI-driven
+  (AudioPage opens channel 0 + channel 1 as two analyses, SF5.3), independent of `mode`. So the
+  "Режим каналов" field is effectively dead in our per-channel architecture. **Owner decision
+  needed:** (a) REMOVE the field (simplest, matches our Audacity-style always-separate L/R split);
+  or (b) IMPLEMENT it — "Combined" = one track mixing both channels, "Separate" = the current L/R
+  split (a bigger change: the UI would switch between 1 combined analysis and 2 per-channel ones).
+  *(Owner 2026-07-04; awaiting decision + go.)*
+- **SF-D39 — "Channel" as Left/Right, not 0/1 (Phase 14 item 2).** Change the `channel` field from a
+  raw 0/1 number to a localized Left/Right select (value 0/1). NOTE: for stereo this setting is
+  overridden per track (L=0, R=1) by the SF5.3 split; it only bites for the single/primary analysis
+  — so mostly a display/clarity change. *(Owner 2026-07-04; awaiting go.)*
 - **SF-D35 — Settings panel: Audacity-parity grouping (Phase 13 item 1).** Regroup the
   `SpectrogramSettingsPanel` fields into Audacity-style sections (see owner's attach): **Масштаб**
   (freq scale / min Hz / max Hz), **Цвет** (intensity scale, gain, range, limit, HF-boost,
@@ -328,6 +342,13 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   analyses warm as an LRU (file+params key; MAX 4 / 1.5 GB samples); reopen reuses → skips
   re-decode; close keeps warm. Contract test updated + reuse test; server 18/0. **PAUSE for owner
   UI verification.**
+
+**Phase 14 — Channel params cleanup** *(owner addition 2026-07-04)*
+- [ ] **SF14.1 — "Channel mode": remove or implement (SF-D38).** Investigation done (it's a no-op,
+  echoed only; L/R split is UI-driven). *Blocked on owner decision: remove the field vs implement
+  a real combined/separate mode.* Verify per the chosen path.
+- [ ] **SF14.2 — "Channel" → Left/Right select (SF-D39).** Localized Left/Right (value 0/1) instead
+  of a raw number. Verify `vue-tsc` + `bun`.
 
 **Phase 13 — Settings panel: Audacity parity** *(owner addition 2026-07-04)*
 - [x] **SF13.1 — Audacity-style parameter grouping (SF-D35).** Data-driven rewrite into Масштаб /

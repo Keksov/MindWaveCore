@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-04T15:20:00Z",
+  "updatedAt": "2026-07-04T15:40:00Z",
   "decisions": [
     { "id": "SF-D1", "text": "Scope & process: 3 items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green each step. Code in GnauralCore; ledger in MindWaveCore." },
     { "id": "SF-D2", "text": "Loading indicator: surface worker/tile loading in SpectrogramView as an overlay spinner driven by spec.loading (analysis open + tiles pending); keep audio.spectrogramLoading (decode) in AudioPage so an indicator covers the whole prepare span (decode -> open -> first tiles)." },
@@ -20,6 +20,8 @@
     { "id": "SF-D24", "text": "Owner addition 2026-07-02 (Phase 10 item 4) DECIDED: move the timespan selector out of the header to a fixed bar at the very bottom of the spectrogram window (position fixed). Owner chose a FULL minimap-style overview (canvas overview + draggable/resizable visible-window handle) modelled on the schedule view 68px bottom minimap - NOT a relocated q-range slider. Readout moves to a cursor tooltip (SF-D25) so the header holds only buttons." },
     { "id": "SF-D26", "text": "Owner addition 2026-07-02 (Phase 10 item 5): remove the 'Спектрограмма' subtitle (audio.spectrogramTitle, text-subtitle2) shown between the Старт/transport toolbar and the plot in the spectrogram tab." },
     { "id": "SF-D30", "text": "Owner addition 2026-07-03 (Phase 11 item 3, step 2) DESIGN awaiting go: Audacity-style display-resolution STFT. Root cause (measured): the worker computes the FULL-res STFT for a tile's whole span (e.g. 171144 FFTs for a 33-min overview) then max-pools -> cold overview ~3.9s; zoom/pan recompute. Audacity SpecCache::Populate/CalculateOneSpectrum computes ONE windowSize FFT per DISPLAY column at from=where[0]+xx*samplesPerPixel (samplesPerPixel=sampleRate/pixelsPerSecond), so FFT count = display width, independent of clip length -> instant zoom. Plan: add a display-resolution STFT path to the worker (compute emittedColumns FFTs at stride spanSamples/emittedColumns, reuse Opt-B parallel pool + Opt-A magnitude-only, map to viewBinCount display bins, drop full-res EnsureRange+pyramid for zoomed views; zoom0/full-res path unchanged); keep W3 + SF11.2 caches + pan copy-range reuse. Tradeoff accepted: zoomed-out views approximate (skip samples between columns), exactly Audacity's behaviour. Expected cold overview ~3.9s -> <~100ms. Worker rebuild+rebundle+tests+re-profile+UI verify. APPROVAL GATE before implementing." },
+    { "id": "SF-D38", "text": "Owner addition 2026-07-04 (Phase 14 item 1): 'Channel mode' (Режим каналов) is a NO-OP. Owner saw 'Combined' yet both channels draw. Investigation: the worker only parses mode -> Config.ChannelMode and echoes it (responses/matrix manifest); it does NOT affect the STFT (always analyses the single ChannelIdx). The stereo L/R split is UI-driven (AudioPage opens channel 0 + channel 1 as two analyses, SF5.3), independent of mode. Owner decision needed: (a) REMOVE the field (matches our always-separate L/R split), or (b) IMPLEMENT it (Combined = one mixed track, Separate = current L/R split; bigger UI change). Awaiting decision + go." },
+    { "id": "SF-D39", "text": "Owner addition 2026-07-04 (Phase 14 item 2): change the 'Channel' field from a raw 0/1 number to a localized Left/Right select (value 0/1). Note: for stereo this is overridden per track (L=0, R=1) by the SF5.3 split, so mostly a display/clarity change. Awaiting go." },
     { "id": "SF-D35", "text": "Owner addition 2026-07-04 (Phase 13 item 1): regroup SpectrogramSettingsPanel into Audacity-style sections (owner attach): Масштаб (freq scale / min Hz / max Hz), Цвет (intensity scale, gain, range, limit, HF-boost, saturation, palette), FFT-фильтр (algorithm/data, window size, window type, zero-padding, hop, overlap, channel mode, channel)." },
     { "id": "SF-D36", "text": "Owner addition 2026-07-04 (Phase 13 item 2): i18n for parameter VALUES - localize dropdown option labels (window functions, data/algorithm, freq scale, intensity scale, channel mode, palette) like Audacity ('Тип окна: Ханна', 'Алгоритм: Частоты', 'Шкала: Логарифмическая', 'Тема: Цвет (розовый)'), en/ru." },
     { "id": "SF-D37", "text": "Owner addition 2026-07-04 (Phase 13 item 3): a '?' help icon next to each parameter opening a short help popover for that parameter; help text written en/ru." },
@@ -239,6 +241,29 @@
         "Set DEFAULT_SPECTROGRAM_SETTINGS to Audacity defaults per the owner screenshot: fscale log, startHz 80, stopHz 4000, gain 1 (0 dB), drange 120, frequencyGain 0, data magnitude (Frequencies), window 2048, winFunc hann, zeroPaddingFactor 2, scale log. Changed from prior defaults: zeroPaddingFactor 1->2, startHz 0->80, stopHz 0->4000, palette intensity->rainbow. Aligned the 'audacity' preset to match. vue-tsc clean; bun 61/0.",
         "NOTES: (1) palette = 'rainbow' is our closest COLOURED option to Audacity's 'Color (pink)' — we don't have the exact Audacity pink colormap. (2) Existing localStorage settings override defaults, so a user with saved settings must Reset / pick the Audacity preset to see the new defaults."
       ]
+    },
+    {
+      "id": "SF14.1",
+      "phase": 14,
+      "title": "Channel mode: remove or implement",
+      "status": "blocked",
+      "dependsOn": ["SF13.1"],
+      "artifacts": ["GnauralCore/ui/components/SpectrogramSettingsPanel.vue", "GnauralCore/ui/composables/spectrogram-settings.ts"],
+      "verify": "per the owner-chosen path (remove the field, or implement a real combined/separate mode)",
+      "blockedReason": "Investigation done (mode is a no-op, echoed only; L/R split is UI-driven). Awaiting owner decision: remove vs implement.",
+      "startedAt": null, "finishedAt": null, "evidence": [
+        "INVESTIGATED: worker parses 'mode' -> Config.ChannelMode (SpectrumCoreFftwWorkerProbe.pas:1197) and only echoes it (AnalysisChannelModeName in responses / matrix manifest); the STFT ignores it and analyses the single ChannelIdx. AudioPage does the L/R split by opening channel 0 + channel 1 (spectrogramLeftAnalysis/spectrogramRightAnalysis), independent of mode. So 'Combined' draws both channels because the UI splits, not because mode does anything."
+      ]
+    },
+    {
+      "id": "SF14.2",
+      "phase": 14,
+      "title": "Channel -> Left/Right select",
+      "status": "not-started",
+      "dependsOn": ["SF13.1"],
+      "artifacts": ["GnauralCore/ui/components/SpectrogramSettingsPanel.vue", "GnauralCore/ui/i18n/en.json", "GnauralCore/ui/i18n/ru.json"],
+      "verify": "the Channel field is a localized Left/Right select (value 0/1); vue-tsc + bun green",
+      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
     },
     {
       "id": "SF13.1",
@@ -627,6 +652,7 @@
     }
   ],
   "log": [
+    { "ts": "2026-07-04T15:40:00Z", "step": "SF14", "event": "planned", "note": "Owner added Phase 14 (channel params): SF14.1 'Channel mode' is a NO-OP (investigation: worker only echoes mode; L/R split is UI-driven) -> owner to decide remove vs implement combined/separate (SF-D38, blocked on decision); SF14.2 'Channel' field -> localized Left/Right select instead of 0/1 (SF-D39). Plan-only ('Добавь в план', no go) — awaiting go + the SF14.1 decision." },
     { "ts": "2026-07-04T15:20:00Z", "step": "SF11.8", "event": "fixed", "note": "BUG (owner: switching preset to ffmpeg -> 'no open analysis to reconfigure', though a spectrum still draws). Root cause = B7 regression: the minimap REUSES the primary track's analysis (same analysisId via the warm-LRU key) but had its OWN reconfigure watch; a preset switch fires reconfigure from both the track and the minimap on the same id, and reconfigure = close+reopen-with-a-NEW-id (deletes the old), so whichever fires second throws. Fix: the minimap no longer reconfigures — on a params change it RE-OPENS (openForPath) with the new params; the server serializes per session so the track reconfigures first (150ms debounce) and the minimap re-open (300ms) reuses the reconfigured analysis via findByKey (no id conflict, no duplicate). vue-tsc + ui 63/0." },
     { "ts": "2026-07-04T14:55:00Z", "step": "SF13", "event": "done", "note": "Phase 13 done in one data-driven rewrite of SpectrogramSettingsPanel: SF13.1 3 Audacity groups (Масштаб/Цвет/FFT-фильтр); SF13.2 localized dropdown VALUES (nested audio.spectrogram*Opt namespaces incl 24 window funcs, en/ru); SF13.3 per-field '?' help icon (q-menu) with bilingual help text (17 params). vue-tsc + prod build + bun 63/0. UI-only. Owner verify = gate." },
     { "ts": "2026-07-04T14:00:00Z", "step": "SF13", "event": "planned", "note": "Owner added Phase 13 (settings panel Audacity parity): SF13.1 regroup into Масштаб/Цвет/FFT-фильтр (SF-D35); SF13.2 i18n for parameter VALUES / dropdown options (SF-D36); SF13.3 per-parameter '?' help icon + bilingual help text (SF-D37). Executing. (Push: all repos already in sync; SF12.1 FFT bug already done in a prior session.)" },
