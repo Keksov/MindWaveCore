@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-04T13:45:00Z",
+  "updatedAt": "2026-07-04T14:00:00Z",
   "decisions": [
     { "id": "SF-D1", "text": "Scope & process: 3 items -> 3 phases. Per-step atomic commits (step-id prefixed, Co-Authored-By); NO push; phase-boundary pauses; vue-tsc + bun green each step. Code in GnauralCore; ledger in MindWaveCore." },
     { "id": "SF-D2", "text": "Loading indicator: surface worker/tile loading in SpectrogramView as an overlay spinner driven by spec.loading (analysis open + tiles pending); keep audio.spectrogramLoading (decode) in AudioPage so an indicator covers the whole prepare span (decode -> open -> first tiles)." },
@@ -20,6 +20,9 @@
     { "id": "SF-D24", "text": "Owner addition 2026-07-02 (Phase 10 item 4) DECIDED: move the timespan selector out of the header to a fixed bar at the very bottom of the spectrogram window (position fixed). Owner chose a FULL minimap-style overview (canvas overview + draggable/resizable visible-window handle) modelled on the schedule view 68px bottom minimap - NOT a relocated q-range slider. Readout moves to a cursor tooltip (SF-D25) so the header holds only buttons." },
     { "id": "SF-D26", "text": "Owner addition 2026-07-02 (Phase 10 item 5): remove the 'Спектрограмма' subtitle (audio.spectrogramTitle, text-subtitle2) shown between the Старт/transport toolbar and the plot in the spectrogram tab." },
     { "id": "SF-D30", "text": "Owner addition 2026-07-03 (Phase 11 item 3, step 2) DESIGN awaiting go: Audacity-style display-resolution STFT. Root cause (measured): the worker computes the FULL-res STFT for a tile's whole span (e.g. 171144 FFTs for a 33-min overview) then max-pools -> cold overview ~3.9s; zoom/pan recompute. Audacity SpecCache::Populate/CalculateOneSpectrum computes ONE windowSize FFT per DISPLAY column at from=where[0]+xx*samplesPerPixel (samplesPerPixel=sampleRate/pixelsPerSecond), so FFT count = display width, independent of clip length -> instant zoom. Plan: add a display-resolution STFT path to the worker (compute emittedColumns FFTs at stride spanSamples/emittedColumns, reuse Opt-B parallel pool + Opt-A magnitude-only, map to viewBinCount display bins, drop full-res EnsureRange+pyramid for zoomed views; zoom0/full-res path unchanged); keep W3 + SF11.2 caches + pan copy-range reuse. Tradeoff accepted: zoomed-out views approximate (skip samples between columns), exactly Audacity's behaviour. Expected cold overview ~3.9s -> <~100ms. Worker rebuild+rebundle+tests+re-profile+UI verify. APPROVAL GATE before implementing." },
+    { "id": "SF-D35", "text": "Owner addition 2026-07-04 (Phase 13 item 1): regroup SpectrogramSettingsPanel into Audacity-style sections (owner attach): Масштаб (freq scale / min Hz / max Hz), Цвет (intensity scale, gain, range, limit, HF-boost, saturation, palette), FFT-фильтр (algorithm/data, window size, window type, zero-padding, hop, overlap, channel mode, channel)." },
+    { "id": "SF-D36", "text": "Owner addition 2026-07-04 (Phase 13 item 2): i18n for parameter VALUES - localize dropdown option labels (window functions, data/algorithm, freq scale, intensity scale, channel mode, palette) like Audacity ('Тип окна: Ханна', 'Алгоритм: Частоты', 'Шкала: Логарифмическая', 'Тема: Цвет (розовый)'), en/ru." },
+    { "id": "SF-D37", "text": "Owner addition 2026-07-04 (Phase 13 item 3): a '?' help icon next to each parameter opening a short help popover for that parameter; help text written en/ru." },
     { "id": "SF-D34", "text": "Owner addition 2026-07-04 (Phase 12): fix the TSpecFft real-FFT mirror bug. TSpecFft.RealFFTf + ReorderToFreq (SpectrumCore/src/core/SpectrumCoreFft.pas, ported from Audacity hfft.cpp) produce a spurious mirror peak at bin N/2-k for a real cosine at bin k (up to ~80% of the true peak, bin-dependent), folding the magnitude spectrum about N/4; also affects SpectrumCoreStft.pas. SCOPE: INDEPENDENT of the MindWave spectrogram (which uses the FFTW path TFftwAnalysis/fftwf_*, NOT affected); distinct SpectrumCore core bug found by SoundCore (worked around there by band-limiting <=10kHz). Root-cause hypotheses: bit-reversal indexing (FBitReversed) in ReorderToFreq, or the RealFFTf conjugate-symmetric massage; compare bin-by-bin vs original Audacity RealFFTf/ReorderToFreq. Verify: 10 cases (cosine/sine sweep, impulse, DC, Nyquist, two-tone, FFTW/NumPy reference <1e-3, Parseval, inverse round-trip) across N in {256,512,1024,2048,4096}; clean = every non-signal bin < 0.1% of the true peak. Ref: SpectrumCore/TSPECFFT-MIRROR-BUG.md." },
     { "id": "SF-D27", "text": "Owner addition 2026-07-03 (Phase 11 item 1): audit SpectrogramSettingsPanel (and spectrogram controls) for hardcoded/untranslated strings and route them through i18n (en/ru) so the whole Параметры panel is localized." },
     { "id": "SF-D28", "text": "Owner addition 2026-07-03 (Phase 11 item 2): spectrogram caching is not actually working - switching A->B->A recomputes A from scratch (SF7.3 warm LRU not reused). Find why the reuse path misses (cache key mismatch, close/dispose evicting, per-socket session lifecycle, or UI reopening with changed params) and make returning to a recent file skip the re-decode/STFT." },
@@ -236,6 +239,36 @@
         "Set DEFAULT_SPECTROGRAM_SETTINGS to Audacity defaults per the owner screenshot: fscale log, startHz 80, stopHz 4000, gain 1 (0 dB), drange 120, frequencyGain 0, data magnitude (Frequencies), window 2048, winFunc hann, zeroPaddingFactor 2, scale log. Changed from prior defaults: zeroPaddingFactor 1->2, startHz 0->80, stopHz 0->4000, palette intensity->rainbow. Aligned the 'audacity' preset to match. vue-tsc clean; bun 61/0.",
         "NOTES: (1) palette = 'rainbow' is our closest COLOURED option to Audacity's 'Color (pink)' — we don't have the exact Audacity pink colormap. (2) Existing localStorage settings override defaults, so a user with saved settings must Reset / pick the Audacity preset to see the new defaults."
       ]
+    },
+    {
+      "id": "SF13.1",
+      "phase": 13,
+      "title": "Audacity-style parameter grouping",
+      "status": "not-started",
+      "dependsOn": ["SF3.1"],
+      "artifacts": ["GnauralCore/ui/components/SpectrogramSettingsPanel.vue", "GnauralCore/ui/i18n/en.json", "GnauralCore/ui/i18n/ru.json"],
+      "verify": "settings panel grouped into Масштаб / Цвет / FFT-фильтр like Audacity; vue-tsc + bun green",
+      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+    },
+    {
+      "id": "SF13.2",
+      "phase": 13,
+      "title": "i18n for parameter values",
+      "status": "not-started",
+      "dependsOn": ["SF13.1"],
+      "artifacts": ["GnauralCore/ui/components/SpectrogramSettingsPanel.vue", "GnauralCore/ui/i18n/en.json", "GnauralCore/ui/i18n/ru.json"],
+      "verify": "dropdown option values localized (en/ru); vue-tsc + bun green",
+      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
+    },
+    {
+      "id": "SF13.3",
+      "phase": 13,
+      "title": "Per-parameter help icon + text",
+      "status": "not-started",
+      "dependsOn": ["SF13.1"],
+      "artifacts": ["GnauralCore/ui/components/SpectrogramSettingsPanel.vue", "GnauralCore/ui/i18n/en.json", "GnauralCore/ui/i18n/ru.json"],
+      "verify": "a ? icon per parameter opens a bilingual help popover; vue-tsc + bun green",
+      "startedAt": null, "finishedAt": null, "blockedReason": null, "evidence": []
     },
     {
       "id": "SF12.1",
@@ -591,6 +624,7 @@
     }
   ],
   "log": [
+    { "ts": "2026-07-04T14:00:00Z", "step": "SF13", "event": "planned", "note": "Owner added Phase 13 (settings panel Audacity parity): SF13.1 regroup into Масштаб/Цвет/FFT-фильтр (SF-D35); SF13.2 i18n for parameter VALUES / dropdown options (SF-D36); SF13.3 per-parameter '?' help icon + bilingual help text (SF-D37). Executing. (Push: all repos already in sync; SF12.1 FFT bug already done in a prior session.)" },
     { "ts": "2026-07-01T18:55:00Z", "step": "SF0.1", "event": "done", "note": "Spectrogram-fixes plan + ledger created. 3 items: (1) loading indicator during prepare; (2) fix only-last-frame render (tiles don't accumulate; owner repro = on open, one-tile strip runs L->R, only last stays); (3) settings side panel -> overlay named 'Параметры' (no main-content resize). Decisions SF-D1..SF-D5 drafted; next = SF0.2 approval gate." },
     { "ts": "2026-07-01T19:00:00Z", "step": "SF0.2", "event": "done", "note": "Owner approved ('go'). SF-D2..SF-D5 locked. Proceeding to Phase 1." },
     { "ts": "2026-07-01T19:05:00Z", "step": "SF1.1", "event": "done", "note": "Added a loading overlay (spinner + 'Подготовка спектрограммы…') in SpectrogramView driven by spec.loading (analysis open + tiles pending). vue-tsc clean." },

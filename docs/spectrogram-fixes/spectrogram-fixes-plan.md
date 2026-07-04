@@ -112,6 +112,17 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   transient-preserving overview close to the old full-res look, at a fraction of the cost. Since
   JSON emit is now the floor (~500 ms/tile), the extra FFTs are ~free. Adaptive: shallow zoom
   (`Factor ≤ KMAX`) computes the whole bucket (full quality). *(Owner 2026-07-03, agreed.)*
+- **SF-D35 — Settings panel: Audacity-parity grouping (Phase 13 item 1).** Regroup the
+  `SpectrogramSettingsPanel` fields into Audacity-style sections (see owner's attach): **Масштаб**
+  (freq scale / min Hz / max Hz), **Цвет** (intensity scale, gain, range, limit, HF-boost,
+  saturation, palette), **FFT-фильтр** (algorithm/data, window size, window type, zero-padding,
+  hop, overlap, channel mode, channel). *(Owner 2026-07-04.)*
+- **SF-D36 — i18n for parameter VALUES (Phase 13 item 2).** Localize the dropdown option values
+  (window functions, data/algorithm, freq scale, intensity scale, channel mode, palette), like
+  Audacity ("Тип окна: Ханна", "Алгоритм: Частоты", "Шкала: Логарифмическая", "Тема: Цвет
+  (розовый)") — en/ru. *(Owner 2026-07-04.)*
+- **SF-D37 — Per-parameter help (Phase 13 item 3).** A "?" icon next to each parameter opening a
+  short help popover for that parameter; help text written en/ru. *(Owner 2026-07-04.)*
 - **SF-D34 — Fix the TSpecFft real-FFT mirror bug (Phase 12).** `TSpecFft.RealFFTf` +
   `ReorderToFreq` (`SpectrumCore/src/core/SpectrumCoreFft.pas`, ported from Audacity `hfft.cpp`)
   produce a spurious mirror peak at bin `N/2−k` for a real cosine at bin `k` — up to ~80 % of the
@@ -317,6 +328,14 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   analyses warm as an LRU (file+params key; MAX 4 / 1.5 GB samples); reopen reuses → skips
   re-decode; close keeps warm. Contract test updated + reuse test; server 18/0. **PAUSE for owner
   UI verification.**
+
+**Phase 13 — Settings panel: Audacity parity** *(owner addition 2026-07-04)*
+- [ ] **SF13.1 — Audacity-style parameter grouping (SF-D35).** Regroup into Масштаб / Цвет /
+  FFT-фильтр sections. Verify `vue-tsc` + `bun`.
+- [ ] **SF13.2 — i18n for parameter values (SF-D36).** Localized dropdown option labels (en/ru).
+  Verify `vue-tsc` + `bun`.
+- [ ] **SF13.3 — Per-parameter help "?" (SF-D37).** Help icon + bilingual help popover per param.
+  Verify `vue-tsc` + `bun`.
 
 **Phase 12 — TSpecFft real-FFT mirror bug** *(owner addition 2026-07-04; independent of the FFTW spectrogram path)*
 - [x] **SF12.1 — Diagnose + fix the TSpecFft mirror bug (SF-D34).** Root cause (vs vendored Audacity
