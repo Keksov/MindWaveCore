@@ -122,6 +122,15 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   or (b) IMPLEMENT it — "Combined" = one track mixing both channels, "Separate" = the current L/R
   split (a bigger change: the UI would switch between 1 combined analysis and 2 per-channel ones).
   *(Owner 2026-07-04; awaiting decision + go.)*
+- **SF-D40 — Audit ALL spectrogram parameters for real use (Phase 14 item 3).** Motivated by the
+  `mode` no-op (SF-D38): audit every parameter end-to-end and confirm it actually affects the
+  output — analysis params (`window`, `zeroPaddingFactor`, `hop`, `overlap`, `channel`, `winFunc`,
+  `data`, `fscale`, `startHz`, `stopHz`, `mode`) traced into the worker STFT, and render params
+  (`scale`, `gain`, `frequencyGain`, `drange`, `limit`, `saturation`, `palette`) traced into the
+  client tile render. Deliverable = a per-parameter verdict (used / partial / no-op, with the
+  code path), and for each dead/partial one a proposal (remove, wire up, or fix). Known suspects to
+  confirm: `mode` (dead, SF-D38), `overlap` vs `hop` (possible redundancy), `limit`/`saturation`
+  (confirm they bite in the render). *(Owner 2026-07-04; awaiting go.)*
 - **SF-D39 — "Channel" as Left/Right, not 0/1 (Phase 14 item 2).** Change the `channel` field from a
   raw 0/1 number to a localized Left/Right select (value 0/1). NOTE: for stereo this setting is
   overridden per track (L=0, R=1) by the SF5.3 split; it only bites for the single/primary analysis
@@ -349,6 +358,8 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   a real combined/separate mode.* Verify per the chosen path.
 - [ ] **SF14.2 — "Channel" → Left/Right select (SF-D39).** Localized Left/Right (value 0/1) instead
   of a raw number. Verify `vue-tsc` + `bun`.
+- [ ] **SF14.3 — Audit all parameters for real use (SF-D40).** Per-parameter verdict (used / partial
+  / no-op with code path) across analysis + render params; propose remove/wire/fix for dead ones.
 
 **Phase 13 — Settings panel: Audacity parity** *(owner addition 2026-07-04)*
 - [x] **SF13.1 — Audacity-style parameter grouping (SF-D35).** Data-driven rewrite into Масштаб /
