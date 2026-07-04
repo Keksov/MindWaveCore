@@ -122,6 +122,11 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
   or (b) IMPLEMENT it — "Combined" = one track mixing both channels, "Separate" = the current L/R
   split (a bigger change: the UI would switch between 1 combined analysis and 2 per-channel ones).
   *(Owner 2026-07-04; awaiting decision + go.)*
+- **SF-D41 — Overlap is the frame-step control; hop derived (Phase 14, variant b) — DECIDED.**
+  Owner chose variant (b) from SF-D40: make `overlap` the control (Audacity/ffmpeg style) and DROP
+  the redundant `hop` field. `hop` removed from the settings model; `toAnalysisParams` derives it as
+  `max(1, round(window * (1 - overlap)))` (the same formula the worker uses). Default unchanged
+  (overlap 0.75 → hop 512). *(Owner 2026-07-04; decided.)*
 - **SF-D40 — Audit ALL spectrogram parameters for real use (Phase 14 item 3).** Motivated by the
   `mode` no-op (SF-D38): audit every parameter end-to-end and confirm it actually affects the
   output — analysis params (`window`, `zeroPaddingFactor`, `hop`, `overlap`, `channel`, `winFunc`,
@@ -358,8 +363,10 @@ All three live in the Gnaural audio UI (worker/WS spectrogram from the Spectrogr
 - [x] **SF14.2 — "Channel" → Left/Right select (SF-D39).** Localized Left/Right (value 0/1).
   `vue-tsc` + bun 63/0.
 - [x] **SF14.3 — Audit all parameters for real use (SF-D40).** All used except `mode` (dead, removed)
-  and `overlap` (effectively dead — `hop` always wins). *Open: owner decision on `overlap` (remove
-  slider vs make it the control).*
+  and `overlap` (effectively dead — `hop` always wins).
+- [x] **SF14.4 — Overlap as the frame-step control (SF-D41, variant b).** Removed the redundant `hop`
+  field; `overlap` now drives the worker hop (`toAnalysisParams` derives it). `vue-tsc` + build +
+  bun 63/0. **Phase 14 complete.**
 
 **Phase 13 — Settings panel: Audacity parity** *(owner addition 2026-07-04)*
 - [x] **SF13.1 — Audacity-style parameter grouping (SF-D35).** Data-driven rewrite into Масштаб /
