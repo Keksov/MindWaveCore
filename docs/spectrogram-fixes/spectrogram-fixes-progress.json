@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-05T09:10:00Z",
+  "updatedAt": "2026-07-05T09:20:00Z",
   "decisions": [
     {
       "id": "SF-D1",
@@ -209,15 +209,15 @@
     },
     {
       "id": "SF-D54",
-      "text": "SF19.1 — Left/Right arrows move the playback position (emit seek playhead±step) like Audacity; Alt+Left/Right pan the view (current arrow behavior). View follows playhead if it scrolls off-screen. Open: step size (fixed ~1s vs fraction of span); Home/End (keep view edges vs seek to clip start/end); Shift+arrow fate."
+      "text": "SF19.1 (resolved) — Left/Right = seek playhead ±1s (Audacity); Shift+Left/Right = ±5s; Alt+Left/Right = pan view (current 15%-span behavior); Home/End keep view-edges (unchanged); view follows the playhead if it scrolls off-screen. emit('seek', clamp(playhead±step))."
     },
     {
       "id": "SF-D55",
-      "text": "SF19.2 — Idle debounce for fast scroll/zoom: refetch debounce is 80ms; raise/tune (~180-250ms trailing) so intermediate frames the user scrolls/zooms past aren't fetched; SF11.9 fallback keeps it responsive. Applies to pan + zoom in/out. Open: exact delay; separate values for wheel-zoom vs scroll."
+      "text": "SF19.2 (resolved) — raise refetch idle debounce ~80ms -> ~200ms (trailing) so fast scroll/zoom bursts coalesce; SF11.9 fallback keeps it responsive. Same value for pan + zoom."
     },
     {
       "id": "SF-D56",
-      "text": "SF19.3 (main) — Seamless zoom: no 'preparing' overlay/dim on a view-change refetch. Split composable loading into `preparing` (analysis opening, nothing to show) vs `fetchingTiles` (tiles pending for an already-rendered analysis). Overlay uses only `preparing`; view-change refetch keeps current/fallback tiles and swaps the new frame in the background. Open: subtle background indicator vs nothing."
+      "text": "SF19.3 (resolved, main) — split composable loading: `preparing` (analysis opening, nothing to show) vs `fetchingTiles` (tiles pending for an already-rendered analysis). Full overlay/dim only for `preparing` (initial load). On a view-change refetch: keep current/fallback tiles, show only a TINY corner spinner while the new frame loads in the background, then swap in seamlessly."
     }
   ],
   "steps": [
@@ -2241,6 +2241,12 @@
       "step": "SF19.0",
       "event": "planned",
       "note": "Owner addition: Phase 19 = arrows->playhead + Alt->pan (SF19.1/D54), idle debounce for fast scroll/zoom (SF19.2/D55), seamless zoom no preparing-overlay/dim + background swap (SF19.3/D56, main). Not approved; awaiting go + open-question answers (step size, Home/End, debounce value, background indicator)."
+    },
+    {
+      "ts": "2026-07-05T09:20:00Z",
+      "step": "SF19.0",
+      "event": "scoped",
+      "note": "Owner answers: arrows ±1s (Shift ±5s), Alt=pan, Home/End keep view-edges; debounce ~200ms; SF19.3 tiny corner spinner (no dim/text) on view-change refetch. Decisions finalized; awaiting go."
     }
   ]
 }
