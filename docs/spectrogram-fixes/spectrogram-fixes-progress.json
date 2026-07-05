@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-05T03:30:00Z",
+  "updatedAt": "2026-07-05T03:45:00Z",
   "decisions": [
     {
       "id": "SF-D1",
@@ -197,7 +197,7 @@
     },
     {
       "id": "SF-D51",
-      "text": "SF17.2 — Sharpen at high zoom. DISCUSS FIRST. Causes: (1) bilinear upscaling (imageSmoothingEnabled=true stretches low-column tiles → blur); (2) intrinsic STFT time resolution capped by window size (2048) — past ~window/sampleRate sec/px no real detail; Audacity is sharper via a smaller window. Options: (a) nearest-neighbour draw at high zoom (trivial, blocky); (b) high-zoom analysis profile — reconfigure/secondary-analyse with smaller window (512/256) + lower zero-pad beyond a zoom threshold (owner's idea; trades freq resolution); (c) reassignment mode for sharper ridges; (d) fix only the upscale. Settle tradeoffs with owner before code."
+      "text": "SF17.2/17.3 — Sharpen at high zoom. OWNER DECISION (2026-07-05): implement ALL variants, UI-configurable via a new «Резкость» settings group. Controls: imageScaling (Сглаженное bilinear | Резкое nearest, render-only live), highZoomMode (Выкл | Меньшее окно | Переназначение/reassign), highZoomThreshold (×N, default 8), highZoomWindow (default 512). SF17.2 = imageScaling toggle (easy, render only). SF17.3 = high-zoom analysis profile: effective analysis params become zoom-reactive (window->highZoomWindow or data->reassign above threshold), triggering worker reconfigure on threshold crossing (bounded, SF11.2 cache); applies to both L/R tracks (shared view)."
     }
   ],
   "steps": [
@@ -1384,13 +1384,38 @@
     {
       "id": "SF17.2",
       "phase": 17,
-      "title": "Sharpen spectrogram at high zoom (DISCUSS FIRST — choose SF-D51 option)",
+      "title": "Image-scaling toggle (smooth/sharp) + «Резкость» settings group",
       "status": "not-started",
-      "dependsOn": [],
-      "artifacts": [
-        "docs/spectrogram-fixes/spectrogram-fixes-plan.md"
+      "dependsOn": [
+        "SF16.3"
       ],
-      "verify": "owner picks an approach; chosen option spawns its own implementation step(s)",
+      "artifacts": [
+        "GnauralCore/ui/composables/spectrogram-settings.ts",
+        "GnauralCore/ui/composables/spectrogram-render.ts",
+        "GnauralCore/ui/components/SpectrogramSettingsPanel.vue",
+        "GnauralCore/ui/components/SpectrogramView.vue"
+      ],
+      "verify": "vue-tsc exit 0; bun green; Резкое=nearest-neighbour draw (crisp), Сглаженное=bilinear",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "SF17.3",
+      "phase": 17,
+      "title": "High-zoom analysis profile (smaller window / reassign) — zoom-reactive params",
+      "status": "not-started",
+      "dependsOn": [
+        "SF17.2"
+      ],
+      "artifacts": [
+        "GnauralCore/ui/composables/spectrogram-settings.ts",
+        "GnauralCore/ui/components/SpectrogramSettingsPanel.vue",
+        "GnauralCore/ui/pages/AudioPage.vue",
+        "GnauralCore/ui/components/SpectrogramView.vue"
+      ],
+      "verify": "vue-tsc exit 0; bun green; crossing zoom threshold switches window/data and sharpens; reverts below",
       "startedAt": null,
       "finishedAt": null,
       "blockedReason": null,
@@ -1919,6 +1944,12 @@
       "step": "SF17.0",
       "event": "planned",
       "note": "Owner addition (2026-07-05) after Phase 16 shipped: Phase 17 = zoom popover polish (SF17.1, SF-D50) + high-zoom sharpness (SF17.2, SF-D51, discuss-first). Not approved; awaiting go. SF17.2 needs an approach decision (nearest-neighbour vs high-zoom analysis profile vs reassignment)."
+    },
+    {
+      "ts": "2026-07-05T03:45:00Z",
+      "step": "SF17.0",
+      "event": "scoped",
+      "note": "Owner: implement ALL sharpness variants + UI config. Split SF17.2 into SF17.2 (imageScaling smooth/sharp, render-only) + SF17.3 (high-zoom analysis profile: zoom-reactive window/reassign above threshold). New «Резкость» settings group. Awaiting go."
     }
   ]
 }

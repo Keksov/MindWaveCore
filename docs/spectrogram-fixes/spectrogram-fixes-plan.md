@@ -580,27 +580,35 @@ clear UI polish; SF17.2 is a **discussion-first** design item (candidate approac
   [SpectrogramView.vue](../../../GnauralCore/ui/components/SpectrogramView.vue). Note: q-menu
   already closes on Esc/outside-click by default — verify why it isn't, or the ✕ is enough; the
   main ask is the affordance on Применить + an explicit close control.
-- [ ] **SF17.2 — Sharpen the spectrogram at high zoom (SF-D51) — DISCUSS FIRST.** At large time
-  zoom the image goes soft/"mylit". Two independent causes:
-  1. **Bilinear upscaling.** `draw()` sets `ctx.imageSmoothingEnabled = true`
-    ([SpectrogramView.vue:286](../../../GnauralCore/ui/components/SpectrogramView.vue#L286)); when
-    a tile's emitted STFT columns are fewer than the display pixels it is stretched with bilinear
-    smoothing → blur. Cheap lever: switch to nearest-neighbour (crisp but blocky) at/above a zoom
-    threshold, or a sharper resample.
-  2. **Intrinsic STFT time resolution.** Each column is one FFT over a `window`-sample frame
-    (default 2048). Past ~`window/sampleRate` seconds-per-pixel there is no more *real* time
-    detail to show, so it smears regardless of pixels — this is the physics, and Audacity looks
-    sharper here because it uses a **smaller window** (better time resolution, at the cost of
-    frequency resolution). The owner's idea — *re-generate from a certain zoom with a different
-    parameter set* — targets exactly this.
-  **Candidate approaches to weigh (SF-D51 options):** (a) nearest-neighbour draw at high zoom
-  (trivial, no worker change, but blocky); (b) a **"high-zoom analysis profile"** — beyond a zoom
-  threshold, reconfigure/secondary-analyse with a smaller window (e.g. 512/256) + lower
-  zero-padding for sharp transients, blending frequency-resolution loss; (c) **multi-resolution /
-  reassignment** (the `reassign` data mode already exists) for sharper ridges; (d) leave the
-  physics, only fix the upscale (a). Tradeoffs (freq-vs-time resolution, extra worker passes,
-  cache/memory, when to switch) to be settled with the owner before any code. Deliverable of the
-  discussion = a chosen option → its own implementation step(s).
+**Sharpness — owner decision (2026-07-05): implement ALL variants and expose them in the UI**
+so the user picks the time-vs-frequency trade-off themselves. New settings group **«Резкость» /
+"Sharpness"** in [SpectrogramSettingsPanel.vue](../../../GnauralCore/ui/components/SpectrogramSettingsPanel.vue)
+with (SF-D51):
+- **`imageScaling`** — `Сглаженное` (bilinear, current) | `Резкое` (nearest-neighbour). Pure draw
+  flag (`ctx.imageSmoothingEnabled`); render-only, live. *(variants a / d)*
+- **`highZoomMode`** — `Выкл` | `Меньшее окно` | `Переназначение` (reassign). Above a zoom
+  threshold the analysis switches profile for sharper time detail. *(variants b / c)*
+- **`highZoomThreshold`** — zoom factor ×N at which the profile activates (default ×8).
+- **`highZoomWindow`** — window size used by `Меньшее окно` (default 512).
+
+The intrinsic reason it's needed: each column is one FFT over a `window`-sample frame (2048);
+past ~`window/sampleRate` s/px there is no more *real* time detail, so it smears — Audacity is
+sharper because it uses a smaller window. `Меньшее окно` trades frequency resolution for time
+resolution above the threshold; `Переназначение` uses the existing `reassign` data mode for
+sharp ridges.
+
+- [ ] **SF17.2 — Image-scaling toggle (smooth/sharp) (SF-D51 a/d).** Add `imageScaling` to the
+  settings + render options; `draw()` sets `imageSmoothingEnabled` from it. New «Резкость» group
+  in the panel with this control first. Client render only, live (no re-analysis). vue-tsc + bun.
+- [ ] **SF17.3 — High-zoom analysis profile (SF-D51 b/c).** Add `highZoomMode` /
+  `highZoomThreshold` / `highZoomWindow` settings + their panel controls. Make the **effective
+  analysis params zoom-reactive**: when the shared view's zoom factor (`duration / span`) ≥
+  threshold and `highZoomMode ≠ Выкл`, override `window` (→ `highZoomWindow`) or `data`
+  (→ `reassign`) so the worker re-analyses at higher time resolution; revert below the threshold.
+  Architecture note: `analysisParams` is currently a stable computed in AudioPage — this step
+  makes it depend on `spectrogramShared.view`, so crossing the threshold triggers a reconfigure
+  (bounded; results cache per SF11.2). Applies to both L/R tracks (shared view). vue-tsc + bun;
+  **PAUSE for owner UI verification** (this is the heavy one). *Depends on SF17.2 for the group.*
 
 ## Backlog — parked ideas (**требует последующего обсуждения**)
 Ideas raised during the Phase 11 speed work that were set aside — kept here so nothing is lost.
