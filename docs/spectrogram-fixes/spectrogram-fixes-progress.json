@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-05T07:40:00Z",
+  "updatedAt": "2026-07-05T08:56:00Z",
   "decisions": [
     {
       "id": "SF-D1",
@@ -202,6 +202,10 @@
     {
       "id": "SF-D52",
       "text": "SF17.4 — Per-tile window override (owner picked variant C). Add optional windowOverride to get-tile. Worker: route override tiles to a lazy sibling TFftwAnalysis built with the override window (decode cached SF11.7; lazy=no whole-track STFT; only visible columns computed); WriteTileResponse works unchanged; Signature.WindowSize keys tile caches. Siblings cached per (baseAnalysisId,window), freed on base close. No reconfigure/close+reopen/whole-track. Scope: covers smallWindow; Переназначение stays whole-track (reassignment scatter-writes whole file). Client: for smallWindow stop mutating analysisParams, send windowOverride on tile requests above threshold (hysteresis kept), fold into tile cache key."
+    },
+    {
+      "id": "SF-D53",
+      "text": "Phase 18 preset manager (full, owner). Client-only. Built-in presets read-only; user presets = {id,name,settings}[] persisted to a new localStorage key, validated via mergeStoredSettings. Track activePresetId + modified flag. Actions: apply, saveAs, rename, delete, duplicate (incl. from built-in), export/import JSON. UI: quick-apply dropdown (active check + modified '*' + Save as… + Manage…) + a preset-manager dialog component."
     }
   ],
   "steps": [
@@ -1512,6 +1516,52 @@
         "smallWindow now per-tile override (no reconfigure); reassign stays whole-track",
         "vue-tsc 0; bun ui+server 99/0; quasar build ok"
       ]
+    },
+    {
+      "id": "SF18.1",
+      "phase": 18,
+      "title": "Preset store + model: user presets, persistence, active/modified, actions",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [
+        "GnauralCore/ui/composables/spectrogram-settings.ts",
+        "GnauralCore/ui/stores/spectrogram.ts",
+        "GnauralCore/ui/composables/spectrogram-settings.test.ts"
+      ],
+      "verify": "vue-tsc + bun green; validator + apply/saveAs/rename/delete/duplicate/import semantics tested",
+      "startedAt": "2026-07-05T08:05:00Z",
+      "finishedAt": "2026-07-05T08:55:00Z",
+      "blockedReason": null,
+      "evidence": [
+        "GnauralCore 5828cbb",
+        "user-preset model+validator+settingsEqual; store actions",
+        "bun ui 71/0; vue-tsc 0"
+      ]
+    },
+    {
+      "id": "SF18.2",
+      "phase": 18,
+      "title": "Preset manager UI: dropdown + save-as + manager dialog + i18n",
+      "status": "done",
+      "dependsOn": [
+        "SF18.1"
+      ],
+      "artifacts": [
+        "GnauralCore/ui/components/SpectrogramSettingsPanel.vue",
+        "GnauralCore/ui/components/SpectrogramPresetManager.vue",
+        "GnauralCore/ui/i18n/en.json",
+        "GnauralCore/ui/i18n/ru.json"
+      ],
+      "verify": "vue-tsc + bun green; quasar build ok; apply/save-as/rename/delete/duplicate/export/import work; active+modified shown",
+      "startedAt": "2026-07-05T08:05:00Z",
+      "finishedAt": "2026-07-05T08:55:00Z",
+      "blockedReason": null,
+      "evidence": [
+        "GnauralCore 785ebde",
+        "MindWave ecb8404 (Dialog plugin)",
+        "dropdown + save-as + manager dialog (rename/delete/duplicate/export/import)",
+        "vue-tsc 0; bun 71/0; quasar build ok"
+      ]
     }
   ],
   "log": [
@@ -2102,6 +2152,30 @@
       "step": "SF17.4a",
       "event": "fixed",
       "note": "Owner: high zoom (x16) very slow again. Cause: sibling hop=window/4 gave ~4x base frames -> 4x FFTs/tile. Fix: sibling inherits base hop (clamped to window) -> same column/FFT count as base, cheaper smaller FFTs. Probe: override tile 108 cols == base. SpectrumCore a5300cf; rebundled."
+    },
+    {
+      "ts": "2026-07-05T08:00:00Z",
+      "step": "SF18.0",
+      "event": "planned",
+      "note": "Owner picked full preset manager. SF-D53: user presets (localStorage) + active/modified + apply/saveAs/rename/delete/duplicate/export/import; dropdown + manager dialog. Client-only. Implementing now."
+    },
+    {
+      "ts": "2026-07-05T08:55:00Z",
+      "step": "SF18.1",
+      "event": "done",
+      "note": "Store+model: user presets, active/modified, actions."
+    },
+    {
+      "ts": "2026-07-05T08:55:00Z",
+      "step": "SF18.2",
+      "event": "done",
+      "note": "UI: preset dropdown + manager dialog; bilingual."
+    },
+    {
+      "ts": "2026-07-05T08:56:00Z",
+      "step": "SF18",
+      "event": "done",
+      "note": "Full preset manager complete. PAUSE for owner UI verification."
     }
   ]
 }

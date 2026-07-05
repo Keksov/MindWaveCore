@@ -644,6 +644,30 @@ whole file — it can't be a cheap per-tile op), documented as such.
   keeps the existing analysisParams path. vue-tsc + bun; **PAUSE for owner UI verification** (fast,
   no whole-track recompute expected on smallWindow at high zoom).
 
+## Phase 18 — Preset manager (owner addition 2026-07-05)
+**Today** presets are two hard-coded, read-only bundles (`audacity`, `ffmpeg`) applied via
+`store.applyPreset` (`Object.assign(settings, preset.settings)`); there's no way to save,
+rename, delete, or manage user presets, no active/modified indicator, no export/import. Owner
+picked the **full** manager.
+
+**SF-D53 — design.** Client-only. Built-in presets stay read-only (source of truth in code);
+add **user presets** = `{ id, name, settings }[]` persisted to a new localStorage key, validated
+on load (each `settings` through `mergeStoredSettings`). Track the **active preset id** +
+a **modified** flag (settings diverge from the active preset). Actions: apply, save-as,
+rename, delete, duplicate (incl. duplicating a built-in), export/import (JSON file).
+
+- [x] **SF18.1 — Store + model.** `SpectrogramUserPreset` type + `mergeStoredUserPresets`
+  validator in [spectrogram-settings.ts](../../../GnauralCore/ui/composables/spectrogram-settings.ts).
+  Store ([stores/spectrogram.ts](../../../GnauralCore/ui/stores/spectrogram.ts)): `userPresets`
+  (persisted), `activePresetId` (persisted), `isModified` computed, `allPresets` (built-in +
+  user), actions `applyPresetById / saveAsPreset / renamePreset / deletePreset / duplicatePreset
+  / exportPresets / importPresets`. Applying sets active; editing settings sets modified. Unit
+  tests for the validator + action semantics.
+- [x] **SF18.2 — UI.** Quick-apply dropdown in the settings panel: lists built-in + user presets
+  (✓ on the active one), shows the active name + `*` when modified, plus "Сохранить как…" and
+  "Управление…". A **preset-manager dialog** (`SpectrogramPresetManager.vue`) for rename / delete
+  / duplicate / export / import. Bilingual i18n. `vue-tsc` + `bun` + build.
+
 ## Backlog — parked ideas (**требует последующего обсуждения**)
 Ideas raised during the Phase 11 speed work that were set aside — kept here so nothing is lost.
 None are committed; **each requires later discussion** and may be dropped or reshaped after the
