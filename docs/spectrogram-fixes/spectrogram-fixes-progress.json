@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-05T08:56:00Z",
+  "updatedAt": "2026-07-05T09:10:00Z",
   "decisions": [
     {
       "id": "SF-D1",
@@ -206,6 +206,18 @@
     {
       "id": "SF-D53",
       "text": "Phase 18 preset manager (full, owner). Client-only. Built-in presets read-only; user presets = {id,name,settings}[] persisted to a new localStorage key, validated via mergeStoredSettings. Track activePresetId + modified flag. Actions: apply, saveAs, rename, delete, duplicate (incl. from built-in), export/import JSON. UI: quick-apply dropdown (active check + modified '*' + Save as… + Manage…) + a preset-manager dialog component."
+    },
+    {
+      "id": "SF-D54",
+      "text": "SF19.1 — Left/Right arrows move the playback position (emit seek playhead±step) like Audacity; Alt+Left/Right pan the view (current arrow behavior). View follows playhead if it scrolls off-screen. Open: step size (fixed ~1s vs fraction of span); Home/End (keep view edges vs seek to clip start/end); Shift+arrow fate."
+    },
+    {
+      "id": "SF-D55",
+      "text": "SF19.2 — Idle debounce for fast scroll/zoom: refetch debounce is 80ms; raise/tune (~180-250ms trailing) so intermediate frames the user scrolls/zooms past aren't fetched; SF11.9 fallback keeps it responsive. Applies to pan + zoom in/out. Open: exact delay; separate values for wheel-zoom vs scroll."
+    },
+    {
+      "id": "SF-D56",
+      "text": "SF19.3 (main) — Seamless zoom: no 'preparing' overlay/dim on a view-change refetch. Split composable loading into `preparing` (analysis opening, nothing to show) vs `fetchingTiles` (tiles pending for an already-rendered analysis). Overlay uses only `preparing`; view-change refetch keeps current/fallback tiles and swaps the new frame in the background. Open: subtle background indicator vs nothing."
     }
   ],
   "steps": [
@@ -1562,6 +1574,53 @@
         "dropdown + save-as + manager dialog (rename/delete/duplicate/export/import)",
         "vue-tsc 0; bun 71/0; quasar build ok"
       ]
+    },
+    {
+      "id": "SF19.1",
+      "phase": 19,
+      "title": "Arrows move playhead (seek); Alt+arrows pan view",
+      "status": "not-started",
+      "dependsOn": [],
+      "artifacts": [
+        "GnauralCore/ui/components/SpectrogramView.vue"
+      ],
+      "verify": "vue-tsc+bun green; Left/Right seek playhead, Alt+Left/Right pan view; playhead stays visible",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "SF19.2",
+      "phase": 19,
+      "title": "Idle debounce for fast scroll/zoom",
+      "status": "not-started",
+      "dependsOn": [],
+      "artifacts": [
+        "GnauralCore/ui/composables/use-spectrogram.ts",
+        "GnauralCore/ui/components/SpectrogramView.vue"
+      ],
+      "verify": "vue-tsc+bun green; fast scroll/zoom coalesces, intermediate frames not fetched",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "SF19.3",
+      "phase": 19,
+      "title": "Seamless zoom: no preparing overlay/dim on view-change refetch; background swap",
+      "status": "not-started",
+      "dependsOn": [],
+      "artifacts": [
+        "GnauralCore/ui/composables/use-spectrogram.ts",
+        "GnauralCore/ui/components/SpectrogramView.vue"
+      ],
+      "verify": "vue-tsc+bun green; zoom/pan keeps current frame, no dim/message, new frame swaps in when ready; initial load still shows overlay",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
     }
   ],
   "log": [
@@ -2176,6 +2235,12 @@
       "step": "SF18",
       "event": "done",
       "note": "Full preset manager complete. PAUSE for owner UI verification."
+    },
+    {
+      "ts": "2026-07-05T09:10:00Z",
+      "step": "SF19.0",
+      "event": "planned",
+      "note": "Owner addition: Phase 19 = arrows->playhead + Alt->pan (SF19.1/D54), idle debounce for fast scroll/zoom (SF19.2/D55), seamless zoom no preparing-overlay/dim + background swap (SF19.3/D56, main). Not approved; awaiting go + open-question answers (step size, Home/End, debounce value, background indicator)."
     }
   ]
 }
