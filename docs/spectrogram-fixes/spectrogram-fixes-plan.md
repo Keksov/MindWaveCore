@@ -553,8 +553,9 @@ ruler closer to Audacity. **Not yet approved — awaiting `go`.** Two carry open
     ours looking smoother).
   **Fix applied:** the **"Audacity" preset** now equals Audacity's true defaults (Mel 0–20 kHz,
   Gain +20 dB, Range 80 dB, log intensity, Roseus). Selecting it reproduces the Audacity look.
-  App-wide defaults left as the voice-focused 80–4000/log set — *open question for the owner:*
-  adopt Audacity's defaults globally too?
+  App-wide defaults **now equal Audacity's** too (owner decision 2026-07-05, GnauralCore
+  d03d5de): DEFAULT_SPECTROGRAM_SETTINGS = Mel 0–20 kHz / Gain +20 dB / Range 80 dB / log /
+  Roseus; the ffmpeg preset pins its own neutral character so it doesn't inherit the punch.
 - [x] **SF16.6 — Denser time ruler with minor ticks (SF-D49).** *(done 2026-07-05, GnauralCore 7e76b0c)* Rework the time axis in
   `SpectrogramView.drawAxes` to Audacity's density: more frequent labelled marks on a
   "nice" 1/2/5 step chosen from the visible span + pixel budget, plus short **minor tick**

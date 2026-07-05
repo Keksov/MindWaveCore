@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-05T02:55:00Z",
+  "updatedAt": "2026-07-05T03:05:00Z",
   "decisions": [
     {
       "id": "SF-D1",
@@ -1867,6 +1867,12 @@
       "step": "SF16.3",
       "event": "done",
       "note": "Right-click zoom popover: presets x1 x2 x3 x4 x8 x16 + live % field (shows+sets zoom). x1=whole clip. Right/middle mouse no longer starts drag selection. GnauralCore c1bcb3d. Phase 16 complete."
+    },
+    {
+      "ts": "2026-07-05T03:05:00Z",
+      "step": "SF16.5",
+      "event": "amended",
+      "note": "Owner decision: adopt Audacity defaults app-wide. DEFAULT_SPECTROGRAM_SETTINGS now = Audacity defaults (Mel 0-20kHz, Gain +20dB, Range 80dB, log, Roseus); ffmpeg preset pins its own neutral character. GnauralCore d03d5de."
     }
   ]
 }
