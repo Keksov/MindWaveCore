@@ -499,7 +499,8 @@ Six owner requests to bring the settings panel, palettes, zoom, keyboard nav, lo
 ruler closer to Audacity. **Not yet approved — awaiting `go`.** Two carry open questions
 (flagged below); the rest are locked characterizations.
 
-- [ ] **SF16.1 — Numeric-input (spinbox) fields for the render dials (SF-D44).** Replace the
+- [x] **SF16.1 — Numeric-input (spinbox) fields for the render dials (SF-D44).** *(done 2026-07-05,
+  GnauralCore b3e532c; owner confirmed gain→dB / 0-default mapping)* Replace the
   sliders for **Усиление / Динамический диапазон / Порог / Частотное усиление / Насыщенность**
   (`gain`, `drange`, `limit`, `frequencyGain`, `saturation`) with number-entry fields carrying
   step +/- arrows (Quasar `q-input type="number"` already renders spin controls; alternative =
@@ -512,7 +513,8 @@ ruler closer to Audacity. **Not yet approved — awaiting `go`.** Two carry open
   neutral, `mult = 10^(dB/20)`) and **frequencyGain** is already dB/dec (0 neutral) and
   **limit** already 0 dBFS — those three get default 0. `drange` stays 120 dB, `saturation`
   stays 1 (Audacity has no saturation). Confirm this mapping, or specify defaults per field.
-- [ ] **SF16.2 — Full Audacity palette set (SF-D45).** Add the four Audacity color schemes and
+- [x] **SF16.2 — Full Audacity palette set (SF-D45).** *(done 2026-07-05, GnauralCore a7990bd)*
+  Roseus LUT ported from Audacity 3.7.8; default palette now roseus; legacy id migration. Add the four Audacity color schemes and
   label them per the owner: **Розовый** = Audacity *Color (default/New)* — port the exact
   `specColormap[256][3]` LUT from `SpectrumCore/lib/vendor/audacity/3.7.8/libraries/lib-theme/AColorResources.h`
   (magma-like pink→orange→yellow); **Классика** = *Color (classic)* HSV blue→red (≈ our current
@@ -532,14 +534,26 @@ ruler closer to Audacity. **Not yet approved — awaiting `go`.** Two carry open
   modifiers; page vs nudge to be pinned from the key table during execution), within the
   spectrogram focus. Extends the SF15.1 nav (wheel/modifiers) with a keydown handler + tabindex
   on the canvas. Client-only.
-- [ ] **SF16.5 — Diagnose our-vs-Audacity image difference (SF-D48).** Investigation (owner's
-  two end-of-recording screenshots differ). Known contributor: palette (ours rainbow-green vs
-  Audacity magma-pink) → largely absorbed by SF16.2. Remaining structural differences (Audacity
-  shows stronger vertical transient striations / more visible low-level detail) to be traced to
-  gain/range/gamma mapping, window/overlap, or the display-res max-pool (SF11.5) vs Audacity's
-  per-pixel rendering. Deliverable = a short written finding + any config/render fix it implies
-  (best done **after** SF16.2 so comparison is on the same palette). No code committed under
-  this id beyond what the finding justifies.
+- [x] **SF16.5 — Diagnose our-vs-Audacity image difference (SF-D48).** *(done 2026-07-05,
+  GnauralCore 72607a4)* **Finding:** the difference is **configuration, not a pipeline bug.**
+  Compared against Audacity 3.7.8's real defaults (`SpectrogramSettings.cpp`):
+  - **Palette** — ours was rainbow (blue→green→red), Audacity is Roseus. Rainbow makes mid
+    values glow bright green and crushes the top into red, so it *looks* completely different
+    and hides gradation. **Dominant perceptual cause — fixed by SF16.2** (default now Roseus).
+  - **Gain 0 → 20 dB** and **Range 120 → 80 dB.** Audacity's +20 dB gain over an 80 dB range is
+    a punchy, high-contrast map: quiet content is pushed toward black, transients saturate. Our
+    0 dB / 120 dB spreads magnitudes over a wider range → flatter, "smoother" image with the
+    vertical striations washed out. This is the main *structural* contributor.
+  - **Frequency scale log → Mel** and **range 80–4000 Hz → 0–20000 Hz.** Audacity shows the
+    whole spectrum on a Mel axis; we were zoomed into 80–4000 Hz on a log axis → different
+    vertical distribution.
+  - Window / zero-pad / window function (2048 / ×2 / Hann) **already match**; the display-res
+    max-pool (SF11.5) preserves peaks (it *emphasises* transients, so it is **not** the cause of
+    ours looking smoother).
+  **Fix applied:** the **"Audacity" preset** now equals Audacity's true defaults (Mel 0–20 kHz,
+  Gain +20 dB, Range 80 dB, log intensity, Roseus). Selecting it reproduces the Audacity look.
+  App-wide defaults left as the voice-focused 80–4000/log set — *open question for the owner:*
+  adopt Audacity's defaults globally too?
 - [ ] **SF16.6 — Denser time ruler with minor ticks (SF-D49).** Rework the time axis in
   `SpectrogramView.drawAxes` to Audacity's density: more frequent labelled marks on a
   "nice" 1/2/5 step chosen from the visible span + pixel budget, plus short **minor tick**

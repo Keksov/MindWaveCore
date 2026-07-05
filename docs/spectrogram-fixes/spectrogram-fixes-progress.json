@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-05T00:00:00Z",
+  "updatedAt": "2026-07-05T01:40:00Z",
   "decisions": [
     {
       "id": "SF-D1",
@@ -1224,7 +1224,7 @@
       "id": "SF16.1",
       "phase": 16,
       "title": "Numeric spinbox fields for render dials (gain/drange/limit/frequencyGain/saturation)",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": [],
       "artifacts": [
         "GnauralCore/ui/components/SpectrogramSettingsPanel.vue",
@@ -1232,16 +1232,22 @@
         "GnauralCore/ui/composables/spectrogram-settings.ts"
       ],
       "verify": "vue-tsc exit 0; bun test ui green; owner confirms field UX + default mapping",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-05T00:45:00Z",
+      "finishedAt": "2026-07-05T01:10:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "GnauralCore b3e532c",
+        "vue-tsc exit 0",
+        "bun ui 66/0",
+        "quasar build ok",
+        "gain->dB (0 default); 5 dials now spinbox with -/+ steppers"
+      ]
     },
     {
       "id": "SF16.2",
       "phase": 16,
       "title": "Full Audacity palette set (Розовый/Классика/Оттенки серого/Инверсия)",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": [],
       "artifacts": [
         "GnauralCore/ui/composables/spectrogram-render.ts",
@@ -1251,10 +1257,15 @@
         "GnauralCore/ui/i18n/ru.json"
       ],
       "verify": "vue-tsc exit 0; bun coverage test updated+green; Розовый visually matches Audacity",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-05T00:10:00Z",
+      "finishedAt": "2026-07-05T00:40:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "GnauralCore a7990bd",
+        "vue-tsc exit 0",
+        "bun ui 66/0",
+        "Roseus LUT ported from Audacity 3.7.8 AColorResources.h specColormap[256][3]"
+      ]
     },
     {
       "id": "SF16.3",
@@ -1292,7 +1303,7 @@
       "id": "SF16.5",
       "phase": 16,
       "title": "Diagnose our-vs-Audacity image difference (written finding + any fix)",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": [
         "SF16.2"
       ],
@@ -1300,10 +1311,16 @@
         "docs/spectrogram-fixes/spectrogram-fixes-plan.md"
       ],
       "verify": "written finding recorded; comparison on identical palette/settings; any fix justified by finding",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-05T01:15:00Z",
+      "finishedAt": "2026-07-05T01:40:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "GnauralCore 72607a4",
+        "Finding: difference is config not bug (palette+gain/range+mel/range)",
+        "Audacity preset now = Audacity 3.7.8 defaults",
+        "vue-tsc exit 0",
+        "bun ui 66/0"
+      ]
     },
     {
       "id": "SF16.6",
@@ -1795,6 +1812,24 @@
       "step": "SF16.0",
       "event": "planned",
       "note": "Owner addition (2026-07-05): Phase 16 = Audacity parity round 2. 6 items -> SF16.1..16.6 (SF-D44..D49). SF16.1 (numeric spinbox dials) and SF16.3 (zoom popover x1..x16 + %) carry OPEN questions (default-0 gain semantics; x1 fit-vs-1px/sample). Proposed order SF16.2->16.5->16.6->16.1->16.4->16.3. NOT approved yet; awaiting go + answers to the two open questions."
+    },
+    {
+      "ts": "2026-07-05T00:40:00Z",
+      "step": "SF16.2",
+      "event": "done",
+      "note": "Four Audacity palettes (roseus/classic/grayscale/invgrayscale); default=roseus; legacy intensity->grayscale, rainbow->classic migration; i18n labels Розовый/Классика/Оттенки серого/Инверсия. Client render only. GnauralCore a7990bd."
+    },
+    {
+      "ts": "2026-07-05T01:10:00Z",
+      "step": "SF16.1",
+      "event": "done",
+      "note": "5 color-group dials -> numeric spinbox (-/+ steppers, clamped). Gain switched to dB (0 dB neutral, mult=10^(dB/20)); default gain 0. GnauralCore b3e532c."
+    },
+    {
+      "ts": "2026-07-05T01:40:00Z",
+      "step": "SF16.5",
+      "event": "done",
+      "note": "Diagnosed: our-vs-Audacity difference is configuration not a pipeline bug. Palette (SF16.2), Gain 0->20dB & Range 120->80dB (Audacity punchy contrast), fscale log->mel, freq 80-4000->0-20000. Window/zeropad/winfunc already matched; SF11.5 max-pool preserves peaks (not the cause). Fixed the Audacity preset to true Audacity defaults. Open: adopt as global defaults? GnauralCore 72607a4."
     }
   ]
 }
