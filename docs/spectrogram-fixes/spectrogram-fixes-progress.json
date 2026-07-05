@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-05T05:25:00Z",
+  "updatedAt": "2026-07-05T05:45:00Z",
   "decisions": [
     {
       "id": "SF-D1",
@@ -1988,6 +1988,12 @@
       "step": "SF17.3",
       "event": "done",
       "note": "High-zoom analysis profile: AudioPage derives zoom factor from shared view+duration; above threshold (0.75x hysteresis) overrides window->highZoomWindow (re-derived hop) or data->reassign. Applies to mono+L/R. Phase 17 complete. PAUSE for owner UI verification. GnauralCore 7b690c3."
+    },
+    {
+      "ts": "2026-07-05T05:45:00Z",
+      "step": "SF17.1",
+      "event": "fixed",
+      "note": "Owner UI verify bug 1: Esc closed the whole view because the popover used @keyup.esc (Escape keydown still reached the global window keydown handler + enclosing q-dialog). Fixed with @keydown.esc.stop.prevent. GnauralCore a0302c2. Bug 2 (normal-zoom softness) under investigation: default path unchanged, effect tied to high-zoom re-analysis mode; asked owner for a decisive test."
     }
   ]
 }
