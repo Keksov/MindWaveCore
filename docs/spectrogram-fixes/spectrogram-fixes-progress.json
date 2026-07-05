@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-05T09:20:00Z",
+  "updatedAt": "2026-07-05T10:06:00Z",
   "decisions": [
     {
       "id": "SF-D1",
@@ -1579,48 +1579,59 @@
       "id": "SF19.1",
       "phase": 19,
       "title": "Arrows move playhead (seek); Alt+arrows pan view",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": [],
       "artifacts": [
         "GnauralCore/ui/components/SpectrogramView.vue"
       ],
       "verify": "vue-tsc+bun green; Left/Right seek playhead, Alt+Left/Right pan view; playhead stays visible",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-05T09:30:00Z",
+      "finishedAt": "2026-07-05T10:05:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "GnauralCore 3b5e0e8",
+        "arrows seek ±1s/±5s; Alt=pan; followPlayhead",
+        "vue-tsc 0; bun 71/0"
+      ]
     },
     {
       "id": "SF19.2",
       "phase": 19,
       "title": "Idle debounce for fast scroll/zoom",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": [],
       "artifacts": [
         "GnauralCore/ui/composables/use-spectrogram.ts",
         "GnauralCore/ui/components/SpectrogramView.vue"
       ],
       "verify": "vue-tsc+bun green; fast scroll/zoom coalesces, intermediate frames not fetched",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-05T09:30:00Z",
+      "finishedAt": "2026-07-05T10:05:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "GnauralCore 8871393",
+        "refetchDebounceMs 80->200"
+      ]
     },
     {
       "id": "SF19.3",
       "phase": 19,
       "title": "Seamless zoom: no preparing overlay/dim on view-change refetch; background swap",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": [],
       "artifacts": [
         "GnauralCore/ui/composables/use-spectrogram.ts",
         "GnauralCore/ui/components/SpectrogramView.vue"
       ],
       "verify": "vue-tsc+bun green; zoom/pan keeps current frame, no dim/message, new frame swaps in when ready; initial load still shows overlay",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-05T09:30:00Z",
+      "finishedAt": "2026-07-05T10:05:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "GnauralCore 3f2345e",
+        "split preparing/fetchingTiles; full overlay only on initial prepare; tiny corner spinner + background swap on view-change",
+        "vue-tsc 0; bun 71/0; quasar build ok"
+      ]
     }
   ],
   "log": [
@@ -2247,6 +2258,30 @@
       "step": "SF19.0",
       "event": "scoped",
       "note": "Owner answers: arrows ±1s (Shift ±5s), Alt=pan, Home/End keep view-edges; debounce ~200ms; SF19.3 tiny corner spinner (no dim/text) on view-change refetch. Decisions finalized; awaiting go."
+    },
+    {
+      "ts": "2026-07-05T10:05:00Z",
+      "step": "SF19.1",
+      "event": "done",
+      "note": "Arrows move playhead (seek); Alt+arrows pan; view follows playhead."
+    },
+    {
+      "ts": "2026-07-05T10:05:00Z",
+      "step": "SF19.2",
+      "event": "done",
+      "note": "Idle debounce raised to 200ms for fast scroll/zoom."
+    },
+    {
+      "ts": "2026-07-05T10:05:00Z",
+      "step": "SF19.3",
+      "event": "done",
+      "note": "Seamless zoom: no dim/overlay on view-change refetch; tiny corner spinner; background swap."
+    },
+    {
+      "ts": "2026-07-05T10:06:00Z",
+      "step": "SF19",
+      "event": "done",
+      "note": "Phase 19 complete. PAUSE for owner UI verification (esp. SF19.3 seamless zoom)."
     }
   ]
 }

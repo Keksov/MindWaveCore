@@ -671,7 +671,7 @@ rename, delete, duplicate (incl. duplicating a built-in), export/import (JSON fi
 ## Phase 19 — Playback-cursor keys + seamless zoom/scroll (owner addition 2026-07-05)
 Three interaction/rendering polish items. **Not yet approved — awaiting `go`.**
 
-- [ ] **SF19.1 — Arrows move the playback position; Alt+arrows pan the track (SF-D54).** Audacity:
+- [x] **SF19.1 — Arrows move the playback position; Alt+arrows pan the track (SF-D54).** Audacity:
   ←/→ move the **playhead** (seek), not the view. Rework `onKeyDown`
   ([SpectrogramView.vue](../../../GnauralCore/ui/components/SpectrogramView.vue)): ←/→ →
   `emit('seek', playhead ± step)`; **Alt**+←/→ → pan the view (the current arrow behaviour).
@@ -679,13 +679,13 @@ Three interaction/rendering polish items. **Not yet approved — awaiting `go`.*
   scrolls off-screen, follow it (keep it visible). *Open questions:* (a) step size — fixed
   (e.g. 1 s) vs a fraction of the visible span; (b) Home/End — keep as view start/end, or make
   them seek to clip start/end (Audacity)?; (c) what Shift+←/→ does now (was "page").
-- [ ] **SF19.2 — Idle debounce for fast scroll/zoom (SF-D55).** The tile refetch is debounced
+- [x] **SF19.2 — Idle debounce for fast scroll/zoom (SF-D55).** The tile refetch is debounced
   at `refetchDebounceMs = 80`; on a fast scroll/zoom burst that's short enough that intermediate
   frames (which the user immediately scrolls past) still get fetched. Increase/tune the idle
   delay (e.g. ~180–250 ms trailing) so only the settled view fetches; the SF11.9 cross-zoom
   fallback keeps the plot responsive meanwhile. Applies to pan (scroll) and zoom-in/out.
   *Open question:* exact delay (and whether wheel-zoom vs scroll want different values).
-- [ ] **SF19.3 — Seamless zoom: no "preparing" overlay/dim on a view-change refetch (SF-D56)
+- [x] **SF19.3 — Seamless zoom: no "preparing" overlay/dim on a view-change refetch (SF-D56)
   — the main one.** Today the loading overlay (dims the track + "подготовка спектрограммы") is
   driven by `spec.loading = opening || pendingTiles>0`, so every zoom/pan lights it up. Split the
   composable's signal: **`preparing`** (analysis opening/reconfigure with nothing to show yet) vs
