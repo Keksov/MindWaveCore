@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-05T03:45:00Z",
+  "updatedAt": "2026-07-05T05:25:00Z",
   "decisions": [
     {
       "id": "SF-D1",
@@ -1368,7 +1368,7 @@
       "id": "SF17.1",
       "phase": 17,
       "title": "Zoom popover polish — close ✕ + Esc + clearer Применить button",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": [
         "SF16.3"
       ],
@@ -1376,16 +1376,21 @@
         "GnauralCore/ui/components/SpectrogramView.vue"
       ],
       "verify": "vue-tsc exit 0; bun green; popover has ✕, closes on Esc, Применить reads as a button",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-05T04:00:00Z",
+      "finishedAt": "2026-07-05T04:15:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "GnauralCore 0a29e50",
+        "close ✕ + Esc + full-width primary Применить + autofocus",
+        "vue-tsc exit 0",
+        "bun ui 68/0"
+      ]
     },
     {
       "id": "SF17.2",
       "phase": 17,
       "title": "Image-scaling toggle (smooth/sharp) + «Резкость» settings group",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": [
         "SF16.3"
       ],
@@ -1396,16 +1401,23 @@
         "GnauralCore/ui/components/SpectrogramView.vue"
       ],
       "verify": "vue-tsc exit 0; bun green; Резкое=nearest-neighbour draw (crisp), Сглаженное=bilinear",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-05T04:20:00Z",
+      "finishedAt": "2026-07-05T04:45:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "GnauralCore f7b4b0d",
+        "imageScaling smooth/sharp -> ctx.imageSmoothingEnabled",
+        "new Резкость group",
+        "vue-tsc exit 0",
+        "bun ui 68/0",
+        "quasar build ok"
+      ]
     },
     {
       "id": "SF17.3",
       "phase": 17,
       "title": "High-zoom analysis profile (smaller window / reassign) — zoom-reactive params",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": [
         "SF17.2"
       ],
@@ -1416,10 +1428,18 @@
         "GnauralCore/ui/components/SpectrogramView.vue"
       ],
       "verify": "vue-tsc exit 0; bun green; crossing zoom threshold switches window/data and sharpens; reverts below",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-05T04:50:00Z",
+      "finishedAt": "2026-07-05T05:25:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "GnauralCore 7b690c3",
+        "zoom-reactive analysis params w/ hysteresis",
+        "smallWindow (re-derived hop) + reassign modes",
+        "applies to mono+L/R",
+        "vue-tsc exit 0",
+        "bun ui 68/0",
+        "quasar build ok"
+      ]
     }
   ],
   "log": [
@@ -1950,6 +1970,24 @@
       "step": "SF17.0",
       "event": "scoped",
       "note": "Owner: implement ALL sharpness variants + UI config. Split SF17.2 into SF17.2 (imageScaling smooth/sharp, render-only) + SF17.3 (high-zoom analysis profile: zoom-reactive window/reassign above threshold). New «Резкость» settings group. Awaiting go."
+    },
+    {
+      "ts": "2026-07-05T04:15:00Z",
+      "step": "SF17.1",
+      "event": "done",
+      "note": "Zoom popover: header with close ✕, Esc closes, % field autofocus, Применить now a full-width primary button. GnauralCore 0a29e50."
+    },
+    {
+      "ts": "2026-07-05T04:45:00Z",
+      "step": "SF17.2",
+      "event": "done",
+      "note": "imageScaling (smooth=bilinear|sharp=nearest) render-only setting in new Резкость group; draw() reads it. GnauralCore f7b4b0d."
+    },
+    {
+      "ts": "2026-07-05T05:25:00Z",
+      "step": "SF17.3",
+      "event": "done",
+      "note": "High-zoom analysis profile: AudioPage derives zoom factor from shared view+duration; above threshold (0.75x hysteresis) overrides window->highZoomWindow (re-derived hop) or data->reassign. Applies to mono+L/R. Phase 17 complete. PAUSE for owner UI verification. GnauralCore 7b690c3."
     }
   ]
 }

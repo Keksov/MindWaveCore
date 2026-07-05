@@ -573,7 +573,7 @@ before execution.
 Two owner requests after Phase 16 shipped. **Not yet approved — awaiting `go`.** SF17.1 is a
 clear UI polish; SF17.2 is a **discussion-first** design item (candidate approaches below).
 
-- [ ] **SF17.1 — Zoom popover polish (SF-D50).** On the SF16.3 right-click zoom popover:
+- [x] **SF17.1 — Zoom popover polish (SF-D50).** *(done 2026-07-05, GnauralCore 0a29e50)* On the SF16.3 right-click zoom popover:
   (a) add a **close ✕ button**, (b) close on **Esc**, (c) make **Применить** read clearly as a
   button (it's currently a flat text button inside the input `append` slot — give it a filled/
   bordered look, or move it below the field as a full-width `q-btn`). Client-only, in
@@ -597,10 +597,11 @@ sharper because it uses a smaller window. `Меньшее окно` trades frequ
 resolution above the threshold; `Переназначение` uses the existing `reassign` data mode for
 sharp ridges.
 
-- [ ] **SF17.2 — Image-scaling toggle (smooth/sharp) (SF-D51 a/d).** Add `imageScaling` to the
+- [x] **SF17.2 — Image-scaling toggle (smooth/sharp) (SF-D51 a/d).** *(done 2026-07-05, GnauralCore f7b4b0d)* Add `imageScaling` to the
   settings + render options; `draw()` sets `imageSmoothingEnabled` from it. New «Резкость» group
   in the panel with this control first. Client render only, live (no re-analysis). vue-tsc + bun.
-- [ ] **SF17.3 — High-zoom analysis profile (SF-D51 b/c).** Add `highZoomMode` /
+- [x] **SF17.3 — High-zoom analysis profile (SF-D51 b/c).** *(done 2026-07-05, GnauralCore 7b690c3;
+  Phase 17 complete — PAUSE for owner UI verification)* Add `highZoomMode` /
   `highZoomThreshold` / `highZoomWindow` settings + their panel controls. Make the **effective
   analysis params zoom-reactive**: when the shared view's zoom factor (`duration / span`) ≥
   threshold and `highZoomMode ≠ Выкл`, override `window` (→ `highZoomWindow`) or `data`
