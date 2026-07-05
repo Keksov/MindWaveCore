@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-05T07:12:00Z",
+  "updatedAt": "2026-07-05T07:40:00Z",
   "decisions": [
     {
       "id": "SF-D1",
@@ -2096,6 +2096,12 @@
       "step": "SF17.4",
       "event": "done",
       "note": "Variant C complete: per-tile windowOverride via lazy sibling analysis. smallWindow high-zoom no longer reconfigures/recomputes the whole track — only visible tiles. PAUSE for owner UI verification."
+    },
+    {
+      "ts": "2026-07-05T07:40:00Z",
+      "step": "SF17.4a",
+      "event": "fixed",
+      "note": "Owner: high zoom (x16) very slow again. Cause: sibling hop=window/4 gave ~4x base frames -> 4x FFTs/tile. Fix: sibling inherits base hop (clamped to window) -> same column/FFT count as base, cheaper smaller FFTs. Probe: override tile 108 cols == base. SpectrumCore a5300cf; rebundled."
     }
   ]
 }
