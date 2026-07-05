@@ -522,14 +522,15 @@ ruler closer to Audacity. **Not yet approved — awaiting `go`.** Two carry open
   серого** = *Inverse grayscale* (`1 − v`). Extend `SpectrogramPalette` + `paletteColor()` +
   `SPECTROGRAM_PALETTES` + the palette i18n options + the coverage test. Client-only. Розовый
   becomes the palette that makes our screenshot match Audacity's look (feeds SF16.5).
-- [ ] **SF16.3 — Zoom preset popover (SF-D46).** A zoom control that opens on **right-click**
+- [x] **SF16.3 — Zoom preset popover (SF-D46).** *(done 2026-07-05, GnauralCore c1bcb3d; owner
+  confirmed ×1 = whole clip)* A zoom control that opens on **right-click**
   (Windows context-menu; on macOS = Ctrl-click / right-click, same handler) offering presets
   **×1 ×2 ×3 ×4 ×8 ×16** plus a **% field** that both shows the current zoom and accepts an
   exact value (Illustrator-style). "Zoom" here = the time-axis zoom; ×1/100 % = whole-clip fit,
   ×N = N× into the clip about the view centre. New small popover component wired to the existing
   view zoom state in [SpectrogramView.vue](../../../GnauralCore/ui/components/SpectrogramView.vue).
   **OPEN QUESTION:** confirm ×1 = "fit whole clip" (my assumption) vs ×1 = "1 px per sample".
-- [ ] **SF16.4 — Home/End/arrow keyboard navigation (SF-D47).** Match Audacity: **Home** →
+- [x] **SF16.4 — Home/End/arrow keyboard navigation (SF-D47).** *(done 2026-07-05, GnauralCore 6eef7db)* Match Audacity: **Home** →
   view start, **End** → view end, **←/→** → scroll by a step (Audacity: ~one screenful with
   modifiers; page vs nudge to be pinned from the key table during execution), within the
   spectrogram focus. Extends the SF15.1 nav (wheel/modifiers) with a keydown handler + tabindex
@@ -554,14 +555,18 @@ ruler closer to Audacity. **Not yet approved — awaiting `go`.** Two carry open
   Gain +20 dB, Range 80 dB, log intensity, Roseus). Selecting it reproduces the Audacity look.
   App-wide defaults left as the voice-focused 80–4000/log set — *open question for the owner:*
   adopt Audacity's defaults globally too?
-- [ ] **SF16.6 — Denser time ruler with minor ticks (SF-D49).** Rework the time axis in
+- [x] **SF16.6 — Denser time ruler with minor ticks (SF-D49).** *(done 2026-07-05, GnauralCore 7e76b0c)* Rework the time axis in
   `SpectrogramView.drawAxes` to Audacity's density: more frequent labelled marks on a
   "nice" 1/2/5 step chosen from the visible span + pixel budget, plus short **minor tick**
   marks between labels (no label). Client-only, draw-layer change.
 
-**Phase 16 ordering (proposed):** SF16.2 → SF16.5 (needs same palette) → SF16.6 → SF16.1 →
-SF16.4 → SF16.3. Each: atomic commit (step-id prefixed, Co-Authored-By), `vue-tsc` + `bun`
-green, **no push**, phase-boundary pause.
+**Phase 16 ordering (executed):** SF16.2 → SF16.1 → SF16.5 → SF16.6 → SF16.4 → SF16.3 (16.1
+brought before 16.5 so both palette AND gain matched Audacity before the diagnostic). Each:
+atomic commit (step-id prefixed, Co-Authored-By), `vue-tsc` + `bun` green, **no push**.
+**Phase 16 complete (2026-07-05) — PAUSE for owner UI verification.** Two open questions
+surfaced for the owner: (a) adopt Audacity's defaults app-wide, not just in the preset
+(SF16.5)? (b) nothing blocking on 16.1/16.3 — the gain→dB and ×1=fit mappings were confirmed
+before execution.
 
 ## Backlog — parked ideas (**требует последующего обсуждения**)
 Ideas raised during the Phase 11 speed work that were set aside — kept here so nothing is lost.

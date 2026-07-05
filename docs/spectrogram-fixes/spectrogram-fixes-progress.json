@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-05T01:40:00Z",
+  "updatedAt": "2026-07-05T02:55:00Z",
   "decisions": [
     {
       "id": "SF-D1",
@@ -1271,22 +1271,29 @@
       "id": "SF16.3",
       "phase": 16,
       "title": "Zoom preset popover (right-click): x1..x16 + % field",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": [],
       "artifacts": [
         "GnauralCore/ui/components/SpectrogramView.vue"
       ],
       "verify": "vue-tsc exit 0; bun green; right-click opens presets + % edits/reflects zoom",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-05T02:30:00Z",
+      "finishedAt": "2026-07-05T02:55:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "GnauralCore c1bcb3d",
+        "q-menu context-menu popover, presets x1..x16 + % field",
+        "x1=whole clip; right/middle button no longer drags",
+        "vue-tsc exit 0",
+        "bun ui 68/0",
+        "quasar build ok"
+      ]
     },
     {
       "id": "SF16.4",
       "phase": 16,
       "title": "Home/End/arrow keyboard navigation like Audacity",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": [
         "SF15.1"
       ],
@@ -1294,10 +1301,16 @@
         "GnauralCore/ui/components/SpectrogramView.vue"
       ],
       "verify": "vue-tsc exit 0; bun green; Home/End/arrows move view per Audacity",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-05T02:10:00Z",
+      "finishedAt": "2026-07-05T02:25:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "GnauralCore 6eef7db",
+        "canvas tabindex + onKeyDown",
+        "Home/End edges, arrows pan 15%, Shift+arrow page",
+        "vue-tsc exit 0",
+        "bun ui 68/0"
+      ]
     },
     {
       "id": "SF16.5",
@@ -1326,16 +1339,22 @@
       "id": "SF16.6",
       "phase": 16,
       "title": "Denser time ruler with minor ticks (drawAxes)",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": [],
       "artifacts": [
         "GnauralCore/ui/components/SpectrogramView.vue"
       ],
       "verify": "vue-tsc exit 0; bun green; ruler shows denser 1/2/5 labels + minor ticks",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-05T01:45:00Z",
+      "finishedAt": "2026-07-05T02:05:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "GnauralCore 7e76b0c",
+        "timeAxisTicksWithMinor() major+minor",
+        "~1 label/90px adaptive",
+        "vue-tsc exit 0",
+        "bun ui 68/0"
+      ]
     }
   ],
   "log": [
@@ -1830,6 +1849,24 @@
       "step": "SF16.5",
       "event": "done",
       "note": "Diagnosed: our-vs-Audacity difference is configuration not a pipeline bug. Palette (SF16.2), Gain 0->20dB & Range 120->80dB (Audacity punchy contrast), fscale log->mel, freq 80-4000->0-20000. Window/zeropad/winfunc already matched; SF11.5 max-pool preserves peaks (not the cause). Fixed the Audacity preset to true Audacity defaults. Open: adopt as global defaults? GnauralCore 72607a4."
+    },
+    {
+      "ts": "2026-07-05T02:05:00Z",
+      "step": "SF16.6",
+      "event": "done",
+      "note": "Audacity-style time ruler: adaptive major labels (~1/90px) + short minor ticks subdividing each major interval, top+bottom. Draw-layer only. GnauralCore 7e76b0c."
+    },
+    {
+      "ts": "2026-07-05T02:25:00Z",
+      "step": "SF16.4",
+      "event": "done",
+      "note": "Keyboard nav: canvas focusable; Home/End scroll to clip start/end (keep span), Left/Right pan 15%, Shift+arrow full page. GnauralCore 6eef7db."
+    },
+    {
+      "ts": "2026-07-05T02:55:00Z",
+      "step": "SF16.3",
+      "event": "done",
+      "note": "Right-click zoom popover: presets x1 x2 x3 x4 x8 x16 + live % field (shows+sets zoom). x1=whole clip. Right/middle mouse no longer starts drag selection. GnauralCore c1bcb3d. Phase 16 complete."
     }
   ]
 }
