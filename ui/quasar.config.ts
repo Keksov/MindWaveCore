@@ -94,7 +94,7 @@ export default function (/* ctx */) {
         dark: true
       },
       iconSet: 'material-icons',
-      plugins: ['Notify']
+      plugins: ['Notify', 'Dialog']
     }
   }
 }
