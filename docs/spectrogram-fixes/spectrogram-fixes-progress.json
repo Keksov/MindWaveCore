@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-05T05:45:00Z",
+  "updatedAt": "2026-07-05T07:12:00Z",
   "decisions": [
     {
       "id": "SF-D1",
@@ -198,6 +198,10 @@
     {
       "id": "SF-D51",
       "text": "SF17.2/17.3 — Sharpen at high zoom. OWNER DECISION (2026-07-05): implement ALL variants, UI-configurable via a new «Резкость» settings group. Controls: imageScaling (Сглаженное bilinear | Резкое nearest, render-only live), highZoomMode (Выкл | Меньшее окно | Переназначение/reassign), highZoomThreshold (×N, default 8), highZoomWindow (default 512). SF17.2 = imageScaling toggle (easy, render only). SF17.3 = high-zoom analysis profile: effective analysis params become zoom-reactive (window->highZoomWindow or data->reassign above threshold), triggering worker reconfigure on threshold crossing (bounded, SF11.2 cache); applies to both L/R tracks (shared view)."
+    },
+    {
+      "id": "SF-D52",
+      "text": "SF17.4 — Per-tile window override (owner picked variant C). Add optional windowOverride to get-tile. Worker: route override tiles to a lazy sibling TFftwAnalysis built with the override window (decode cached SF11.7; lazy=no whole-track STFT; only visible columns computed); WriteTileResponse works unchanged; Signature.WindowSize keys tile caches. Siblings cached per (baseAnalysisId,window), freed on base close. No reconfigure/close+reopen/whole-track. Scope: covers smallWindow; Переназначение stays whole-track (reassignment scatter-writes whole file). Client: for smallWindow stop mutating analysisParams, send windowOverride on tile requests above threshold (hysteresis kept), fold into tile cache key."
     }
   ],
   "steps": [
@@ -1440,6 +1444,74 @@
         "bun ui 68/0",
         "quasar build ok"
       ]
+    },
+    {
+      "id": "SF17.4a",
+      "phase": 17,
+      "title": "Worker get-tile windowOverride via lazy sibling analysis",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [
+        "SpectrumCore/src/apps/SpectrumCoreFftwWorkerProbe.pas",
+        "MindWaveCore/server/vendor/spectrumcore/win64/"
+      ],
+      "verify": "build + rebundle; direct stdio probe: open -> get-tile w/ & w/o windowOverride -> distinct binCount/binFrequenciesHz; base unaffected",
+      "startedAt": "2026-07-05T06:20:00Z",
+      "finishedAt": "2026-07-05T07:10:00Z",
+      "blockedReason": null,
+      "evidence": [
+        "SpectrumCore 6e4e92b",
+        "MindWave 269fe57 (rebundle)",
+        "lazy sibling analysis + FreeSiblingsFor",
+        "probe: base 108 cols, override512 431 cols, base after 108, clean"
+      ]
+    },
+    {
+      "id": "SF17.4b",
+      "phase": 17,
+      "title": "Protocol + server passthrough for windowOverride",
+      "status": "done",
+      "dependsOn": [
+        "SF17.4a"
+      ],
+      "artifacts": [
+        "SharedPasCore or protocol types",
+        "GnauralCore/server/spectrogram-session.ts"
+      ],
+      "verify": "bridge/session integration tests green; get-tile forwards windowOverride",
+      "startedAt": "2026-07-05T06:20:00Z",
+      "finishedAt": "2026-07-05T07:10:00Z",
+      "blockedReason": null,
+      "evidence": [
+        "SharedPasCore 3ab0dc2",
+        "GnauralCore 95ca67e",
+        "protocol windowOverride + server passthrough + cache key",
+        "server tests 19/0"
+      ]
+    },
+    {
+      "id": "SF17.4c",
+      "phase": 17,
+      "title": "Client fetch-time windowOverride (replace smallWindow reconfigure)",
+      "status": "done",
+      "dependsOn": [
+        "SF17.4b"
+      ],
+      "artifacts": [
+        "GnauralCore/ui/composables/use-spectrogram.ts",
+        "GnauralCore/ui/composables/spectrogram-tiles.ts",
+        "GnauralCore/ui/components/SpectrogramView.vue",
+        "GnauralCore/ui/pages/AudioPage.vue"
+      ],
+      "verify": "vue-tsc + bun green; smallWindow high zoom fetches override tiles w/o reconfigure; cache key includes override",
+      "startedAt": "2026-07-05T06:20:00Z",
+      "finishedAt": "2026-07-05T07:10:00Z",
+      "blockedReason": null,
+      "evidence": [
+        "GnauralCore 6499d61",
+        "smallWindow now per-tile override (no reconfigure); reassign stays whole-track",
+        "vue-tsc 0; bun ui+server 99/0; quasar build ok"
+      ]
     }
   ],
   "log": [
@@ -1994,6 +2066,36 @@
       "step": "SF17.1",
       "event": "fixed",
       "note": "Owner UI verify bug 1: Esc closed the whole view because the popover used @keyup.esc (Escape keydown still reached the global window keydown handler + enclosing q-dialog). Fixed with @keydown.esc.stop.prevent. GnauralCore a0302c2. Bug 2 (normal-zoom softness) under investigation: default path unchanged, effect tied to high-zoom re-analysis mode; asked owner for a decisive test."
+    },
+    {
+      "ts": "2026-07-05T06:10:00Z",
+      "step": "SF17.4",
+      "event": "planned",
+      "note": "Owner picked variant C. Verified root cause: reconfigure=close+reopen whole-track; reassign eager (FLazy=false) whole-track. Design SF-D52: per-tile windowOverload via lazy sibling analysis (reuses WriteTileResponse). Steps SF17.4a worker, b protocol/server, c client. Scope: smallWindow via C; reassign stays whole-track."
+    },
+    {
+      "ts": "2026-07-05T07:10:00Z",
+      "step": "SF17.4a",
+      "event": "done",
+      "note": "Worker: get-tile windowOverride via lazy sibling analysis; built+bundled+probe-verified."
+    },
+    {
+      "ts": "2026-07-05T07:10:00Z",
+      "step": "SF17.4b",
+      "event": "done",
+      "note": "Protocol+server thread windowOverride through get-tile."
+    },
+    {
+      "ts": "2026-07-05T07:10:00Z",
+      "step": "SF17.4c",
+      "event": "done",
+      "note": "Client: smallWindow high-zoom via per-tile windowOverride through view->cache key->get-tile; base analysis untouched."
+    },
+    {
+      "ts": "2026-07-05T07:12:00Z",
+      "step": "SF17.4",
+      "event": "done",
+      "note": "Variant C complete: per-tile windowOverride via lazy sibling analysis. smallWindow high-zoom no longer reconfigures/recomputes the whole track — only visible tiles. PAUSE for owner UI verification."
     }
   ]
 }

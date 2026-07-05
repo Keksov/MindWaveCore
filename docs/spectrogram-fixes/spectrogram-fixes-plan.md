@@ -611,6 +611,39 @@ sharp ridges.
   (bounded; results cache per SF11.2). Applies to both L/R tracks (shared view). vue-tsc + bun;
   **PAUSE for owner UI verification** (this is the heavy one). *Depends on SF17.2 for the group.*
 
+## Phase 17.4 — Per-tile window override (owner picked variant C, 2026-07-05)
+**Finding that motivates it (verified):** `reconfigure = close + reopen` the whole-track analysis
+([spectrogram-session.ts](../../../GnauralCore/server/spectrogram-session.ts) §28). In the worker,
+`FLazy := not ReassignmentMode` ([SpectrumCoreFftwAnalysis.pas:608](../../../SpectrumCore/src/core/SpectrumCoreFftwAnalysis.pas#L608)):
+so `Переназначение` (reassign) is an **eager whole-track STFT** (slow), while `Меньшее окно`
+(magnitude) is lazy/per-view — but SF17.3 still triggered a full close+reopen to switch it. The
+owner's point: the sharpening should compute **only the current window**, no whole-track pass, no
+reconfigure churn.
+
+**SF-D52 — design (variant C).** Add an optional **per-tile `windowOverride`** to `get-tile`.
+Worker realization (low-risk, reuses tested machinery): route an override tile to a **lazy sibling
+`TFftwAnalysis`** built with the override window over the same source/channel (decode is cached,
+SF11.7; lazy so no whole-track STFT — only the visible tile's columns are computed). `WriteTileResponse`
+works on the sibling unchanged; `Signature.WindowSize` already keys the tile caches so there's no
+collision. Siblings are cached per `(baseAnalysisId, window)` and freed when the base closes. No
+reconfigure, no close+reopen, no whole-track compute. Scope: C covers the **smallWindow** path (the
+per-window-cheap one); `Переназначение` stays the whole-track mode (reassignment scatter-writes the
+whole file — it can't be a cheap per-tile op), documented as such.
+
+- [x] **SF17.4a — Worker `get-tile` windowOverride via lazy sibling analysis.** Sibling registry
+  keyed by `(baseAnalysisId, window)`; `get-tile` reads `windowOverride`, picks base-vs-sibling,
+  does time→frame addressing against the target, calls `WriteTileResponse` on it. Free siblings on
+  close/reconfigure. Build (`build_fftw_worker_probe_x64.bat`) + rebundle into MindWave; verify with
+  a direct stdio probe (open → get-tile with/without override → distinct binCount/binFrequenciesHz).
+- [x] **SF17.4b — Protocol + server passthrough.** Add `windowOverride?` to the get-tile request
+  type (protocol) + the worker-probe contract; server forwards it. Bridge/session tests green.
+- [x] **SF17.4c — Client fetch-time override (replaces the smallWindow reconfigure).** For
+  `highZoomMode = smallWindow`, stop mutating `analysisParams`; instead the composable sends
+  `windowOverride = highZoomWindow` on tile requests when zoom ≥ threshold (hysteresis kept), with
+  the override folded into the tile cache key so overridden/base tiles don't collide. `Переназначение`
+  keeps the existing analysisParams path. vue-tsc + bun; **PAUSE for owner UI verification** (fast,
+  no whole-track recompute expected on smallWindow at high zoom).
+
 ## Backlog — parked ideas (**требует последующего обсуждения**)
 Ideas raised during the Phase 11 speed work that were set aside — kept here so nothing is lost.
 None are committed; **each requires later discussion** and may be dropped or reshaped after the
