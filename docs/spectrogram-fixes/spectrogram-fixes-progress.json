@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-05T10:06:00Z",
+  "updatedAt": "2026-07-05T10:35:00Z",
   "decisions": [
     {
       "id": "SF-D1",
@@ -218,6 +218,14 @@
     {
       "id": "SF-D56",
       "text": "SF19.3 (resolved, main) — split composable loading: `preparing` (analysis opening, nothing to show) vs `fetchingTiles` (tiles pending for an already-rendered analysis). Full overlay/dim only for `preparing` (initial load). On a view-change refetch: keep current/fallback tiles, show only a TINY corner spinner while the new frame loads in the background, then swap in seamlessly."
+    },
+    {
+      "id": "SF-D57",
+      "text": "Phase 20 — no auto-load on Audio tab + recent files. Store: selectedPath inits null (no restore-into-selection); drop refreshPresets re-select; add recentFiles (paths, most-recent first, cap 5, persisted new localStorage key), recorded in selectPath for valid files; remove old single last-path persistence. UI: when selectedPath===null the player body shows a 'Recent files' list (basename + path tooltip), click -> audio.selectPath(path) -> prepares as usual. Any file kind. Client-only."
+    },
+    {
+      "id": "SF-D58",
+      "text": "SF20.3 — Sub-second time-axis labels at high zoom. At large zoom ruler ticks round to the same second -> duplicate labels (1:05,1:05,...). formatTimeSec rounds to whole seconds when minutes>0. Make label precision follow the major tick step: when step<1s append the fraction of a second after a comma (1:05,3 / 1:05,25); decimals = step<0.1?2:step<1?1:0. Thread step/decimals from timeAxisTicksWithMinor into drawAxes label formatting. Draw-layer only; unit-tested."
     }
   ],
   "steps": [
@@ -1632,6 +1640,59 @@
         "split preparing/fetchingTiles; full overlay only on initial prepare; tiny corner spinner + background swap on view-change",
         "vue-tsc 0; bun 71/0; quasar build ok"
       ]
+    },
+    {
+      "id": "SF20.1",
+      "phase": 20,
+      "title": "Store: recent-files tracking + stop auto-load on mount",
+      "status": "not-started",
+      "dependsOn": [],
+      "artifacts": [
+        "GnauralCore/ui/stores/audio.ts"
+      ],
+      "verify": "vue-tsc green; opening Audio tab loads nothing; selecting a file records it in recentFiles (cap 5, dedupe, persisted)",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "SF20.2",
+      "phase": 20,
+      "title": "UI: recent-files quick list when no file selected",
+      "status": "not-started",
+      "dependsOn": [
+        "SF20.1"
+      ],
+      "artifacts": [
+        "GnauralCore/ui/pages/AudioPage.vue",
+        "GnauralCore/ui/i18n/en.json",
+        "GnauralCore/ui/i18n/ru.json"
+      ],
+      "verify": "vue-tsc + quasar build; recent list shows 5 entries, click loads; empty-state hint",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "SF20.3",
+      "phase": 20,
+      "title": "Sub-second time-axis labels at high zoom (comma fraction)",
+      "status": "not-started",
+      "dependsOn": [
+        "SF16.6"
+      ],
+      "artifacts": [
+        "GnauralCore/ui/composables/spectrogram-axes.ts",
+        "GnauralCore/ui/composables/spectrogram-axes.test.ts",
+        "GnauralCore/ui/components/SpectrogramView.vue"
+      ],
+      "verify": "vue-tsc + bun green; duplicate second labels get a comma-fraction (1:05,3) when step<1s",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
     }
   ],
   "log": [
@@ -2282,6 +2343,18 @@
       "step": "SF19",
       "event": "done",
       "note": "Phase 19 complete. PAUSE for owner UI verification (esp. SF19.3 seamless zoom)."
+    },
+    {
+      "ts": "2026-07-05T10:30:00Z",
+      "step": "SF20.0",
+      "event": "planned",
+      "note": "Owner: Audio tab must not auto-load the last file; show 5 recent files for quick access. SF-D57. Implementing."
+    },
+    {
+      "ts": "2026-07-05T10:35:00Z",
+      "step": "SF20.0",
+      "event": "planned",
+      "note": "Owner also added SF20.3 (SF-D58): sub-second time-axis labels at high zoom (comma fraction when duplicate second labels). Phase 20 = SF20.1 recent-files store, SF20.2 recent-files UI, SF20.3 tick labels. Awaiting go."
     }
   ]
 }

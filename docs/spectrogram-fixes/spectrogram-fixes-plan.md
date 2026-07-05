@@ -695,6 +695,34 @@ Three interaction/rendering polish items. **Not yet approved — awaiting `go`.*
   show any subtle background indicator (tiny corner spinner) during the background fetch, or
   nothing at all (owner's wording implies nothing).
 
+## Phase 20 — Recent files + no auto-load on Audio tab (owner addition 2026-07-05)
+Opening the Audio tab restores the last `selectedPath` (store init + `refreshPresets` re-select),
+which auto-loads/decodes it. Owner: **don't auto-load anything**; instead show a **quick list of
+the 5 most-recently selected files**.
+
+**SF-D57 — design.** Client-only, in the audio store + AudioPage.
+- **Stop auto-load:** `selectedPath` starts `null` (no restore-into-selection); drop the
+  `refreshPresets` re-select of the stored path.
+- **Recent files:** new `recentFiles` (array of paths, most-recent first, cap 5) persisted to a
+  new localStorage key; `selectPath(file)` records the pick.
+- **UI:** when no file is selected, the player body shows a "Недавние файлы" list (basename +
+  path tooltip); clicking one `selectPath`s it (which then prepares as usual). Any kind.
+
+- [ ] **SF20.1 — Store: recent-files tracking + stop auto-load.** [stores/audio.ts](../../../GnauralCore/ui/stores/audio.ts):
+  `selectedPath` init `null`; add `recentFiles` + `recordRecentFile` (dedupe, cap 5, persisted);
+  record in `selectPath`; remove the `refreshPresets` restore + the old selected-path storage.
+- [ ] **SF20.2 — UI: recent-files quick list.** [AudioPage.vue](../../../GnauralCore/ui/pages/AudioPage.vue):
+  a "Недавние файлы" section in the player body shown when `selectedPath === null`; entries call
+  `audio.selectPath(path)`. Empty-state hint when the list is empty. Bilingual i18n. `vue-tsc` + build.
+- [ ] **SF20.3 — Sub-second time-axis labels at high zoom (SF-D58).** *(owner addition 2026-07-05)*
+  At large zoom the ruler ticks can round to the **same** second, so several marks read identically
+  (e.g. `1:05, 1:05, 1:05`). `formatTimeSec` currently rounds to whole seconds when minutes > 0.
+  Make the label precision follow the tick step: when the major step is sub-second, append the
+  fraction of a second **after a comma** (e.g. `1:05,3` / `1:05,25`), decimals = f(step)
+  (step<1 → 1, step<0.1 → 2). Thread the step/decimals from `timeAxisTicksWithMinor` into the
+  label formatting in `drawAxes`. Draw-layer only ([spectrogram-axes.ts](../../../GnauralCore/ui/composables/spectrogram-axes.ts) +
+  [SpectrogramView.vue](../../../GnauralCore/ui/components/SpectrogramView.vue)); unit-tested.
+
 ## Backlog — parked ideas (**требует последующего обсуждения**)
 Ideas raised during the Phase 11 speed work that were set aside — kept here so nothing is lost.
 None are committed; **each requires later discussion** and may be dropped or reshaped after the
