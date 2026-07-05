@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-05T03:05:00Z",
+  "updatedAt": "2026-07-05T03:30:00Z",
   "decisions": [
     {
       "id": "SF-D1",
@@ -190,6 +190,14 @@
     {
       "id": "SF-D49",
       "text": "SF16.6 — Denser time ruler with minor ticks in SpectrogramView.drawAxes: more frequent labelled marks on a nice 1/2/5 step chosen from visible span + pixel budget, plus short unlabelled minor ticks between labels. Client-only draw-layer change."
+    },
+    {
+      "id": "SF-D50",
+      "text": "SF17.1 — Zoom popover polish: add a close ✕ button, close on Esc, and make Применить read clearly as a button (filled/bordered, or a full-width q-btn below the field). Client-only in SpectrogramView.vue. q-menu closes on Esc/outside-click by default — verify or rely on the ✕."
+    },
+    {
+      "id": "SF-D51",
+      "text": "SF17.2 — Sharpen at high zoom. DISCUSS FIRST. Causes: (1) bilinear upscaling (imageSmoothingEnabled=true stretches low-column tiles → blur); (2) intrinsic STFT time resolution capped by window size (2048) — past ~window/sampleRate sec/px no real detail; Audacity is sharper via a smaller window. Options: (a) nearest-neighbour draw at high zoom (trivial, blocky); (b) high-zoom analysis profile — reconfigure/secondary-analyse with smaller window (512/256) + lower zero-pad beyond a zoom threshold (owner's idea; trades freq resolution); (c) reassignment mode for sharper ridges; (d) fix only the upscale. Settle tradeoffs with owner before code."
     }
   ],
   "steps": [
@@ -1355,6 +1363,38 @@
         "vue-tsc exit 0",
         "bun ui 68/0"
       ]
+    },
+    {
+      "id": "SF17.1",
+      "phase": 17,
+      "title": "Zoom popover polish — close ✕ + Esc + clearer Применить button",
+      "status": "not-started",
+      "dependsOn": [
+        "SF16.3"
+      ],
+      "artifacts": [
+        "GnauralCore/ui/components/SpectrogramView.vue"
+      ],
+      "verify": "vue-tsc exit 0; bun green; popover has ✕, closes on Esc, Применить reads as a button",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "SF17.2",
+      "phase": 17,
+      "title": "Sharpen spectrogram at high zoom (DISCUSS FIRST — choose SF-D51 option)",
+      "status": "not-started",
+      "dependsOn": [],
+      "artifacts": [
+        "docs/spectrogram-fixes/spectrogram-fixes-plan.md"
+      ],
+      "verify": "owner picks an approach; chosen option spawns its own implementation step(s)",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
     }
   ],
   "log": [
@@ -1873,6 +1913,12 @@
       "step": "SF16.5",
       "event": "amended",
       "note": "Owner decision: adopt Audacity defaults app-wide. DEFAULT_SPECTROGRAM_SETTINGS now = Audacity defaults (Mel 0-20kHz, Gain +20dB, Range 80dB, log, Roseus); ffmpeg preset pins its own neutral character. GnauralCore d03d5de."
+    },
+    {
+      "ts": "2026-07-05T03:30:00Z",
+      "step": "SF17.0",
+      "event": "planned",
+      "note": "Owner addition (2026-07-05) after Phase 16 shipped: Phase 17 = zoom popover polish (SF17.1, SF-D50) + high-zoom sharpness (SF17.2, SF-D51, discuss-first). Not approved; awaiting go. SF17.2 needs an approach decision (nearest-neighbour vs high-zoom analysis profile vs reassignment)."
     }
   ]
 }

@@ -569,6 +569,39 @@ surfaced for the owner: (a) adopt Audacity's defaults app-wide, not just in the 
 (SF16.5)? (b) nothing blocking on 16.1/16.3 — the gain→dB and ×1=fit mappings were confirmed
 before execution.
 
+## Phase 17 — Zoom popover polish + high-zoom sharpness *(owner addition 2026-07-05)*
+Two owner requests after Phase 16 shipped. **Not yet approved — awaiting `go`.** SF17.1 is a
+clear UI polish; SF17.2 is a **discussion-first** design item (candidate approaches below).
+
+- [ ] **SF17.1 — Zoom popover polish (SF-D50).** On the SF16.3 right-click zoom popover:
+  (a) add a **close ✕ button**, (b) close on **Esc**, (c) make **Применить** read clearly as a
+  button (it's currently a flat text button inside the input `append` slot — give it a filled/
+  bordered look, or move it below the field as a full-width `q-btn`). Client-only, in
+  [SpectrogramView.vue](../../../GnauralCore/ui/components/SpectrogramView.vue). Note: q-menu
+  already closes on Esc/outside-click by default — verify why it isn't, or the ✕ is enough; the
+  main ask is the affordance on Применить + an explicit close control.
+- [ ] **SF17.2 — Sharpen the spectrogram at high zoom (SF-D51) — DISCUSS FIRST.** At large time
+  zoom the image goes soft/"mylit". Two independent causes:
+  1. **Bilinear upscaling.** `draw()` sets `ctx.imageSmoothingEnabled = true`
+    ([SpectrogramView.vue:286](../../../GnauralCore/ui/components/SpectrogramView.vue#L286)); when
+    a tile's emitted STFT columns are fewer than the display pixels it is stretched with bilinear
+    smoothing → blur. Cheap lever: switch to nearest-neighbour (crisp but blocky) at/above a zoom
+    threshold, or a sharper resample.
+  2. **Intrinsic STFT time resolution.** Each column is one FFT over a `window`-sample frame
+    (default 2048). Past ~`window/sampleRate` seconds-per-pixel there is no more *real* time
+    detail to show, so it smears regardless of pixels — this is the physics, and Audacity looks
+    sharper here because it uses a **smaller window** (better time resolution, at the cost of
+    frequency resolution). The owner's idea — *re-generate from a certain zoom with a different
+    parameter set* — targets exactly this.
+  **Candidate approaches to weigh (SF-D51 options):** (a) nearest-neighbour draw at high zoom
+  (trivial, no worker change, but blocky); (b) a **"high-zoom analysis profile"** — beyond a zoom
+  threshold, reconfigure/secondary-analyse with a smaller window (e.g. 512/256) + lower
+  zero-padding for sharp transients, blending frequency-resolution loss; (c) **multi-resolution /
+  reassignment** (the `reassign` data mode already exists) for sharper ridges; (d) leave the
+  physics, only fix the upscale (a). Tradeoffs (freq-vs-time resolution, extra worker passes,
+  cache/memory, when to switch) to be settled with the owner before any code. Deliverable of the
+  discussion = a chosen option → its own implementation step(s).
+
 ## Backlog — parked ideas (**требует последующего обсуждения**)
 Ideas raised during the Phase 11 speed work that were set aside — kept here so nothing is lost.
 None are committed; **each requires later discussion** and may be dropped or reshaped after the
