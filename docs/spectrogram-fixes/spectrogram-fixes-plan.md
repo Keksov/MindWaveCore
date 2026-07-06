@@ -808,8 +808,15 @@ audio: the client re-fetches the edited audio for its Web-Audio playback buffer 
   (its samples already changed) and the server invalidates the per-analysis tile cache; the
   client refetches tiles + peaks. (Backend-internal — no temp-WAV round-trip needed since the
   worker owns the PCM.)
-- [ ] **SF24.5 — Playback of edited audio.** After an edit, the client refreshes its Web-Audio
-  playback/display buffer from the backend (fetch edited PCM/WAV) so playback matches the edits.
+- [ ] **SF24.5 — Backend audio playback (retire client Web-Audio).** Today the backend plays only
+  gnaural (spawns `Gnaural.exe`); local wav/flac plays on the **client** (`<audio>` element) —
+  the server has `"Direct WAV playback is not implemented yet"`. Implement **server-side WAV/PCM
+  playback** (native audio-output, reusing the gnaural transport/progress infra) so the backend
+  plays local + **edited** audio directly. The client then drops Web-Audio entirely (no playback,
+  no decode — peaks/spectrogram/duration all come from the backend); it only sends transport
+  commands and renders the position. Edited audio needs no client re-fetch. *(Server plays to its
+  own device — correct for the desktop/local scenario; remote-streaming is a later option.)*
+  *(Owner insight 2026-07-06: play from the backend directly, like GnauralCore already does.)*
 - [ ] **SF24.6 — Editor UI.** Toolbar/menu for the operations + undo/redo (thin — just dispatches
   backend commands), selection-driven; keyboard shortcuts. **PAUSE for owner UI verification.**
 
