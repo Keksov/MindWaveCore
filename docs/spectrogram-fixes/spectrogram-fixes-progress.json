@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-06T05:40:00Z",
+  "updatedAt": "2026-07-06T06:00:00Z",
   "decisions": [
     {
       "id": "SF-D1",
@@ -2635,6 +2635,12 @@
       "step": "SF23.3",
       "event": "done",
       "note": "View-mode dropdown replaces separate toggles."
+    },
+    {
+      "ts": "2026-07-06T06:00:00Z",
+      "step": "SF23",
+      "event": "amended",
+      "note": "Follow-up (owner go): keyboard nav works in Waveform-only mode too. WaveformView exposes handleNavKey; AudioPage delegates to spectrogram primary when shown else waveform primary. GnauralCore 53e2a46."
     }
   ]
 }
