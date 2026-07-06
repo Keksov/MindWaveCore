@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-06T04:31:00Z",
+  "updatedAt": "2026-07-06T05:40:00Z",
   "decisions": [
     {
       "id": "SF-D1",
@@ -234,6 +234,10 @@
     {
       "id": "SF-D60",
       "text": "Phase 22 waveform + audio-model foundation. Owner: both separate track AND overlay this phase; waveform track ABOVE spectrogram, stereo=L/R; amplitude scale switchable linear/dB; full audio-model API now. Design: (1) audio-model.ts over AudioBuffer — metadata + timeToSample/sampleToTime + pixel<->time via view + queries sampleAt/amplitudeAt/peaks{min,max,rms}; useAudioModel composable; the reusable editor foundation. (2) waveform-render.ts (pure, linear/dBFS) + WaveformView.vue reusing spectrogramShared (view/selection/playhead), stereo L/R, amplitude axis + cursor readout. (3) overlay toggle draws waveform over spectrogram canvas time-aligned. (4) unified cursor readout combines audio-model query (time/sample/amplitude) + spectrogram point-query (freq/dB). Settings showWaveform/waveformOverlay/waveformScale persisted with audio-view settings. Client-only (peaks on-demand over visible range; peak-cache pyramid a later optimisation)."
+    },
+    {
+      "id": "SF-D61",
+      "text": "Phase 23 (owner follow-ups on Phase 22). SF23.1: Alt+Left/Right stopped panning because the hash router treats them as browser back/forward — the nav delegation now preventDefault()s before calling handleNavKey. SF23.2: waveform colour + overlay opacity settings (persisted); colour applies to the waveform track + overlay, opacity to the overlay; palette popover in the toolbar. SF23.3: Audacity-style view-mode dropdown (Both / Overlay / Spectrogram / Waveform) replacing the separate show/overlay toggles; viewMode derives showWaveform/showSpectrogram/waveformOverlay; the spectrogram stack + minimap are hidden in Waveform mode."
     }
   ],
   "steps": [
@@ -1822,6 +1826,69 @@
         "spectrogram readout + amplitude/dBFS; waveform readout + sample index",
         "bun 82/0; vue-tsc 0; build ok"
       ]
+    },
+    {
+      "id": "SF23.1",
+      "phase": 23,
+      "title": "Fix Alt+Left/Right pan (preventDefault browser back/forward)",
+      "status": "done",
+      "dependsOn": [
+        "SF22.2"
+      ],
+      "artifacts": [
+        "GnauralCore/ui/pages/AudioPage.vue",
+        "GnauralCore/ui/components/SpectrogramView.vue",
+        "GnauralCore/ui/components/WaveformView.vue"
+      ],
+      "verify": "vue-tsc + bun + build green",
+      "startedAt": "2026-07-06T05:00:00Z",
+      "finishedAt": "2026-07-06T05:40:00Z",
+      "blockedReason": null,
+      "evidence": [
+        "GnauralCore (nav delegation preventDefault)"
+      ]
+    },
+    {
+      "id": "SF23.2",
+      "phase": 23,
+      "title": "Waveform colour + overlay opacity settings + UI",
+      "status": "done",
+      "dependsOn": [
+        "SF22.2"
+      ],
+      "artifacts": [
+        "GnauralCore/ui/pages/AudioPage.vue",
+        "GnauralCore/ui/components/SpectrogramView.vue",
+        "GnauralCore/ui/components/WaveformView.vue"
+      ],
+      "verify": "vue-tsc + bun + build green",
+      "startedAt": "2026-07-06T05:00:00Z",
+      "finishedAt": "2026-07-06T05:40:00Z",
+      "blockedReason": null,
+      "evidence": [
+        "waveformColor/waveformOpacity persisted; palette popover; applied to track + overlay"
+      ]
+    },
+    {
+      "id": "SF23.3",
+      "phase": 23,
+      "title": "Audacity-style view-mode dropdown + show/hide spectrum",
+      "status": "done",
+      "dependsOn": [
+        "SF22.2"
+      ],
+      "artifacts": [
+        "GnauralCore/ui/pages/AudioPage.vue",
+        "GnauralCore/ui/components/SpectrogramView.vue",
+        "GnauralCore/ui/components/WaveformView.vue"
+      ],
+      "verify": "vue-tsc + bun + build green",
+      "startedAt": "2026-07-06T05:00:00Z",
+      "finishedAt": "2026-07-06T05:40:00Z",
+      "blockedReason": null,
+      "evidence": [
+        "viewMode both/overlay/spectrogram/waveform; derives show flags; spectrogram+minimap hidden in waveform mode"
+      ]
     }
   ],
   "log": [
@@ -2550,6 +2617,24 @@
       "step": "SF22",
       "event": "done",
       "note": "Phase 22 complete: audio-model foundation + waveform track (above, L/R, linear/dB) + overlay + unified cursor readout. Client-only. PAUSE for owner UI verification. Follow-ups noted: peak-cache pyramid for very long files; waveform track resize; drag-select from waveform."
+    },
+    {
+      "ts": "2026-07-06T05:40:00Z",
+      "step": "SF23.1",
+      "event": "done",
+      "note": "Hash router made Alt+Left/Right = browser back/forward, preempting the pan; delegation now preventDefaults."
+    },
+    {
+      "ts": "2026-07-06T05:40:00Z",
+      "step": "SF23.2",
+      "event": "done",
+      "note": "Colour + overlay opacity configurable."
+    },
+    {
+      "ts": "2026-07-06T05:40:00Z",
+      "step": "SF23.3",
+      "event": "done",
+      "note": "View-mode dropdown replaces separate toggles."
     }
   ]
 }
