@@ -819,6 +819,23 @@ audio: the client re-fetches the edited audio for its Web-Audio playback buffer 
   *(Owner insight 2026-07-06: play from the backend directly, like GnauralCore already does.)*
 - [ ] **SF24.6 — Editor UI.** Toolbar/menu for the operations + undo/redo (thin — just dispatches
   backend commands), selection-driven; keyboard shortcuts. **PAUSE for owner UI verification.**
+- [ ] **SF24.7 — Microphone recording, realtime streaming into the track (SF-D63/D64).**
+  Recording STAYS in SoundCore (no shared module). **Realtime is the priority over file
+  hand-off:** SoundCore gains `start_record`/`stop_record` protocol commands (record at the
+  track's rate/channels — no resample on insert) and STREAMS captured PCM blocks live over the
+  process pipe (framed binary/base64 — mic audio ~96 KB/s Int16 mono@48k, trivial) plus level/
+  peaks for a live meter. The backend spawns SoundCore as a managed child (like Gnaural.exe /
+  the worker), appends the stream to a LIVE recording buffer (waveform + spectrogram grow live),
+  and inserts it into the track on stop (SF24.3 insert) with auto re-sync. A temp WAV + path is
+  kept only as a secondary/durable fallback; shared-memory ring deferred.
+
+**Audio capture/output reuse (SF-D63/D64, research 2026-07-06).** `c:/projects/Games/SoundCore` is
+an FPC/Pascal engine on **UOS + PortAudio + libsndfile** with a JSONL stdio protocol (same stack
+as SpectrumCore): full-duplex capture + output, mic recording, device enumeration/selection, and
+the hard gotchas solved (Int16 capture; cache `uos_GetInfoDevice`; select devices by name; WASAPI
+exclusive + shared fallback; keep in/out same rate). **SF24.5 backend playback reuses its UOS
+output pipeline. SF24.7 recording stays in SoundCore and streams live PCM/peaks to the backend
+(realtime prioritised over the WAV file hand-off).** Prefer reusing SoundCore over reimplementing.
 
 **Open risks to confirm during execution:** worker edit ops mutate its decoded buffer (was
 read-only) — needs care with the shared-decode cache (SF11.7) and per-analysis isolation for
