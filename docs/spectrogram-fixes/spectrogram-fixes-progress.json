@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-06T00:41:00Z",
+  "updatedAt": "2026-07-06T01:20:00Z",
   "decisions": [
     {
       "id": "SF-D1",
@@ -226,6 +226,10 @@
     {
       "id": "SF-D58",
       "text": "SF20.3 — Sub-second time-axis labels at high zoom. At large zoom ruler ticks round to the same second -> duplicate labels (1:05,1:05,...). formatTimeSec rounds to whole seconds when minutes>0. Make label precision follow the major tick step: when step<1s append the fraction of a second after a comma (1:05,3 / 1:05,25); decimals = step<0.1?2:step<1?1:0. Thread step/decimals from timeAxisTicksWithMinor into drawAxes label formatting. Draw-layer only; unit-tested."
+    },
+    {
+      "id": "SF-D59",
+      "text": "SF21 — spectrogram nav keys work window-wide. The nav handler was bound to the canvas (needed canvas focus). Now SpectrogramView exposes handleNavKey (defineExpose) and drops the canvas @keydown; AudioPage's global window keydown handler (already guarded by shouldIgnorePlayerHotkey = focus not in input/button/menu/dialog/sidebar/contenteditable) delegates ArrowLeft/Right/Home/End to the PRIMARY spectrogram view when activePlayerViewTab==='spectrogram'. So keys count as the track editor's whenever focus isn't in another control."
     }
   ],
   "steps": [
@@ -1705,6 +1709,27 @@
         "formatTimeSec(step) comma-fraction; timeAxisTicksWithMinor returns majorStep",
         "bun ui 72/0; vue-tsc 0; build ok"
       ]
+    },
+    {
+      "id": "SF21.1",
+      "phase": 21,
+      "title": "Route spectrogram nav keys window-wide (delegate from global handler)",
+      "status": "done",
+      "dependsOn": [
+        "SF19.1"
+      ],
+      "artifacts": [
+        "GnauralCore/ui/components/SpectrogramView.vue",
+        "GnauralCore/ui/pages/AudioPage.vue"
+      ],
+      "verify": "vue-tsc + bun + build green; arrows/Home/End work when focus is anywhere in the window (not in a control)",
+      "startedAt": "2026-07-06T01:00:00Z",
+      "finishedAt": "2026-07-06T01:20:00Z",
+      "blockedReason": null,
+      "evidence": [
+        "expose handleNavKey; drop canvas @keydown; AudioPage delegates nav keys via shouldIgnorePlayerHotkey guard",
+        "vue-tsc 0; bun 72/0; quasar build ok"
+      ]
     }
   ],
   "log": [
@@ -2391,6 +2416,12 @@
       "step": "SF20",
       "event": "done",
       "note": "Phase 20 complete (recent-files dropdown + no auto-load + sub-second comma tick labels). PAUSE for owner UI verification."
+    },
+    {
+      "ts": "2026-07-06T01:20:00Z",
+      "step": "SF21.1",
+      "event": "done",
+      "note": "Owner: keyboard control only worked with canvas focus. SpectrogramView exposes handleNavKey; AudioPage global keydown delegates ArrowLeft/Right/Home/End to the primary view when spectrogram tab active and focus isn't in a control (shouldIgnorePlayerHotkey). Keys now count as the track editor's window-wide."
     }
   ]
 }

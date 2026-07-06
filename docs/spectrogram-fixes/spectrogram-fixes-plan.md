@@ -723,6 +723,16 @@ the 5 most-recently selected files**.
   label formatting in `drawAxes`. Draw-layer only ([spectrogram-axes.ts](../../../GnauralCore/ui/composables/spectrogram-axes.ts) +
   [SpectrogramView.vue](../../../GnauralCore/ui/components/SpectrogramView.vue)); unit-tested.
 
+## Phase 21 — Window-wide keyboard nav for the track editor (owner addition 2026-07-05)
+- [x] **SF21.1 — Nav keys work when focus is anywhere in the window, not only on the canvas
+  (SF-D59).** *(done 2026-07-06, GnauralCore 6ca791c)* The Audacity nav (arrows/Home/End) was
+  bound to the canvas `@keydown`, so it needed canvas focus. `SpectrogramView` now exposes
+  `handleNavKey` (`defineExpose`) and drops the canvas keydown; AudioPage's global window
+  keydown handler — already guarded by `shouldIgnorePlayerHotkey` (focus not in an
+  input/button/menu/dialog/sidebar/contenteditable) — delegates `ArrowLeft/Right/Home/End` to
+  the primary spectrogram view when the spectrogram tab is active. Keys count as the track
+  editor's whenever focus is in the window and not in another control.
+
 ## Backlog — parked ideas (**требует последующего обсуждения**)
 Ideas raised during the Phase 11 speed work that were set aside — kept here so nothing is lost.
 None are committed; **each requires later discussion** and may be dropped or reshaped after the
