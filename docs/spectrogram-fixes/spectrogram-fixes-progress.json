@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-06T01:20:00Z",
+  "updatedAt": "2026-07-06T02:00:00Z",
   "decisions": [
     {
       "id": "SF-D1",
@@ -230,6 +230,10 @@
     {
       "id": "SF-D59",
       "text": "SF21 — spectrogram nav keys work window-wide. The nav handler was bound to the canvas (needed canvas focus). Now SpectrogramView exposes handleNavKey (defineExpose) and drops the canvas @keydown; AudioPage's global window keydown handler (already guarded by shouldIgnorePlayerHotkey = focus not in input/button/menu/dialog/sidebar/contenteditable) delegates ArrowLeft/Right/Home/End to the PRIMARY spectrogram view when activePlayerViewTab==='spectrogram'. So keys count as the track editor's whenever focus isn't in another control."
+    },
+    {
+      "id": "SF-D60",
+      "text": "Phase 22 waveform + audio-model foundation. Owner: both separate track AND overlay this phase; waveform track ABOVE spectrogram, stereo=L/R; amplitude scale switchable linear/dB; full audio-model API now. Design: (1) audio-model.ts over AudioBuffer — metadata + timeToSample/sampleToTime + pixel<->time via view + queries sampleAt/amplitudeAt/peaks{min,max,rms}; useAudioModel composable; the reusable editor foundation. (2) waveform-render.ts (pure, linear/dBFS) + WaveformView.vue reusing spectrogramShared (view/selection/playhead), stereo L/R, amplitude axis + cursor readout. (3) overlay toggle draws waveform over spectrogram canvas time-aligned. (4) unified cursor readout combines audio-model query (time/sample/amplitude) + spectrogram point-query (freq/dB). Settings showWaveform/waveformOverlay/waveformScale persisted with audio-view settings. Client-only (peaks on-demand over visible range; peak-cache pyramid a later optimisation)."
     }
   ],
   "steps": [
@@ -1730,6 +1734,78 @@
         "expose handleNavKey; drop canvas @keydown; AudioPage delegates nav keys via shouldIgnorePlayerHotkey guard",
         "vue-tsc 0; bun 72/0; quasar build ok"
       ]
+    },
+    {
+      "id": "SF22.1",
+      "phase": 22,
+      "title": "Audio-model API (pixel<->time<->sample + sampleAt/amplitudeAt/peaks) + tests",
+      "status": "not-started",
+      "dependsOn": [],
+      "artifacts": [
+        "GnauralCore/ui/composables/audio-model.ts",
+        "GnauralCore/ui/composables/audio-model.test.ts"
+      ],
+      "verify": "vue-tsc + bun green; peaks/time<->sample/dB unit-tested over a known buffer",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "SF22.2",
+      "phase": 22,
+      "title": "Waveform renderer + WaveformView track above spectrogram (stereo L/R, linear/dB)",
+      "status": "not-started",
+      "dependsOn": [
+        "SF22.1"
+      ],
+      "artifacts": [
+        "GnauralCore/ui/composables/waveform-render.ts",
+        "GnauralCore/ui/composables/waveform-render.test.ts",
+        "GnauralCore/ui/components/WaveformView.vue",
+        "GnauralCore/ui/pages/AudioPage.vue"
+      ],
+      "verify": "vue-tsc + bun + build; waveform track shows above spectrogram, time-aligned, L/R; amplitude axis + readout; showWaveform toggle",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "SF22.3",
+      "phase": 22,
+      "title": "Waveform overlay on the spectrogram (toggle)",
+      "status": "not-started",
+      "dependsOn": [
+        "SF22.2"
+      ],
+      "artifacts": [
+        "GnauralCore/ui/components/SpectrogramView.vue",
+        "GnauralCore/ui/composables/waveform-render.ts"
+      ],
+      "verify": "vue-tsc + build; overlay draws waveform over spectrogram time-aligned; waveformOverlay toggle",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "SF22.4",
+      "phase": 22,
+      "title": "Unified cursor readout: query at cursor (time/sample/amplitude + freq/dB)",
+      "status": "not-started",
+      "dependsOn": [
+        "SF22.1"
+      ],
+      "artifacts": [
+        "GnauralCore/ui/components/WaveformView.vue",
+        "GnauralCore/ui/components/SpectrogramView.vue"
+      ],
+      "verify": "vue-tsc + build; cursor readout combines audio-model + spectrogram point-query",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
     }
   ],
   "log": [
@@ -2422,6 +2498,12 @@
       "step": "SF21.1",
       "event": "done",
       "note": "Owner: keyboard control only worked with canvas focus. SpectrogramView exposes handleNavKey; AudioPage global keydown delegates ArrowLeft/Right/Home/End to the primary view when spectrogram tab active and focus isn't in a control (shouldIgnorePlayerHotkey). Keys now count as the track editor's window-wide."
+    },
+    {
+      "ts": "2026-07-06T02:00:00Z",
+      "step": "SF22.0",
+      "event": "planned",
+      "note": "Owner: waveform (separate track above spectrogram + overlay) + editor foundation (picture<->model, query at cursor). Answers: both this phase; L/R; switchable linear/dB; full audio-model API now. SF-D60; SF22.1 model, 22.2 track, 22.3 overlay, 22.4 readout. Awaiting go."
     }
   ]
 }

@@ -733,6 +733,49 @@ the 5 most-recently selected files**.
   the primary spectrogram view when the spectrogram tab is active. Keys count as the track
   editor's whenever focus is in the window and not in another control.
 
+## Phase 22 — Waveform + audio-model foundation (owner addition 2026-07-05)
+Add an Audacity-style **waveform** — a separate track above the spectrogram AND an overlay on the
+spectrogram — and lay the **editor foundation**: a bidirectional picture↔model link so parameters
+can be queried at the point under the cursor. Client-only (the decoded `AudioBuffer` already lives
+in the store as `audio.spectrogramBuffer`; the shared view/selection/playhead already exist via
+`spectrogramShared`). **Not yet approved — awaiting `go`.**
+
+**Owner decisions (2026-07-05):** both the separate track and the overlay in this phase; waveform
+track **above** the spectrogram, stereo = **L/R**; amplitude scale **switchable linear/dB**; build
+the **full audio-model API now** (not minimal).
+
+**SF-D60 — design.**
+- **Audio model (the "digital model" + picture↔pixel link).** A framework-free module
+  `audio-model.ts` over the `AudioBuffer`: metadata (sampleRate, duration, length, channels),
+  mapping (`timeToSample`/`sampleToTime`, and pixel↔time via a view window), and queries —
+  `sampleAt(timeSec, ch)`, `amplitudeAt(timeSec, ch)`, `peaks(startSec, endSec, buckets, ch)` →
+  `{min,max,rms}[]`. This is the reusable surface a future editor builds on; the waveform renderer
+  and the cursor readout both consume it. (Peak reads are on-demand over the visible range now; a
+  multi-resolution peak-cache pyramid is a later optimisation for very long files.)
+- **Waveform view.** Pure `waveform-render.ts` (peaks → min/max fill + RMS, linear or dBFS) +
+  `WaveformView.vue` — a track that reuses `spectrogramShared` (same time window, selection,
+  playhead) so it stays frame-aligned with the spectrogram. Amplitude axis; cursor readout (time +
+  sample + amplitude). Stereo → L/R waveform tracks (channels 0/1), mirroring the L/R spectrogram.
+- **Overlay.** A toggle to draw the waveform (semi-transparent, amplitude → a centred band) over
+  the spectrogram canvas, time-aligned.
+- **Settings.** `showWaveform` (separate track), `waveformOverlay`, `waveformScale`
+  (`linear`|`db`) — persisted with the other audio-view settings; toggles in the toolbar/panel.
+
+- [ ] **SF22.1 — Audio-model API + tests.** `audio-model.ts`: mapping + `sampleAt`/`amplitudeAt`/
+  `peaks`; a `useAudioModel(bufferRef)` composable wrapping it reactively. Unit-test the pure math
+  (peaks over a known buffer, time↔sample, dB conversion).
+- [ ] **SF22.2 — Waveform renderer + WaveformView track (above the spectrogram).** `waveform-render.ts`
+  (pure, linear/dB) + `WaveformView.vue`; wire into the AudioPage track stack above the spectrogram,
+  stereo L/R, sharing view/selection/playhead; amplitude axis + cursor readout; `showWaveform`
+  toggle. `vue-tsc` + `bun` + build.
+- [ ] **SF22.3 — Waveform overlay on the spectrogram.** `waveformOverlay` toggle draws the waveform
+  over the spectrogram canvas (time-aligned, amplitude band). Reuses `waveform-render` + the audio
+  model. `vue-tsc` + build.
+- [ ] **SF22.4 — Unified cursor readout (query at cursor).** At the cursor, combine the audio-model
+  query (time / sample index / amplitude) with the spectrogram point-query (freq / dB) into one
+  readout — the bidirectional picture↔model surface the future editor uses. `vue-tsc` + build;
+  **PAUSE for owner UI verification.**
+
 ## Backlog — parked ideas (**требует последующего обсуждения**)
 Ideas raised during the Phase 11 speed work that were set aside — kept here so nothing is lost.
 None are committed; **each requires later discussion** and may be dropped or reshaped after the
