@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-06T07:20:00Z",
+  "updatedAt": "2026-07-06T08:00:00Z",
   "decisions": [
     {
       "id": "SF-D1",
@@ -242,6 +242,10 @@
     {
       "id": "SF-D62",
       "text": "Phase 24 audio editor. Owner: variant A — backend is the single source of truth (thin UI for future frontends). Full ops incl. length-changing; automatic spectrogram re-sync; destructive + undo/redo; export later. Architecture: the SpectrumCore worker (already decodes PCM for STFT, SF11.7 cache) owns the authoritative audio — computes waveform peaks from it (one source for waveform+spectrogram), applies edit ops with undo/redo, re-derives peaks+STFT after each edit. Client = thin renderer (fetch peaks per view, dispatch edit commands, refresh playback buffer after edits). New worker cmds + protocol + server passthrough. Steps SF24.1 backend peaks, 24.2 non-length ops+undo/redo, 24.3 length-changing ops, 24.4 auto spectro re-sync, 24.5 playback re-sync, 24.6 editor UI. | REFINED (owner 2026-07-06): backend currently plays only gnaural (Gnaural.exe); direct WAV playback is 'not implemented yet' (client plays local via <audio>). SF24.5 = implement server-side WAV/PCM playback so the backend plays local+edited audio directly; client fully thin (no Web-Audio playback/decode), sends transport commands only. Server plays to its own device (desktop scenario); remote streaming later."
+    },
+    {
+      "id": "SF-D63",
+      "text": "Audio capture/output reuse (research 2026-07-06). c:/projects/Games/SoundCore is an FPC/Pascal audio engine on UOS + PortAudio + libsndfile with a JSONL stdio protocol (same stack/arch as SpectrumCore). It already implements full-duplex capture+output, mic recording (uos_AddFromDevIn -> AddIntoFile/DSP callback), device enumeration/selection (list_devices/select_devices), and solved the hard gotchas: capture must be Int16 (Realtek Float32=silence); uos_GetInfoDevice cached once (repeat calls hang); device indices shift (select by name); WASAPI exclusive for low latency + shared(-1) fallback; keep in/out same rate (avoid resample clicks); BT unsuitable. DECISION: Phase 24 SF24.5 backend playback reuses SoundCore's UOS output pipeline (CreatePlayer+AddIntoDevOut+AddFromFile/Memory+Play); future SF24.7 microphone recording reuses uos_AddFromDevIn. Prefer sharing the UOS audio unit or adopting SoundCore as an audio-engine process rather than reimplementing."
     }
   ],
   "steps": [
@@ -1978,7 +1982,8 @@
       ],
       "artifacts": [
         "server-side WAV/PCM playback (native output, reuse gnaural transport)",
-        "client drops Web-Audio (playback+decode)"
+        "client drops Web-Audio (playback+decode)",
+        "reuse SoundCore UOS output pipeline (SF-D63)"
       ],
       "verify": "backend plays local + edited audio; client sends transport only; no client Web-Audio",
       "startedAt": null,
@@ -1999,6 +2004,24 @@
         "GnauralCore/ui edit toolbar wired to backend commands"
       ],
       "verify": "ops usable from UI; vue-tsc+bun+build; PAUSE for UI verify",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "SF24.7",
+      "phase": 24,
+      "title": "Microphone recording in the editor (reuse SoundCore UOS capture)",
+      "status": "not-started",
+      "dependsOn": [
+        "SF24.5"
+      ],
+      "artifacts": [
+        "reuse SoundCore uos_AddFromDevIn capture -> editor PCM/WAV",
+        "device list/select"
+      ],
+      "verify": "record from mic into the edit buffer; device selection; auto spectro/peaks refresh",
       "startedAt": null,
       "finishedAt": null,
       "blockedReason": null,
@@ -2767,6 +2790,12 @@
       "step": "SF24.5",
       "event": "scoped",
       "note": "Owner insight: play from backend directly like gnaural. Found: backend plays only gnaural (Gnaural.exe); direct WAV playback not implemented (client plays local via <audio>). SF24.5 now = backend WAV/PCM playback + retire client Web-Audio -> fully thin client. Awaiting go on roadmap."
+    },
+    {
+      "ts": "2026-07-06T08:00:00Z",
+      "step": "SF24.5",
+      "event": "researched",
+      "note": "Investigated c:/projects/Games/SoundCore (owner request). FPC+UOS+PortAudio+libsndfile, JSONL protocol; full-duplex capture+output, mic recording, device mgmt, hard gotchas solved (Int16 capture, device cache, WASAPI, same-rate). Reuse for SF24.5 backend playback + new SF24.7 mic recording. SF-D63."
     }
   ]
 }
