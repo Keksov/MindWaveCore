@@ -761,17 +761,17 @@ the **full audio-model API now** (not minimal).
 - **Settings.** `showWaveform` (separate track), `waveformOverlay`, `waveformScale`
   (`linear`|`db`) — persisted with the other audio-view settings; toggles in the toolbar/panel.
 
-- [ ] **SF22.1 — Audio-model API + tests.** `audio-model.ts`: mapping + `sampleAt`/`amplitudeAt`/
+- [x] **SF22.1 — Audio-model API + tests.** `audio-model.ts`: mapping + `sampleAt`/`amplitudeAt`/
   `peaks`; a `useAudioModel(bufferRef)` composable wrapping it reactively. Unit-test the pure math
   (peaks over a known buffer, time↔sample, dB conversion).
-- [ ] **SF22.2 — Waveform renderer + WaveformView track (above the spectrogram).** `waveform-render.ts`
+- [x] **SF22.2 — Waveform renderer + WaveformView track (above the spectrogram).** `waveform-render.ts`
   (pure, linear/dB) + `WaveformView.vue`; wire into the AudioPage track stack above the spectrogram,
   stereo L/R, sharing view/selection/playhead; amplitude axis + cursor readout; `showWaveform`
   toggle. `vue-tsc` + `bun` + build.
-- [ ] **SF22.3 — Waveform overlay on the spectrogram.** `waveformOverlay` toggle draws the waveform
+- [x] **SF22.3 — Waveform overlay on the spectrogram.** `waveformOverlay` toggle draws the waveform
   over the spectrogram canvas (time-aligned, amplitude band). Reuses `waveform-render` + the audio
   model. `vue-tsc` + build.
-- [ ] **SF22.4 — Unified cursor readout (query at cursor).** At the cursor, combine the audio-model
+- [x] **SF22.4 — Unified cursor readout (query at cursor).** At the cursor, combine the audio-model
   query (time / sample index / amplitude) with the spectrogram point-query (freq / dB) into one
   readout — the bidirectional picture↔model surface the future editor uses. `vue-tsc` + build;
   **PAUSE for owner UI verification.**

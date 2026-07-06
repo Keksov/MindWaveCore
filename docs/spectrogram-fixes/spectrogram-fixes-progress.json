@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-06T02:00:00Z",
+  "updatedAt": "2026-07-06T04:31:00Z",
   "decisions": [
     {
       "id": "SF-D1",
@@ -1739,23 +1739,27 @@
       "id": "SF22.1",
       "phase": 22,
       "title": "Audio-model API (pixel<->time<->sample + sampleAt/amplitudeAt/peaks) + tests",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": [],
       "artifacts": [
         "GnauralCore/ui/composables/audio-model.ts",
         "GnauralCore/ui/composables/audio-model.test.ts"
       ],
       "verify": "vue-tsc + bun green; peaks/time<->sample/dB unit-tested over a known buffer",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-06T03:00:00Z",
+      "finishedAt": "2026-07-06T04:30:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "GnauralCore 093d9b8",
+        "audio-model.ts pure + use-audio-model composable",
+        "bun 7/0; vue-tsc 0"
+      ]
     },
     {
       "id": "SF22.2",
       "phase": 22,
       "title": "Waveform renderer + WaveformView track above spectrogram (stereo L/R, linear/dB)",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": [
         "SF22.1"
       ],
@@ -1766,16 +1770,20 @@
         "GnauralCore/ui/pages/AudioPage.vue"
       ],
       "verify": "vue-tsc + bun + build; waveform track shows above spectrogram, time-aligned, L/R; amplitude axis + readout; showWaveform toggle",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-06T03:00:00Z",
+      "finishedAt": "2026-07-06T04:30:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "GnauralCore 335459f",
+        "waveform-render + WaveformView track above spectrogram (L/R, linear/dB); showWaveform+scale toggles",
+        "bun 82/0; vue-tsc 0; build ok"
+      ]
     },
     {
       "id": "SF22.3",
       "phase": 22,
       "title": "Waveform overlay on the spectrogram (toggle)",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": [
         "SF22.2"
       ],
@@ -1784,16 +1792,20 @@
         "GnauralCore/ui/composables/waveform-render.ts"
       ],
       "verify": "vue-tsc + build; overlay draws waveform over spectrogram time-aligned; waveformOverlay toggle",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-06T03:00:00Z",
+      "finishedAt": "2026-07-06T04:30:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "GnauralCore 56fd316",
+        "SpectrogramView waveform overlay props + draw; AudioPage wiring",
+        "bun 82/0; vue-tsc 0; build ok"
+      ]
     },
     {
       "id": "SF22.4",
       "phase": 22,
       "title": "Unified cursor readout: query at cursor (time/sample/amplitude + freq/dB)",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": [
         "SF22.1"
       ],
@@ -1802,10 +1814,14 @@
         "GnauralCore/ui/components/SpectrogramView.vue"
       ],
       "verify": "vue-tsc + build; cursor readout combines audio-model + spectrogram point-query",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-06T03:00:00Z",
+      "finishedAt": "2026-07-06T04:30:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "GnauralCore 58a235a",
+        "spectrogram readout + amplitude/dBFS; waveform readout + sample index",
+        "bun 82/0; vue-tsc 0; build ok"
+      ]
     }
   ],
   "log": [
@@ -2504,6 +2520,36 @@
       "step": "SF22.0",
       "event": "planned",
       "note": "Owner: waveform (separate track above spectrogram + overlay) + editor foundation (picture<->model, query at cursor). Answers: both this phase; L/R; switchable linear/dB; full audio-model API now. SF-D60; SF22.1 model, 22.2 track, 22.3 overlay, 22.4 readout. Awaiting go."
+    },
+    {
+      "ts": "2026-07-06T04:30:00Z",
+      "step": "SF22.1",
+      "event": "done",
+      "note": "Audio-model foundation (mapping + sampleAt/peaks/dB)."
+    },
+    {
+      "ts": "2026-07-06T04:30:00Z",
+      "step": "SF22.2",
+      "event": "done",
+      "note": "Waveform track above spectrogram, shared view, memoized peaks."
+    },
+    {
+      "ts": "2026-07-06T04:30:00Z",
+      "step": "SF22.3",
+      "event": "done",
+      "note": "Waveform overlay on the spectrogram (toggle)."
+    },
+    {
+      "ts": "2026-07-06T04:30:00Z",
+      "step": "SF22.4",
+      "event": "done",
+      "note": "Unified cursor readout: query at cursor across both models."
+    },
+    {
+      "ts": "2026-07-06T04:31:00Z",
+      "step": "SF22",
+      "event": "done",
+      "note": "Phase 22 complete: audio-model foundation + waveform track (above, L/R, linear/dB) + overlay + unified cursor readout. Client-only. PAUSE for owner UI verification. Follow-ups noted: peak-cache pyramid for very long files; waveform track resize; drag-select from waveform."
     }
   ]
 }
