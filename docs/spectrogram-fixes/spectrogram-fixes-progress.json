@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-06T08:00:00Z",
+  "updatedAt": "2026-07-06T08:30:00Z",
   "decisions": [
     {
       "id": "SF-D1",
@@ -246,6 +246,10 @@
     {
       "id": "SF-D63",
       "text": "Audio capture/output reuse (research 2026-07-06). c:/projects/Games/SoundCore is an FPC/Pascal audio engine on UOS + PortAudio + libsndfile with a JSONL stdio protocol (same stack/arch as SpectrumCore). It already implements full-duplex capture+output, mic recording (uos_AddFromDevIn -> AddIntoFile/DSP callback), device enumeration/selection (list_devices/select_devices), and solved the hard gotchas: capture must be Int16 (Realtek Float32=silence); uos_GetInfoDevice cached once (repeat calls hang); device indices shift (select by name); WASAPI exclusive for low latency + shared(-1) fallback; keep in/out same rate (avoid resample clicks); BT unsuitable. DECISION: Phase 24 SF24.5 backend playback reuses SoundCore's UOS output pipeline (CreatePlayer+AddIntoDevOut+AddFromFile/Memory+Play); future SF24.7 microphone recording reuses uos_AddFromDevIn. Prefer sharing the UOS audio unit or adopting SoundCore as an audio-engine process rather than reimplementing."
+    },
+    {
+      "id": "SF-D64",
+      "text": "Recording buffer exchange (owner 2026-07-06). Recording STAYS in SoundCore (no shared module extracted). PRIORITY = realtime streaming over file hand-off. Design: SoundCore gains start_record/stop_record protocol commands recording at the track's sampleRate/channels (set_config) so no resample on insert; captured PCM blocks are STREAMED LIVE over the process pipe (framed binary or base64 — mic audio is low bandwidth, ~96 KB/s Int16 mono@48k, trivial over stdio) plus cheap level/peaks for a live meter/waveform. The MindWave backend spawns SoundCore as a managed child (like Gnaural.exe / the SpectrumCore worker), reads the stream, appends to a LIVE recording buffer in the worker/audio model, updates peaks+spectrogram live, and inserts it into the track on stop (via the SF24.3 insert op) with auto re-sync. File hand-off (temp WAV + path) kept ONLY as a secondary durable artifact / fallback, not the primary path. Shared-memory ring deferred (only if ultra-low-latency live monitoring is needed)."
     }
   ],
   "steps": [
@@ -2012,16 +2016,17 @@
     {
       "id": "SF24.7",
       "phase": 24,
-      "title": "Microphone recording in the editor (reuse SoundCore UOS capture)",
+      "title": "Microphone recording — realtime streaming into the track (reuse SoundCore)",
       "status": "not-started",
       "dependsOn": [
         "SF24.5"
       ],
       "artifacts": [
-        "reuse SoundCore uos_AddFromDevIn capture -> editor PCM/WAV",
-        "device list/select"
+        "SoundCore start_record/stop_record (record at track rate/channels)",
+        "live PCM/peaks stream over pipe",
+        "backend appends to live buffer; insert on stop (SF24.3); WAV fallback"
       ],
-      "verify": "record from mic into the edit buffer; device selection; auto spectro/peaks refresh",
+      "verify": "record from mic with LIVE waveform/spectrogram growth; insert into track on stop; device selection",
       "startedAt": null,
       "finishedAt": null,
       "blockedReason": null,
@@ -2796,6 +2801,12 @@
       "step": "SF24.5",
       "event": "researched",
       "note": "Investigated c:/projects/Games/SoundCore (owner request). FPC+UOS+PortAudio+libsndfile, JSONL protocol; full-duplex capture+output, mic recording, device mgmt, hard gotchas solved (Int16 capture, device cache, WASAPI, same-rate). Reuse for SF24.5 backend playback + new SF24.7 mic recording. SF-D63."
+    },
+    {
+      "ts": "2026-07-06T08:30:00Z",
+      "step": "SF24.7",
+      "event": "scoped",
+      "note": "Owner: recording stays in SoundCore; realtime streaming is PRIORITY over file hand-off. SF-D64: SoundCore start/stop_record streams live PCM/peaks over pipe (low bandwidth), backend appends to live buffer + updates peaks/spectrogram live + inserts on stop; WAV only as fallback artifact."
     }
   ]
 }
