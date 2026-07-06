@@ -776,6 +776,48 @@ the **full audio-model API now** (not minimal).
   readout — the bidirectional picture↔model surface the future editor uses. `vue-tsc` + build;
   **PAUSE for owner UI verification.**
 
+## Phase 24 — Audio editor, backend source of truth (owner addition 2026-07-06)
+Turn the viewer into an editor. **Owner architecture decision: variant A — the backend is the
+single source of truth** (thin UI, so another frontend could reuse the backend). **Scope
+(owner):** full operation set incl. length-changing (silence / amplify / fade / normalize +
+cut / delete / trim); **automatic** spectrogram re-sync after each edit; **destructive +
+undo/redo**; export later. **Not yet approved — awaiting `go` on the roadmap.**
+
+**SF-D62 — architecture.** The SpectrumCore worker already decodes the file's PCM for the STFT
+(shared-decode cache, SF11.7). Make that decoded PCM the **authoritative audio model**: the
+worker owns it, computes **waveform peaks** from it (so waveform + spectrogram are one source),
+applies **edit operations** to it with an **undo/redo history**, and re-derives both the peaks
+and the STFT after each edit. The client becomes a thin renderer: it fetches peaks per view and
+dispatches edit commands; it holds no authoritative audio and no edit logic. New worker commands
++ protocol messages + server passthrough carry peaks / edit / undo / redo. Playback of edited
+audio: the client re-fetches the edited audio for its Web-Audio playback buffer after an edit.
+
+**Roadmap (each step: build/bundle worker as needed, verify, commit; pause at phase end).**
+- [ ] **SF24.1 — Backend peaks (waveform becomes backend-driven).** Worker `get-peaks`
+  (min/max/RMS over a sample range at a requested resolution, from the decoded samples) +
+  protocol `spectrogram:get-peaks` + server passthrough. `WaveformView` fetches peaks from the
+  backend instead of the client `AudioBuffer` (the client-side `audio-model` peak compute is
+  retired; mapping helpers stay). Establishes one audio source.
+- [ ] **SF24.2 — Backend edit session + non-length ops + undo/redo.** Worker holds the editable
+  PCM per analysis; ops **silence / amplify / fade-in / fade-out / normalize** over a
+  time selection; an undo/redo stack. Protocol `spectrogram:edit` / `:undo` / `:redo`. An edit
+  invalidates peaks + tiles.
+- [ ] **SF24.3 — Length-changing ops (cut / delete / trim).** Worker rebuilds the PCM (frame
+  grid/duration change); client adjusts selection / playhead / duration.
+- [ ] **SF24.4 — Automatic spectrogram re-sync.** After any edit the worker re-derives the STFT
+  (its samples already changed) and the server invalidates the per-analysis tile cache; the
+  client refetches tiles + peaks. (Backend-internal — no temp-WAV round-trip needed since the
+  worker owns the PCM.)
+- [ ] **SF24.5 — Playback of edited audio.** After an edit, the client refreshes its Web-Audio
+  playback/display buffer from the backend (fetch edited PCM/WAV) so playback matches the edits.
+- [ ] **SF24.6 — Editor UI.** Toolbar/menu for the operations + undo/redo (thin — just dispatches
+  backend commands), selection-driven; keyboard shortcuts. **PAUSE for owner UI verification.**
+
+**Open risks to confirm during execution:** worker edit ops mutate its decoded buffer (was
+read-only) — needs care with the shared-decode cache (SF11.7) and per-analysis isolation for
+stereo; length changes ripple through frame counts / tile addressing; playback re-fetch cost on
+large files (consider streaming later); export (WAV) deferred per owner.
+
 ## Backlog — parked ideas (**требует последующего обсуждения**)
 Ideas raised during the Phase 11 speed work that were set aside — kept here so nothing is lost.
 None are committed; **each requires later discussion** and may be dropped or reshaped after the

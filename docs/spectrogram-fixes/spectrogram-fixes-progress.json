@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-06T06:00:00Z",
+  "updatedAt": "2026-07-06T07:00:00Z",
   "decisions": [
     {
       "id": "SF-D1",
@@ -238,6 +238,10 @@
     {
       "id": "SF-D61",
       "text": "Phase 23 (owner follow-ups on Phase 22). SF23.1: Alt+Left/Right stopped panning because the hash router treats them as browser back/forward — the nav delegation now preventDefault()s before calling handleNavKey. SF23.2: waveform colour + overlay opacity settings (persisted); colour applies to the waveform track + overlay, opacity to the overlay; palette popover in the toolbar. SF23.3: Audacity-style view-mode dropdown (Both / Overlay / Spectrogram / Waveform) replacing the separate show/overlay toggles; viewMode derives showWaveform/showSpectrogram/waveformOverlay; the spectrogram stack + minimap are hidden in Waveform mode."
+    },
+    {
+      "id": "SF-D62",
+      "text": "Phase 24 audio editor. Owner: variant A — backend is the single source of truth (thin UI for future frontends). Full ops incl. length-changing; automatic spectrogram re-sync; destructive + undo/redo; export later. Architecture: the SpectrumCore worker (already decodes PCM for STFT, SF11.7 cache) owns the authoritative audio — computes waveform peaks from it (one source for waveform+spectrogram), applies edit ops with undo/redo, re-derives peaks+STFT after each edit. Client = thin renderer (fetch peaks per view, dispatch edit commands, refresh playback buffer after edits). New worker cmds + protocol + server passthrough. Steps SF24.1 backend peaks, 24.2 non-length ops+undo/redo, 24.3 length-changing ops, 24.4 auto spectro re-sync, 24.5 playback re-sync, 24.6 editor UI."
     }
   ],
   "steps": [
@@ -1889,6 +1893,115 @@
       "evidence": [
         "viewMode both/overlay/spectrogram/waveform; derives show flags; spectrogram+minimap hidden in waveform mode"
       ]
+    },
+    {
+      "id": "SF24.1",
+      "phase": 24,
+      "title": "Backend peaks (get-peaks worker cmd + protocol + client thin waveform)",
+      "status": "not-started",
+      "dependsOn": [],
+      "artifacts": [
+        "worker get-peaks",
+        "protocol spectrogram:get-peaks",
+        "server passthrough",
+        "WaveformView fetches backend peaks"
+      ],
+      "verify": "worker build+bundle; probe get-peaks; WaveformView renders backend peaks; vue-tsc+bun+build",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "SF24.2",
+      "phase": 24,
+      "title": "Backend edit session: silence/amplify/fade/normalize + undo/redo",
+      "status": "not-started",
+      "dependsOn": [
+        "SF24.1"
+      ],
+      "artifacts": [
+        "worker editable PCM + ops + history",
+        "protocol edit/undo/redo",
+        "server"
+      ],
+      "verify": "probe edit+undo; peaks/tiles invalidate; tests",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "SF24.3",
+      "phase": 24,
+      "title": "Length-changing ops: cut/delete/trim + selection/playhead/duration adjust",
+      "status": "not-started",
+      "dependsOn": [
+        "SF24.2"
+      ],
+      "artifacts": [
+        "worker PCM rebuild",
+        "client adjust"
+      ],
+      "verify": "probe cut; duration updates; tests",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "SF24.4",
+      "phase": 24,
+      "title": "Automatic spectrogram re-sync after edits",
+      "status": "not-started",
+      "dependsOn": [
+        "SF24.2"
+      ],
+      "artifacts": [
+        "worker re-derive STFT",
+        "server tile-cache invalidation",
+        "client refetch"
+      ],
+      "verify": "edit -> spectrogram updates automatically",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "SF24.5",
+      "phase": 24,
+      "title": "Playback of edited audio (client refresh buffer from backend)",
+      "status": "not-started",
+      "dependsOn": [
+        "SF24.3"
+      ],
+      "artifacts": [
+        "client re-fetch edited PCM/WAV for Web-Audio playback"
+      ],
+      "verify": "edit -> playback matches edits",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "SF24.6",
+      "phase": 24,
+      "title": "Editor UI: operations + undo/redo toolbar/menu (thin)",
+      "status": "not-started",
+      "dependsOn": [
+        "SF24.2",
+        "SF24.3"
+      ],
+      "artifacts": [
+        "GnauralCore/ui edit toolbar wired to backend commands"
+      ],
+      "verify": "ops usable from UI; vue-tsc+bun+build; PAUSE for UI verify",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
     }
   ],
   "log": [
@@ -2641,6 +2754,12 @@
       "step": "SF23",
       "event": "amended",
       "note": "Follow-up (owner go): keyboard nav works in Waveform-only mode too. WaveformView exposes handleNavKey; AudioPage delegates to spectrogram primary when shown else waveform primary. GnauralCore 53e2a46."
+    },
+    {
+      "ts": "2026-07-06T07:00:00Z",
+      "step": "SF24.0",
+      "event": "planned",
+      "note": "Owner picked variant A (backend source of truth) for the editor, reasoning: thin UI enables alternate frontends. SF-D62. Worker owns authoritative PCM (already decodes for STFT); computes peaks + edits + undo/redo; client thin. Roadmap SF24.1..24.6. Awaiting go on roadmap."
     }
   ]
 }
