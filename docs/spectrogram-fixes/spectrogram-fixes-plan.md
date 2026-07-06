@@ -708,13 +708,13 @@ the 5 most-recently selected files**.
 - **UI:** when no file is selected, the player body shows a "Недавние файлы" list (basename +
   path tooltip); clicking one `selectPath`s it (which then prepares as usual). Any kind.
 
-- [ ] **SF20.1 — Store: recent-files tracking + stop auto-load.** [stores/audio.ts](../../../GnauralCore/ui/stores/audio.ts):
+- [x] **SF20.1 — Store: recent-files tracking + stop auto-load.** [stores/audio.ts](../../../GnauralCore/ui/stores/audio.ts):
   `selectedPath` init `null`; add `recentFiles` + `recordRecentFile` (dedupe, cap 5, persisted);
   record in `selectPath`; remove the `refreshPresets` restore + the old selected-path storage.
-- [ ] **SF20.2 — UI: recent-files quick list.** [AudioPage.vue](../../../GnauralCore/ui/pages/AudioPage.vue):
+- [x] **SF20.2 — UI: recent-files quick list.** [AudioPage.vue](../../../GnauralCore/ui/pages/AudioPage.vue):
   a "Недавние файлы" section in the player body shown when `selectedPath === null`; entries call
   `audio.selectPath(path)`. Empty-state hint when the list is empty. Bilingual i18n. `vue-tsc` + build.
-- [ ] **SF20.3 — Sub-second time-axis labels at high zoom (SF-D58).** *(owner addition 2026-07-05)*
+- [x] **SF20.3 — Sub-second time-axis labels at high zoom (SF-D58).** *(owner addition 2026-07-05)*
   At large zoom the ruler ticks can round to the **same** second, so several marks read identically
   (e.g. `1:05, 1:05, 1:05`). `formatTimeSec` currently rounds to whole seconds when minutes > 0.
   Make the label precision follow the tick step: when the major step is sub-second, append the

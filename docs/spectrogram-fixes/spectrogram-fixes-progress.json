@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-05T10:35:00Z",
+  "updatedAt": "2026-07-06T00:41:00Z",
   "decisions": [
     {
       "id": "SF-D1",
@@ -1645,22 +1645,26 @@
       "id": "SF20.1",
       "phase": 20,
       "title": "Store: recent-files tracking + stop auto-load on mount",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": [],
       "artifacts": [
         "GnauralCore/ui/stores/audio.ts"
       ],
       "verify": "vue-tsc green; opening Audio tab loads nothing; selecting a file records it in recentFiles (cap 5, dedupe, persisted)",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-06T00:00:00Z",
+      "finishedAt": "2026-07-06T00:40:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "GnauralCore ca98d26",
+        "selectedPath inits null; recentFiles+recordRecentFile; no refreshPresets re-select",
+        "vue-tsc 0"
+      ]
     },
     {
       "id": "SF20.2",
       "phase": 20,
       "title": "UI: recent-files quick list when no file selected",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": [
         "SF20.1"
       ],
@@ -1670,16 +1674,20 @@
         "GnauralCore/ui/i18n/ru.json"
       ],
       "verify": "vue-tsc + quasar build; recent list shows 5 entries, click loads; empty-state hint",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-06T00:00:00Z",
+      "finishedAt": "2026-07-06T00:40:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "GnauralCore 6559229",
+        "toolbar q-btn-dropdown of recent files; removed sessionFilePath",
+        "vue-tsc 0; build ok"
+      ]
     },
     {
       "id": "SF20.3",
       "phase": 20,
       "title": "Sub-second time-axis labels at high zoom (comma fraction)",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": [
         "SF16.6"
       ],
@@ -1689,10 +1697,14 @@
         "GnauralCore/ui/components/SpectrogramView.vue"
       ],
       "verify": "vue-tsc + bun green; duplicate second labels get a comma-fraction (1:05,3) when step<1s",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-06T00:00:00Z",
+      "finishedAt": "2026-07-06T00:40:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "GnauralCore 713b7bd",
+        "formatTimeSec(step) comma-fraction; timeAxisTicksWithMinor returns majorStep",
+        "bun ui 72/0; vue-tsc 0; build ok"
+      ]
     }
   ],
   "log": [
@@ -2355,6 +2367,30 @@
       "step": "SF20.0",
       "event": "planned",
       "note": "Owner also added SF20.3 (SF-D58): sub-second time-axis labels at high zoom (comma fraction when duplicate second labels). Phase 20 = SF20.1 recent-files store, SF20.2 recent-files UI, SF20.3 tick labels. Awaiting go."
+    },
+    {
+      "ts": "2026-07-06T00:40:00Z",
+      "step": "SF20.1",
+      "event": "done",
+      "note": "Store: recent files + stop auto-load."
+    },
+    {
+      "ts": "2026-07-06T00:40:00Z",
+      "step": "SF20.2",
+      "event": "done",
+      "note": "UI: recent-files dropdown in toolbar."
+    },
+    {
+      "ts": "2026-07-06T00:40:00Z",
+      "step": "SF20.3",
+      "event": "done",
+      "note": "Sub-second tick labels + comma separator."
+    },
+    {
+      "ts": "2026-07-06T00:41:00Z",
+      "step": "SF20",
+      "event": "done",
+      "note": "Phase 20 complete (recent-files dropdown + no auto-load + sub-second comma tick labels). PAUSE for owner UI verification."
     }
   ]
 }
