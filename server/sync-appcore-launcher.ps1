@@ -26,4 +26,17 @@ foreach ($file in @('AppMain.exe', 'libwebview.dll')) {
   Write-Host ("  synced {0}" -f $file)
 }
 
+# The synced bin\AppMain.exe is generic (no embedded icon). Stamp this deployment's
+# AppCore.ico into it (overlay-safe) so Explorer / taskbar / pinned shortcuts show the
+# right icon - mirrors AppCore build_app.bat's deploy stamping.
+$icon    = Join-Path $PSScriptRoot 'AppCore.ico'
+$stamper = Join-Path $AppCoreBin 'IconStamp.exe'
+$exe     = Join-Path $PSScriptRoot 'AppMain.exe'
+if ((Test-Path -LiteralPath $icon) -and (Test-Path -LiteralPath $stamper)) {
+  & $stamper $exe $icon
+  Write-Host '  stamped icon from AppCore.ico'
+} else {
+  Write-Host '  (no AppCore.ico or IconStamp.exe next to AppCore bin - skipped icon stamping)'
+}
+
 Write-Host 'Done. Run AppMain.exe in this folder (it auto-loads app.cfg) to launch MindWave.'
