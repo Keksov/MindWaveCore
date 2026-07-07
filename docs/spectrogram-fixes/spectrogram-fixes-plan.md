@@ -842,6 +842,37 @@ read-only) — needs care with the shared-decode cache (SF11.7) and per-analysis
 stereo; length changes ripple through frame counts / tile addressing; playback re-fetch cost on
 large files (consider streaming later); export (WAV) deferred per owner.
 
+## Phases 25–27 — waveform-track polish (owner additions 2026-07-07)
+Landed as commits (ledger log carries the detail):
+- **SF25 ✅** — waveform tracks get the same resizers as the spectrogram (mutual divider + one
+  uniform bottom handle); time ruler only atop the top track and at the very bottom; brighter/
+  taller time ticks. GnauralCore `251a047`.
+- **SF26 ✅** — waveform L/R label matches the spectrogram (boxed, right of the vertical axis, at
+  top); minimap thumbnail is a setting (spectrogram / waveform / overlay) opened from a **gear icon
+  on the minimap** (header dropdown removed); bottom handles match the divider thickness (2px).
+  GnauralCore `f9510a6`, `be18e07`, `3eddba0` (+ fix `f9ba8f3`: redraw when switching to
+  spectrogram-only mode).
+- **SF27 ✅** — waveform **colour / amplitude scale / overlay opacity are per track** (per channel):
+  a small **gear on each waveform track** (and on the spectrogram track when the waveform is
+  overlaid) opens a per-track settings dialog; header scale toggle + palette removed. Defaults
+  L cyan / R amber; legacy scalar prefs migrate into channel 0. GnauralCore `f2e8d57`.
+
+## Phase 28 — Track visibility & ordering model (owner addition 2026-07-07)
+**SF-D66 — unified track model.** Replace the single global `viewMode` + hard-wired `[L,R]` order
+with a **reactive track list**: `tracks[]` of `{ id, kind: 'waveform'|'spectrogram', channel,
+visible, order }`. `viewMode` (both / overlay / spectrogram / waveform) becomes a **preset** that
+sets visibility; point hides/swaps layer on top and persist. One model covers both requirements
+and the future editor (add/remove tracks, downmix). **Owner-chosen UI (2026-07-07):** eye icon per
+track + a "hidden tracks" restore list; drag-and-drop reorder via a grip handle.
+- [ ] **SF28.1 — Unified track model + render refactor.** Introduce the reactive `tracks[]`; the
+  stack renders in one pass branching on `kind`; `viewMode` maps onto visibility; persist the
+  model. Must reproduce current both/overlay/spectrogram/waveform behaviour.
+- [ ] **SF28.2 — Independent hide/show (#2).** Eye toggle on each track (hidden = `visible:false`,
+  not removed); a compact "hidden tracks" panel/menu atop the stack restores them. Applies to
+  waveform **and** spectrum, L and R independently.
+- [ ] **SF28.3 — Reorder / swap (#3).** Drag-and-drop a track by a grip handle (mutates `order`);
+  swaps L↔R for waveform and spectrum alike; persisted.
+
 ## Backlog — parked ideas (**требует последующего обсуждения**)
 Ideas raised during the Phase 11 speed work that were set aside — kept here so nothing is lost.
 None are committed; **each requires later discussion** and may be dropped or reshaped after the
