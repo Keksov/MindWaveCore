@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-07T02:30:00Z",
+  "updatedAt": "2026-07-07T03:10:00Z",
   "decisions": [
     {
       "id": "SF-D1",
@@ -250,6 +250,10 @@
     {
       "id": "SF-D64",
       "text": "Recording buffer exchange (owner 2026-07-06). Recording STAYS in SoundCore (no shared module extracted). PRIORITY = realtime streaming over file hand-off. Design: SoundCore gains start_record/stop_record protocol commands recording at the track's sampleRate/channels (set_config) so no resample on insert; captured PCM blocks are STREAMED LIVE over the process pipe (framed binary or base64 — mic audio is low bandwidth, ~96 KB/s Int16 mono@48k, trivial over stdio) plus cheap level/peaks for a live meter/waveform. The MindWave backend spawns SoundCore as a managed child (like Gnaural.exe / the SpectrumCore worker), reads the stream, appends to a LIVE recording buffer in the worker/audio model, updates peaks+spectrogram live, and inserts it into the track on stop (via the SF24.3 insert op) with auto re-sync. File hand-off (temp WAV + path) kept ONLY as a secondary durable artifact / fallback, not the primary path. Shared-memory ring deferred (only if ultra-low-latency live monitoring is needed)."
+    },
+    {
+      "id": "SF-D65",
+      "text": "Interleaved tile loading (owner 2026-07-06, frontend-only). The single serial worker made stacked stereo tracks load L fully then R (R lagged). Added a shared module-level round-robin scheduler in use-spectrogram.ts across all useSpectrogram instances: per-instance tile-send queues dispatched interleaved with a bounded global in-flight cap (TILE_INFLIGHT_CAP=3); pendingTiles set at dispatch (queue replace leaks nothing); slots free on tile/error; queues cleared on close/dispose. Perceptual 'simultaneous' L/R fill without touching the backend. GnauralCore 06bb551."
     }
   ],
   "steps": [
@@ -2826,6 +2830,12 @@
       "step": "SF24.1",
       "event": "fixed",
       "note": "Two regressions from SF24.1, one root: WaveformView opened its own analysis -> 4 analyses (stereo spec+wave); on a long file the byte budget evicted the LRU (first-mounted waveform) -> get-peaks hit a closed analysis -> empty L (bug2) + 'no active analysis' error leaked onto the spectrogram because handleServerMessage set error.value for any error on the shared multi-subscriber WS (bug1). Fix: waveform opens with the spectrogram track's params -> backend reuses one analysis/channel (tiles+peaks); errors only set error.value for the owning instance; raised analysis cap/budget. GnauralCore f89f54d."
+    },
+    {
+      "ts": "2026-07-07T03:10:00Z",
+      "step": "SF24",
+      "event": "note",
+      "note": "Owner: make L/R tiles load perceptually together (interleave), frontend-only. Implemented shared round-robin tile-send scheduler across useSpectrogram instances (SF-D65). No backend change. bun 113/0; vue-tsc 0; build ok."
     }
   ]
 }
