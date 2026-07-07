@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-07T01:30:00Z",
+  "updatedAt": "2026-07-07T02:30:00Z",
   "decisions": [
     {
       "id": "SF-D1",
@@ -2820,6 +2820,12 @@
       "step": "SF24.1",
       "event": "done",
       "note": "Backend waveform peaks end-to-end: worker get-peaks (ComputePeaks from decoded PCM) -> protocol spectrogram:get-peaks/peaks -> server passthrough -> composable getPeaks -> WaveformView opens own lazy analysis + fetches backend peaks (retired client peak compute for the track). SpectrogramView overlay+readout still client-buffer transitionally (until SF24.5 retires the buffer). PAUSE for owner UI verification."
+    },
+    {
+      "ts": "2026-07-07T02:30:00Z",
+      "step": "SF24.1",
+      "event": "fixed",
+      "note": "Two regressions from SF24.1, one root: WaveformView opened its own analysis -> 4 analyses (stereo spec+wave); on a long file the byte budget evicted the LRU (first-mounted waveform) -> get-peaks hit a closed analysis -> empty L (bug2) + 'no active analysis' error leaked onto the spectrogram because handleServerMessage set error.value for any error on the shared multi-subscriber WS (bug1). Fix: waveform opens with the spectrogram track's params -> backend reuses one analysis/channel (tiles+peaks); errors only set error.value for the owning instance; raised analysis cap/budget. GnauralCore f89f54d."
     }
   ]
 }
