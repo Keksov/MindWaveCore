@@ -864,13 +864,13 @@ visible, order }`. `viewMode` (both / overlay / spectrogram / waveform) becomes 
 sets visibility; point hides/swaps layer on top and persist. One model covers both requirements
 and the future editor (add/remove tracks, downmix). **Owner-chosen UI (2026-07-07):** eye icon per
 track + a "hidden tracks" restore list; drag-and-drop reorder via a grip handle.
-- [ ] **SF28.1 — Unified track model + render refactor.** Introduce the reactive `tracks[]`; the
+- [x] **SF28.1 — Unified track model + render refactor.** Introduce the reactive `tracks[]`; the
   stack renders in one pass branching on `kind`; `viewMode` maps onto visibility; persist the
   model. Must reproduce current both/overlay/spectrogram/waveform behaviour.
-- [ ] **SF28.2 — Independent hide/show (#2).** Eye toggle on each track (hidden = `visible:false`,
+- [x] **SF28.2 — Independent hide/show (#2).** Eye toggle on each track (hidden = `visible:false`,
   not removed); a compact "hidden tracks" panel/menu atop the stack restores them. Applies to
   waveform **and** spectrum, L and R independently.
-- [ ] **SF28.3 — Reorder / swap (#3).** Drag-and-drop a track by a grip handle (mutates `order`);
+- [x] **SF28.3 — Reorder / swap (#3).** Drag-and-drop a track by a grip handle (mutates `order`);
   swaps L↔R for waveform and spectrum alike; persisted.
 
 ## Backlog — parked ideas (**требует последующего обсуждения**)

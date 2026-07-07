@@ -5,7 +5,7 @@
  "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
  "status": "active",
  "createdAt": "2026-07-01",
- "updatedAt": "2026-07-07T06:00:00Z",
+ "updatedAt": "2026-07-08T01:45:00Z",
  "decisions": [
   {
    "id": "SF-D1",
@@ -2118,7 +2118,7 @@
    "id": "SF28.1",
    "phase": 28,
    "title": "Unified track model (tracks[] {kind,channel,visible,order}); viewMode becomes a visibility preset",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [
     "SF27"
    ],
@@ -2129,16 +2129,20 @@
     "persist track model"
    ],
    "verify": "render parity with current both/overlay/spectrogram/waveform; vue-tsc+bun+build",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-07T06:10:00Z",
+   "finishedAt": "2026-07-07T06:40:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore eb95d06",
+    "unified trackOrder+hidden model; tracks derive via orderedChannels; per-channel analysis; behaviour identical",
+    "vue-tsc 0; bun 82/0; build ok"
+   ]
   },
   {
    "id": "SF28.2",
    "phase": 28,
    "title": "Independent hide/show per track (eye icon) + hidden-tracks restore list",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [
     "SF28.1"
    ],
@@ -2148,16 +2152,20 @@
     "restore panel/menu atop the stack"
    ],
    "verify": "hide L/R waveform+spectrum independently; restore; persisted; vue-tsc+bun+build",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-08T00:10:00Z",
+   "finishedAt": "2026-07-08T00:50:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore 6c9302e",
+    "eye hide button per track + hidden-tracks restore strip; per-kind per-channel independent; persisted",
+    "vue-tsc 0; bun 82/0; build ok"
+   ]
   },
   {
    "id": "SF28.3",
    "phase": 28,
    "title": "Reorder / swap tracks via drag-and-drop grip handle",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [
     "SF28.1"
    ],
@@ -2167,10 +2175,14 @@
     "works for waveform + spectrogram"
    ],
    "verify": "swap L<->R by drag for waveform and spectrum; persisted; vue-tsc+bun+build",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-08T01:00:00Z",
+   "finishedAt": "2026-07-08T01:40:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore b89efc0",
+    "grip drag reorder/swap L<->R (waveform+spectrum) via pointer hit-test; dashed outline; order persisted",
+    "vue-tsc 0; bun 82/0; build ok"
+   ]
   }
  ],
  "log": [
@@ -2989,6 +3001,12 @@
    "step": "SF28",
    "event": "plan",
    "note": "Phase 28 (SF-D66): unified track model + independent hide/show (eye + hidden list) + drag-and-drop reorder/swap. SF28.1 model & render refactor; SF28.2 hide/show; SF28.3 dnd reorder."
+  },
+  {
+   "ts": "2026-07-08T01:45:00Z",
+   "step": "SF28",
+   "event": "done",
+   "note": "Phase 28 complete (SF-D66). SF28.1 unified per-kind track order+hidden model. SF28.2 independent hide/show (eye) + hidden-tracks restore strip. SF28.3 drag-grip reorder/swap L<->R for waveform and spectrum. GnauralCore eb95d06/6c9302e/b89efc0; vue-tsc 0; bun 82/0; build ok."
   }
  ]
 }
