@@ -793,7 +793,7 @@ dispatches edit commands; it holds no authoritative audio and no edit logic. New
 audio: the client re-fetches the edited audio for its Web-Audio playback buffer after an edit.
 
 **Roadmap (each step: build/bundle worker as needed, verify, commit; pause at phase end).**
-- [ ] **SF24.1 — Backend peaks (waveform becomes backend-driven).** Worker `get-peaks`
+- [x] **SF24.1 — Backend peaks (waveform becomes backend-driven).** Worker `get-peaks`
   (min/max/RMS over a sample range at a requested resolution, from the decoded samples) +
   protocol `spectrogram:get-peaks` + server passthrough. `WaveformView` fetches peaks from the
   backend instead of the client `AudioBuffer` (the client-side `audio-model` peak compute is

@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-06T08:30:00Z",
+  "updatedAt": "2026-07-07T01:30:00Z",
   "decisions": [
     {
       "id": "SF-D1",
@@ -1906,7 +1906,7 @@
       "id": "SF24.1",
       "phase": 24,
       "title": "Backend peaks (get-peaks worker cmd + protocol + client thin waveform)",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": [],
       "artifacts": [
         "worker get-peaks",
@@ -1915,10 +1915,17 @@
         "WaveformView fetches backend peaks"
       ],
       "verify": "worker build+bundle; probe get-peaks; WaveformView renders backend peaks; vue-tsc+bun+build",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-07T00:00:00Z",
+      "finishedAt": "2026-07-07T01:30:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "SpectrumCore 08596ba (worker get-peaks + ComputePeaks)",
+        "SharedPasCore 13ff72c (protocol)",
+        "GnauralCore 0f9b2d7 (server+client)",
+        "MindWave 5342bb7 (rebundle)",
+        "probe: 8 buckets, rms 0.088==0.125/sqrt2",
+        "vue-tsc 0; bun ui 82/0; build ok"
+      ]
     },
     {
       "id": "SF24.2",
@@ -2807,6 +2814,12 @@
       "step": "SF24.7",
       "event": "scoped",
       "note": "Owner: recording stays in SoundCore; realtime streaming is PRIORITY over file hand-off. SF-D64: SoundCore start/stop_record streams live PCM/peaks over pipe (low bandwidth), backend appends to live buffer + updates peaks/spectrogram live + inserts on stop; WAV only as fallback artifact."
+    },
+    {
+      "ts": "2026-07-07T01:30:00Z",
+      "step": "SF24.1",
+      "event": "done",
+      "note": "Backend waveform peaks end-to-end: worker get-peaks (ComputePeaks from decoded PCM) -> protocol spectrogram:get-peaks/peaks -> server passthrough -> composable getPeaks -> WaveformView opens own lazy analysis + fetches backend peaks (retired client peak compute for the track). SpectrogramView overlay+readout still client-buffer transitionally (until SF24.5 retires the buffer). PAUSE for owner UI verification."
     }
   ]
 }
