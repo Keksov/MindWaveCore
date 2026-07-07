@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-07T03:10:00Z",
+  "updatedAt": "2026-07-07T04:00:00Z",
   "decisions": [
     {
       "id": "SF-D1",
@@ -2836,6 +2836,12 @@
       "step": "SF24",
       "event": "note",
       "note": "Owner: make L/R tiles load perceptually together (interleave), frontend-only. Implemented shared round-robin tile-send scheduler across useSpectrogram instances (SF-D65). No backend change. bun 113/0; vue-tsc 0; build ok."
+    },
+    {
+      "ts": "2026-07-07T04:00:00Z",
+      "step": "SF25",
+      "event": "done",
+      "note": "Track-UI polish (owner): (1) waveform gets same resizers as spectrogram — mutual divider between L/R + uniform bottom handle (waveformTrackHeights persisted); (2) time ruler only on overall top track (top waveform when shown else top spectrogram) + overall bottom; spectrogram top ruler suppressed when waveform above; (3) time ticks brighter (#cbd5e1) + taller (minor 3/major 6px) + waveform ruler draws minor ticks. GnauralCore 251a047; bun 82/0; vue-tsc 0; build ok."
     }
   ]
 }
