@@ -5,7 +5,7 @@
   "title": "Spectrogram fixes (loading indicator, only-last-frame render, settings overlay 'Параметры')",
   "status": "active",
   "createdAt": "2026-07-01",
-  "updatedAt": "2026-07-07T04:00:00Z",
+  "updatedAt": "2026-07-07T04:40:00Z",
   "decisions": [
     {
       "id": "SF-D1",
@@ -2842,6 +2842,12 @@
       "step": "SF25",
       "event": "done",
       "note": "Track-UI polish (owner): (1) waveform gets same resizers as spectrogram — mutual divider between L/R + uniform bottom handle (waveformTrackHeights persisted); (2) time ruler only on overall top track (top waveform when shown else top spectrogram) + overall bottom; spectrogram top ruler suppressed when waveform above; (3) time ticks brighter (#cbd5e1) + taller (minor 3/major 6px) + waveform ruler draws minor ticks. GnauralCore 251a047; bun 82/0; vue-tsc 0; build ok."
+    },
+    {
+      "ts": "2026-07-07T04:40:00Z",
+      "step": "SF26",
+      "event": "done",
+      "note": "(1) Waveform L/R label moved to match spectrogram (right of vertical axis, top, boxed). (2) Minimap thumbnail is a setting: spectrogram/waveform/overlay — minimap fetches whole-clip backend peaks for waveform+overlay and draws the envelope; header dropdown selects it (persisted with waveform prefs). GnauralCore f9510a6; bun 82/0; vue-tsc 0; build ok."
     }
   ]
 }
