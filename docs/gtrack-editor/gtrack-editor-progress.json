@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-08T10:30:00Z",
+ "updatedAt": "2026-07-08T11:30:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -480,6 +480,12 @@
    "step": "GT2.3",
    "event": "pause",
    "note": "PAUSE for owner: check the new Треки tab (right of Спектрограмма) — full stack incl. gtrack lanes for .gnaural and wave+spectrum for any audio; verify the old Playback/Spectrogram tabs behave exactly as before (frozen)."
+  },
+  {
+   "ts": "2026-07-08T11:30:00Z",
+   "step": "GT2.4",
+   "event": "fix",
+   "note": "Owner GT2.3 feedback: (1) Tracks empty-state text now tracks-specific (audio.tracksNoData) not spectrum-only; (2) selecting a gnaural/audio no longer yanks off the Треки tab (preset-click + displayMode watch keep tracks); (3) player-view tabs no longer animated -> the two heavy stacks (Спектрограмма + Треки) never coexist during a transition, avoiding simultaneous worker analysis open/close that likely caused the backend drop on tab switch. Fix (3) is a hypothesis (not reproduced headlessly); awaiting owner re-test / server stack trace. GnauralCore a95bd93; vue-tsc 0; build ok; ui+server 159/0."
   }
  ]
 }
