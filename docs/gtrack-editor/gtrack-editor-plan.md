@@ -76,7 +76,7 @@ atomic per-step commits (префикс id шага), verify перед done, п
 - [x] **GT1.1 — Editable-модель gtrack (клиент).** `gtrack-model.ts`: загрузка
   `GnauralScheduleData` → редактируемая копия; операции над вершинами (move/set params);
   undo/redo command-стек; dirty. Чистый TS + bun-тесты.
-- [ ] **GT1.2 — XML-патчер (Save).** Модель+исходный XML → обновлённый XML (GT-D5); запись через
+- [x] **GT1.2 — XML-патчер (Save).** Модель+исходный XML → обновлённый XML (GT-D5); запись через
   существующий gnaural-editor-store API; round-trip verify: патч → `--dump-schedule` → сравнение
   с моделью (допуск на float).
 

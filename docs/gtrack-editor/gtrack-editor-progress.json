@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-08T03:40:00Z",
+ "updatedAt": "2026-07-08T04:45:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -25,7 +25,7 @@
   },
   {
    "id": "GT-D5",
-   "text": "Save = PATCH the source XML, not regeneration (owner 2026-07-08, risk-driven). --dump-schedule model may be lossy (waveform types, phases, etc. absent), so Save parses the original XML, updates only touched entry/voice values, and serializes back - unknown fields survive. Full regeneration only if patching proves unviable (would need a new decision)."
+   "text": "Save = surgical XML patch (owner 2026-07-08; refined at GT1.2). The patcher replaces ONLY each edited voice's <entries> block (matched by <id>) with per-point <entry> nodes and leaves every other byte untouched (comments, file/voice metadata, unknown fields, untouched voices survive). Generator ('preparse') voices are baked into concrete entries on save - the only way to persist hand edits. Pure string transform (no DOM), runs in the browser Save path and under bun. Round-trip through Gnaural.exe --dump-schedule is the GT1.2 gate. Mapping: M XML entries <-> M dump segments <-> M+1 model points; entry k value from P_k, duration from P_{k+1}.time-P_k.time; XML beatfreq = 2*beatFreqHalf; last point supplies only the final (flat-tail) duration."
   },
   {
    "id": "GT-D6",
@@ -62,7 +62,7 @@
    "id": "GT1.2",
    "phase": 1,
    "title": "XML patcher (Save): patch source .gnaural XML from the model (GT-D5) + round-trip verify",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [
     "GT1.1"
    ],
@@ -71,10 +71,15 @@
     "save via gnaural-editor-store"
    ],
    "verify": "round-trip: patch -> Gnaural.exe --dump-schedule -> compare vs model (float tolerance); bun tests",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-08T04:00:00Z",
+   "finishedAt": "2026-07-08T04:45:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore 0694662 (gtrack-xml.ts + tests)",
+    "integration round-trip via real Gnaural.exe passes",
+    "ui 108/0 (+6); vue-tsc 0; quasar build ok",
+    "mapping confirmed: M XML entries = M dump segments = M+1 points; beatfreq=2*beatFreqHalf"
+   ]
   },
   {
    "id": "GT2.1",
@@ -278,6 +283,12 @@
    "step": "GT1.1",
    "event": "done",
    "note": "Editable gtrack model: segment dump -> vertex points, transactional edits with drag-coalesced undo/redo, dirty tracking, derived axes, editableToSchedule for round-trip. Immutable replacement -> reference snapshots (no clone). GnauralCore 80f8689; 20 bun tests; ui 102/0; vue-tsc 0; build ok."
+  },
+  {
+   "ts": "2026-07-08T04:45:00Z",
+   "step": "GT1.2",
+   "event": "done",
+   "note": "XML patcher: per-voice <entries> regeneration from points, preserving all other XML. Verified end-to-end with a round-trip through the real Gnaural.exe (edit->patch->dump == edited model). Preparse voices baked to concrete entries. GnauralCore 0694662; ui 108/0; vue-tsc 0; build ok. Phase 1 complete."
   }
  ]
 }
