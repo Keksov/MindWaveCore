@@ -73,7 +73,7 @@ atomic per-step commits (префикс id шага), verify перед done, п
 ## 4. Фазы и шаги (чеклист зеркалит леджер)
 
 ### Phase 1 — редактируемая модель + сохранение (без UI)
-- [ ] **GT1.1 — Editable-модель gtrack (клиент).** `gtrack-model.ts`: загрузка
+- [x] **GT1.1 — Editable-модель gtrack (клиент).** `gtrack-model.ts`: загрузка
   `GnauralScheduleData` → редактируемая копия; операции над вершинами (move/set params);
   undo/redo command-стек; dirty. Чистый TS + bun-тесты.
 - [ ] **GT1.2 — XML-патчер (Save).** Модель+исходный XML → обновлённый XML (GT-D5); запись через

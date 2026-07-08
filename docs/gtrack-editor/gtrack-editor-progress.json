@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-08T02:30:00Z",
+ "updatedAt": "2026-07-08T03:40:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -41,17 +41,22 @@
    "id": "GT1.1",
    "phase": 1,
    "title": "Editable gtrack model (client): editable schedule copy + vertex ops + undo/redo + dirty",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [],
    "artifacts": [
     "gtrack-model.ts",
     "bun unit tests"
    ],
    "verify": "bun test ui: model ops, undo/redo, dirty transitions",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-08T03:00:00Z",
+   "finishedAt": "2026-07-08T03:40:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore 80f8689 (gtrack-model.ts + 20 tests)",
+    "bun ui 102/0 (was 82)",
+    "vue-tsc 0; quasar build ok",
+    "segments<->points round-trip identity on continuous input"
+   ]
   },
   {
    "id": "GT1.2",
@@ -267,6 +272,12 @@
    "step": null,
    "event": "plan",
    "note": "Initiative opened per owner request: new gtrack editor beside the untouched old one; gtracks + wave + spectrum on the Audio tab shared stack; render-WAV bridge; in-memory model + Save (XML patch). Phases 1-5, owner PAUSE gates at GT2.3/GT3.5. Q&A locked GT-D2/D3/D4."
+  },
+  {
+   "ts": "2026-07-08T03:40:00Z",
+   "step": "GT1.1",
+   "event": "done",
+   "note": "Editable gtrack model: segment dump -> vertex points, transactional edits with drag-coalesced undo/redo, dirty tracking, derived axes, editableToSchedule for round-trip. Immutable replacement -> reference snapshots (no clone). GnauralCore 80f8689; 20 bun tests; ui 102/0; vue-tsc 0; build ok."
   }
  ]
 }
