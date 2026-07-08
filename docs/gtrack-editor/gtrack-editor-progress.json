@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-08T05:10:00Z",
+ "updatedAt": "2026-07-08T06:00:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -93,7 +93,7 @@
    "id": "GT1.3",
    "phase": 1,
    "title": "Model: add/remove nodes + preparse flag + fix operation (GT-D8/D9)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [
     "GT1.2"
    ],
@@ -103,10 +103,15 @@
     "voice preparse flag + fixPreparseVoice(voiceId)"
    ],
    "verify": "bun tests incl. add/remove round-trip via --dump-schedule; vue-tsc+build",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-08T05:20:00Z",
+   "finishedAt": "2026-07-08T06:00:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore c71d0c8 (model insert/remove/fix + xml findPreparseVoiceIds + patch skip)",
+    "real-exe add/remove round-trip passes (insert kink + drop node -> patch -> dump == edited)",
+    "ui 119/0 (+11); vue-tsc 0; quasar build ok",
+    "preparse voices locked until fixPreparseVoice; patcher preserves generator node of unfixed voices"
+   ]
   },
   {
    "id": "GT2.1",
@@ -364,6 +369,12 @@
    "step": null,
    "event": "plan",
    "note": "Owner additions (req. 9-11): GT-D8 add/remove nodes (model insert/remove, patcher already handles count change); GT-D9 prepared-node distinction + explicit irreversible fix-to-editable (preparse detected by parsing source XML; dump expands preparse -> circle 61 pts/voice). New steps GT1.3 (model), GT3.6 (add/remove UI), GT3.7 (preparse render+fix). Risk R6 (fix irreversibility)."
+  },
+  {
+   "ts": "2026-07-08T06:00:00Z",
+   "step": "GT1.3",
+   "event": "done",
+   "note": "Model gains insert/remove points (interpolated, transactional) + preparse flag with editing lock + fixPreparseVoice; findPreparseVoiceIds recovers provenance from source XML; patcher skips unfixed preparse voices (generator node preserved). Real-exe add/remove round-trip verified. GnauralCore c71d0c8; ui 119/0. Phase 1 (model+save incl. owner reqs 9-11 model side) complete."
   }
  ]
 }

@@ -101,7 +101,7 @@ atomic per-step commits (префикс id шага), verify перед done, п
 - [x] **GT1.2 — XML-патчер (Save).** Модель+исходный XML → обновлённый XML (GT-D5); запись через
   существующий gnaural-editor-store API; round-trip verify: патч → `--dump-schedule` → сравнение
   с моделью (допуск на float).
-- [ ] **GT1.3 — Модель: add/remove узлов + preparse-флаг + фиксация (GT-D8/D9).** `insertPoint`/
+- [x] **GT1.3 — Модель: add/remove узлов + preparse-флаг + фиксация (GT-D8/D9).** `insertPoint`/
   `removePoint` (транзакционно, инварианты) + хелпер `findPreparseVoiceIds(xml)` + `preparse`-флаг
   на voice + `fixPreparseVoice(voiceId)` (снятие флага). Чистый TS + bun-тесты (incl. round-trip
   add/remove через `--dump-schedule`).
