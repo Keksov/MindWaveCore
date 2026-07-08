@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-08T08:30:00Z",
+ "updatedAt": "2026-07-08T10:30:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -167,7 +167,7 @@
    "id": "GT2.4",
    "phase": 2,
    "title": "'Tracks' tab: TracksPanel.vue = move the current stack out of AudioPage (own state + new storage keys; all audio files)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [
     "GT2.2"
    ],
@@ -178,16 +178,21 @@
     "new localStorage keys"
    ],
    "verify": "Tracks tab renders the full stack for gnaural and plain audio; state isolated from the old tab; vue-tsc+bun+build",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-08T09:00:00Z",
+   "finishedAt": "2026-07-08T10:00:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore 58abb27 (TracksPanel.vue + tracksTab i18n)",
+    "mechanical move of the full stack; template byte-identical via aliases; transport via #toolbar slot",
+    "own spectrogramShared provide + own mindwave-tracks-* storage keys; own keydown (Esc/nav/Space->toggle-play emit)",
+    "vue-tsc 0; quasar build ok; ui 128/0"
+   ]
   },
   {
    "id": "GT2.5",
    "phase": 2,
    "title": "Freeze old tabs: restore AudioPage's Spectrogram tab to pre-GT2.2 (6c0589c)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [
     "GT2.4"
    ],
@@ -196,25 +201,30 @@
     "GT2.2 code lives only in TracksPanel"
    ],
    "verify": "diff AudioPage vs 6c0589c == only the new tab registration; old tabs behave exactly as accepted; vue-tsc+bun+build",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-08T10:00:00Z",
+   "finishedAt": "2026-07-08T10:30:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore a9808ec (AudioPage git-restored to 6c0589c + tab registration)",
+    "verified: diff AudioPage vs 6c0589c = 54 insertions / 2 modified lines (tab, panel+slot, type widen, prepare condition, hotkey early-return, toggle-play)",
+    "old Playback/Spectrogram tabs byte-identical to the accepted pre-GT2.2 state",
+    "vue-tsc 0; quasar build ok; ui 128/0"
+   ]
   },
   {
    "id": "GT2.3",
    "phase": 2,
    "title": "PAUSE: owner verification of the skeleton on the 'Tracks' tab (gtracks + wave + spectrum; old tabs unchanged)",
-   "status": "not-started",
+   "status": "in-progress",
    "dependsOn": [
     "GT2.4",
     "GT2.5"
    ],
    "artifacts": [],
    "verify": "owner confirms layout/UX before editing work starts",
-   "startedAt": null,
+   "startedAt": "2026-07-08T10:30:00Z",
    "finishedAt": null,
-   "blockedReason": null,
+   "blockedReason": "awaiting owner visual verification on the Треки tab",
    "evidence": []
   },
   {
@@ -452,6 +462,24 @@
    "step": null,
    "event": "plan",
    "note": "Owner req. 12 + Q&A (GT-D10): new 'Tracks' sub-tab hosts ALL new functionality; old Playback/Spectrogram tabs frozen (Spectrogram restored from git to pre-GT2.2 6c0589c). Variant 1 'frozen copy' chosen; Tracks = all audio files; fully separate state/storage keys. New steps GT2.4 (TracksPanel + tab) -> GT2.5 (restore/freeze) -> GT2.3 (owner pause moves to the Tracks tab). Risk R7 (deliberate duplication; fixes only in Tracks)."
+  },
+  {
+   "ts": "2026-07-08T10:30:00Z",
+   "step": "GT2.4",
+   "event": "done",
+   "note": "TracksPanel.vue: the whole new stack moved out of AudioPage into the new Треки sub-tab; own shared view state + mindwave-tracks-* keys; transport via toolbar slot; own hotkey listener (Esc/nav/Space->toggle-play). GnauralCore 58abb27."
+  },
+  {
+   "ts": "2026-07-08T10:30:00Z",
+   "step": "GT2.5",
+   "event": "done",
+   "note": "AudioPage git-restored to 6c0589c; only additive Tracks-tab registration on top (diff = 54+/2mod, verified). Frozen Playback/Spectrogram tabs = exactly the accepted state. GnauralCore a9808ec. GT2.3 owner pause now on the Треки tab."
+  },
+  {
+   "ts": "2026-07-08T10:30:00Z",
+   "step": "GT2.3",
+   "event": "pause",
+   "note": "PAUSE for owner: check the new Треки tab (right of Спектрограмма) — full stack incl. gtrack lanes for .gnaural and wave+spectrum for any audio; verify the old Playback/Spectrogram tabs behave exactly as before (frozen)."
   }
  ]
 }
