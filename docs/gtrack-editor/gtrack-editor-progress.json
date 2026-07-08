@@ -1,0 +1,272 @@
+{
+ "schemaVersion": 1,
+ "plan": "gtrack-editor",
+ "planDoc": "docs/gtrack-editor/gtrack-editor-plan.md",
+ "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
+ "status": "in-progress",
+ "createdAt": "2026-07-08T02:30:00Z",
+ "updatedAt": "2026-07-08T02:30:00Z",
+ "decisions": [
+  {
+   "id": "GT-D1",
+   "text": "New editor beside the old one (2026-07-08). New GTrack* components; GnauralEditorPanel/GnauralScheduleView untouched. Reuse: GnauralScheduleData protocol model, dump-schedule, gnaural-editor-store (save+validate), spectrogram-audio-source render bridge, SF-D66 unified track stack."
+  },
+  {
+   "id": "GT-D2",
+   "text": "Host = Audio tab shared stack (owner choice 2026-07-08). gtrack lanes are kind:'gtrack' in the unified track model; shared time view/zoom/pan/minimap/resizers/eye/drag/gear. Lanes appear only when a .gnaural is open."
+  },
+  {
+   "id": "GT-D3",
+   "text": "Wave/spectrum beside gtracks = gnaural render -> WAV (owner choice 2026-07-08), via the existing spectrogram-audio-source mechanism. After Save: invalidate analysis + re-render (button; auto later)."
+  },
+  {
+   "id": "GT-D4",
+   "text": "Editing = in-memory model + Save (owner choice 2026-07-08). Reactive editable copy, undo/redo in memory, dirty flag, Save (button + Ctrl+S) writes through the existing store with Gnaural.exe validation."
+  },
+  {
+   "id": "GT-D5",
+   "text": "Save = PATCH the source XML, not regeneration (owner 2026-07-08, risk-driven). --dump-schedule model may be lossy (waveform types, phases, etc. absent), so Save parses the original XML, updates only touched entry/voice values, and serializes back - unknown fields survive. Full regeneration only if patching proves unviable (would need a new decision)."
+  },
+  {
+   "id": "GT-D6",
+   "text": "Derived axes: Beat freq displayed as 2x beatFreqHalf; Volume=(volL+volR)/2; Stereo balance derived from volL/volR; editing Volume/Balance maps back to volL/volR (mono: volL only)."
+  },
+  {
+   "id": "GT-D7",
+   "text": "Wave<->XML synchronization is Phase 5: design discussion with the owner first, code only after a separate go."
+  }
+ ],
+ "steps": [
+  {
+   "id": "GT1.1",
+   "phase": 1,
+   "title": "Editable gtrack model (client): editable schedule copy + vertex ops + undo/redo + dirty",
+   "status": "not-started",
+   "dependsOn": [],
+   "artifacts": [
+    "gtrack-model.ts",
+    "bun unit tests"
+   ],
+   "verify": "bun test ui: model ops, undo/redo, dirty transitions",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT1.2",
+   "phase": 1,
+   "title": "XML patcher (Save): patch source .gnaural XML from the model (GT-D5) + round-trip verify",
+   "status": "not-started",
+   "dependsOn": [
+    "GT1.1"
+   ],
+   "artifacts": [
+    "xml patch serializer",
+    "save via gnaural-editor-store"
+   ],
+   "verify": "round-trip: patch -> Gnaural.exe --dump-schedule -> compare vs model (float tolerance); bun tests",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT2.1",
+   "phase": 2,
+   "title": "GTrackView.vue: canvas lane in the Audio stack (curves by mode, shared time view, standard chrome)",
+   "status": "not-started",
+   "dependsOn": [
+    "GT1.1"
+   ],
+   "artifacts": [
+    "GTrackView.vue",
+    "kind:'gtrack' in unified stack"
+   ],
+   "verify": "curves render for Base/Beat/Volume/Balance; zoom/pan synced with wave+spectrum; vue-tsc+bun+build",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT2.2",
+   "phase": 2,
+   "title": "Lane management: {voiceIds[], mode} config, default lane, add/remove, gear dialog, persist, SF-D66 integration",
+   "status": "not-started",
+   "dependsOn": [
+    "GT2.1"
+   ],
+   "artifacts": [
+    "lane config + persistence",
+    "gear dialog: mode + voice checkboxes"
+   ],
+   "verify": "multi-voice lane; hide/reorder work for gtracks; persisted per file; vue-tsc+bun+build",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT2.3",
+   "phase": 2,
+   "title": "PAUSE: owner verification of the read-only skeleton (gtracks + wave + spectrum on one form)",
+   "status": "not-started",
+   "dependsOn": [
+    "GT2.2"
+   ],
+   "artifacts": [],
+   "verify": "owner confirms layout/UX before editing work starts",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT3.1",
+   "phase": 3,
+   "title": "Point mode: toggle, vertex rendering, hit-test, hover, selection",
+   "status": "not-started",
+   "dependsOn": [
+    "GT2.3"
+   ],
+   "artifacts": [
+    "point-mode toggle + selection state"
+   ],
+   "verify": "select/deselect vertices across lanes; vue-tsc+bun+build",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT3.2",
+   "phase": 3,
+   "title": "Drag vertices (time + value per lane mode) with clamping; live curve update; undo/redo",
+   "status": "not-started",
+   "dependsOn": [
+    "GT3.1"
+   ],
+   "artifacts": [
+    "drag interaction + clamps"
+   ],
+   "verify": "drag updates model+curve live; undo/redo restores; vue-tsc+bun+build",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT3.3",
+   "phase": 3,
+   "title": "Point parameters dialog (all entry params + derived Volume/Balance)",
+   "status": "not-started",
+   "dependsOn": [
+    "GT3.1"
+   ],
+   "artifacts": [
+    "GTrackPointDialog.vue"
+   ],
+   "verify": "dialog edits apply to model incl. volL/volR mapping (GT-D6); vue-tsc+bun+build",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT3.4",
+   "phase": 3,
+   "title": "Save pipeline: button + Ctrl+S, dirty indicator, patch->validate->write, analysis invalidation + re-render",
+   "status": "not-started",
+   "dependsOn": [
+    "GT1.2",
+    "GT3.2"
+   ],
+   "artifacts": [
+    "save wiring",
+    "analysis refresh after save"
+   ],
+   "verify": "save persists edits; Gnaural validation errors surfaced; wave+spectrum refresh from re-rendered WAV",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT3.5",
+   "phase": 3,
+   "title": "PAUSE: owner verification of the full edit cycle",
+   "status": "not-started",
+   "dependsOn": [
+    "GT3.3",
+    "GT3.4"
+   ],
+   "artifacts": [],
+   "verify": "owner confirms drag+dialog+save UX",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT4.1",
+   "phase": 4,
+   "title": "Audiofile/noise voices in dedicated stack lanes (wave/spectrum/both; noise representation per R4)",
+   "status": "not-started",
+   "dependsOn": [
+    "GT2.3"
+   ],
+   "artifacts": [
+    "fragment lanes"
+   ],
+   "verify": "audiofile voice shows wave/spectrum positioned at startSec; vue-tsc+bun+build",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT4.2",
+   "phase": 4,
+   "title": "Inline fragment display inside the gtrack lane + per-voice setting (inline/separate/hidden)",
+   "status": "not-started",
+   "dependsOn": [
+    "GT4.1"
+   ],
+   "artifacts": [
+    "inline band rendering",
+    "per-voice display setting"
+   ],
+   "verify": "fragments render under curves inline; setting persists; vue-tsc+bun+build",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT5.1",
+   "phase": 5,
+   "title": "Wave <-> XML sync: design doc + owner Q&A (no code until a separate go)",
+   "status": "not-started",
+   "dependsOn": [
+    "GT3.5"
+   ],
+   "artifacts": [
+    "design doc in docs/gtrack-editor/"
+   ],
+   "verify": "owner approves the sync design",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  }
+ ],
+ "log": [
+  {
+   "ts": "2026-07-08T02:30:00Z",
+   "step": null,
+   "event": "plan",
+   "note": "Initiative opened per owner request: new gtrack editor beside the untouched old one; gtracks + wave + spectrum on the Audio tab shared stack; render-WAV bridge; in-memory model + Save (XML patch). Phases 1-5, owner PAUSE gates at GT2.3/GT3.5. Q&A locked GT-D2/D3/D4."
+  }
+ ]
+}
