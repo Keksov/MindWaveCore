@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-08T11:30:00Z",
+ "updatedAt": "2026-07-08T12:30:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -209,6 +209,30 @@
     "verified: diff AudioPage vs 6c0589c = 54 insertions / 2 modified lines (tab, panel+slot, type widen, prepare condition, hotkey early-return, toggle-play)",
     "old Playback/Spectrogram tabs byte-identical to the accepted pre-GT2.2 state",
     "vue-tsc 0; quasar build ok; ui 128/0"
+   ]
+  },
+  {
+   "id": "GT2.6",
+   "phase": 2,
+   "title": "Auto-render gnaural spectrum on the Треки tab (owner GT2.3 feedback)",
+   "status": "done",
+   "dependsOn": [
+    "GT2.4"
+   ],
+   "artifacts": [
+    "store ensureGnauralSpectrogram (HTTP format=wav render, no playback)",
+    "AudioPage auto-trigger on Треки tab",
+    "removed press-play hint on Треки"
+   ],
+   "verify": "gnaural spectrum appears automatically on Треки; Gnaural.exe render -> valid WAV; vue-tsc+build+tests",
+   "startedAt": "2026-07-08T12:00:00Z",
+   "finishedAt": "2026-07-08T12:30:00Z",
+   "blockedReason": null,
+   "evidence": [
+    "GnauralCore 890d84e",
+    "server renderGnauralAudioFile (format=wav, cached) reused - no playback/new command",
+    "vue-tsc 0; build ok; ui+server 159/0",
+    "confirmed Gnaural.exe <file> -o out.wav -> 10.6MB valid RIFF WAV"
    ]
   },
   {
@@ -486,6 +510,12 @@
    "step": "GT2.4",
    "event": "fix",
    "note": "Owner GT2.3 feedback: (1) Tracks empty-state text now tracks-specific (audio.tracksNoData) not spectrum-only; (2) selecting a gnaural/audio no longer yanks off the Треки tab (preset-click + displayMode watch keep tracks); (3) player-view tabs no longer animated -> the two heavy stacks (Спектрограмма + Треки) never coexist during a transition, avoiding simultaneous worker analysis open/close that likely caused the backend drop on tab switch. Fix (3) is a hypothesis (not reproduced headlessly); awaiting owner re-test / server stack trace. GnauralCore a95bd93; vue-tsc 0; build ok; ui+server 159/0."
+  },
+  {
+   "ts": "2026-07-08T12:30:00Z",
+   "step": "GT2.6",
+   "event": "done",
+   "note": "Owner GT2.3 feedback: gnaural spectrum now auto-renders on the Треки tab via the existing on-demand HTTP WAV render (renderGnauralAudioFile, cached) - no playback, no press-play hint. Store ensureGnauralSpectrogram + AudioPage auto-trigger; TracksPanel empty text neutral. GnauralCore 890d84e."
   }
  ]
 }
