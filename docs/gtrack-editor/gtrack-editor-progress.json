@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-08T06:00:00Z",
+ "updatedAt": "2026-07-08T06:50:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -117,7 +117,7 @@
    "id": "GT2.1",
    "phase": 2,
    "title": "GTrackView.vue: canvas lane in the Audio stack (curves by mode, shared time view, standard chrome)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [
     "GT1.1"
    ],
@@ -126,10 +126,15 @@
     "kind:'gtrack' in unified stack"
    ],
    "verify": "curves render for Base/Beat/Volume/Balance; zoom/pan synced with wave+spectrum; vue-tsc+bun+build",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-08T06:10:00Z",
+   "finishedAt": "2026-07-08T06:50:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore 6c0589c (GTrackView.vue + gtrack-render.ts + 9 tests)",
+    "curves per mode (Base/Beat/Volume/Balance) via pure pointValue+gtrackAxis (unit-tested)",
+    "shared time view (spectrogramShared) -> zoom/pan parity; same chrome as other lanes",
+    "ui 128/0 (+9); vue-tsc 0; quasar build ok. Visual verification lands with GT2.2 stack wiring."
+   ]
   },
   {
    "id": "GT2.2",
@@ -375,6 +380,12 @@
    "step": "GT1.3",
    "event": "done",
    "note": "Model gains insert/remove points (interpolated, transactional) + preparse flag with editing lock + fixPreparseVoice; findPreparseVoiceIds recovers provenance from source XML; patcher skips unfixed preparse voices (generator node preserved). Real-exe add/remove round-trip verified. GnauralCore c71d0c8; ui 119/0. Phase 1 (model+save incl. owner reqs 9-11 model side) complete."
+  },
+  {
+   "ts": "2026-07-08T06:50:00Z",
+   "step": "GT2.1",
+   "event": "done",
+   "note": "GTrackView.vue: read-only lane drawing voice curves by mode over the shared time view, same chrome as waveform/spectrogram lanes. Render math extracted to a pure, unit-tested helper (pointValue/gtrackAxis/valueToUnit). Not yet mounted; GT2.2 wires lanes into the SF-D66 stack. GnauralCore 6c0589c; ui 128/0."
   }
  ]
 }

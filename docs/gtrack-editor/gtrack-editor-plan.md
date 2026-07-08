@@ -107,7 +107,7 @@ atomic per-step commits (префикс id шага), verify перед done, п
   add/remove через `--dump-schedule`).
 
 ### Phase 2 — gtrack-дорожки в стеке Аудио (read-only)
-- [ ] **GT2.1 — GTrackView.vue.** Канвас-дорожка в стеке: кривые voices по режиму дорожки
+- [x] **GT2.1 — GTrackView.vue.** Канвас-дорожка в стеке: кривые voices по режиму дорожки
   (Base/Beat/Volume/Balance), общий time view, цвета voices, лейбл, тот же хром (высота/ресайз,
   глаз+драг слева, шестерёнка справа).
 - [ ] **GT2.2 — Управление дорожками.** Конфигурация: список gtrack-дорожек
