@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-08T07:50:00Z",
+ "updatedAt": "2026-07-08T08:30:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -42,6 +42,10 @@
   {
    "id": "GT-D9",
    "text": "Prepared nodes: distinction + fixing (owner req. 10-11, 2026-07-08). Verified: --dump-schedule EXPANDS <entry type=\"preparse\"> into concrete points (circle.gnaural -> 60 entries / 61 points per voice), but the source XML keeps one generator node and the dump does not flag provenance. So preparse voices are identified by parsing the source XML (ids whose <entries> contain type=\"preparse\"); those points are marked preparse:true. (10) Render preparse points distinctly (e.g. hollow/dashed markers) + a 'generated' lane badge. (11) An explicit per-voice 'Fix / make editable' action clears the flag (in-memory bake of the expansion) so points become editable; unfixed preparse points are locked from direct editing (attempting it offers to fix). On Save a fixed voice writes concrete entries (already GT-D5). Fixing is irreversible within the file (loses the generator) -> warn the user; never auto-fix."
+  },
+  {
+   "id": "GT-D10",
+   "text": "Tracks tab + frozen old tabs (owner req. 12, Q&A 2026-07-08; all three recommendations accepted). Variant 1 'frozen copy': (a) TracksPanel.vue = MOVE of the current stack (wave+spectrum+minimap+gtracks+SF25-28 chrome/dialogs) out of AudioPage into a new 'Tracks' sub-tab right of 'Spectrogram'; (b) the Spectrogram tab in AudioPage is RESTORED from git to the pre-GT2.2 state (GnauralCore 6c0589c) - exactly the accepted code, no gtracks; Playback untouched. Direction: old code from git, current code (old+new) moves to TracksPanel - no re-writing new features onto an old copy. Scope: Tracks works for ALL audio files (gtracks only for .gnaural) and is the single surface for all future work (Phase 3+). Isolation: fully separate state - own spectrogramShared (zoom/selection) and NEW localStorage keys; no cross-tab influence. Cost: deliberate duplication (~400 template lines + logic); fixes go ONLY to Tracks; frozen tabs are deleted after Tracks stabilizes (a future step)."
   }
  ],
  "steps": [
@@ -160,18 +164,57 @@
    ]
   },
   {
-   "id": "GT2.3",
+   "id": "GT2.4",
    "phase": 2,
-   "title": "PAUSE: owner verification of the read-only skeleton (gtracks + wave + spectrum on one form)",
-   "status": "in-progress",
+   "title": "'Tracks' tab: TracksPanel.vue = move the current stack out of AudioPage (own state + new storage keys; all audio files)",
+   "status": "not-started",
    "dependsOn": [
     "GT2.2"
    ],
+   "artifacts": [
+    "TracksPanel.vue (stack: gtracks+waveform+spectrogram+minimap+header+dialogs)",
+    "sub-tab 'Tracks' right of 'Spectrogram'",
+    "own spectrogramShared provide",
+    "new localStorage keys"
+   ],
+   "verify": "Tracks tab renders the full stack for gnaural and plain audio; state isolated from the old tab; vue-tsc+bun+build",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT2.5",
+   "phase": 2,
+   "title": "Freeze old tabs: restore AudioPage's Spectrogram tab to pre-GT2.2 (6c0589c)",
+   "status": "not-started",
+   "dependsOn": [
+    "GT2.4"
+   ],
+   "artifacts": [
+    "AudioPage spectrogram tab reverted to 6c0589c",
+    "GT2.2 code lives only in TracksPanel"
+   ],
+   "verify": "diff AudioPage vs 6c0589c == only the new tab registration; old tabs behave exactly as accepted; vue-tsc+bun+build",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT2.3",
+   "phase": 2,
+   "title": "PAUSE: owner verification of the skeleton on the 'Tracks' tab (gtracks + wave + spectrum; old tabs unchanged)",
+   "status": "not-started",
+   "dependsOn": [
+    "GT2.4",
+    "GT2.5"
+   ],
    "artifacts": [],
    "verify": "owner confirms layout/UX before editing work starts",
-   "startedAt": "2026-07-08T07:50:00Z",
+   "startedAt": null,
    "finishedAt": null,
-   "blockedReason": "awaiting owner visual verification of the skeleton (gtracks + wave + spectrum on one form)",
+   "blockedReason": null,
    "evidence": []
   },
   {
@@ -403,6 +446,12 @@
    "step": "GT2.3",
    "event": "pause",
    "note": "PAUSE for owner: open a .gnaural on the Audio > spectrogram tab and confirm gtrack lanes render curves alongside wave+spectrum; check mode switch, voice checkboxes, add/remove lane, hide+restore, drag reorder, zoom/pan sync."
+  },
+  {
+   "ts": "2026-07-08T08:30:00Z",
+   "step": null,
+   "event": "plan",
+   "note": "Owner req. 12 + Q&A (GT-D10): new 'Tracks' sub-tab hosts ALL new functionality; old Playback/Spectrogram tabs frozen (Spectrogram restored from git to pre-GT2.2 6c0589c). Variant 1 'frozen copy' chosen; Tracks = all audio files; fully separate state/storage keys. New steps GT2.4 (TracksPanel + tab) -> GT2.5 (restore/freeze) -> GT2.3 (owner pause moves to the Tracks tab). Risk R7 (deliberate duplication; fixes only in Tracks)."
   }
  ]
 }
