@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-08T06:50:00Z",
+ "updatedAt": "2026-07-08T07:50:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -140,7 +140,7 @@
    "id": "GT2.2",
    "phase": 2,
    "title": "Lane management: {voiceIds[], mode} config, default lane, add/remove, gear dialog, persist, SF-D66 integration",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [
     "GT2.1"
    ],
@@ -149,24 +149,29 @@
     "gear dialog: mode + voice checkboxes"
    ],
    "verify": "multi-voice lane; hide/reorder work for gtracks; persisted per file; vue-tsc+bun+build",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-08T07:00:00Z",
+   "finishedAt": "2026-07-08T07:50:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore eb65a3f (use-gtrack-lanes.ts + AudioPage wiring)",
+    "lanes in the spectrogram-tab stack; default = all tonal voices; add/remove; gear dialog (mode+voices); hide+restore (shared dropdown); drag reorder; persist per file",
+    "vue-tsc 0; quasar build ok; ui 128/0",
+    "composable is integration (Vue reactivity/localStorage) - not bun-unit-tested; visual check at GT2.3"
+   ]
   },
   {
    "id": "GT2.3",
    "phase": 2,
    "title": "PAUSE: owner verification of the read-only skeleton (gtracks + wave + spectrum on one form)",
-   "status": "not-started",
+   "status": "in-progress",
    "dependsOn": [
     "GT2.2"
    ],
    "artifacts": [],
    "verify": "owner confirms layout/UX before editing work starts",
-   "startedAt": null,
+   "startedAt": "2026-07-08T07:50:00Z",
    "finishedAt": null,
-   "blockedReason": null,
+   "blockedReason": "awaiting owner visual verification of the skeleton (gtracks + wave + spectrum on one form)",
    "evidence": []
   },
   {
@@ -386,6 +391,18 @@
    "step": "GT2.1",
    "event": "done",
    "note": "GTrackView.vue: read-only lane drawing voice curves by mode over the shared time view, same chrome as waveform/spectrogram lanes. Render math extracted to a pure, unit-tested helper (pointValue/gtrackAxis/valueToUnit). Not yet mounted; GT2.2 wires lanes into the SF-D66 stack. GnauralCore 6c0589c; ui 128/0."
+  },
+  {
+   "ts": "2026-07-08T07:50:00Z",
+   "step": "GT2.2",
+   "event": "done",
+   "note": "Gtrack lanes wired into the spectrogram-tab stack (GT-D2): composable builds model+lanes from the schedule; default all-tonal lane; add/remove; per-lane gear (mode + voice checkboxes); hide (eye)+restore via the shared hidden-tracks dropdown; drag reorder; per-file persistence; uniform resizable height. GnauralCore eb65a3f; vue-tsc 0; build ok. GT2.3 = owner visual PAUSE."
+  },
+  {
+   "ts": "2026-07-08T07:50:00Z",
+   "step": "GT2.3",
+   "event": "pause",
+   "note": "PAUSE for owner: open a .gnaural on the Audio > spectrogram tab and confirm gtrack lanes render curves alongside wave+spectrum; check mode switch, voice checkboxes, add/remove lane, hide+restore, drag reorder, zoom/pan sync."
   }
  ]
 }
