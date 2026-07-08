@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-08T12:30:00Z",
+ "updatedAt": "2026-07-09T00:50:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -239,7 +239,7 @@
    "id": "GT2.3",
    "phase": 2,
    "title": "PAUSE: owner verification of the skeleton on the 'Tracks' tab (gtracks + wave + spectrum; old tabs unchanged)",
-   "status": "in-progress",
+   "status": "done",
    "dependsOn": [
     "GT2.4",
     "GT2.5"
@@ -247,15 +247,17 @@
    "artifacts": [],
    "verify": "owner confirms layout/UX before editing work starts",
    "startedAt": "2026-07-08T10:30:00Z",
-   "finishedAt": null,
-   "blockedReason": "awaiting owner visual verification on the Треки tab",
-   "evidence": []
+   "finishedAt": "2026-07-09T00:10:00Z",
+   "blockedReason": null,
+   "evidence": [
+    "owner approved via 'go' after the GT2.4/2.5 skeleton + the empty-text/stay-on-tracks/no-crash-animated + GT2.6 auto-render fixes"
+   ]
   },
   {
    "id": "GT3.1",
    "phase": 3,
    "title": "Point mode: toggle, vertex rendering, hit-test, hover, selection",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [
     "GT2.3"
    ],
@@ -263,10 +265,15 @@
     "point-mode toggle + selection state"
    ],
    "verify": "select/deselect vertices across lanes; vue-tsc+bun+build",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-09T00:10:00Z",
+   "finishedAt": "2026-07-09T00:50:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore 97598a0 (GTrackView point mode + useGtrackLanes selection + TracksPanel wiring)",
+    "per-lane toggle; hit-test<=8px across voices; hover+selected rings; click selects (no seek in point mode)",
+    "ephemeral pointModeLanes + global selection {laneId,voiceId,pointIndex}",
+    "vue-tsc 0; quasar build ok; ui 128/0"
+   ]
   },
   {
    "id": "GT3.2",
@@ -516,6 +523,18 @@
    "step": "GT2.6",
    "event": "done",
    "note": "Owner GT2.3 feedback: gnaural spectrum now auto-renders on the Треки tab via the existing on-demand HTTP WAV render (renderGnauralAudioFile, cached) - no playback, no press-play hint. Store ensureGnauralSpectrogram + AudioPage auto-trigger; TracksPanel empty text neutral. GnauralCore 890d84e."
+  },
+  {
+   "ts": "2026-07-09T00:10:00Z",
+   "step": "GT2.3",
+   "event": "done",
+   "note": "Owner approved the Треки-tab skeleton (go) after the feedback fixes (empty text, stay-on-tracks, animated-overlap crash fix, GT2.6 auto-render). Phase 2 complete."
+  },
+  {
+   "ts": "2026-07-09T00:50:00Z",
+   "step": "GT3.1",
+   "event": "done",
+   "note": "Point-edit mode: per-lane toggle, vertex hit-test/hover/selection in GTrackView; ephemeral point-mode + selection state in useGtrackLanes; wired in TracksPanel. Feeds GT3.2 drag + GT3.3 dialog. GnauralCore 97598a0; vue-tsc 0; ui 128/0."
   }
  ]
 }
