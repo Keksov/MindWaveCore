@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-08T04:45:00Z",
+ "updatedAt": "2026-07-08T05:10:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -34,6 +34,14 @@
   {
    "id": "GT-D7",
    "text": "Wave<->XML synchronization is Phase 5: design discussion with the owner first, code only after a separate go."
+  },
+  {
+   "id": "GT-D8",
+   "text": "Add/remove nodes (owner req. 9, 2026-07-08). Model gains insertPoint (at a click time; values interpolated from the surrounding segment) and removePoint (transactional, undo/redo). Invariants: time stays monotonic; a voice cannot drop below 1 segment (>=2 points). The GT-D5 patcher already regenerates the whole <entries> block from points, so changing the point count serializes with no extra work. UI in Phase 3 (double-click add; Delete/context-menu remove)."
+  },
+  {
+   "id": "GT-D9",
+   "text": "Prepared nodes: distinction + fixing (owner req. 10-11, 2026-07-08). Verified: --dump-schedule EXPANDS <entry type=\"preparse\"> into concrete points (circle.gnaural -> 60 entries / 61 points per voice), but the source XML keeps one generator node and the dump does not flag provenance. So preparse voices are identified by parsing the source XML (ids whose <entries> contain type=\"preparse\"); those points are marked preparse:true. (10) Render preparse points distinctly (e.g. hollow/dashed markers) + a 'generated' lane badge. (11) An explicit per-voice 'Fix / make editable' action clears the flag (in-memory bake of the expansion) so points become editable; unfixed preparse points are locked from direct editing (attempting it offers to fix). On Save a fixed voice writes concrete entries (already GT-D5). Fixing is irreversible within the file (loses the generator) -> warn the user; never auto-fix."
   }
  ],
  "steps": [
@@ -80,6 +88,25 @@
     "ui 108/0 (+6); vue-tsc 0; quasar build ok",
     "mapping confirmed: M XML entries = M dump segments = M+1 points; beatfreq=2*beatFreqHalf"
    ]
+  },
+  {
+   "id": "GT1.3",
+   "phase": 1,
+   "title": "Model: add/remove nodes + preparse flag + fix operation (GT-D8/D9)",
+   "status": "not-started",
+   "dependsOn": [
+    "GT1.2"
+   ],
+   "artifacts": [
+    "insertPoint/removePoint (transactional, invariants)",
+    "findPreparseVoiceIds(xml) helper",
+    "voice preparse flag + fixPreparseVoice(voiceId)"
+   ],
+   "verify": "bun tests incl. add/remove round-trip via --dump-schedule; vue-tsc+build",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
   },
   {
    "id": "GT2.1",
@@ -203,6 +230,48 @@
    "evidence": []
   },
   {
+   "id": "GT3.6",
+   "phase": 3,
+   "title": "Add/remove nodes in the UI (owner req. 9, GT-D8)",
+   "status": "not-started",
+   "dependsOn": [
+    "GT1.3",
+    "GT3.2"
+   ],
+   "artifacts": [
+    "double-click add (interpolated value)",
+    "Delete/context-menu remove",
+    "min-2-points guard",
+    "undo/redo"
+   ],
+   "verify": "add/remove points interactively; invariants hold; vue-tsc+bun+build",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT3.7",
+   "phase": 3,
+   "title": "Prepared nodes: distinct rendering + fixing (owner req. 10-11, GT-D9)",
+   "status": "not-started",
+   "dependsOn": [
+    "GT1.3",
+    "GT3.1"
+   ],
+   "artifacts": [
+    "parse source XML -> mark preparse voices",
+    "distinct markers + 'generated' lane badge",
+    "edit lock until fixed",
+    "'Fix / make editable' action with irreversibility warning"
+   ],
+   "verify": "preparse voice shows distinct points+badge, locked; fix unlocks; edits persist as concrete entries; vue-tsc+bun+build",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
    "id": "GT3.5",
    "phase": 3,
    "title": "PAUSE: owner verification of the full edit cycle",
@@ -289,6 +358,12 @@
    "step": "GT1.2",
    "event": "done",
    "note": "XML patcher: per-voice <entries> regeneration from points, preserving all other XML. Verified end-to-end with a round-trip through the real Gnaural.exe (edit->patch->dump == edited model). Preparse voices baked to concrete entries. GnauralCore 0694662; ui 108/0; vue-tsc 0; build ok. Phase 1 complete."
+  },
+  {
+   "ts": "2026-07-08T05:10:00Z",
+   "step": null,
+   "event": "plan",
+   "note": "Owner additions (req. 9-11): GT-D8 add/remove nodes (model insert/remove, patcher already handles count change); GT-D9 prepared-node distinction + explicit irreversible fix-to-editable (preparse detected by parsing source XML; dump expands preparse -> circle 61 pts/voice). New steps GT1.3 (model), GT3.6 (add/remove UI), GT3.7 (preparse render+fix). Risk R6 (fix irreversibility)."
   }
  ]
 }
