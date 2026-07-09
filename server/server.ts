@@ -303,6 +303,7 @@ const getAudioOutputCachePath = async (
   aSourceFilePath: string,
   aTargetFileKind: LocalAudioFileKind,
   aCacheDir: string,
+  aDiscriminator = "",
 ): Promise<string> => {
   const sourceStat = await stat(aSourceFilePath)
   const sourceName = basename(aSourceFilePath, extname(aSourceFilePath))
@@ -314,9 +315,59 @@ const getAudioOutputCachePath = async (
     .update(String(sourceStat.mtimeMs))
     .update("\u0000")
     .update(aTargetFileKind)
+    .update(" ")
+    .update(aDiscriminator)
     .digest("hex")
 
   return join(aCacheDir, `${sourceName}-${cacheKey}.${aTargetFileKind}`)
+}
+
+// Render a .gnaural to WAV for spectrogram display, forcing a SINGLE loop. Gnaural has no loop
+// override flag, so we render a temp copy with <loops>1</loops>. This keeps files like
+// "1 s x 4900 loops" (AndromedaHell) from producing an ~868 MB WAV the browser cannot decode.
+const GNAURAL_LOOPS_TAG = /<loops>\s*\d+\s*<\/loops>/i
+const renderGnauralSpectrogramWav = async (aSourceFilePath: string): Promise<string> => {
+  const cachePath = await getAudioOutputCachePath(aSourceFilePath, "wav", audioRenderCacheDir, "single-loop")
+  if (await ensureFile(cachePath)) {
+    return cachePath
+  }
+
+  await mkdir(audioRenderCacheDir, { recursive: true })
+  const original = await Bun.file(aSourceFilePath).text()
+  const singleLoopContent = original.replace(GNAURAL_LOOPS_TAG, "<loops>1</loops>")
+  const tempGnauralPath = join(audioRenderCacheDir, `.sl-${process.pid}-${randomUUID()}.gnaural`)
+  const tempWavPath = join(audioRenderCacheDir, `.sl-${process.pid}-${randomUUID()}.wav`)
+  await Bun.write(tempGnauralPath, singleLoopContent)
+
+  let exitCode: number
+  let stderrText: string
+  try {
+    const child = Bun.spawn([gnauralExePath, tempGnauralPath, "-o", tempWavPath], {
+      cwd: gnauralCwd,
+      stdin: "ignore",
+      stdout: "ignore",
+      stderr: "pipe",
+    })
+    ;[stderrText, exitCode] = await Promise.all([new Response(child.stderr).text(), child.exited])
+  } finally {
+    await unlink(tempGnauralPath).catch(() => undefined)
+  }
+
+  if (exitCode !== 0 || !(await ensureFile(tempWavPath))) {
+    await unlink(tempWavPath).catch(() => undefined)
+    throw new Error(stderrText.trim() || `Gnaural single-loop render failed with exit code ${exitCode}`)
+  }
+
+  try {
+    await rename(tempWavPath, cachePath)
+  } catch (error) {
+    if (!(await ensureFile(cachePath))) {
+      const message = error instanceof Error ? error.message : "Failed to finalize the single-loop render"
+      throw new Error(message)
+    }
+    await unlink(tempWavPath).catch(() => undefined)
+  }
+  return cachePath
 }
 
 const createCachedAudioOutput = async (
@@ -431,6 +482,7 @@ const createAudioFileResponse = async (
   aFilePath: string,
   aFileKind: AudioFileKind,
   aRequestedFormat: LocalAudioFileKind | null,
+  aSingleLoop = false,
 ): Promise<Response> => {
   if (aRequestedFormat === null || aRequestedFormat === aFileKind) {
     return new Response(Bun.file(aFilePath), {
@@ -443,7 +495,11 @@ const createAudioFileResponse = async (
   }
 
   if (!isLocalAudioFileKind(aFileKind)) {
-    const renderedFilePath = await renderGnauralAudioFile(aFilePath, aRequestedFormat)
+    // GT2.6 fix: the spectrogram fetch caps the render to one loop (small WAV that decodes);
+    // the export/download path renders every loop as before.
+    const renderedFilePath = aRequestedFormat === "wav" && aSingleLoop
+      ? await renderGnauralSpectrogramWav(aFilePath)
+      : await renderGnauralAudioFile(aFilePath, aRequestedFormat)
     return new Response(Bun.file(renderedFilePath), {
       headers: {
         "content-type": getAudioFileMimeType(aRequestedFormat),
@@ -1266,8 +1322,9 @@ const handleApiRequest = async (aRequest: Request): Promise<Response | null> => 
       return errorResponse(404, "Audio file not found")
     }
 
+    const singleLoop = parseBooleanQuery(url.searchParams.get("singleLoop"))
     try {
-      return await createAudioFileResponse(resolvedFile.filePath, resolvedFile.fileKind, requestedFormat)
+      return await createAudioFileResponse(resolvedFile.filePath, resolvedFile.fileKind, requestedFormat, singleLoop)
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to load audio file"
       return errorResponse(500, message)
