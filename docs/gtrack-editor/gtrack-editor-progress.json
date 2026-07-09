@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-09T03:10:00Z",
+ "updatedAt": "2026-07-09T04:10:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -490,7 +490,7 @@
    "id": "GT7.1",
    "phase": 7,
    "title": "channelCount in analysis (worker+protocol+server) + single-loop backend gnaural analysis",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [],
    "artifacts": [
     "worker emits channelCount",
@@ -499,10 +499,15 @@
     "gnaural analysis single-loop"
    ],
    "verify": "probe shows channelCount; worker rebuilt+bundled; server tiles for a high-loop gnaural stay bounded",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-09T03:20:00Z",
+   "finishedAt": "2026-07-09T04:10:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "SpectrumCore 1f582f0 (worker channelCount) + rebuilt/bundled (MindWave 1ab38dc)",
+    "SharedPasCore abb2db3 (protocol) + GnauralCore 55745d7 (server passthrough + single-loop backend analysis)",
+    "probe verified channelCount:2 on stereo WAV; ui+server 162/0; vue-tsc 0; build ok",
+    "backend gnaural analysis now renders <loops>1</loops> (AndromedaHell no longer 868MB STFT)"
+   ]
   },
   {
    "id": "GT7.2",
@@ -680,6 +685,12 @@
    "step": null,
    "event": "plan",
    "note": "Owner: the client shouldn't decode WAV (thin client). GT-D12 + Phase 7: retire the client decode; metadata+overlay from the backend (worker already knows channelCount). GT7.1 worker/protocol channelCount + single-loop backend analysis, GT7.2 Tracks metadata from backend, GT7.3 overlay via get-peaks, GT7.4 cleanup. singleLoop cap (GT2.6) reframed as a symptom fix superseded by this."
+  },
+  {
+   "ts": "2026-07-09T04:10:00Z",
+   "step": "GT7.1",
+   "event": "done",
+   "note": "Worker emits channelCount (from WavInfo.Channels) -> protocol -> server toAnalysisInfo. Backend gnaural analysis render capped to 1 loop (spectrogram-audio-source), matching the client single-loop fetch. Foundation for dropping the client WAV decode. SpectrumCore 1f582f0; SharedPasCore abb2db3; GnauralCore 55745d7; MindWave 1ab38dc; probe channelCount:2; 162/0."
   }
  ]
 }
