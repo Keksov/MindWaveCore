@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-09T04:10:00Z",
+ "updatedAt": "2026-07-09T04:30:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -691,6 +691,12 @@
    "step": "GT7.1",
    "event": "done",
    "note": "Worker emits channelCount (from WavInfo.Channels) -> protocol -> server toAnalysisInfo. Backend gnaural analysis render capped to 1 loop (spectrogram-audio-source), matching the client single-loop fetch. Foundation for dropping the client WAV decode. SpectrumCore 1f582f0; SharedPasCore abb2db3; GnauralCore 55745d7; MindWave 1ab38dc; probe channelCount:2; 162/0."
+  },
+  {
+   "ts": "2026-07-09T04:30:00Z",
+   "step": null,
+   "event": "note",
+   "note": "Owner Q: real large files (multi-hour, no loops). singleLoop cap is gnaural-only. R8: (a) client OOM on decodeAudioData (2h stereo ~2.7GB) -> fixed by Phase 7 (no client decode, only per-view tiles+peaks). (b) backend loads whole channel into FSamples (~1.4GB/ch @2h) + full STFT -> survivable on server but a ceiling; real fix = windowed/streaming STFT on the worker (seek path LoadChannelSamples exists). Backend streaming = a future step after Phase 7."
   }
  ]
 }
