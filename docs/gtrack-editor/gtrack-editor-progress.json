@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-09T05:10:00Z",
+ "updatedAt": "2026-07-09T06:20:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -54,6 +54,10 @@
   {
    "id": "GT-D12",
    "text": "Thin client: retire the client-side WAV decode (owner req. 14, 2026-07-09). decodeAudioData -> spectrogramBuffer is legacy from before variant A. Tiles (get-tile) + waveform peaks (get-peaks) are already backend. The buffer is used only for: the spectrogram OVERLAY waveform (still client-computed via useAudioModel(waveformBuffer)), source channelCount, and duration (backend already returns durationSec). The singleLoop cap (GT2.6) was a symptom fix. Proper: metadata + overlay from the backend, drop the client decode. Tracks tab only (frozen tabs keep the store decode until they're deleted). The worker already knows WavInfo.Channels but doesn't expose it. Steps GT7.1 (channelCount in worker/protocol/server + single-loop backend gnaural analysis), GT7.2 (Tracks metadata from backend, drop ensureGnauralSpectrogram), GT7.3 (overlay via get-peaks), GT7.4 (cleanup)."
+  },
+  {
+   "id": "GT-D13",
+   "text": "Gtrack lanes = a schedule editor like the classic one (owner 2026-07-09, screenshots). Model: (1) default ONE VOICE -> ONE LANE (classic per-voice tracks); tonal opens on Base freq, noise/audiofile on Volume; (2) merging voices into one lane = user's choice (gear checkboxes, already supported); (3) modes Base/Beat/Volume/Balance per lane as planned; (4) one voice may appear in several lanes with different parameters (add lane + gear, already supported). Rendering matches the classic editor: Base freq on a LOG axis (same log10 mapping as GnauralScheduleView, default log there), Volume as filled envelopes. The lane architecture (resize/hide/reorder/point-edit) stays."
   }
  ],
  "steps": [
@@ -241,6 +245,52 @@
     "server renderGnauralAudioFile (format=wav, cached) reused - no playback/new command",
     "vue-tsc 0; build ok; ui+server 159/0",
     "confirmed Gnaural.exe <file> -o out.wav -> 10.6MB valid RIFF WAV"
+   ]
+  },
+  {
+   "id": "GT2.7",
+   "phase": 2,
+   "title": "Per-voice default lanes + visible schedule errors on Треки (GT-D13)",
+   "status": "done",
+   "dependsOn": [
+    "GT2.2"
+   ],
+   "artifacts": [
+    "defaultLanes = one lane per voice (base/volume by type)",
+    "gnauralScheduleError banner on Треки",
+    "schedule load on tab activation (10ce950)",
+    "volume default for noise (3507512)"
+   ],
+   "verify": "waves/ToadsAndBugs show per-voice lanes or a visible dump error; ui tests",
+   "startedAt": "2026-07-09T05:30:00Z",
+   "finishedAt": "2026-07-09T06:20:00Z",
+   "blockedReason": null,
+   "evidence": [
+    "GnauralCore 10ce950, 3507512, 00fddaa",
+    "vue-tsc 0; build ok; ui 135/0"
+   ]
+  },
+  {
+   "id": "GT2.8",
+   "phase": 2,
+   "title": "Classic-editor rendering: log frequency axis + filled volume envelopes",
+   "status": "done",
+   "dependsOn": [
+    "GT2.7"
+   ],
+   "artifacts": [
+    "GTrackAxis.scale log|linear",
+    "log10 mapping = GnauralScheduleView.frequencyToY",
+    "unitToValue drag inverse",
+    "volume filled envelopes 0.22 alpha"
+   ],
+   "verify": "log axis round-trip tests; volume fill renders; drag correct on log axis; ui 135/0",
+   "startedAt": "2026-07-09T05:30:00Z",
+   "finishedAt": "2026-07-09T06:20:00Z",
+   "blockedReason": null,
+   "evidence": [
+    "GnauralCore 00fddaa",
+    "16 render tests incl. log/inverse"
    ]
   },
   {
@@ -703,6 +753,12 @@
    "step": "GT2.2",
    "event": "fix",
    "note": "Owner: no gtrack lane for waves.gnaural (4 pink_noise voices). (1) schedule dump loaded only on file selection, not on Tracks-tab activation -> ensureSpectrogramPrepared now also loadGnauralSchedule for a gnaural on Tracks (GnauralCore 10ce950). (2) default lane mode='base' is a flat 0 line for noise -> defaultLaneConfig picks Volume when there are no tonal voices; addLane reuses it (3507512). vue-tsc 0; ui 131/0."
+  },
+  {
+   "ts": "2026-07-09T06:20:00Z",
+   "step": "GT2.8",
+   "event": "done",
+   "note": "Owner clarified the gtrack vision with classic-editor screenshots (GT-D13): per-voice default lanes; log frequency axis (classic mapping); filled volume envelopes; schedule errors now visible on Треки. GnauralCore 00fddaa (+10ce950/3507512). If lanes are still absent on the owner's build, the new banner will reveal the dump error; also requires a rebuilt UI bundle."
   }
  ]
 }
