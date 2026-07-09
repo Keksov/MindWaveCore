@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-09T07:00:00Z",
+ "updatedAt": "2026-07-09T07:40:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -58,6 +58,18 @@
   {
    "id": "GT-D13",
    "text": "Gtrack lanes = a schedule editor like the classic one (owner 2026-07-09, screenshots). Model: (1) default ONE VOICE -> ONE LANE (classic per-voice tracks); tonal opens on Base freq, noise/audiofile on Volume; (2) merging voices into one lane = user's choice (gear checkboxes, already supported); (3) modes Base/Beat/Volume/Balance per lane as planned; (4) one voice may appear in several lanes with different parameters (add lane + gear, already supported). Rendering matches the classic editor: Base freq on a LOG axis (same log10 mapping as GnauralScheduleView, default log there), Volume as filled envelopes. The lane architecture (resize/hide/reorder/point-edit) stays."
+  },
+  {
+   "id": "GT-D14",
+   "text": "Same-type grouping only (owner req. 15, 2026-07-09). 'Type' = voice.type from the dump (binaural, pink_noise, audiofile, ...). Lane gear disables checkboxes of voices whose type differs from the lane's current voices (an empty lane accepts any type, which then fixes the lane's type). toggleLaneVoice also rejects mixing - the guard lives in the composable, not only the UI."
+  },
+  {
+   "id": "GT-D15",
+   "text": "Schedule block + voice side panel (owner req. 16, 2026-07-09). All gtrack lanes of a schedule are visually united into one block with a LEFT voice panel (like the classic editor's track cards): every voice with name/type/colour, a graph-type switch (Base/Beat/Volume/Balance) and a visibility toggle. The panel is the primary control; canvas lanes remain the rows. Mapping: voice visibility = hidden of its lane(s); graph-type change = lane mode change."
+  },
+  {
+   "id": "GT-D16",
+   "text": "Cross-graph point synchronicity (owner req. 17-19, 2026-07-09). Architectural invariant: GTrackModel is the single source and every lane renders the SAME voice points, so moving (17) and deleting (19) a point is synchronous across graphs automatically - to be locked in with tests. (18) Drag past a neighbour: movePoint REORDERS points (stable time re-sort) instead of clamping; the drag keeps following the same point under its new index; selection/refs update; undo stays one unit per drag."
   }
  ],
  "steps": [
@@ -434,6 +446,62 @@
    "evidence": []
   },
   {
+   "id": "GT3.8",
+   "phase": 3,
+   "title": "Same-type-only grouping in a lane (owner req. 15, GT-D14)",
+   "status": "not-started",
+   "dependsOn": [
+    "GT2.2"
+   ],
+   "artifacts": [
+    "toggleLaneVoice type guard",
+    "gear checkboxes disabled for other types"
+   ],
+   "verify": "cannot mix voice types in one lane (composable test + UI); vue-tsc+build",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT3.9",
+   "phase": 3,
+   "title": "Schedule block + voice side panel (owner req. 16, GT-D15)",
+   "status": "not-started",
+   "dependsOn": [
+    "GT2.2"
+   ],
+   "artifacts": [
+    "visual block around gtrack lanes",
+    "left voice panel: name/type/colour, graph-type switch, visibility toggle",
+    "sync with lane model"
+   ],
+   "verify": "panel lists all voices; toggling visibility hides/shows lanes; type switch changes lane mode; vue-tsc+build",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT3.10",
+   "phase": 3,
+   "title": "Drag past neighbour (reorder, no clamp) + cross-graph sync tests (owner req. 17-19, GT-D16)",
+   "status": "not-started",
+   "dependsOn": [
+    "GT3.2"
+   ],
+   "artifacts": [
+    "movePoint reorder semantics",
+    "dragRef/selection index tracking",
+    "model tests: move/cross/delete reflect in all lanes"
+   ],
+   "verify": "dragging past a neighbour re-homes the point (all graphs); delete syncs; undo = one unit per drag; bun tests",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
    "id": "GT3.5",
    "phase": 3,
    "title": "PAUSE: owner verification of the full edit cycle",
@@ -765,6 +833,12 @@
    "step": "GT2.2",
    "event": "fix",
    "note": "ROOT CAUSE of missing gtrack lanes (owner found the console warn): <gtrack-view> resolves to 'GtrackView' (lowercase t) and never matched the GTrackView import (kebab of GTrackView = g-track-view) -> resolveComponent silently failed since GT2.2; vue-tsc treats unresolvable kebab tags as custom elements (no error). Fixed with PascalCase <GTrackView> + warning comment. GnauralCore 027960f. Lesson: use PascalCase in templates for components with consecutive-capital prefixes."
+  },
+  {
+   "ts": "2026-07-09T07:40:00Z",
+   "step": null,
+   "event": "plan",
+   "note": "Owner reqs 15-19: GT-D14 same-type-only lane grouping; GT-D15 schedule block + voice side panel (type switch + visibility); GT-D16 cross-graph point sync (17/19 already hold via the single-model invariant - to be test-locked) + drag-past-neighbour reordering instead of clamping (18). Steps GT3.8/GT3.9/GT3.10."
   }
  ]
 }
