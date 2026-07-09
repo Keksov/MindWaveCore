@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-09T08:10:00Z",
+ "updatedAt": "2026-07-09T09:20:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -473,7 +473,7 @@
    "id": "GT3.9",
    "phase": 3,
    "title": "Schedule block + slide-over voice panel with bulk actions + editor properties (owner req. 16+20, GT-D15)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [
     "GT2.2"
    ],
@@ -484,16 +484,20 @@
     "editor props: point-drag mode"
    ],
    "verify": "panel lists all voices; toggling visibility hides/shows lanes; type switch changes lane mode; vue-tsc+build",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-09T08:20:00Z",
+   "finishedAt": "2026-07-09T09:20:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore 859c0e7 (slide-over panel: per-voice type/visibility, bulk merge/spread/all-in-mode/hide-show-all, editor props)",
+    "panel slides OVER the tracks from the left (SF3.1 pattern), Escape/backdrop closes",
+    "vue-tsc 0; quasar build ok; ui 140/0"
+   ]
   },
   {
    "id": "GT3.10",
    "phase": 3,
    "title": "Two drag modes (clamp/crossover, editor setting) + cross-graph sync tests (owner req. 17-19, GT-D16)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [
     "GT3.2"
    ],
@@ -503,10 +507,14 @@
     "model tests: move/cross/delete reflect in all lanes"
    ],
    "verify": "dragging past a neighbour re-homes the point (all graphs); delete syncs; undo = one unit per drag; bun tests",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-09T08:20:00Z",
+   "finishedAt": "2026-07-09T09:20:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore 4308362 (movePointCrossing + pointDragMode setting, crossover default; dragRef follows via selection)",
+    "+9 model tests: crossover fwd/back/floor-0/one-undo-unit/value-ride; cross-graph sync invariant (same points object)",
+    "vue-tsc 0; ui 140/0"
+   ]
   },
   {
    "id": "GT3.5",
@@ -871,6 +879,18 @@
    "step": null,
    "event": "plan",
    "note": "Owner corrections + reqs 20-21: (15) type = graph parameter type -> GT3.8 closed by design (one mode per lane); (16) side panel slides OVER tracks; (18) TWO drag modes behind an editor setting (clamp + crossover); (20) panel bulk actions (merge-all/spread/all-in-mode/hide-show-all/reset); (21) per-lane solo spectrum/wave of the lane's voice set (GT-D17, GT4.3 via muted-others temp render)."
+  },
+  {
+   "ts": "2026-07-09T09:20:00Z",
+   "step": "GT3.9",
+   "event": "done",
+   "note": "Slide-over voice panel (GT-D15): per-voice graph-type + visibility mapped onto lanes; bulk actions (merge-all/spread/all-in-mode/show-hide-all); editor properties host the point-drag toggle. GnauralCore 859c0e7."
+  },
+  {
+   "ts": "2026-07-09T09:20:00Z",
+   "step": "GT3.10",
+   "event": "done",
+   "note": "Dual drag modes (GT-D16): crossover (default, stable re-sort + new index followed by drag/selection) and clamp; persisted editor setting. Cross-graph sync (req 17/19) test-locked (single points object). GnauralCore 4308362; ui 140/0."
   }
  ]
 }
