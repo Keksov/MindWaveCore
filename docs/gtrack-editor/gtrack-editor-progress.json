@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-09T02:40:00Z",
+ "updatedAt": "2026-07-09T03:10:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -50,6 +50,10 @@
   {
    "id": "GT-D11",
    "text": "Audio file-cache management (owner req. 13, 2026-07-09). Server caches gnaural->WAV renders (tmp/audio-render, incl. the new single-loop spectrogram variant) + conversions (tmp/audio-convert). Cache key = sha1(path+size+mtime+kind+discriminator) -> no reverse cache->source map, so a MANIFEST is needed (record {cacheFile, sourcePath, kind, discriminator, bytes, createdAt} on write). UI: total size, per-source list with variants + sizes, delete entry / clear all, via GET/DELETE /api/audio/cache. Orphan files (no manifest) shown as 'unknown source'. Steps GT6.1 (manifest+endpoints), GT6.2 (UI)."
+  },
+  {
+   "id": "GT-D12",
+   "text": "Thin client: retire the client-side WAV decode (owner req. 14, 2026-07-09). decodeAudioData -> spectrogramBuffer is legacy from before variant A. Tiles (get-tile) + waveform peaks (get-peaks) are already backend. The buffer is used only for: the spectrogram OVERLAY waveform (still client-computed via useAudioModel(waveformBuffer)), source channelCount, and duration (backend already returns durationSec). The singleLoop cap (GT2.6) was a symptom fix. Proper: metadata + overlay from the backend, drop the client decode. Tracks tab only (frozen tabs keep the store decode until they're deleted). The worker already knows WavInfo.Channels but doesn't expose it. Steps GT7.1 (channelCount in worker/protocol/server + single-loop backend gnaural analysis), GT7.2 (Tracks metadata from backend, drop ensureGnauralSpectrogram), GT7.3 (overlay via get-peaks), GT7.4 (cleanup)."
   }
  ],
  "steps": [
@@ -481,6 +485,79 @@
    "finishedAt": null,
    "blockedReason": null,
    "evidence": []
+  },
+  {
+   "id": "GT7.1",
+   "phase": 7,
+   "title": "channelCount in analysis (worker+protocol+server) + single-loop backend gnaural analysis",
+   "status": "not-started",
+   "dependsOn": [],
+   "artifacts": [
+    "worker emits channelCount",
+    "SpectrogramAnalysisInfo.channelCount",
+    "server passthrough",
+    "gnaural analysis single-loop"
+   ],
+   "verify": "probe shows channelCount; worker rebuilt+bundled; server tiles for a high-loop gnaural stay bounded",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT7.2",
+   "phase": 7,
+   "title": "Tracks tab: metadata (stereo/duration/gate) from the backend analysis, not spectrogramBuffer",
+   "status": "not-started",
+   "dependsOn": [
+    "GT7.1"
+   ],
+   "artifacts": [
+    "metadata analysis in TracksPanel",
+    "gate on analysis-ready",
+    "drop ensureGnauralSpectrogram for Tracks"
+   ],
+   "verify": "Tracks renders correct mono/stereo + duration without a decoded buffer; vue-tsc+build",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT7.3",
+   "phase": 7,
+   "title": "Spectrogram overlay waveform via backend get-peaks (drop waveformBuffer dependency)",
+   "status": "not-started",
+   "dependsOn": [
+    "GT7.1"
+   ],
+   "artifacts": [
+    "overlay uses get-peaks",
+    "frozen tab still renders"
+   ],
+   "verify": "overlay matches; frozen Spectrogram tab unaffected; vue-tsc+build",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT7.4",
+   "phase": 7,
+   "title": "Cleanup: remove the Tracks WAV decode/fetch-for-display path",
+   "status": "not-started",
+   "dependsOn": [
+    "GT7.2",
+    "GT7.3"
+   ],
+   "artifacts": [
+    "no decodeAudioData on the Tracks path"
+   ],
+   "verify": "no client decode for Tracks; vue-tsc+build+tests",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
   }
  ],
  "log": [
@@ -597,6 +674,12 @@
    "step": null,
    "event": "plan",
    "note": "Owner req. 13 (GT-D11): file-cache management — total size + per-source view/delete. Needs a cache manifest (key is a one-way hash). New Phase 6: GT6.1 manifest+endpoints, GT6.2 UI."
+  },
+  {
+   "ts": "2026-07-09T03:10:00Z",
+   "step": null,
+   "event": "plan",
+   "note": "Owner: the client shouldn't decode WAV (thin client). GT-D12 + Phase 7: retire the client decode; metadata+overlay from the backend (worker already knows channelCount). GT7.1 worker/protocol channelCount + single-loop backend analysis, GT7.2 Tracks metadata from backend, GT7.3 overlay via get-peaks, GT7.4 cleanup. singleLoop cap (GT2.6) reframed as a symptom fix superseded by this."
   }
  ]
 }
