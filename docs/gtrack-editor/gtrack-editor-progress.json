@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-09T07:40:00Z",
+ "updatedAt": "2026-07-09T08:10:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -61,15 +61,19 @@
   },
   {
    "id": "GT-D14",
-   "text": "Same-type grouping only (owner req. 15, 2026-07-09). 'Type' = voice.type from the dump (binaural, pink_noise, audiofile, ...). Lane gear disables checkboxes of voices whose type differs from the lane's current voices (an empty lane accepts any type, which then fixes the lane's type). toggleLaneVoice also rejects mixing - the guard lives in the composable, not only the UI."
+   "text": "One graph type per lane (owner req. 15, CORRECTED 2026-07-09): 'type' means the parameter type base/beat/volume/balance, NOT voice.type. Already guaranteed by construction - a lane has exactly one mode, so curves in a lane are always one type; multiple voices allowed. No guard needed; GT3.8 closed by design."
   },
   {
    "id": "GT-D15",
-   "text": "Schedule block + voice side panel (owner req. 16, 2026-07-09). All gtrack lanes of a schedule are visually united into one block with a LEFT voice panel (like the classic editor's track cards): every voice with name/type/colour, a graph-type switch (Base/Beat/Volume/Balance) and a visibility toggle. The panel is the primary control; canvas lanes remain the rows. Mapping: voice visibility = hidden of its lane(s); graph-type change = lane mode change."
+   "text": "Schedule block + SLIDE-OVER voice panel (owner req. 16+20, corrected: the panel slides OVER the tracks, overlay-left, SF3.1 pattern). Panel: every voice (name/type/colour), graph-type switch, visibility toggle; bulk actions (req 20): merge-all-into-one-lane, spread-per-voice, 'all in mode X' selector, hide/show all, reset-default-layout; plus editor properties (point-drag mode, GT-D16). Mapping: voice visibility = hidden of all lanes containing it (toggle-on with no lane creates one); graph-type change = mode change of all lanes containing the voice."
   },
   {
    "id": "GT-D16",
-   "text": "Cross-graph point synchronicity (owner req. 17-19, 2026-07-09). Architectural invariant: GTrackModel is the single source and every lane renders the SAME voice points, so moving (17) and deleting (19) a point is synchronous across graphs automatically - to be locked in with tests. (18) Drag past a neighbour: movePoint REORDERS points (stable time re-sort) instead of clamping; the drag keeps following the same point under its new index; selection/refs update; undo stays one unit per drag."
+   "text": "Cross-graph point sync + TWO drag modes (owner req. 17-19, corrected). Invariant: GTrackModel is the single source, every lane renders the same voice points, so move (17) and delete (19) sync automatically - lock with tests. (18) Point drag is a PERSISTED EDITOR SETTING with two modes: 'clamp' (within neighbours) and 'crossover' (past a neighbour: stable time re-sort, drag follows the same point under its new index, selection updates). Undo = one unit per drag in both modes."
+  },
+  {
+   "id": "GT-D17",
+   "text": "Per-lane solo spectrum/waveform of the lane's voice set (owner req. 21, 2026-07-09). The server renders a temp schedule copy with all OTHER voices muted (+<loops>1</loops>, same trick as single-loop) -> WAV -> the existing analysis pipeline (tiles/peaks) -> an underlay in the lane beneath the curves. Cache key gains the voice-id set (GT-D11 manifest tracks variants). Per-lane gear setting: off/wave/spectrum/both. Phase 4 (GT4.3), generalizes GT4.2."
   }
  ],
  "steps": [
@@ -448,8 +452,8 @@
   {
    "id": "GT3.8",
    "phase": 3,
-   "title": "Same-type-only grouping in a lane (owner req. 15, GT-D14)",
-   "status": "not-started",
+   "title": "One graph type per lane (owner req. 15, GT-D14) — closed by design",
+   "status": "done",
    "dependsOn": [
     "GT2.2"
    ],
@@ -458,23 +462,26 @@
     "gear checkboxes disabled for other types"
    ],
    "verify": "cannot mix voice types in one lane (composable test + UI); vue-tsc+build",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-09T08:00:00Z",
+   "finishedAt": "2026-07-09T08:00:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "by design: GTrackLane has exactly one mode; curves in a lane are always one parameter type"
+   ]
   },
   {
    "id": "GT3.9",
    "phase": 3,
-   "title": "Schedule block + voice side panel (owner req. 16, GT-D15)",
+   "title": "Schedule block + slide-over voice panel with bulk actions + editor properties (owner req. 16+20, GT-D15)",
    "status": "not-started",
    "dependsOn": [
     "GT2.2"
    ],
    "artifacts": [
-    "visual block around gtrack lanes",
-    "left voice panel: name/type/colour, graph-type switch, visibility toggle",
-    "sync with lane model"
+    "overlay voice panel (SF3.1 pattern)",
+    "per-voice: graph-type switch + visibility",
+    "bulk: merge-all / spread / all-in-mode / hide-show-all / reset",
+    "editor props: point-drag mode"
    ],
    "verify": "panel lists all voices; toggling visibility hides/shows lanes; type switch changes lane mode; vue-tsc+build",
    "startedAt": null,
@@ -485,7 +492,7 @@
   {
    "id": "GT3.10",
    "phase": 3,
-   "title": "Drag past neighbour (reorder, no clamp) + cross-graph sync tests (owner req. 17-19, GT-D16)",
+   "title": "Two drag modes (clamp/crossover, editor setting) + cross-graph sync tests (owner req. 17-19, GT-D16)",
    "status": "not-started",
    "dependsOn": [
     "GT3.2"
@@ -547,6 +554,25 @@
     "per-voice display setting"
    ],
    "verify": "fragments render under curves inline; setting persists; vue-tsc+bun+build",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT4.3",
+   "phase": 4,
+   "title": "Per-lane solo spectrum/waveform of the lane's voice set (owner req. 21, GT-D17)",
+   "status": "not-started",
+   "dependsOn": [
+    "GT2.2"
+   ],
+   "artifacts": [
+    "server solo render (others muted + 1 loop, cache by voice-id set)",
+    "lane underlay wave/spectrum/both",
+    "per-lane gear setting"
+   ],
+   "verify": "lane underlay shows the audio of exactly its voices; cache variants tracked; vue-tsc+build+tests",
    "startedAt": null,
    "finishedAt": null,
    "blockedReason": null,
@@ -839,6 +865,12 @@
    "step": null,
    "event": "plan",
    "note": "Owner reqs 15-19: GT-D14 same-type-only lane grouping; GT-D15 schedule block + voice side panel (type switch + visibility); GT-D16 cross-graph point sync (17/19 already hold via the single-model invariant - to be test-locked) + drag-past-neighbour reordering instead of clamping (18). Steps GT3.8/GT3.9/GT3.10."
+  },
+  {
+   "ts": "2026-07-09T08:10:00Z",
+   "step": null,
+   "event": "plan",
+   "note": "Owner corrections + reqs 20-21: (15) type = graph parameter type -> GT3.8 closed by design (one mode per lane); (16) side panel slides OVER tracks; (18) TWO drag modes behind an editor setting (clamp + crossover); (20) panel bulk actions (merge-all/spread/all-in-mode/hide-show-all/reset); (21) per-lane solo spectrum/wave of the lane's voice set (GT-D17, GT4.3 via muted-others temp render)."
   }
  ]
 }
