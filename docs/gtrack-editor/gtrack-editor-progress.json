@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-09T04:30:00Z",
+ "updatedAt": "2026-07-09T05:10:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -697,6 +697,12 @@
    "step": null,
    "event": "note",
    "note": "Owner Q: real large files (multi-hour, no loops). singleLoop cap is gnaural-only. R8: (a) client OOM on decodeAudioData (2h stereo ~2.7GB) -> fixed by Phase 7 (no client decode, only per-view tiles+peaks). (b) backend loads whole channel into FSamples (~1.4GB/ch @2h) + full STFT -> survivable on server but a ceiling; real fix = windowed/streaming STFT on the worker (seek path LoadChannelSamples exists). Backend streaming = a future step after Phase 7."
+  },
+  {
+   "ts": "2026-07-09T05:10:00Z",
+   "step": "GT2.2",
+   "event": "fix",
+   "note": "Owner: no gtrack lane for waves.gnaural (4 pink_noise voices). (1) schedule dump loaded only on file selection, not on Tracks-tab activation -> ensureSpectrogramPrepared now also loadGnauralSchedule for a gnaural on Tracks (GnauralCore 10ce950). (2) default lane mode='base' is a flat 0 line for noise -> defaultLaneConfig picks Volume when there are no tonal voices; addLane reuses it (3507512). vue-tsc 0; ui 131/0."
   }
  ]
 }
