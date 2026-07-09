@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-09T09:20:00Z",
+ "updatedAt": "2026-07-09T10:20:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -375,7 +375,7 @@
    "id": "GT3.3",
    "phase": 3,
    "title": "Point parameters dialog (all entry params + derived Volume/Balance)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [
     "GT3.1"
    ],
@@ -383,10 +383,14 @@
     "GTrackPointDialog.vue"
    ],
    "verify": "dialog edits apply to model incl. volL/volR mapping (GT-D6); vue-tsc+bun+build",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-09T09:40:00Z",
+   "finishedAt": "2026-07-09T10:20:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore bd3a798 (dialog: time/base/beat(full Hz)/volL/volR + derived Volume/Balance sliders; one undo unit; crossover time; selection follows)",
+    "dblclick on a vertex opens it; mono hides Balance",
+    "vue-tsc 0; build ok; ui 140/0"
+   ]
   },
   {
    "id": "GT3.4",
@@ -411,7 +415,7 @@
    "id": "GT3.6",
    "phase": 3,
    "title": "Add/remove nodes in the UI (owner req. 9, GT-D8)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [
     "GT1.3",
     "GT3.2"
@@ -423,10 +427,13 @@
     "undo/redo"
    ],
    "verify": "add/remove points interactively; invariants hold; vue-tsc+bun+build",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-09T09:40:00Z",
+   "finishedAt": "2026-07-09T10:20:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore bd3a798 (dblclick on a curve inserts an interpolated point at the nearest voice <=14px and selects it; Delete/Backspace removes the selected vertex; min-2-points guard in the model)",
+    "vue-tsc 0; build ok; ui 140/0"
+   ]
   },
   {
    "id": "GT3.7",
@@ -891,6 +898,18 @@
    "step": "GT3.10",
    "event": "done",
    "note": "Dual drag modes (GT-D16): crossover (default, stable re-sort + new index followed by drag/selection) and clamp; persisted editor setting. Cross-graph sync (req 17/19) test-locked (single points object). GnauralCore 4308362; ui 140/0."
+  },
+  {
+   "ts": "2026-07-09T10:20:00Z",
+   "step": "GT3.3",
+   "event": "done",
+   "note": "Point dialog: all entry fields + derived Volume/Balance mapping back to volL/volR; apply = one undo unit with crossover time semantics. GnauralCore bd3a798."
+  },
+  {
+   "ts": "2026-07-09T10:20:00Z",
+   "step": "GT3.6",
+   "event": "done",
+   "note": "Add/remove points in the UI: dblclick-on-curve inserts interpolated point (nearest voice hit-test); Delete removes selection. GnauralCore bd3a798. Remaining in Phase 3: GT3.4 (Save pipeline), GT3.7 (preparse locks), GT3.5 (owner pause)."
   }
  ]
 }
