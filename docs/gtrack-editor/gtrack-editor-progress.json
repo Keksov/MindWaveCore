@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-09T06:20:00Z",
+ "updatedAt": "2026-07-09T07:00:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -759,6 +759,12 @@
    "step": "GT2.8",
    "event": "done",
    "note": "Owner clarified the gtrack vision with classic-editor screenshots (GT-D13): per-voice default lanes; log frequency axis (classic mapping); filled volume envelopes; schedule errors now visible on Треки. GnauralCore 00fddaa (+10ce950/3507512). If lanes are still absent on the owner's build, the new banner will reveal the dump error; also requires a rebuilt UI bundle."
+  },
+  {
+   "ts": "2026-07-09T07:00:00Z",
+   "step": "GT2.2",
+   "event": "fix",
+   "note": "ROOT CAUSE of missing gtrack lanes (owner found the console warn): <gtrack-view> resolves to 'GtrackView' (lowercase t) and never matched the GTrackView import (kebab of GTrackView = g-track-view) -> resolveComponent silently failed since GT2.2; vue-tsc treats unresolvable kebab tags as custom elements (no error). Fixed with PascalCase <GTrackView> + warning comment. GnauralCore 027960f. Lesson: use PascalCase in templates for components with consecutive-capital prefixes."
   }
  ]
 }
