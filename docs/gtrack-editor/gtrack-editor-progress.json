@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-09T01:50:00Z",
+ "updatedAt": "2026-07-09T02:40:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -46,6 +46,10 @@
   {
    "id": "GT-D10",
    "text": "Tracks tab + frozen old tabs (owner req. 12, Q&A 2026-07-08; all three recommendations accepted). Variant 1 'frozen copy': (a) TracksPanel.vue = MOVE of the current stack (wave+spectrum+minimap+gtracks+SF25-28 chrome/dialogs) out of AudioPage into a new 'Tracks' sub-tab right of 'Spectrogram'; (b) the Spectrogram tab in AudioPage is RESTORED from git to the pre-GT2.2 state (GnauralCore 6c0589c) - exactly the accepted code, no gtracks; Playback untouched. Direction: old code from git, current code (old+new) moves to TracksPanel - no re-writing new features onto an old copy. Scope: Tracks works for ALL audio files (gtracks only for .gnaural) and is the single surface for all future work (Phase 3+). Isolation: fully separate state - own spectrogramShared (zoom/selection) and NEW localStorage keys; no cross-tab influence. Cost: deliberate duplication (~400 template lines + logic); fixes go ONLY to Tracks; frozen tabs are deleted after Tracks stabilizes (a future step)."
+  },
+  {
+   "id": "GT-D11",
+   "text": "Audio file-cache management (owner req. 13, 2026-07-09). Server caches gnaural->WAV renders (tmp/audio-render, incl. the new single-loop spectrogram variant) + conversions (tmp/audio-convert). Cache key = sha1(path+size+mtime+kind+discriminator) -> no reverse cache->source map, so a MANIFEST is needed (record {cacheFile, sourcePath, kind, discriminator, bytes, createdAt} on write). UI: total size, per-source list with variants + sizes, delete entry / clear all, via GET/DELETE /api/audio/cache. Orphan files (no manifest) shown as 'unknown source'. Steps GT6.1 (manifest+endpoints), GT6.2 (UI)."
   }
  ],
  "steps": [
@@ -442,6 +446,41 @@
    "finishedAt": null,
    "blockedReason": null,
    "evidence": []
+  },
+  {
+   "id": "GT6.1",
+   "phase": 6,
+   "title": "Cache manifest + endpoints (GET/DELETE /api/audio/cache)",
+   "status": "not-started",
+   "dependsOn": [],
+   "artifacts": [
+    "manifest on cache write",
+    "retro-scan orphans",
+    "summary + delete endpoints"
+   ],
+   "verify": "cache summary lists per-source sizes; delete removes files+manifest; server bundles/tests",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT6.2",
+   "phase": 6,
+   "title": "Cache UI (total size, per-source list, delete/clear)",
+   "status": "not-started",
+   "dependsOn": [
+    "GT6.1"
+   ],
+   "artifacts": [
+    "cache panel",
+    "delete + clear-all with confirm"
+   ],
+   "verify": "panel shows size + entries; delete/clear update live; vue-tsc+build",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
   }
  ],
  "log": [
@@ -546,6 +585,18 @@
    "step": "GT3.2",
    "event": "done",
    "note": "Drag vertices in point mode: pointer-capture drag = one undo unit; time clamp + valuePatchForMode (GT-D6 inverse) map cursor to fields (volume scales L/R preserving balance; balance re-splits total; mono/silence handled). Added a shallowRef reactivity bridge over the plain GTrackModel so the curve updates live. Undo/redo shortcuts. GnauralCore c1faf63; ui 131/0; vue-tsc 0."
+  },
+  {
+   "ts": "2026-07-09T02:30:00Z",
+   "step": "GT2.6",
+   "event": "fix",
+   "note": "Owner report (AndromedaHell.gnaural, 1s x 4900 loops): (1) gtracks not shown -> decoupled from the spectrogram buffer (they come from the schedule); spectrum error is non-blocking; view-duration falls back to schedule length. (2) 'Failed to decode' -> 868MB WAV; spectrum render now caps to 1 loop (server renderGnauralSpectrogramWav via temp <loops>1</loops>, ?singleLoop=1) -> 180KB (verified). GnauralCore 68f2832; MindWaveCore a900ed8; ui 131/0; server bundles."
+  },
+  {
+   "ts": "2026-07-09T02:40:00Z",
+   "step": null,
+   "event": "plan",
+   "note": "Owner req. 13 (GT-D11): file-cache management — total size + per-source view/delete. Needs a cache manifest (key is a one-way hash). New Phase 6: GT6.1 manifest+endpoints, GT6.2 UI."
   }
  ]
 }
