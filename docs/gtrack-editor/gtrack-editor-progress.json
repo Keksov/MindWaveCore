@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-09T00:50:00Z",
+ "updatedAt": "2026-07-09T01:50:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -279,7 +279,7 @@
    "id": "GT3.2",
    "phase": 3,
    "title": "Drag vertices (time + value per lane mode) with clamping; live curve update; undo/redo",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [
     "GT3.1"
    ],
@@ -287,10 +287,15 @@
     "drag interaction + clamps"
    ],
    "verify": "drag updates model+curve live; undo/redo restores; vue-tsc+bun+build",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-09T01:00:00Z",
+   "finishedAt": "2026-07-09T01:50:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore c1faf63 (GTrackView drag + composable dragPoint/undo + valuePatchForMode)",
+    "drag = one undo unit; time clamped between neighbours; value mapped by mode (GT-D6)",
+    "reactivity bridge: shallowRef mirror of model.schedule synced per edit -> live curve update",
+    "undo/redo Ctrl/Cmd+Z/Shift+Z/Y (guarded mid-drag); valuePatchForMode pure+tested; ui 131/0"
+   ]
   },
   {
    "id": "GT3.3",
@@ -535,6 +540,12 @@
    "step": "GT3.1",
    "event": "done",
    "note": "Point-edit mode: per-lane toggle, vertex hit-test/hover/selection in GTrackView; ephemeral point-mode + selection state in useGtrackLanes; wired in TracksPanel. Feeds GT3.2 drag + GT3.3 dialog. GnauralCore 97598a0; vue-tsc 0; ui 128/0."
+  },
+  {
+   "ts": "2026-07-09T01:50:00Z",
+   "step": "GT3.2",
+   "event": "done",
+   "note": "Drag vertices in point mode: pointer-capture drag = one undo unit; time clamp + valuePatchForMode (GT-D6 inverse) map cursor to fields (volume scales L/R preserving balance; balance re-splits total; mono/silence handled). Added a shallowRef reactivity bridge over the plain GTrackModel so the curve updates live. Undo/redo shortcuts. GnauralCore c1faf63; ui 131/0; vue-tsc 0."
   }
  ]
 }
