@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-10T06:45:00Z",
+ "updatedAt": "2026-07-10T08:00:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -408,20 +408,26 @@
    "id": "GT3.4",
    "phase": 3,
    "title": "Save pipeline: button + Ctrl+S, dirty indicator, patch->validate->write, analysis invalidation + re-render",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [
     "GT1.2",
     "GT3.2"
    ],
    "artifacts": [
-    "save wiring",
-    "analysis refresh after save"
+    "TracksPanel.saveGtrackEdits: fetch source XML -> patchGnauralXml(model.schedule) -> audioApi.saveEditorDocument (Gnaural.exe validate + atomic write + history) with expectedModifiedAtMs",
+    "header Save button (gnaural-only, dirty-highlighted, spinner) + Ctrl/Cmd+S before the typing guard (suppresses the browser Save dialog)",
+    "post-save: loadGnauralSchedule(force) rebuilds the model (clears dirty) + ensureGnauralSpectrogram(force) re-renders wave/spectrum (GT-D3)",
+    "generator safety: patchGnauralXml preserveVoiceIds option fed by findPreparseVoiceIds(sourceXml) — preparse voices not baked (client model doesn't flag them until GT3.7); +1 patcher test",
+    "fixed latent bug: schedule watch rebuilt the model but never refreshed dirty/undo/redo — moved those refs above the watch + refresh there"
    ],
    "verify": "save persists edits; Gnaural validation errors surfaced; wave+spectrum refresh from re-rendered WAV",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-10T06:50:00Z",
+   "finishedAt": "2026-07-10T08:00:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore b3b418f",
+    "vue-tsc 0; quasar build ok; ui+server 172/0 (+1 preserveVoiceIds patcher test)"
+   ]
   },
   {
    "id": "GT3.6",
@@ -1226,6 +1232,12 @@
    "step": "GT3.19",
    "event": "done",
    "note": "Node tooltip rebuilt as a name header + 2-column CSS grid (labels | values, both left-aligned); hoverTooltip computed returns structured rows instead of a pre-line string. GnauralCore 702b12f; vue-tsc 0; build ok; 171/0."
+  },
+  {
+   "ts": "2026-07-10T08:00:00Z",
+   "step": "GT3.4",
+   "event": "done",
+   "note": "Save pipeline: TracksPanel Save button (dirty-highlighted) + Ctrl+S -> fetch source XML -> patchGnauralXml (preserving preparse voices detected from the XML, since the client model doesn't flag them until GT3.7) -> saveEditorDocument (Gnaural.exe validation + atomic write + history) -> loadGnauralSchedule(force) rebuilds the model (clears dirty) + ensureGnauralSpectrogram(force) re-renders wave/spectrum. Also fixed a latent bug where the schedule watch rebuilt the model without refreshing dirty/undo/redo. GnauralCore b3b418f; vue-tsc 0; build ok; 172/0. Remaining Phase 3: GT3.7 (preparse locks), GT3.18/GT3.19 UI items, then GT3.5 owner PAUSE (now unblocked)."
   }
  ]
 }
