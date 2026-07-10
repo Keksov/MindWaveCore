@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-10T10:00:00Z",
+ "updatedAt": "2026-07-11T00:20:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -739,15 +739,16 @@
     "GT3.1"
    ],
    "artifacts": [
-    "point-select cursor: grab (grabbing while dragging) instead of the heavy crosshair (cursor: cell)",
-    "the hover ring already marks the editable node"
+    "first tried grab/grabbing (aaadae0) but its centered hotspot covered the node -> owner rejected",
+    "final (owner choice): cursor:none over an editable vertex in select mode; the enlarged white-ringed hover/selection marker is the pointer; stays hidden through a drag so the node is fully visible",
+    "removed cursor:cell (heavy crosshair)"
    ],
-   "verify": "hovering an editable node shows a grab hand; vue-tsc+build",
+   "verify": "hovering/dragging an editable node keeps the node fully visible (no cursor over it); vue-tsc+build",
    "startedAt": "2026-07-10T09:20:00Z",
-   "finishedAt": "2026-07-10T09:35:00Z",
+   "finishedAt": "2026-07-11T00:20:00Z",
    "blockedReason": null,
    "evidence": [
-    "GnauralCore aaadae0",
+    "GnauralCore aaadae0 (grab, rejected) -> 3bd6f0d (cursor:none, owner choice)",
     "vue-tsc 0; quasar build ok; ui+server 172/0"
    ]
   },
@@ -1313,6 +1314,12 @@
    "step": "GT3.20",
    "event": "done",
    "note": "Point-select cursor changed from cursor:cell (heavy crosshair) to grab/grabbing; the hover ring already marks the editable node. GnauralCore aaadae0; 172/0."
+  },
+  {
+   "ts": "2026-07-11T00:20:00Z",
+   "step": "GT3.20",
+   "event": "fix",
+   "note": "Owner: the grab hand's centered hotspot sat on the node and hid it. Per owner choice (AskUserQuestion), switched to cursor:none over an editable vertex in select mode — the node's enlarged white-ringed marker is the pointer, staying visible through hover and drag. GnauralCore 3bd6f0d; vue-tsc 0; build ok."
   },
   {
    "ts": "2026-07-10T10:00:00Z",
