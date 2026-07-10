@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-10T05:00:00Z",
+ "updatedAt": "2026-07-10T05:20:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -85,7 +85,7 @@
   },
   {
    "id": "GT-D20",
-   "text": "Visually group a voice's lanes + 'show all modes per voice' (owner req. 38, 2026-07-10). A button in the voices panel: 'Show all modes for each voice' mass-spreads every parameter (base/beat/volume/balance) across lanes for each voice (generalizes the GT-D15 bulk spread / all-in-mode). Lanes belonging to one voice are grouped visually. Styling variants (proposed, owner picks): (a) LEFT COLOUR STRIPE on the lane in the voice colour (thin accent border at the left edge) - recommended: least noise, distinguishes multiple voices, reuses the existing per-voice colour; (b) shared background tint (voice colour, translucent) - more obvious but noisier on the canvas; (c) lane title in the voice colour - cheap but weak at small text; (d) a group bracket/badge on the left joining adjacent same-voice lanes - clearest but needs the voice's lanes to be contiguous. Default proposal: (a) left stripe + (c) coloured title; (d) if lanes are sorted by voice after the spread. Finalize at owner Q&A before coding GT3.18."
+   "text": "Visually group a voice's lanes + 'show all modes per voice' (owner req. 38, 2026-07-10). A button in the voices panel: 'Show all modes for each voice' mass-spreads every parameter (base/beat/volume/balance) across lanes for each voice (generalizes the GT-D15 bulk spread / all-in-mode). Lanes belonging to one voice are grouped visually. Styling variants (proposed, owner picks): (a) LEFT COLOUR STRIPE on the lane in the voice colour (thin accent border at the left edge) - recommended: least noise, distinguishes multiple voices, reuses the existing per-voice colour; (b) shared background tint (voice colour, translucent) - more obvious but noisier on the canvas; (c) lane title in the voice colour - cheap but weak at small text; (d) a group bracket/badge on the left joining adjacent same-voice lanes - clearest but needs the voice's lanes to be contiguous. OWNER CHOICE (2026-07-10): (a) left stripe + (c) coloured title. (d) optional if lanes are sorted by voice after the spread. GT3.18 implements a+c."
   }
  ],
  "steps": [
@@ -705,7 +705,7 @@
    ],
    "artifacts": [
     "voices-panel button: spread every parameter (base/beat/volume/balance) per voice into lanes",
-    "group a voice's lanes visually (default: left colour stripe + coloured title; final variant at owner Q&A)"
+    "group a voice's lanes visually: left colour stripe + coloured title (owner choice a+c)"
    ],
    "verify": "button creates all-mode lanes per voice; same-voice lanes are visually grouped; vue-tsc+build",
    "startedAt": null,
@@ -1176,7 +1176,13 @@
    "ts": "2026-07-10T05:00:00Z",
    "step": null,
    "event": "plan",
-   "note": "Owner screenshot feedback (reqs 33-38): (33) node-hint hides under a neighbouring panel; (34) show node-hint always, not only in point mode -> GT3.17. (35) invoke spectrum params from the spectrum lane's gear like every other track; (36) each spectrogram independent settings; (37) settings panel as an accordion -> GT-D19 + new Phase 8 (GT8.1 per-lane+gear, GT8.2 accordion). (38) voices panel: 'show all modes per voice' button + visually group a voice's lanes -> GT-D20 (proposed variants: left colour stripe + coloured title default; owner picks) + GT3.18. Plan/ledger only; no code until owner confirms the GT-D20 grouping variant."
+   "note": "Owner screenshot feedback (reqs 33-38): (33) node-hint hides under a neighbouring panel; (34) show node-hint always, not only in point mode -> GT3.17. (35) invoke spectrum params from the spectrum lane's gear like every other track; (36) each spectrogram independent settings; (37) settings panel as an accordion -> GT-D19 + new Phase 8 (GT8.1 per-lane+gear, GT8.2 accordion). (38) voices panel: 'show all modes per voice' button + visually group a voice's lanes -> GT-D20 + GT3.18. Plan/ledger only; no code yet."
+  },
+  {
+   "ts": "2026-07-10T05:20:00Z",
+   "step": null,
+   "event": "plan",
+   "note": "Owner picked GT-D20 grouping variant: (a) left colour stripe + (c) coloured lane title. GT3.18 implements a+c; (d) group bracket optional only if lanes get sorted by voice after the spread."
   }
  ]
 }
