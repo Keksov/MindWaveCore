@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-10T06:00:00Z",
+ "updatedAt": "2026-07-10T06:20:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -699,6 +699,24 @@
    ]
   },
   {
+   "id": "GT3.19",
+   "phase": 3,
+   "title": "Two-column node tooltip: labels | values, both left-aligned (owner req. 39)",
+   "status": "not-started",
+   "dependsOn": [
+    "GT3.13"
+   ],
+   "artifacts": [
+    "tooltip as a 2-column CSS grid (param name | value), both columns left-aligned",
+    "replace the pre-line joined string with structured label/value rows"
+   ],
+   "verify": "tooltip shows aligned two columns; vue-tsc+build",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
    "id": "GT3.18",
    "phase": 3,
    "title": "'Show all modes per voice' button + visual grouping of a voice's lanes (owner req. 38, GT-D20)",
@@ -1192,6 +1210,12 @@
    "step": "GT3.17",
    "event": "done",
    "note": "Node-hint fixed: tooltip Teleported to <body> + position:fixed viewport coords with edge-clamp -> no longer clipped under a neighbouring lane/panel (owner req. 33); hover hit-test + tooltip now run regardless of point mode, hover ring anchors it (owner req. 34). GnauralCore c92eda6; vue-tsc 0; build ok; 171/0."
+  },
+  {
+   "ts": "2026-07-10T06:20:00Z",
+   "step": null,
+   "event": "plan",
+   "note": "Owner req. 39: node tooltip in two columns (param name | value, both left-aligned) -> GT3.19. Plan/ledger only."
   }
  ]
 }
