@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-10T06:20:00Z",
+ "updatedAt": "2026-07-10T06:45:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -702,19 +702,23 @@
    "id": "GT3.19",
    "phase": 3,
    "title": "Two-column node tooltip: labels | values, both left-aligned (owner req. 39)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [
     "GT3.13"
    ],
    "artifacts": [
-    "tooltip as a 2-column CSS grid (param name | value), both columns left-aligned",
-    "replace the pre-line joined string with structured label/value rows"
+    "hoverTooltip computed returns {name, rows:[{label,value}]} instead of a pre-line string",
+    "template renders a name header + a 2-column CSS grid (grid-template-columns: auto auto; justify-content: start)",
+    "both columns text-align:left; label column muted"
    ],
    "verify": "tooltip shows aligned two columns; vue-tsc+build",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-10T06:30:00Z",
+   "finishedAt": "2026-07-10T06:45:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore 702b12f",
+    "vue-tsc 0; quasar build ok; ui+server 171/0"
+   ]
   },
   {
    "id": "GT3.18",
@@ -1216,6 +1220,12 @@
    "step": null,
    "event": "plan",
    "note": "Owner req. 39: node tooltip in two columns (param name | value, both left-aligned) -> GT3.19. Plan/ledger only."
+  },
+  {
+   "ts": "2026-07-10T06:45:00Z",
+   "step": "GT3.19",
+   "event": "done",
+   "note": "Node tooltip rebuilt as a name header + 2-column CSS grid (labels | values, both left-aligned); hoverTooltip computed returns structured rows instead of a pre-line string. GnauralCore 702b12f; vue-tsc 0; build ok; 171/0."
   }
  ]
 }
