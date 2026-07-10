@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-11T00:35:00Z",
+ "updatedAt": "2026-07-11T01:00:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -852,20 +852,24 @@
    "id": "GT4.3",
    "phase": 4,
    "title": "Per-lane solo spectrum/waveform of the lane's voice set (owner req. 21, GT-D17)",
-   "status": "not-started",
+   "status": "in-progress",
    "dependsOn": [
     "GT2.2"
    ],
    "artifacts": [
-    "server solo render (others muted + 1 loop, cache by voice-id set)",
-    "lane underlay wave/spectrum/both",
-    "per-lane gear setting"
+    "DONE (keystone): server solo render — muteNonSoloVoices(xml, soloIds) pure transform + SpectrogramAudioSource.acquire(soloVoiceIds) renders a muted-others temp copy, refcounted cache keyed by the normalized voice set. GnauralCore 9f170b5; +5 tests. Also covers GT4.1 noise (a noise voice's audio = its solo render).",
+    "TODO: WS protocol spectrogram:open gains soloVoiceIds -> SpectrogramSession passes it to acquire (MindWaveCore ui-ws-handler)",
+    "TODO: client useSpectrogram.open accepts soloVoiceIds",
+    "TODO: per-lane gear setting off/wave/spectrum/both (useGtrackLanes persist + gear UI)",
+    "TODO: GTrackView underlay — blit the solo spectrogram tiles / waveform peaks as a background band under the curves (Q5: between the bg fill and the curve clip; timeToX for the sub-range)"
    ],
    "verify": "lane underlay shows the audio of exactly its voices; cache variants tracked; vue-tsc+build+tests",
-   "startedAt": null,
+   "startedAt": "2026-07-11T01:00:00Z",
    "finishedAt": null,
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore 9f170b5 (server keystone: muteNonSoloVoices + SpectrogramAudioSource solo); ui+server 177/0"
+   ]
   },
   {
    "id": "GT5.1",
@@ -1327,6 +1331,18 @@
    "step": "GT3.20",
    "event": "fix",
    "note": "Owner then preferred the offset-hand over the hidden cursor: cursor:pointer — fingertip hotspot at the node, hand body offset down-right so the point stays visible on hover and drag. GnauralCore 238ad1c; build ok."
+  },
+  {
+   "ts": "2026-07-11T00:50:00Z",
+   "step": null,
+   "event": "note",
+   "note": "Phase 4 pipeline mapped (Explore agent). Key facts: (1) the HTTP gnaural->WAV render lives in MindWaveCore/server/server.ts (renderGnauralSpectrogramWav, cache getAudioOutputCachePath by content-hash+discriminator); (2) spectrogram TILES + waveform PEAKS come from the backend SpectrumCore worker over WS (useSpectrogram -> SpectrogramSession -> SpectrogramAudioSource), NOT the client buffer (which only feeds the spectrogram waveform OVERLAY); so a solo spectrum/wave must mute in the WORKER render path (SpectrogramAudioSource), and the client can open an analysis on the solo render. (3) voice types: typeIndex 1=pink_noise (noise), 2=pcm (audiofile, has audioFilePath); mute = <voice_mute>1</voice_mute>. (4) shared TimeWindow is arbitrary + linear time->x, so a sub-range underlay is feasible; (5) GTrackView.draw can blit an image band between the bg fill and the curve clip. Chosen order: server solo keystone -> WS protocol soloVoiceIds -> client open -> per-lane gear + GTrackView underlay."
+  },
+  {
+   "ts": "2026-07-11T01:00:00Z",
+   "step": "GT4.3",
+   "event": "progress",
+   "note": "Server keystone landed: muteNonSoloVoices pure transform (4 tests) + SpectrogramAudioSource.acquire(soloVoiceIds) renders a muted-others temp copy, refcounted cache keyed by the normalized voice set (3 cache tests). GnauralCore 9f170b5; ui+server 177/0. Remaining vertical: WS protocol soloVoiceIds -> SpectrogramSession -> client useSpectrogram.open -> per-lane gear (off/wave/spectrum/both) -> GTrackView solo underlay blit."
   },
   {
    "ts": "2026-07-10T10:00:00Z",
