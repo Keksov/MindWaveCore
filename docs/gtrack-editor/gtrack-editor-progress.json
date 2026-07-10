@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-10T01:30:00Z",
+ "updatedAt": "2026-07-10T02:00:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -577,18 +577,23 @@
    "id": "GT3.13",
    "phase": 3,
    "title": "Node hover tooltip (owner req. 25)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [
     "GT3.1"
    ],
    "artifacts": [
-    "tooltip with time + parameter values on vertex hover"
+    "hover tooltip mirroring WaveformView/SpectrogramView pattern",
+    "shows voice name, time, base/beat freq, volL/volR, derived Volume/Balance",
+    "hidden while dragging; cleared on point-mode toggle off / pointer leave"
    ],
    "verify": "tooltip appears over vertices in point mode; vue-tsc+build",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-10T01:40:00Z",
+   "finishedAt": "2026-07-10T02:00:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore 472f211",
+    "vue-tsc 0; quasar build ok; ui 140/0"
+   ]
   },
   {
    "id": "GT3.14",
@@ -1026,6 +1031,12 @@
    "step": "GT3.12",
    "event": "done",
    "note": "Point inspector rebuilt as a non-modal live panel: plain aside (no QDialog/backdrop) so tracks stay clickable; follows selection + live-updates during drag via one combined watch on selection+voices; persisted Autosave checkbox (applies on blur/enter/slider-release, not per keystroke, to avoid one undo unit per character); Delete-node and Add-node-right buttons. applyPointDialog no longer auto-closes the panel. GnauralCore 24a1470; ui 140/0."
+  },
+  {
+   "ts": "2026-07-10T02:00:00Z",
+   "step": "GT3.13",
+   "event": "done",
+   "note": "Hover tooltip on gtrack vertices: voice/time/base/beat/volL-R/derived Volume+Balance, hidden during drag. GnauralCore 472f211; ui 140/0."
   }
  ]
 }
