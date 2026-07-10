@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-10T08:00:00Z",
+ "updatedAt": "2026-07-10T09:10:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -457,22 +457,26 @@
    "id": "GT3.7",
    "phase": 3,
    "title": "Prepared nodes: distinct rendering + fixing (owner req. 10-11, GT-D9)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [
     "GT1.3",
     "GT3.1"
    ],
    "artifacts": [
-    "parse source XML -> mark preparse voices",
-    "distinct markers + 'generated' lane badge",
-    "edit lock until fixed",
-    "'Fix / make editable' action with irreversibility warning"
+    "composable fetches the source .gnaural on file change -> findPreparseVoiceIds -> rebuilds the model with those ids (edit-lock via isVoiceEditable); request-id guarded, gnaural-only",
+    "distinct rendering: dashed curve + hollow vertex markers for a preparse voice + a 'generated' lane badge",
+    "edit lock: drag/add/delete already no-op on locked voices; dbl-click a locked vertex opens the fix prompt instead of the editor",
+    "'Make editable' per-voice button in the voices panel + irreversibility-warning $q.dialog -> fixPreparseVoice bakes to concrete editable points (one undo unit)",
+    "Save safety: a fixed voice writes concrete entries; an unfixed one keeps its generator (GT3.4 preserveVoiceIds)"
    ],
    "verify": "preparse voice shows distinct points+badge, locked; fix unlocks; edits persist as concrete entries; vue-tsc+bun+build",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-10T08:10:00Z",
+   "finishedAt": "2026-07-10T08:50:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore c738fc2",
+    "vue-tsc 0; quasar build ok; ui+server 172/0"
+   ]
   },
   {
    "id": "GT3.8",
@@ -730,19 +734,23 @@
    "id": "GT3.18",
    "phase": 3,
    "title": "'Show all modes per voice' button + visual grouping of a voice's lanes (owner req. 38, GT-D20)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [
     "GT3.9"
    ],
    "artifacts": [
-    "voices-panel button: spread every parameter (base/beat/volume/balance) per voice into lanes",
-    "group a voice's lanes visually: left colour stripe + coloured title (owner choice a+c)"
+    "showAllModesPerVoice(): one lane per (voice x mode), grouped by voice (contiguous)",
+    "GTrackView accentColor prop: single-voice lane gets a left colour stripe + tinted title (owner choice a+c)",
+    "laneAccentColor: single-voice lanes only; colour = voices-panel dot (voice identity) for consistency"
    ],
    "verify": "button creates all-mode lanes per voice; same-voice lanes are visually grouped; vue-tsc+build",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-10T08:50:00Z",
+   "finishedAt": "2026-07-10T09:10:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore 6f41c69",
+    "vue-tsc 0; quasar build ok; ui+server 172/0"
+   ]
   },
   {
    "id": "GT3.5",
@@ -1238,6 +1246,18 @@
    "step": "GT3.4",
    "event": "done",
    "note": "Save pipeline: TracksPanel Save button (dirty-highlighted) + Ctrl+S -> fetch source XML -> patchGnauralXml (preserving preparse voices detected from the XML, since the client model doesn't flag them until GT3.7) -> saveEditorDocument (Gnaural.exe validation + atomic write + history) -> loadGnauralSchedule(force) rebuilds the model (clears dirty) + ensureGnauralSpectrogram(force) re-renders wave/spectrum. Also fixed a latent bug where the schedule watch rebuilt the model without refreshing dirty/undo/redo. GnauralCore b3b418f; vue-tsc 0; build ok; 172/0. Remaining Phase 3: GT3.7 (preparse locks), GT3.18/GT3.19 UI items, then GT3.5 owner PAUSE (now unblocked)."
+  },
+  {
+   "ts": "2026-07-10T08:50:00Z",
+   "step": "GT3.7",
+   "event": "done",
+   "note": "Prepared/generator nodes: composable now fetches the source .gnaural on file change, findPreparseVoiceIds -> rebuilds the model with preparse ids (edit-lock). Distinct rendering: dashed curve + hollow markers + 'generated' lane badge. Fix (owner req. 11): per-voice 'Make editable' button + dbl-click-locked-vertex -> irreversibility-warning dialog -> fixPreparseVoice bakes to concrete points. Closes the GT3.4 note (model didn't flag preparse — now it does; Save still preserves unfixed generators). GnauralCore c738fc2; 172/0."
+  },
+  {
+   "ts": "2026-07-10T09:10:00Z",
+   "step": "GT3.18",
+   "event": "done",
+   "note": "'Show all modes per voice' (one lane per voice x mode, grouped by voice) + per-voice grouping (GT-D20 a+c): GTrackView accentColor prop draws a left stripe + tints the title for single-voice lanes, colour = voices-panel dot. GnauralCore 6f41c69; 172/0. Phase 3 now complete except GT3.5 (owner PAUSE)."
   }
  ]
 }
