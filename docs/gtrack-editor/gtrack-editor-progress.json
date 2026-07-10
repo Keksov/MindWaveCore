@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-09T10:20:00Z",
+ "updatedAt": "2026-07-10T00:30:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -74,6 +74,10 @@
   {
    "id": "GT-D17",
    "text": "Per-lane solo spectrum/waveform of the lane's voice set (owner req. 21, 2026-07-09). The server renders a temp schedule copy with all OTHER voices muted (+<loops>1</loops>, same trick as single-loop) -> WAV -> the existing analysis pipeline (tiles/peaks) -> an underlay in the lane beneath the curves. Cache key gains the voice-id set (GT-D11 manifest tracks variants). Per-lane gear setting: off/wave/spectrum/both. Phase 4 (GT4.3), generalizes GT4.2."
+  },
+  {
+   "id": "GT-D18",
+   "text": "Non-modal live point INSPECTOR (owner reqs 25-32, 2026-07-10). The point dialog becomes an inspector: seamless/non-modal (no backdrop, page stays interactive, user closes it), FOLLOWS the selection (clicking another node shows it), LIVE-updates while a point is dragged (values from the model), an 'Autosave' checkbox (field changes apply immediately; otherwise the Apply button), 'Delete node' and 'Add node to the right' buttons (insert into the middle of the next segment, interpolated). Multi-select: Ctrl/Shift+click accumulates nodes (selection becomes a list) -> the inspector auto-switches to a TABLE mode (row = node, editable cells). Editor tools (req 24): in point mode, toggleable 'Add node' (click on curve) and 'Delete node' (click on node) cursor tools complement dblclick/Delete. Node hover shows a tooltip with its characteristics (req 25)."
   }
  ],
  "steps": [
@@ -524,6 +528,102 @@
    ]
   },
   {
+   "id": "GT3.11",
+   "phase": 3,
+   "title": "Dialog fixes: field overlap + slider 3-decimal rounding (owner req. 22-23)",
+   "status": "done",
+   "dependsOn": [
+    "GT3.3"
+   ],
+   "artifacts": [
+    "flex-gap volume row (no negative margins)",
+    "slider edits round volumes to 3 dp; typing free-form"
+   ],
+   "verify": "no overlap; slider->3dp; vue-tsc+build+tests",
+   "startedAt": "2026-07-10T00:10:00Z",
+   "finishedAt": "2026-07-10T00:30:00Z",
+   "blockedReason": null,
+   "evidence": [
+    "GnauralCore 4e3bb51",
+    "vue-tsc 0; build ok; ui 140/0"
+   ]
+  },
+  {
+   "id": "GT3.12",
+   "phase": 3,
+   "title": "Non-modal live inspector (owner req. 26-29, 31-32, GT-D18)",
+   "status": "not-started",
+   "dependsOn": [
+    "GT3.3"
+   ],
+   "artifacts": [
+    "seamless dialog",
+    "follows selection",
+    "live values during drag",
+    "Autosave checkbox",
+    "Delete-node + Add-node-right buttons"
+   ],
+   "verify": "dialog non-modal; click another node -> shows it; drag live-updates; autosave applies; vue-tsc+build",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT3.13",
+   "phase": 3,
+   "title": "Node hover tooltip (owner req. 25)",
+   "status": "not-started",
+   "dependsOn": [
+    "GT3.1"
+   ],
+   "artifacts": [
+    "tooltip with time + parameter values on vertex hover"
+   ],
+   "verify": "tooltip appears over vertices in point mode; vue-tsc+build",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT3.14",
+   "phase": 3,
+   "title": "Editor tools: Add node / Delete node (owner req. 24)",
+   "status": "not-started",
+   "dependsOn": [
+    "GT3.6"
+   ],
+   "artifacts": [
+    "toggleable add-node tool (click on curve)",
+    "delete-node tool (click on node)"
+   ],
+   "verify": "tools add/remove nodes by single click; cursor reflects tool; vue-tsc+build",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT3.15",
+   "phase": 3,
+   "title": "Multi-select (Shift/Ctrl) + inspector table mode (owner req. 30)",
+   "status": "not-started",
+   "dependsOn": [
+    "GT3.12"
+   ],
+   "artifacts": [
+    "selection list",
+    "auto table mode (editable cells)",
+    "bulk delete"
+   ],
+   "verify": "ctrl/shift accumulate; table edits apply; vue-tsc+build",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
    "id": "GT3.5",
    "phase": 3,
    "title": "PAUSE: owner verification of the full edit cycle",
@@ -910,6 +1010,12 @@
    "step": "GT3.6",
    "event": "done",
    "note": "Add/remove points in the UI: dblclick-on-curve inserts interpolated point (nearest voice hit-test); Delete removes selection. GnauralCore bd3a798. Remaining in Phase 3: GT3.4 (Save pipeline), GT3.7 (preparse locks), GT3.5 (owner pause)."
+  },
+  {
+   "ts": "2026-07-10T00:30:00Z",
+   "step": null,
+   "event": "plan",
+   "note": "Owner reqs 22-32 (point-inspector feedback): GT-D18 non-modal live inspector (follow selection, live drag values, autosave, add-right/delete buttons, Ctrl/Shift multi-select -> table mode), node hover tooltip, add/delete editor tools. Steps GT3.11(done: overlap fix + slider 3dp, 4e3bb51) / GT3.12-GT3.15."
   }
  ]
 }
