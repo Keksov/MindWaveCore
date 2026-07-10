@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-10T02:00:00Z",
+ "updatedAt": "2026-07-10T03:40:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -599,38 +599,48 @@
    "id": "GT3.14",
    "phase": 3,
    "title": "Editor tools: Add node / Delete node (owner req. 24)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [
     "GT3.6"
    ],
    "artifacts": [
-    "toggleable add-node tool (click on curve)",
-    "delete-node tool (click on node)"
+    "global persisted pointTool (select/add/delete), 3 header icon buttons (gnaural-only)",
+    "Add tool: single click on a curve inserts an interpolated point",
+    "Delete tool: single click on a vertex removes it (does not disturb an unrelated open inspector selection)",
+    "cursor reflects active tool (copy/no-drop); dblclick guarded to skip for non-select tools"
    ],
    "verify": "tools add/remove nodes by single click; cursor reflects tool; vue-tsc+build",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-10T02:10:00Z",
+   "finishedAt": "2026-07-10T02:40:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore f2a3ec4",
+    "vue-tsc 0; quasar build ok; ui 140/0"
+   ]
   },
   {
    "id": "GT3.15",
    "phase": 3,
    "title": "Multi-select (Shift/Ctrl) + inspector table mode (owner req. 30)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [
     "GT3.12"
    ],
    "artifacts": [
-    "selection list",
-    "auto table mode (editable cells)",
-    "bulk delete"
+    "Ctrl/Shift+click multi-select (keyed voiceId:pointIndex, spans lanes/voices)",
+    "amber ring for multi-selected vertices (distinct from single-selection white ring)",
+    "inspector auto-switches to a table (2+ selected): editable Base/Beat/VolL/VolR per row + bulk delete",
+    "scope: table edits VALUES only (not time) to avoid crossover-reindex desync; documented in code",
+    "reindex-on-single-remove/insert + defensive-drop-on-crossover for correctness"
    ],
    "verify": "ctrl/shift accumulate; table edits apply; vue-tsc+build",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-10T02:40:00Z",
+   "finishedAt": "2026-07-10T03:40:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore 074668b",
+    "vue-tsc 0; quasar build ok; ui 140/0 (no new bun tests — Vue-reactive glue, consistent with this file's existing untested status)"
+   ]
   },
   {
    "id": "GT3.5",
@@ -1037,6 +1047,18 @@
    "step": "GT3.13",
    "event": "done",
    "note": "Hover tooltip on gtrack vertices: voice/time/base/beat/volL-R/derived Volume+Balance, hidden during drag. GnauralCore 472f211; ui 140/0."
+  },
+  {
+   "ts": "2026-07-10T02:40:00Z",
+   "step": "GT3.14",
+   "event": "done",
+   "note": "Global Select/Add/Delete point-mode tool: single-click add/delete (complements dblclick/Delete-key). GnauralCore f2a3ec4; ui 140/0."
+  },
+  {
+   "ts": "2026-07-10T03:40:00Z",
+   "step": "GT3.15",
+   "event": "done",
+   "note": "Multi-select (Ctrl/Shift) + inspector table mode + bulk delete. Table scoped to value-only edits (documented tradeoff re: crossover reindexing). Reindex/defensive-drop bookkeeping added to keep multi-selection keys valid across single-point insert/remove/crossover elsewhere. GnauralCore 074668b; ui 140/0. Phase 3 core interactions (GT3.1-3.3, 3.6, 3.8-3.15) now complete; remaining: GT3.4 (Save pipeline), GT3.7 (preparse locks), GT3.5 (owner pause)."
   }
  ]
 }
