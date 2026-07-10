@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-10T00:30:00Z",
+ "updatedAt": "2026-07-10T01:30:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -552,22 +552,26 @@
    "id": "GT3.12",
    "phase": 3,
    "title": "Non-modal live inspector (owner req. 26-29, 31-32, GT-D18)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [
     "GT3.3"
    ],
    "artifacts": [
-    "seamless dialog",
-    "follows selection",
-    "live values during drag",
-    "Autosave checkbox",
-    "Delete-node + Add-node-right buttons"
+    "plain absolutely-positioned aside (no q-dialog, no backdrop) - fully non-modal",
+    "follows gtracks.selection + gtracks.voices (single combined watch)",
+    "live values during drag (dragPoint already syncs on every pointermove)",
+    "persisted Autosave checkbox (blur/enter for inputs, change for sliders)",
+    "Delete-node + Add-node-right (midpoint interpolation, disabled with no next point)"
    ],
    "verify": "dialog non-modal; click another node -> shows it; drag live-updates; autosave applies; vue-tsc+build",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-10T00:40:00Z",
+   "finishedAt": "2026-07-10T01:30:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore 24a1470",
+    "vue-tsc 0; quasar build ok; ui 140/0",
+    "design deviates from plan wording (\"seamless dialog\") -> built as a plain non-backdrop aside instead of QDialog seamless, simpler and consistent with the voices-panel pattern"
+   ]
   },
   {
    "id": "GT3.13",
@@ -1016,6 +1020,12 @@
    "step": null,
    "event": "plan",
    "note": "Owner reqs 22-32 (point-inspector feedback): GT-D18 non-modal live inspector (follow selection, live drag values, autosave, add-right/delete buttons, Ctrl/Shift multi-select -> table mode), node hover tooltip, add/delete editor tools. Steps GT3.11(done: overlap fix + slider 3dp, 4e3bb51) / GT3.12-GT3.15."
+  },
+  {
+   "ts": "2026-07-10T01:30:00Z",
+   "step": "GT3.12",
+   "event": "done",
+   "note": "Point inspector rebuilt as a non-modal live panel: plain aside (no QDialog/backdrop) so tracks stay clickable; follows selection + live-updates during drag via one combined watch on selection+voices; persisted Autosave checkbox (applies on blur/enter/slider-release, not per keystroke, to avoid one undo unit per character); Delete-node and Add-node-right buttons. applyPointDialog no longer auto-closes the panel. GnauralCore 24a1470; ui 140/0."
   }
  ]
 }
