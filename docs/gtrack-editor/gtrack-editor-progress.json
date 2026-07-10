@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-10T04:30:00Z",
+ "updatedAt": "2026-07-10T05:00:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -78,6 +78,14 @@
   {
    "id": "GT-D18",
    "text": "Non-modal live point INSPECTOR (owner reqs 25-32, 2026-07-10). The point dialog becomes an inspector: seamless/non-modal (no backdrop, page stays interactive, user closes it), FOLLOWS the selection (clicking another node shows it), LIVE-updates while a point is dragged (values from the model), an 'Autosave' checkbox (field changes apply immediately; otherwise the Apply button), 'Delete node' and 'Add node to the right' buttons (insert into the middle of the next segment, interpolated). Multi-select: Ctrl/Shift+click accumulates nodes (selection becomes a list) -> the inspector auto-switches to a TABLE mode (row = node, editable cells). Editor tools (req 24): in point mode, toggleable 'Add node' (click on curve) and 'Delete node' (click on node) cursor tools complement dblclick/Delete. Node hover shows a tooltip with its characteristics (req 25)."
+  },
+  {
+   "id": "GT-D19",
+   "text": "Per-lane spectrum settings, via the lane gear, as an accordion (owner reqs 35-37, 2026-07-10). Today the spectrogram analysis/display parameters live in a single global panel for the whole tab. Owner wants: (35) invoke from the specific spectrum lane's gear (the same right-side gear chrome as every other lane, SF-D66), not a shared place; (36) INDEPENDENT settings per spectrogram instance (a lane may host several spectra - e.g. the GT-D17 solo set - each with its own FFT size/window/scale/colormap/gain/range); (37) the panel itself is an ACCORDION (collapsible sections Analysis / Display+colour / Range / ...). Implementation: lift the current global spectrum-settings state into a per-lane/per-instance config (key = laneId/spectrum-instance-id, default inherited from the current global), persist per file; re-skin the settings dialog as q-expansion-item sections and open it from the gear of the lane owning that instance. Frozen old tabs untouched (Tracks only). New Phase 8 (GT8.1 per-lane+gear, GT8.2 accordion)."
+  },
+  {
+   "id": "GT-D20",
+   "text": "Visually group a voice's lanes + 'show all modes per voice' (owner req. 38, 2026-07-10). A button in the voices panel: 'Show all modes for each voice' mass-spreads every parameter (base/beat/volume/balance) across lanes for each voice (generalizes the GT-D15 bulk spread / all-in-mode). Lanes belonging to one voice are grouped visually. Styling variants (proposed, owner picks): (a) LEFT COLOUR STRIPE on the lane in the voice colour (thin accent border at the left edge) - recommended: least noise, distinguishes multiple voices, reuses the existing per-voice colour; (b) shared background tint (voice colour, translucent) - more obvious but noisier on the canvas; (c) lane title in the voice colour - cheap but weak at small text; (d) a group bracket/badge on the left joining adjacent same-voice lanes - clearest but needs the voice's lanes to be contiguous. Default proposal: (a) left stripe + (c) coloured title; (d) if lanes are sorted by voice after the spread. Finalize at owner Q&A before coding GT3.18."
   }
  ],
  "steps": [
@@ -669,6 +677,43 @@
    ]
   },
   {
+   "id": "GT3.17",
+   "phase": 3,
+   "title": "Node hint: fix overlap (z-index/viewport clamp) + always-on hover (owner req. 33-34)",
+   "status": "not-started",
+   "dependsOn": [
+    "GT3.13"
+   ],
+   "artifacts": [
+    "tooltip renders above all layers (raise z-index / portal / shared overlay)",
+    "clamp within the viewport (never slides under a neighbouring panel / off-edge)",
+    "hover hit-test active regardless of point mode (not gated on pointMode)"
+   ],
+   "verify": "hover a node near a panel edge -> tooltip fully visible on top; tooltip shows outside point mode; vue-tsc+build",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT3.18",
+   "phase": 3,
+   "title": "'Show all modes per voice' button + visual grouping of a voice's lanes (owner req. 38, GT-D20)",
+   "status": "not-started",
+   "dependsOn": [
+    "GT3.9"
+   ],
+   "artifacts": [
+    "voices-panel button: spread every parameter (base/beat/volume/balance) per voice into lanes",
+    "group a voice's lanes visually (default: left colour stripe + coloured title; final variant at owner Q&A)"
+   ],
+   "verify": "button creates all-mode lanes per voice; same-voice lanes are visually grouped; vue-tsc+build",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
    "id": "GT3.5",
    "phase": 3,
    "title": "PAUSE: owner verification of the full edit cycle",
@@ -863,6 +908,41 @@
     "no decodeAudioData on the Tracks path"
    ],
    "verify": "no client decode for Tracks; vue-tsc+build+tests",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT8.1",
+   "phase": 8,
+   "title": "Per-lane spectrum settings from the lane gear (owner req. 35-36, GT-D19)",
+   "status": "not-started",
+   "dependsOn": [],
+   "artifacts": [
+    "lift global spectrum-settings state into a per-lane/per-instance config (default = current global)",
+    "open the settings from the spectrum lane's gear",
+    "each spectrogram applies its own params; persist per file"
+   ],
+   "verify": "two spectra can hold different settings; opened from each lane's gear; persists; vue-tsc+build",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT8.2",
+   "phase": 8,
+   "title": "Spectrum settings panel as an accordion (owner req. 37)",
+   "status": "not-started",
+   "dependsOn": [
+    "GT8.1"
+   ],
+   "artifacts": [
+    "q-expansion-item sections (Analysis / Display / Range / ...)",
+    "expanded-state persisted"
+   ],
+   "verify": "settings render as collapsible accordion sections; state persists; vue-tsc+build",
    "startedAt": null,
    "finishedAt": null,
    "blockedReason": null,
@@ -1091,6 +1171,12 @@
    "step": "GT3.16",
    "event": "done",
    "note": "Self-review of GT3.12-3.15 surfaced 6 rough edges (no crashes/data-corruption); all fixed: batched Apply-all undo, Escape/Delete in table mode, unified close (no stale reveal), reconcile-not-rebuild table watch (preserves mid-edit), tooltip discoverability. GnauralCore 77bd474; ui 140/0."
+  },
+  {
+   "ts": "2026-07-10T05:00:00Z",
+   "step": null,
+   "event": "plan",
+   "note": "Owner screenshot feedback (reqs 33-38): (33) node-hint hides under a neighbouring panel; (34) show node-hint always, not only in point mode -> GT3.17. (35) invoke spectrum params from the spectrum lane's gear like every other track; (36) each spectrogram independent settings; (37) settings panel as an accordion -> GT-D19 + new Phase 8 (GT8.1 per-lane+gear, GT8.2 accordion). (38) voices panel: 'show all modes per voice' button + visually group a voice's lanes -> GT-D20 (proposed variants: left colour stripe + coloured title default; owner picks) + GT3.18. Plan/ledger only; no code until owner confirms the GT-D20 grouping variant."
   }
  ]
 }
