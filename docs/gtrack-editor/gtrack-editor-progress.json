@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-10T05:20:00Z",
+ "updatedAt": "2026-07-10T06:00:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -680,20 +680,23 @@
    "id": "GT3.17",
    "phase": 3,
    "title": "Node hint: fix overlap (z-index/viewport clamp) + always-on hover (owner req. 33-34)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [
     "GT3.13"
    ],
    "artifacts": [
-    "tooltip renders above all layers (raise z-index / portal / shared overlay)",
-    "clamp within the viewport (never slides under a neighbouring panel / off-edge)",
-    "hover hit-test active regardless of point mode (not gated on pointMode)"
+    "tooltip Teleported to <body> + position:fixed (viewport coords) -> never clipped by a lane's overflow:hidden, sits above every lane/panel (z-index 7000)",
+    "clamp within the viewport: offset from cursor, flip side on right/bottom overflow, measured after nextTick",
+    "hover hit-test + tooltip run regardless of point mode; hover ring draws in any mode to anchor the tooltip"
    ],
    "verify": "hover a node near a panel edge -> tooltip fully visible on top; tooltip shows outside point mode; vue-tsc+build",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-10T05:40:00Z",
+   "finishedAt": "2026-07-10T06:00:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore c92eda6",
+    "vue-tsc 0; quasar build ok; ui+server 171/0"
+   ]
   },
   {
    "id": "GT3.18",
@@ -1183,6 +1186,12 @@
    "step": null,
    "event": "plan",
    "note": "Owner picked GT-D20 grouping variant: (a) left colour stripe + (c) coloured lane title. GT3.18 implements a+c; (d) group bracket optional only if lanes get sorted by voice after the spread."
+  },
+  {
+   "ts": "2026-07-10T06:00:00Z",
+   "step": "GT3.17",
+   "event": "done",
+   "note": "Node-hint fixed: tooltip Teleported to <body> + position:fixed viewport coords with edge-clamp -> no longer clipped under a neighbouring lane/panel (owner req. 33); hover hit-test + tooltip now run regardless of point mode, hover ring anchors it (owner req. 34). GnauralCore c92eda6; vue-tsc 0; build ok; 171/0."
   }
  ]
 }
