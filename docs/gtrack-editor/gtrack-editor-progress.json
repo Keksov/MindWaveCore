@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-10T09:10:00Z",
+ "updatedAt": "2026-07-10T10:00:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -731,6 +731,49 @@
    ]
   },
   {
+   "id": "GT3.20",
+   "phase": 3,
+   "title": "Elegant point-edit cursor (owner req. 40)",
+   "status": "done",
+   "dependsOn": [
+    "GT3.1"
+   ],
+   "artifacts": [
+    "point-select cursor: grab (grabbing while dragging) instead of the heavy crosshair (cursor: cell)",
+    "the hover ring already marks the editable node"
+   ],
+   "verify": "hovering an editable node shows a grab hand; vue-tsc+build",
+   "startedAt": "2026-07-10T09:20:00Z",
+   "finishedAt": "2026-07-10T09:35:00Z",
+   "blockedReason": null,
+   "evidence": [
+    "GnauralCore aaadae0",
+    "vue-tsc 0; quasar build ok; ui+server 172/0"
+   ]
+  },
+  {
+   "id": "GT3.21",
+   "phase": 3,
+   "title": "Draggable point inspector (owner req. 41)",
+   "status": "done",
+   "dependsOn": [
+    "GT3.12"
+   ],
+   "artifacts": [
+    "inspector title bar = drag handle (pointer capture); position in offsetParent coords, clamped to the box",
+    "resets to the default corner on close so a stored position can't strand it off-screen",
+    "drag handle grows to fill the bar; touch-action:none + user-select:none"
+   ],
+   "verify": "drag the inspector by its title anywhere in the stack; vue-tsc+build",
+   "startedAt": "2026-07-10T09:35:00Z",
+   "finishedAt": "2026-07-10T10:00:00Z",
+   "blockedReason": null,
+   "evidence": [
+    "GnauralCore aaadae0",
+    "vue-tsc 0; quasar build ok; ui+server 172/0"
+   ]
+  },
+  {
    "id": "GT3.18",
    "phase": 3,
    "title": "'Show all modes per voice' button + visual grouping of a voice's lanes (owner req. 38, GT-D20)",
@@ -1258,6 +1301,24 @@
    "step": "GT3.18",
    "event": "done",
    "note": "'Show all modes per voice' (one lane per voice x mode, grouped by voice) + per-voice grouping (GT-D20 a+c): GTrackView accentColor prop draws a left stripe + tints the title for single-voice lanes, colour = voices-panel dot. GnauralCore 6f41c69; 172/0. Phase 3 now complete except GT3.5 (owner PAUSE)."
+  },
+  {
+   "ts": "2026-07-10T10:00:00Z",
+   "step": null,
+   "event": "plan",
+   "note": "Owner reqs 40-41 (polish): (40) replace the heavy point-mode crosshair with an elegant cursor -> GT3.20 (grab/grabbing); (41) make the point inspector draggable -> GT3.21 (title-bar drag handle). Both implemented same-session."
+  },
+  {
+   "ts": "2026-07-10T10:00:00Z",
+   "step": "GT3.20",
+   "event": "done",
+   "note": "Point-select cursor changed from cursor:cell (heavy crosshair) to grab/grabbing; the hover ring already marks the editable node. GnauralCore aaadae0; 172/0."
+  },
+  {
+   "ts": "2026-07-10T10:00:00Z",
+   "step": "GT3.21",
+   "event": "done",
+   "note": "Point inspector is draggable by its title bar (pointer capture, offsetParent coords, clamped to the box, resets to the default corner on close). GnauralCore aaadae0; 172/0. Phase 3 complete except GT3.5 (owner PAUSE)."
   }
  ]
 }
