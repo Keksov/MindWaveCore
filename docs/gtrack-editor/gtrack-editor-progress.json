@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-11T03:40:00Z",
+ "updatedAt": "2026-07-11T05:10:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -82,6 +82,10 @@
   {
    "id": "GT-D19",
    "text": "Per-lane spectrum settings, via the lane gear, as an accordion (owner reqs 35-37, 2026-07-10). Today the spectrogram analysis/display parameters live in a single global panel for the whole tab. Owner wants: (35) invoke from the specific spectrum lane's gear (the same right-side gear chrome as every other lane, SF-D66), not a shared place; (36) INDEPENDENT settings per spectrogram instance (a lane may host several spectra - e.g. the GT-D17 solo set - each with its own FFT size/window/scale/colormap/gain/range); (37) the panel itself is an ACCORDION (collapsible sections Analysis / Display+colour / Range / ...). Implementation: lift the current global spectrum-settings state into a per-lane/per-instance config (key = laneId/spectrum-instance-id, default inherited from the current global), persist per file; re-skin the settings dialog as q-expansion-item sections and open it from the gear of the lane owning that instance. Frozen old tabs untouched (Tracks only). New Phase 8 (GT8.1 per-lane+gear, GT8.2 accordion)."
+  },
+  {
+   "id": "GT-D21",
+   "text": "Schedule lint (owner req. 42, 2026-07-11). Detect potential problems in an open gnaural schedule, rule set seeded by the d:/bin/Presets mass scan (58 of 63 presets defective): (1) truncation click — a voice ends at volume > threshold with no fade (incl. full-volume 1.0 endings); (2) loop-boundary click (loops>1 or 0) — end volume != start volume; (3) degenerate tails — last entry duration~0 (CandyWreck, SummerSunshine 1e-13) and runs of zero-duration entries; (4) entrycount/totalentrycount inconsistent with actual entries; (5) missing audiofile (pcm) sources on disk; (6) denormal/extreme values (Penfold 4e-70). Implementation: pure TS gtrack-lint.ts (model -> diagnostics {rule, voiceId, severity, message, at}) + bun tests; UI badge/panel on the Треки tab, click = navigate; auto-fixes as separate confirmed actions. Fade mechanics for the auto-fix are proven by the click-fix script: last entry (D-f)+hold(f)+zero(0); degenerate tails borrow f from the nearest long entry walking back; POSITIONAL (span) edits, never string search (duplicate-entry pitfall). Phase 9: GT9.1 lint module, GT9.2 UI, GT9.3 auto-fixes."
   },
   {
    "id": "GT-D20",
@@ -1002,6 +1006,62 @@
    "evidence": []
   },
   {
+   "id": "GT9.1",
+   "phase": 9,
+   "title": "gtrack-lint.ts: schedule problem detection rules 1-6 (owner req. 42, GT-D21)",
+   "status": "not-started",
+   "dependsOn": [
+    "GT1.1"
+   ],
+   "artifacts": [
+    "pure TS lint module: model/XML -> diagnostics {rule, voiceId, severity, message, at}",
+    "rules: end-click, loop-boundary click, degenerate tails, entrycount mismatch, missing pcm file, extreme values",
+    "bun tests with fixtures from the real preset-scan findings"
+   ],
+   "verify": "lint flags the known-defective fixtures and passes the clean ones; bun tests",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT9.2",
+   "phase": 9,
+   "title": "Lint UI on the Треки tab (badge/panel, navigate-to-problem)",
+   "status": "not-started",
+   "dependsOn": [
+    "GT9.1"
+   ],
+   "artifacts": [
+    "diagnostics badge + list panel; severity styling",
+    "click -> select/reveal the voice/point; re-lint after edits and Save"
+   ],
+   "verify": "open a defective preset -> problems listed; click navigates; vue-tsc+build",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT9.3",
+   "phase": 9,
+   "title": "Lint auto-fixes (add end fade, align loop boundary) via the model + Save",
+   "status": "not-started",
+   "dependsOn": [
+    "GT9.2",
+    "GT3.4"
+   ],
+   "artifacts": [
+    "confirmed actions: append fade-to-zero (borrow-from-donor for degenerate tails), align loop boundary",
+    "applied through GTrackModel (undo/redo) and the GT3.4 Save pipeline"
+   ],
+   "verify": "auto-fix resolves the diagnostic; undo restores; saved file validates; tests",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
    "id": "GT8.1",
    "phase": 8,
    "title": "Per-lane spectrum settings from the lane gear (owner req. 35-36, GT-D19)",
@@ -1367,6 +1427,18 @@
    "step": "GT3.21",
    "event": "done",
    "note": "Point inspector is draggable by its title bar (pointer capture, offsetParent coords, clamped to the box, resets to the default corner on close). GnauralCore aaadae0; 172/0. Phase 3 complete except GT3.5 (owner PAUSE)."
+  },
+  {
+   "ts": "2026-07-11T05:00:00Z",
+   "step": null,
+   "event": "note",
+   "note": "Preset audit + bulk click-fix (owner-driven, outside repo): the solo spectrum surfaced a broadband burst at the end of ForestMeditation -> root cause: the voice ends at volume 0.73 (truncation click). Mass scan of d:/bin/Presets: 58 of 63 presets have voices ending loud (up to 1.0). Owner chose option 1 (fix non-loop files, fade-to-zero): loops==1 files patched with a 100ms fade ((D-f)+hold(f)+zero(0), duration-preserving), validated via Gnaural.exe --dump-schedule with totalTime equality; backups in d:/bin/Presets/.clickfix-backup. Pitfalls found + fixed while doing this: (a) string-replace hit byte-identical DUPLICATE entries mid-schedule (generated-waves, solfeggio-derived-tones) -> reversed via signature triplets with a byte-exact cross-check, fixer switched to positional span edits; (b) degenerate tails (last entry duration~0: CandyWreck, SummerSunshine 1e-13, 38-786) -> fade borrows time from the nearest long donor entry walking back. 36 files fixed+validated; 2 CandyWreck voices pending (walk-back pass blocked by permission mode - awaiting owner go). These findings seed GT-D21."
+  },
+  {
+   "ts": "2026-07-11T05:10:00Z",
+   "step": null,
+   "event": "plan",
+   "note": "Owner req. 42: built-in schedule problem detection for the editor -> GT-D21 (rule set 1-6 from the preset-audit experience) + Phase 9: GT9.1 gtrack-lint.ts module, GT9.2 lint UI on Треки, GT9.3 confirmed auto-fixes (fade/loop-align) via the model + Save pipeline."
   }
  ]
 }
