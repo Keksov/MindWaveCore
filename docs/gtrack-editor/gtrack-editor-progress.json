@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-11T02:00:00Z",
+ "updatedAt": "2026-07-11T03:00:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -858,10 +858,10 @@
    ],
    "artifacts": [
     "DONE (keystone): server solo render — muteNonSoloVoices(xml, soloIds) pure transform + SpectrogramAudioSource.acquire(soloVoiceIds) renders a muted-others temp copy, refcounted cache keyed by the normalized voice set. GnauralCore 9f170b5; +5 tests. Also covers GT4.1 noise (a noise voice's audio = its solo render).",
-    "TODO: WS protocol spectrogram:open gains soloVoiceIds -> SpectrogramSession passes it to acquire (MindWaveCore ui-ws-handler)",
-    "TODO: client useSpectrogram.open accepts soloVoiceIds",
+    "DONE (pipeline): spectrogram:open protocol soloVoiceIds (SharedPasCore 92a592b) -> SpectrogramSession.onOpen normalizes + keys the warm-analysis cache + passes to acquire; onReconfigure carries it (GnauralCore fd305b4, +1 session test) -> useSpectrogram.open forwards it. Solo is now reachable end-to-end.",
+    "TODO: SpectrogramView/WaveformView soloVoiceIds prop -> their internal open call",
     "TODO: per-lane gear setting off/wave/spectrum/both (useGtrackLanes persist + gear UI)",
-    "TODO: GTrackView underlay — blit the solo spectrogram tiles / waveform peaks as a background band under the curves (Q5: between the bg fill and the curve clip; timeToX for the sub-range)"
+    "TODO: render the solo spectrum/waveform for a lane (GT-D17 underlay under the curves, or a solo sub-lane reusing SpectrogramView/WaveformView)"
    ],
    "verify": "lane underlay shows the audio of exactly its voices; cache variants tracked; vue-tsc+build+tests",
    "startedAt": "2026-07-11T01:00:00Z",
@@ -1349,6 +1349,12 @@
    "step": "GT2.7",
    "event": "fix",
    "note": "Inspecting a real preset (d:/.../ForestMeditation.gnaural: 1 binaural voice + 30 pcm/audiofile nature clips) showed the default layout opens a 31-lane wall (one Volume-envelope lane per clip). Refined GT-D13: default lanes only TONAL voices (Base freq); audiofile/noise are opt-in via the voices panel (Phase 4 gives them real audio lanes); no-tonal files fall back to one all-voices Volume lane. spreadPerVoiceLanes keeps 'every voice'. GnauralCore e90c077; vue-tsc 0; build ok; 177/0."
+  },
+  {
+   "ts": "2026-07-11T03:00:00Z",
+   "step": "GT4.3",
+   "event": "progress",
+   "note": "Pipeline plumbing: spectrogram:open protocol gains soloVoiceIds (SharedPasCore 92a592b); SpectrogramSession normalizes it into the warm-analysis cache key + passes to acquire, reconfigure carries it forward (GnauralCore fd305b4, +1 mock session test proving acquire gets each set and distinct sets key distinct analyses); useSpectrogram.open forwards it. NOTE while editing: spectrogram-session.ts cacheKey uses literal NUL (\\0) separators in its template string (not spaces) — needed a byte-level edit. Solo now reachable end-to-end; ui+server 178/0. Next: SpectrogramView soloVoiceIds prop + per-lane gear + solo view."
   },
   {
    "ts": "2026-07-10T10:00:00Z",
