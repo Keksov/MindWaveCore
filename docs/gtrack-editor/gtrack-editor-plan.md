@@ -397,10 +397,12 @@ atomic per-step commits (префикс id шага), verify перед done, п
   очередь — когда всё остальное сделано** (owner 2026-07-11). Бэкапы: `d:\bin\Presets\.clickfix-backup`.
 
 ### Phase 9 — lint расписаний (owner req. 42, GT-D21)
-- [ ] **GT9.1 — Модуль gtrack-lint.ts.** Правила 1–6 по модели GTrackModel/XML; чистый TS +
-  bun-тесты (fixtures из реальных находок скана).
-- [ ] **GT9.2 — UI диагностики на «Треках».** Бейдж/панель списка проблем, severity, клик →
-  выделение голоса/узла; повторный lint после правок/Save.
+- [x] **GT9.1 — Модуль gtrack-lint.ts.** `lintSchedule` — правила end-click / loop-click /
+  degenerate-tail / zero-run / extreme-value / missing-audiofile; чистый TS + 8 bun-тестов из
+  реальных находок скана.
+- [x] **GT9.2 — UI диагностики на «Треках».** Live-`diagnostics` в композабле (релинт на каждую
+  правку/Save); бейдж со счётчиком+severity в шапке, выплывающая панель списка проблем; клик →
+  point-mode + выделение проблемного узла; Escape закрывает.
 - [ ] **GT9.3 — Авто-фиксы.** «Добавить фейд в конец», «выровнять стык цикла» — через модель
   (undo/redo) + Save-пайплайн; подтверждение перед изменением.
 

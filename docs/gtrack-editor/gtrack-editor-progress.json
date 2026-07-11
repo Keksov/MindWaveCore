@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-11T06:50:00Z",
+ "updatedAt": "2026-07-11T07:45:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -1035,38 +1035,46 @@
    "id": "GT9.1",
    "phase": 9,
    "title": "gtrack-lint.ts: schedule problem detection rules 1-6 (owner req. 42, GT-D21)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [
     "GT1.1"
    ],
    "artifacts": [
-    "pure TS lint module: model/XML -> diagnostics {rule, voiceId, severity, message, at}",
-    "rules: end-click, loop-boundary click, degenerate tails, entrycount mismatch, missing pcm file, extreme values",
-    "bun tests with fixtures from the real preset-scan findings"
+    "lintSchedule(schedule, options) -> GTrackDiagnostic[] {rule, severity, voiceId, pointIndex, timeSec, message}; pure TS over GTrackSchedule (no Vue/FS)",
+    "rules: end-click, loop-click (loopCount>1 end!=start), degenerate-tail (~0 last segment), zero-run (>=2 zero-duration segments), extreme-value (non-finite=error / out-of-range / denormal), missing-audiofile (pcm empty path)",
+    "note: XML-level checks (entrycount vs actual, on-disk existence) are out of the pure module",
+    "+8 bun tests from real audit findings (SummerSunshine 1e-13, CandyWreck zero-run, Penfold 4e-70)"
    ],
    "verify": "lint flags the known-defective fixtures and passes the clean ones; bun tests",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-11T07:00:00Z",
+   "finishedAt": "2026-07-11T07:25:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore 0142e4b",
+    "ui+server 186/0 (+8); vue-tsc 0"
+   ]
   },
   {
    "id": "GT9.2",
    "phase": 9,
    "title": "Lint UI on the Треки tab (badge/panel, navigate-to-problem)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [
     "GT9.1"
    ],
    "artifacts": [
-    "diagnostics badge + list panel; severity styling",
-    "click -> select/reveal the voice/point; re-lint after edits and Save"
+    "composable exposes a live `diagnostics` computed (re-lints on every edit/Save via scheduleRef)",
+    "header badge (gnaural-only): count + severity colour (error=negative/warning); opens a slide-over panel listing each diagnostic (icon + wrapped message)",
+    "click a diagnostic -> enable point mode on a lane showing that voice + select the offending point; voice with no visible lane -> notify to enable it; Escape closes"
    ],
    "verify": "open a defective preset -> problems listed; click navigates; vue-tsc+build",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-11T07:25:00Z",
+   "finishedAt": "2026-07-11T07:45:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore 633fd6c",
+    "vue-tsc 0; quasar build ok; ui+server 186/0"
+   ]
   },
   {
    "id": "GT9.3",
@@ -1477,6 +1485,12 @@
    "step": "GT4.2",
    "event": "done",
    "note": "Inline under-curve underlay done by LAYERING (not canvas blit): all 3 views share left:46/right:8 margins so time axes align; the solo view renders behind the lane, GTrackView.inlineUnderlay punches a transparent plot-hole + transparent root so audio shows through under the curves, opaque gutters hide the underlay's labels. Per-lane soloInline persisted; gear 'Under curves / Sub-lane' toggle. GnauralCore 2aa75aa; 178/0. PHASE 4 COMPLETE (GT4.1/4.2/4.3). Remaining overall: GT4.2 done -> next Phase 9 (lint) / Phase 8 (spectrum settings) / GT3.5 owner pause / BK1 last."
+  },
+  {
+   "ts": "2026-07-11T07:45:00Z",
+   "step": "GT9.2",
+   "event": "done",
+   "note": "Phase 9 lint shipped (detect + surface). GT9.1: pure gtrack-lint.ts (6 rules, +8 tests) from the preset-audit findings. GT9.2: live diagnostics computed in the composable -> header badge (count+severity) + slide-over problems panel; click navigates to the offending point (point mode + select), Escape closes. GnauralCore 0142e4b + 633fd6c; ui+server 186/0; vue-tsc 0; build ok. Remaining: GT9.3 (confirmed auto-fixes: add end fade / align loop) — needs a small model helper to append a short end-fade."
   },
   {
    "ts": "2026-07-11T06:00:00Z",
