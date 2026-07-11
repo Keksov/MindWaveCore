@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-11T07:45:00Z",
+ "updatedAt": "2026-07-11T08:25:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -1080,20 +1080,26 @@
    "id": "GT9.3",
    "phase": 9,
    "title": "Lint auto-fixes (add end fade, align loop boundary) via the model + Save",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [
     "GT9.2",
     "GT3.4"
    ],
    "artifacts": [
-    "confirmed actions: append fade-to-zero (borrow-from-donor for degenerate tails), align loop boundary",
-    "applied through GTrackModel (undo/redo) and the GT3.4 Save pipeline"
+    "per-diagnostic 'Fix' button (end-click, loop-click) in the problems panel",
+    "fixEndClick: insertPoint 0.1s before the end (interpolated ~= end level) + setPointFields last vol=0 -> short fade to zero, one undo unit, total duration preserved; skips degenerate/short tails",
+    "fixLoopClick: setPointFields last vol = first vol -> no loop-seam discontinuity, one undo unit",
+    "undoable (Ctrl+Z); nothing persists until Ctrl+S (GT3.4); re-lint automatic; +2 model+lint tests proving each fix clears its diagnostic",
+    "'confirmation' = explicit per-item button + full undo + separate Save (no modal, per undoability)"
    ],
    "verify": "auto-fix resolves the diagnostic; undo restores; saved file validates; tests",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-11T08:00:00Z",
+   "finishedAt": "2026-07-11T08:25:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore 4574fb7",
+    "vue-tsc 0; quasar build ok; ui+server 188/0 (+2)"
+   ]
   },
   {
    "id": "GT8.1",
@@ -1491,6 +1497,12 @@
    "step": "GT9.2",
    "event": "done",
    "note": "Phase 9 lint shipped (detect + surface). GT9.1: pure gtrack-lint.ts (6 rules, +8 tests) from the preset-audit findings. GT9.2: live diagnostics computed in the composable -> header badge (count+severity) + slide-over problems panel; click navigates to the offending point (point mode + select), Escape closes. GnauralCore 0142e4b + 633fd6c; ui+server 186/0; vue-tsc 0; build ok. Remaining: GT9.3 (confirmed auto-fixes: add end fade / align loop) — needs a small model helper to append a short end-fade."
+  },
+  {
+   "ts": "2026-07-11T08:25:00Z",
+   "step": "GT9.3",
+   "event": "done",
+   "note": "PHASE 9 COMPLETE. Auto-fixes via existing model primitives (no new model method needed): fixEndClick = insertPoint(end-0.1s)+setPointFields(last vol=0) (short fade, duration preserved, skips short tails); fixLoopClick = setPointFields(last vol = first vol). Per-diagnostic 'Fix' button in the problems panel; undoable, Ctrl+S persists; +2 model+lint tests. GnauralCore 4574fb7; ui+server 188/0. Remaining plan: Phase 8 (spectrum settings per-lane), Phase 5 (wave<->XML sync design), Phase 6 (cache mgmt), Phase 7 (thin client), GT3.5 owner pause, BK1 last."
   },
   {
    "ts": "2026-07-11T06:00:00Z",
