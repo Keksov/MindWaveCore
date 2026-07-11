@@ -341,7 +341,10 @@ const renderGnauralSpectrogramWav = async (aSourceFilePath: string): Promise<str
   await mkdir(audioRenderCacheDir, { recursive: true })
   const original = await Bun.file(aSourceFilePath).text()
   const singleLoopContent = original.replace(GNAURAL_LOOPS_TAG, "<loops>1</loops>")
-  const tempGnauralPath = join(audioRenderCacheDir, `.sl-${process.pid}-${randomUUID()}.gnaural`)
+  // GT10.11 (owner req. 59): the temp schedule copy MUST live next to the source file — Gnaural
+  // resolves preparse generators AND pcm audio files relative to the schedule's own directory, so
+  // a copy in tmp/audio-render broke both ("Preparse generator not found", silent pcm voices).
+  const tempGnauralPath = join(dirname(aSourceFilePath), `.sl-${process.pid}-${randomUUID()}.gnaural`)
   const tempWavPath = join(audioRenderCacheDir, `.sl-${process.pid}-${randomUUID()}.wav`)
   await Bun.write(tempGnauralPath, singleLoopContent)
 
