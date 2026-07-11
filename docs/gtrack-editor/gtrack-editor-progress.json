@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-11T05:50:00Z",
+ "updatedAt": "2026-07-11T06:00:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -1011,6 +1011,23 @@
    "evidence": []
   },
   {
+   "id": "BK1",
+   "phase": 9,
+   "title": "Backlog (deferred to last): finish CandyWreck.gnaural (2 voices) click-fix",
+   "status": "not-started",
+   "dependsOn": [],
+   "artifacts": [
+    "2 voices have a run of zero-duration entries before the end -> fade must borrow from the nearest long entry (walk-back donor)",
+    "logic ready in scratchpad/fix_end_clicks.py; final run blocked by permission mode (write outside project into d:/bin/Presets)",
+    "backups in d:/bin/Presets/.clickfix-backup"
+   ],
+   "verify": "CandyWreck voices end at silence; Gnaural.exe --dump-schedule totalTime preserved",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": "owner: do this LAST, after everything else is done (2026-07-11)",
+   "evidence": []
+  },
+  {
    "id": "GT9.1",
    "phase": 9,
    "title": "gtrack-lint.ts: schedule problem detection rules 1-6 (owner req. 42, GT-D21)",
@@ -1450,6 +1467,12 @@
    "step": "GT4.1",
    "event": "done",
    "note": "Resumed the pre-detour plan. GT4.1 delivered via the GT4.3 solo render (not raw-clip-at-startSec): WaveformView gains soloVoiceIds; GTrackSoloMode extended off|wave|spectrum|both; lane gear is a 4-way toggle rendering solo wave/spectrum sub-lanes. An audiofile/noise voice's actual audio is now viewable (enable the voice -> lane -> gear Solo audio), schedule-accurate, resolving R4. Also completes GT4.3's wave/both follow-up. GnauralCore 9a63550; vue-tsc 0; build ok; 178/0. Phase 4 remaining: GT4.2 (inline under-curve blit)."
+  },
+  {
+   "ts": "2026-07-11T06:00:00Z",
+   "step": "BK1",
+   "event": "plan",
+   "note": "Owner: return to the CandyWreck.gnaural click-fix tail (2 voices needing walk-back-donor fade) LAST, once everything else is done. Logged as backlog item BK1, blockedReason set."
   }
  ]
 }
