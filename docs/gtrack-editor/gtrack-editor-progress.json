@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-11T05:10:00Z",
+ "updatedAt": "2026-07-11T05:50:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -821,18 +821,23 @@
    "id": "GT4.1",
    "phase": 4,
    "title": "Audiofile/noise voices in dedicated stack lanes (wave/spectrum/both; noise representation per R4)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [
     "GT2.3"
    ],
    "artifacts": [
-    "fragment lanes"
+    "delivered via the GT4.3 solo render rather than raw-clip-at-startSec: enabling an audiofile/noise voice (voices panel) creates its lane; the lane gear 'Solo audio' shows wave/spectrum/both of that voice — the muted-others render is SCHEDULE-ACCURATE (the clip plays at its scheduled times/volumes; noise shaped by its envelope), which is better than a single clip placed at startSec and resolves R4 (noise has no file -> solo render)",
+    "WaveformView soloVoiceIds prop (mirrors SpectrogramView; re-opens on change)",
+    "GTrackSoloMode extended off|wave|spectrum|both; lane gear 4-way toggle; wave/spectrum sub-lanes rendered accordingly"
    ],
-   "verify": "audiofile voice shows wave/spectrum positioned at startSec; vue-tsc+bun+build",
-   "startedAt": null,
-   "finishedAt": null,
+   "verify": "an audiofile/noise voice's actual audio shows as wave/spectrum/both; vue-tsc+bun+build",
+   "startedAt": "2026-07-11T05:30:00Z",
+   "finishedAt": "2026-07-11T05:50:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore 9a63550",
+    "vue-tsc 0; quasar build ok; ui+server 178/0"
+   ]
   },
   {
    "id": "GT4.2",
@@ -864,7 +869,7 @@
     "keystone: server solo render — muteNonSoloVoices(xml, soloIds) + SpectrogramAudioSource.acquire(soloVoiceIds) renders a muted-others temp copy, refcounted cache by the normalized voice set. GnauralCore 9f170b5; +5 tests. Also covers GT4.1 noise.",
     "pipeline: spectrogram:open protocol soloVoiceIds (SharedPasCore 92a592b) -> SpectrogramSession keys the warm cache + passes to acquire (GnauralCore fd305b4, +1 session test) -> useSpectrogram.open forwards it.",
     "consumer: SpectrogramView soloVoiceIds prop (re-opens on change); useGtrackLanes per-lane soloMode ('off'|'spectrum') persisted per file + setLaneSolo; TracksPanel lane-gear 'Solo audio' toggle + a solo SpectrogramView sub-lane beneath the curves sharing the lane time window. GnauralCore f325883.",
-    "SCOPE: delivered as spectrum-only shown in a solo SUB-LANE (not the GT-D17 under-curve blit); 'wave' and 'both' modes are optional follow-ups (WaveformView would need the same soloVoiceIds prop)."
+    "SCOPE: shown as solo SUB-LANE(s) (not the GT-D17 under-curve blit — that's GT4.2). wave/spectrum/both all done as of GT4.1 (GnauralCore 9a63550)."
    ],
    "verify": "lane gear 'Solo audio: Spectrum' shows the spectrogram of exactly that lane's voices; distinct sets cache separately; vue-tsc+build+tests",
    "startedAt": "2026-07-11T01:00:00Z",
@@ -1439,6 +1444,12 @@
    "step": null,
    "event": "plan",
    "note": "Owner req. 42: built-in schedule problem detection for the editor -> GT-D21 (rule set 1-6 from the preset-audit experience) + Phase 9: GT9.1 gtrack-lint.ts module, GT9.2 lint UI on Треки, GT9.3 confirmed auto-fixes (fade/loop-align) via the model + Save pipeline."
+  },
+  {
+   "ts": "2026-07-11T05:50:00Z",
+   "step": "GT4.1",
+   "event": "done",
+   "note": "Resumed the pre-detour plan. GT4.1 delivered via the GT4.3 solo render (not raw-clip-at-startSec): WaveformView gains soloVoiceIds; GTrackSoloMode extended off|wave|spectrum|both; lane gear is a 4-way toggle rendering solo wave/spectrum sub-lanes. An audiofile/noise voice's actual audio is now viewable (enable the voice -> lane -> gear Solo audio), schedule-accurate, resolving R4. Also completes GT4.3's wave/both follow-up. GnauralCore 9a63550; vue-tsc 0; build ok; 178/0. Phase 4 remaining: GT4.2 (inline under-curve blit)."
   }
  ]
 }
