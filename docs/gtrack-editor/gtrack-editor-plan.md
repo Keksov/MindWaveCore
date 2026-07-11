@@ -349,9 +349,10 @@ atomic per-step commits (префикс id шага), verify перед done, п
   вывод `open`/`reconfigure` воркера (из `WavInfo.Channels`) + `SpectrogramAnalysisInfo` + проброс
   на сервере. Пересборка+ребандл воркера; проверить probe. Также: серверный gnaural-анализ рендерить
   в 1 повтор (чтобы не гонять 868-МБ STFT на бэке).
-- [ ] **GT7.2 — «Треки» без буфера.** `isSpectrogramStereo`/`spectrogramDuration`/гейт — из бэкенд-
-  анализа (открыть метаданные через useSpectrogram), не из `audio.spectrogramBuffer`. Убрать вызов
-  `ensureGnauralSpectrogram` для «Треков».
+- [x] **GT7.2 — «Треки»: метаданные из бэкенда.** `isSpectrogramStereo`/`spectrogramDuration`/гейт —
+  из бэкенд-анализа (metadata-инстанс `useSpectrogram`, channelCount+durationSec), с фолбэком на
+  декодированный буфер (не-регрессивно). Буфер и `ensureGnauralSpectrogram` пока оставлены (нужны
+  оверлею волны до GT7.3; убираются в GT7.4).
 - [ ] **GT7.3 — Оверлей волны с бэка.** Оверлей в `SpectrogramView` — на `get-peaks` (как отдельная
   дорожка волны), убрать зависимость от `waveformBuffer`. Совместно проверить, что замороженная
   вкладка не сломалась (компонент общий).

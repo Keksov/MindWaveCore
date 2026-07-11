@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-11T11:10:00Z",
+ "updatedAt": "2026-07-11T11:45:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -1028,20 +1028,24 @@
    "id": "GT7.2",
    "phase": 7,
    "title": "Tracks tab: metadata (stereo/duration/gate) from the backend analysis, not spectrogramBuffer",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [
     "GT7.1"
    ],
    "artifacts": [
-    "metadata analysis in TracksPanel",
-    "gate on analysis-ready",
-    "drop ensureGnauralSpectrogram for Tracks"
+    "TracksPanel: a per-file metadata useSpectrogram instance (opened once; channelCount+durationSec are param-independent)",
+    "isSpectrogramStereo <- backendAnalysis.channelCount; spectrogramDuration <- backendAnalysis.durationSec; hasSpectrogramData gate = buffer || backend analysis -- all with a decoded-buffer FALLBACK (non-regressive)",
+    "4 template gates switched hasBuffer -> hasSpectrogramData",
+    "NOTE: ensureGnauralSpectrogram + the client buffer are still kept (the waveform overlay needs them until GT7.3; removed in GT7.4)"
    ],
    "verify": "Tracks renders correct mono/stereo + duration without a decoded buffer; vue-tsc+build",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-11T11:20:00Z",
+   "finishedAt": "2026-07-11T11:45:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore 407716b",
+    "vue-tsc 0; quasar build ok; ui+server 188/0"
+   ]
   },
   {
    "id": "GT7.3",
@@ -1604,6 +1608,12 @@
    "step": "GT5.4",
    "event": "plan",
    "note": "Owner deferred GT5.4 (editing on the spectrogram / two-point base-freq tool): it becomes a SEPARATE plan item that must be discussed first (not now). Status set to 'deferred', blockedReason recorded; removed from the current Phase 5 code flow (GT5.2 live re-render, GT5.3 partial-sync remain). Code only after its own design discussion + go."
+  },
+  {
+   "ts": "2026-07-11T11:45:00Z",
+   "step": "GT7.2",
+   "event": "done",
+   "note": "Thin-client GT7.2: Tracks metadata (stereo/duration/ready-gate) now comes from a lightweight BACKEND analysis (channelCount GT7.1 + durationSec) instead of the decoded client buffer, with a buffer fallback (non-regressive). GnauralCore 407716b; 188/0. PAUSED Phase 7 here: GT7.3 (waveform overlay via get-peaks) touches the SHARED SpectrogramView (frozen-tab risk, must be prop-gated) + needs visual verification; GT7.4 (remove the client WAV decode) depends on it. Recommend owner GT3.5 visual check (also validates GT7.2's metadata change) before GT7.3/7.4."
   }
  ]
 }
