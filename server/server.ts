@@ -18,6 +18,7 @@ import {
   resolveAllowedAudioFilePath,
   type GnauralSession,
 } from "../../GnauralCore/server"
+import { AudioCacheManifest } from "./audio-cache-manifest"
 import { createLogArchiveStore } from "./log-db"
 import { createLogReplayManager } from "./log-replay"
 import { createPublishCallbacks } from "./publish"
@@ -36,6 +37,11 @@ const publicDir = join(hostDir, "public")
 const uiDir = resolve(hostDir, "..", "ui")
 const audioConversionCacheDir = join(hostDir, "tmp", "audio-conversion")
 const audioRenderCacheDir = join(hostDir, "tmp", "audio-render")
+// GT6.1 (owner req. 13, GT-D11): provenance manifest for the audio output cache (render + convert).
+const audioCacheManifest = new AudioCacheManifest(
+  join(hostDir, "tmp", "audio-cache-manifest.json"),
+  [audioRenderCacheDir, audioConversionCacheDir],
+)
 const { gnauralCwd, gnauralExePath } = resolveGnauralExecutablePath()
 const processManager: AppSession = createSession("bodymonitor", workspaceRoot)
 const archiveStore = createLogArchiveStore(runtimeDir)
@@ -367,6 +373,7 @@ const renderGnauralSpectrogramWav = async (aSourceFilePath: string): Promise<str
     }
     await unlink(tempWavPath).catch(() => undefined)
   }
+  await audioCacheManifest.record(cachePath, aSourceFilePath, "wav", "single-loop") // GT6.1
   return cachePath
 }
 
@@ -445,6 +452,13 @@ const createCachedAudioOutput = async (
     await unlink(tempFilePath).catch(() => undefined)
   }
 
+  // GT6.1: record provenance — 'convert' for the conversion cache, else a gnaural 'render'.
+  await audioCacheManifest.record(
+    targetFilePath,
+    aSourceFilePath,
+    aTargetFileKind,
+    aCacheDir === audioConversionCacheDir ? "convert" : "render",
+  )
   return targetFilePath
 }
 
@@ -1329,6 +1343,32 @@ const handleApiRequest = async (aRequest: Request): Promise<Response | null> => 
       const message = error instanceof Error ? error.message : "Failed to load audio file"
       return errorResponse(500, message)
     }
+  }
+
+  // GT6.1 (owner req. 13, GT-D11): audio cache management. GET = summary (total + per-source +
+  // orphans); DELETE = remove by entry (cacheFile), by source, or all. Deletions are guarded to the
+  // cache dirs, so no arbitrary path can be removed.
+  if (segments.length === 3 && segments[1] === "audio" && segments[2] === "cache") {
+    if (aRequest.method === "GET") {
+      return jsonResponse(await audioCacheManifest.summary())
+    }
+    if (aRequest.method === "DELETE") {
+      const all = url.searchParams.get("all")
+      const source = url.searchParams.get("source")
+      const cacheFile = url.searchParams.get("cacheFile")
+      if (all === "1" || all === "true") {
+        return jsonResponse({ deleted: await audioCacheManifest.clearAll() })
+      }
+      if (source !== null && source.trim() !== "") {
+        return jsonResponse({ deleted: await audioCacheManifest.deleteBySource(source) })
+      }
+      if (cacheFile !== null && cacheFile.trim() !== "") {
+        const ok = await audioCacheManifest.deleteEntry(cacheFile)
+        return ok ? jsonResponse({ deleted: 1 }) : errorResponse(400, "cacheFile is not inside the cache directory")
+      }
+      return errorResponse(400, "DELETE requires one of: all=1, source, or cacheFile")
+    }
+    return errorResponse(405, "Method not allowed")
   }
 
   if (segments.length === 3 && segments[1] === "audio" && segments[2] === "schedule") {
