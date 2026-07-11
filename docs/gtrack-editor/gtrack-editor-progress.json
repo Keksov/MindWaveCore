@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-11T14:00:00Z",
+ "updatedAt": "2026-07-12T00:30:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -1530,6 +1530,172 @@
    "finishedAt": null,
    "blockedReason": "owner 2026-07-11: discussion deferred until EVERYTHING ELSE is done (not relevant now); revisit at the end together with BK1",
    "evidence": []
+  },
+  {
+   "id": "GT10.19",
+   "phase": 10,
+   "title": "Sticky header draws over the slide-over panels (req 68)",
+   "status": "not-started",
+   "dependsOn": [],
+   "artifacts": [
+    "z-index: overlays (voices/problems/settings panels + backdrops) must sit ABOVE the sticky header (z 40); zoom buttons currently show through"
+   ],
+   "verify": "open the voices panel with many lanes: no header buttons visible inside it",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT10.20",
+   "phase": 10,
+   "title": "Wave colour dot opens a colour picker (req 69)",
+   "status": "not-started",
+   "dependsOn": [],
+   "artifacts": [
+    "q-badge -> clickable with q-popup-proxy + q-color bound to setLaneSoloWaveStyle"
+   ],
+   "verify": "clicking the dot opens a picker; chosen colour applies + persists",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT10.21",
+   "phase": 10,
+   "title": "subterranean.gnaural: fix does not persist (req 70)",
+   "status": "not-started",
+   "dependsOn": [],
+   "artifacts": [
+    "trace fix -> dirty -> Ctrl+S patch -> dump -> re-lint on the real file (loops=100); related to GT10.26 (the fix may have silently failed)"
+   ],
+   "verify": "fix Nizy Face -> diagnostic disappears -> save -> reopen -> still fixed",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT10.22",
+   "phase": 10,
+   "title": "Ctrl+Arrow step=1 does not work (req 71)",
+   "status": "not-started",
+   "dependsOn": [],
+   "artifacts": [
+    "investigate why the keydown handler doesn't take effect on q-input type=number (native spinner/Quasar ordering); fix so Ctrl+Up/Down steps by exactly 1"
+   ],
+   "verify": "Ctrl+Up in any inspector/table numeric field increments by 1",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT10.23",
+   "phase": 10,
+   "title": "Table: values misaligned with column headers (req 72)",
+   "status": "not-started",
+   "dependsOn": [],
+   "artifacts": [
+    "explicit column widths + matching text-align for header/cells (checkbox, voice, numeric columns)"
+   ],
+   "verify": "headers sit exactly over their values",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT10.24",
+   "phase": 10,
+   "title": "Ctrl+Z after Ctrl-click node add must undo (req 73)",
+   "status": "not-started",
+   "dependsOn": [],
+   "artifacts": [
+    "verify insertPointAt lands on the undo stack and the hotkey reaches undoEdit after a normal-mode Ctrl-click add; fix whatever breaks the chain"
+   ],
+   "verify": "Ctrl-click adds a node; Ctrl+Z removes it",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT10.25",
+   "phase": 10,
+   "title": "Normal mode: single click on a node opens the dialog; remove dbl-click entirely (req 74)",
+   "status": "not-started",
+   "dependsOn": [],
+   "artifacts": [
+    "normal-mode plain click on a vertex -> dialog (empty space still seeks); delete the dblclick handler + binding altogether"
+   ],
+   "verify": "single click on a node opens the dialog in both modes; dblclick does nothing",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT10.26",
+   "phase": 10,
+   "title": "Auto-fix reports 'could not fix automatically' (req 75)",
+   "status": "not-started",
+   "dependsOn": [],
+   "artifacts": [
+    "find why fixEndClick/fixLoopClick return false on real files (candidates: short/degenerate last segment -> implement the walk-back-donor fade borrow like the click-fix script; insert-time collision)",
+    "make the fixes succeed on subterranean etc."
+   ],
+   "verify": "Fix buttons succeed on the audited presets; failures only where genuinely impossible",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT10.27",
+   "phase": 10,
+   "title": "Problems panel opens out of view when tracks are scrolled (req 76)",
+   "status": "not-started",
+   "dependsOn": [],
+   "artifacts": [
+    "slide-over panels positioned relative to the VIEWPORT (fixed) or auto-scrolled into view on open"
+   ],
+   "verify": "panel fully visible regardless of the editor scroll position",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT10.28",
+   "phase": 10,
+   "title": "'+ lane' moves focus to the new lane (req 77)",
+   "status": "not-started",
+   "dependsOn": [],
+   "artifacts": [
+    "after addLane: scrollIntoView the new lane + a brief visual highlight"
+   ],
+   "verify": "adding a lane scrolls to it",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
+  },
+  {
+   "id": "GT10.29",
+   "phase": 10,
+   "title": "Settings dialog: Close button + X icon (req 78)",
+   "status": "not-started",
+   "dependsOn": [],
+   "artifacts": [
+    "dialog header with a top-right X; a Close button at the bottom (GT10.17 dialog)"
+   ],
+   "verify": "both close affordances work",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": null,
+   "evidence": []
   }
  ],
  "log": [
@@ -1952,6 +2118,12 @@
    "step": null,
    "event": "done",
    "note": "Phase 10 fix batch complete: GT10.1-10.14, 10.16, 10.17 done (16 of 18; GT10.15/GT10.18 deferred by owner to the very end). Key: GT10.11 root cause (temp render copies in tmp dirs broke generator + pcm resolution) also explains req-47 flicker and req-61 invisibility -> owner retest requested. Commits: GnauralCore batch + GT10.16/17 + both-repo GT10.11; all suites green (188/0, build ok). Owner review list produced."
+  },
+  {
+   "ts": "2026-07-12T00:30:00Z",
+   "step": null,
+   "event": "plan",
+   "note": "Owner 2nd verification round: 11 problems (reqs 68-78) -> Phase 10b steps GT10.19-GT10.29, one bug = one item per owner instruction. Hypotheses recorded: 68 = sticky-header z-index over overlays; 70 likely consequence of 75 (auto-fix silently failing; candidates: degenerate tails need the walk-back-donor borrow); 74 also removes dblclick entirely. Plan shown to owner before fixing."
   }
  ]
 }
