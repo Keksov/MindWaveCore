@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-11T01:00:00Z",
+ "updatedAt": "2026-07-11T02:00:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -57,7 +57,7 @@
   },
   {
    "id": "GT-D13",
-   "text": "Gtrack lanes = a schedule editor like the classic one (owner 2026-07-09, screenshots). Model: (1) default ONE VOICE -> ONE LANE (classic per-voice tracks); tonal opens on Base freq, noise/audiofile on Volume; (2) merging voices into one lane = user's choice (gear checkboxes, already supported); (3) modes Base/Beat/Volume/Balance per lane as planned; (4) one voice may appear in several lanes with different parameters (add lane + gear, already supported). Rendering matches the classic editor: Base freq on a LOG axis (same log10 mapping as GnauralScheduleView, default log there), Volume as filled envelopes. The lane architecture (resize/hide/reorder/point-edit) stays."
+   "text": "REFINED 2026-07-11 (audiofile-heavy presets): the DEFAULT layout now lanes only TONAL voices (each on Base freq). Audiofile/noise voices are NOT auto-laned — a real preset (ForestMeditation: 1 binaural + 30 pcm nature clips) opened as a 31-lane wall of volume envelopes. They stay one toggle away in the voices panel, and Phase 4 gives them real audio (wave/spectrum) lanes. No-tonal schedules fall back to one all-voices Volume lane. 'Spread per voice' still means one lane per EVERY voice. --- ORIGINAL: Gtrack lanes = a schedule editor like the classic one (owner 2026-07-09, screenshots). Model: (1) default ONE VOICE -> ONE LANE (classic per-voice tracks); tonal opens on Base freq, noise/audiofile on Volume; (2) merging voices into one lane = user's choice (gear checkboxes, already supported); (3) modes Base/Beat/Volume/Balance per lane as planned; (4) one voice may appear in several lanes with different parameters (add lane + gear, already supported). Rendering matches the classic editor: Base freq on a LOG axis (same log10 mapping as GnauralScheduleView, default log there), Volume as filled envelopes. The lane architecture (resize/hide/reorder/point-edit) stays."
   },
   {
    "id": "GT-D14",
@@ -1343,6 +1343,12 @@
    "step": "GT4.3",
    "event": "progress",
    "note": "Server keystone landed: muteNonSoloVoices pure transform (4 tests) + SpectrogramAudioSource.acquire(soloVoiceIds) renders a muted-others temp copy, refcounted cache keyed by the normalized voice set (3 cache tests). GnauralCore 9f170b5; ui+server 177/0. Remaining vertical: WS protocol soloVoiceIds -> SpectrogramSession -> client useSpectrogram.open -> per-lane gear (off/wave/spectrum/both) -> GTrackView solo underlay blit."
+  },
+  {
+   "ts": "2026-07-11T02:00:00Z",
+   "step": "GT2.7",
+   "event": "fix",
+   "note": "Inspecting a real preset (d:/.../ForestMeditation.gnaural: 1 binaural voice + 30 pcm/audiofile nature clips) showed the default layout opens a 31-lane wall (one Volume-envelope lane per clip). Refined GT-D13: default lanes only TONAL voices (Base freq); audiofile/noise are opt-in via the voices panel (Phase 4 gives them real audio lanes); no-tonal files fall back to one all-voices Volume lane. spreadPerVoiceLanes keeps 'every voice'. GnauralCore e90c077; vue-tsc 0; build ok; 177/0."
   },
   {
    "ts": "2026-07-10T10:00:00Z",
