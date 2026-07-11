@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-12T00:30:00Z",
+ "updatedAt": "2026-07-12T01:00:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -1640,17 +1640,19 @@
    "id": "GT10.26",
    "phase": 10,
    "title": "Auto-fix reports 'could not fix automatically' (req 75)",
-   "status": "not-started",
+   "status": "in-progress",
    "dependsOn": [],
    "artifacts": [
-    "find why fixEndClick/fixLoopClick return false on real files (candidates: short/degenerate last segment -> implement the walk-back-donor fade borrow like the click-fix script; insert-time collision)",
-    "make the fixes succeed on subterranean etc."
+    "ROOT CAUSE: fixEndClick rejected any tail <=0.11s (Nizy Face tail = exactly 0.1s). Rewritten: long tail -> insert+zero (as before); short tail >=20ms -> zero the last point (tail IS the fade); degenerate (<20ms incl. zero-run clusters) -> walk back to the last real segment, borrow the fade (insert inside it) and zero all points after. Awaiting owner verification."
    ],
    "verify": "Fix buttons succeed on the audited presets; failures only where genuinely impossible",
-   "startedAt": null,
+   "startedAt": "2026-07-12T01:00:00Z",
    "finishedAt": null,
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore commit 'GT10.26: end-click auto-fix handles short + degenerate tails'",
+    "vue-tsc 0; build ok; 188/0"
+   ]
   },
   {
    "id": "GT10.27",
