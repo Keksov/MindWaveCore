@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-11T11:00:00Z",
+ "updatedAt": "2026-07-11T11:10:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -943,19 +943,20 @@
   {
    "id": "GT5.4",
    "phase": 5,
-   "title": "Two-point base-frequency tool on the spectrogram (constrained I3)",
-   "status": "not-started",
+   "title": "Editing on the spectrogram (constrained I3, two-point base-freq tool) — DEFERRED, needs its own design discussion",
+   "status": "deferred",
    "dependsOn": [
     "GT5.2"
    ],
    "artifacts": [
-    "point-mode tool: pick a target voice, click two points on the spectrogram; map Y -> base freq (spectrogram freq axis), X span -> a time segment; add/set the voice's base-freq points (model op on B, one undo unit)",
-    "user then adjusts beat freq manually; then re-render (GT5.2). Scope: base-freq only, single target voice"
+    "OWNER 2026-07-11: split out as a SEPARATE plan item that must be DISCUSSED first (not now); not part of the current Phase 5 flow (GT5.2/5.3)",
+    "sketch (from GT5.1 Q&A, to be refined in the discussion): point-mode tool -> pick a target voice, click two points on the spectrogram; Y -> base freq, X span -> a time segment; add/set the voice's base-freq points (model op on B, one undo unit); user adjusts beat manually; then re-render",
+    "open for the discussion: which voice is the target + how it's chosen; freq-axis mapping (log/mel) accuracy; how the segment quantizes into entries; interaction with existing points; whether it also touches beat/volume"
    ],
-   "verify": "two clicks author a base-freq segment for the target voice; undo restores; re-render reflects it",
+   "verify": "owner-approved design first; then two clicks author a base-freq segment; undo restores; re-render reflects it",
    "startedAt": null,
    "finishedAt": null,
-   "blockedReason": "code only after a separate owner go (GT-D7); after GT5.2",
+   "blockedReason": "owner 2026-07-11: deferred — needs its own design discussion before any code (not now)",
    "evidence": []
   },
   {
@@ -1597,6 +1598,12 @@
    "step": "GT5.1",
    "event": "done",
    "note": "GT5.1 DONE (design + owner Q&A). wave-xml-sync-design.md frames the 3 representations (XML/curves/wave) and resolves the ambiguity: CURVES (B) are the single source of truth -> no conflict logic. Owner wants I1 live re-render (edit-pause/explicit, scoped to visible window/soloed voice) + a CONSTRAINED I3 two-point base-freq tool on the spectrogram (user hand-adjusts beat); NOT live raw-XML text; plus a 'pointwise/partial sync' idea. Derived code steps GT5.2 (live re-render), GT5.3 (partial-sync research), GT5.4 (two-point base-freq tool) -- all still gated on a separate owner go (GT-D7). Remaining overall: Phase 5 code (GT5.2-5.4 on go), Phase 7 (thin client GT7.2-7.4), GT3.5 owner pause, BK1 last."
+  },
+  {
+   "ts": "2026-07-11T11:10:00Z",
+   "step": "GT5.4",
+   "event": "plan",
+   "note": "Owner deferred GT5.4 (editing on the spectrogram / two-point base-freq tool): it becomes a SEPARATE plan item that must be discussed first (not now). Status set to 'deferred', blockedReason recorded; removed from the current Phase 5 code flow (GT5.2 live re-render, GT5.3 partial-sync remain). Code only after its own design discussion + go."
   }
  ]
 }

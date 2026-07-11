@@ -179,12 +179,15 @@ B is the single source of truth, so every sync below is a **projection of B** �
   changed STFT frames** on the worker (the render is the bottleneck, so this only helps analysis);
   (c) accept a debounced whole-file render under the GT5.2 scope as the pragmatic v1. Pick after a
   spike measuring render time vs window length.
-- **GT5.4 — Two-point base-frequency tool (constrained I3).** A point-mode tool: pick a **target
-  voice**, click two points on the **spectrogram**; map the clicked Y → base frequency (via the
-  spectrogram's frequency axis) and the X span → a time segment; add/set the voice's **base-freq**
-  points (model op on B, one undo unit) so the segment ramps/holds that frequency over that
-  duration; the user then adjusts **beat freq** manually in the curve editor. Then re-render (GT5.2).
-  Scope: base-freq only (beat/volume stay manual), single target voice (the spectrogram is a mix).
+- **GT5.4 — Editing on the spectrogram (constrained I3). DEFERRED (owner 2026-07-11).** Split out as
+  a **separate plan item that must be discussed first — not now.** Sketch (to refine in that
+  discussion): a point-mode tool where you pick a **target voice**, click two points on the
+  **spectrogram**; map Y → base frequency and the X span → a time segment; add/set the voice's
+  **base-freq** points (model op on B, one undo unit); the user then adjusts **beat freq** manually;
+  then re-render (GT5.2). Open for the discussion: how the target voice is chosen; freq-axis (log/mel)
+  mapping accuracy; how the segment quantizes into entries; interaction with existing points. **No
+  code until a separate design discussion + go.**
 
-Ordering: GT5.2 first (makes "the wave follows my edits" real, reuses existing machinery), then GT5.4
-(direct-manipulation authoring), then GT5.3 (perf optimization, only if whole-file proves too slow).
+Ordering: GT5.2 first (makes "the wave follows my edits" real, reuses existing machinery), then GT5.3
+(perf optimization, only if whole-file proves too slow). **GT5.4 is out of this flow** until its own
+discussion.
