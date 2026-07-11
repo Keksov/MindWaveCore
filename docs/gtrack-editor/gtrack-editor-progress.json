@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-11T08:25:00Z",
+ "updatedAt": "2026-07-11T09:20:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -1105,36 +1105,42 @@
    "id": "GT8.1",
    "phase": 8,
    "title": "Per-lane spectrum settings from the lane gear (owner req. 35-36, GT-D19)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [],
    "artifacts": [
-    "lift global spectrum-settings state into a per-lane/per-instance config (default = current global)",
-    "open the settings from the spectrum lane's gear",
-    "each spectrogram applies its own params; persist per file"
+    "useGtrackLanes: per-lane SpectrogramSettings OVERRIDE persisted per file; absent -> the lane uses the GLOBAL settings (unchanged); get/ensure/set/clear + restore-on-file-change",
+    "lane gear: 'own spectrum settings' toggle (seeded from the global) shown when the lane displays a solo spectrum; solo wave/spectrum views use the override via toAnalysisParams/toRenderOptions when present",
+    "chosen NOT to touch the shared global panel/store (frozen-tab safe, R7). SCOPE: gtrack solo spectrograms; whole-file main spectrogram keeps the global panel; core fields only"
    ],
-   "verify": "two spectra can hold different settings; opened from each lane's gear; persists; vue-tsc+build",
-   "startedAt": null,
-   "finishedAt": null,
+   "verify": "two lanes can hold different solo-spectrum settings; opened from each lane's gear; persists; vue-tsc+build",
+   "startedAt": "2026-07-11T08:40:00Z",
+   "finishedAt": "2026-07-11T09:20:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore 5d75f77",
+    "vue-tsc 0; quasar build ok; ui+server 188/0"
+   ]
   },
   {
    "id": "GT8.2",
    "phase": 8,
    "title": "Spectrum settings panel as an accordion (owner req. 37)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [
     "GT8.1"
    ],
    "artifacts": [
-    "q-expansion-item sections (Analysis / Display / Range / ...)",
-    "expanded-state persisted"
+    "GTrackSpectrumSettings.vue: q-expansion-item accordion (Analysis: window/winFunc/overlap/fscale; Display: scale/palette/gain/range) editing a lane's SpectrogramSettings via v-model",
+    "new component (not the shared panel) so the frozen tab is untouched; reuses the pure option constants + toAnalysisParams/toRenderOptions"
    ],
-   "verify": "settings render as collapsible accordion sections; state persists; vue-tsc+build",
-   "startedAt": null,
-   "finishedAt": null,
+   "verify": "settings render as collapsible accordion sections; vue-tsc+build",
+   "startedAt": "2026-07-11T08:40:00Z",
+   "finishedAt": "2026-07-11T09:20:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore 5d75f77",
+    "vue-tsc 0; quasar build ok; ui+server 188/0"
+   ]
   }
  ],
  "log": [
@@ -1503,6 +1509,12 @@
    "step": "GT9.3",
    "event": "done",
    "note": "PHASE 9 COMPLETE. Auto-fixes via existing model primitives (no new model method needed): fixEndClick = insertPoint(end-0.1s)+setPointFields(last vol=0) (short fade, duration preserved, skips short tails); fixLoopClick = setPointFields(last vol = first vol). Per-diagnostic 'Fix' button in the problems panel; undoable, Ctrl+S persists; +2 model+lint tests. GnauralCore 4574fb7; ui+server 188/0. Remaining plan: Phase 8 (spectrum settings per-lane), Phase 5 (wave<->XML sync design), Phase 6 (cache mgmt), Phase 7 (thin client), GT3.5 owner pause, BK1 last."
+  },
+  {
+   "ts": "2026-07-11T09:20:00Z",
+   "step": "GT8.2",
+   "event": "done",
+   "note": "PHASE 8 COMPLETE (GT8.1+GT8.2). Per-lane spectrum settings without touching the shared global panel/store (R7 frozen-tab safe): useGtrackLanes holds a per-lane SpectrogramSettings override (persisted per file, absent=global); GTrackSpectrumSettings.vue is a compact q-expansion-item accordion (Analysis/Display core fields) editing it via v-model; the lane gear has an 'own spectrum settings' toggle; solo wave/spectrum views resolve per-lane override via toAnalysisParams/toRenderOptions. GnauralCore 5d75f77; ui+server 188/0. Note: the whole-file MAIN spectrogram still uses the global header panel (a follow-up if the owner wants its gear too). Remaining: Phase 5 (sync design), Phase 6 (cache), Phase 7 (thin client), GT3.5 pause, BK1 last."
   },
   {
    "ts": "2026-07-11T06:00:00Z",
