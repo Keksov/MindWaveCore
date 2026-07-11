@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-11T06:00:00Z",
+ "updatedAt": "2026-07-11T06:50:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -843,19 +843,23 @@
    "id": "GT4.2",
    "phase": 4,
    "title": "Inline fragment display inside the gtrack lane + per-voice setting (inline/separate/hidden)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [
     "GT4.1"
    ],
    "artifacts": [
-    "inline band rendering",
-    "per-voice display setting"
+    "literal GT-D17 under-curve underlay via LAYERING (all 3 views share left:46/right:8 margins -> time axes align exactly): solo WaveformView/SpectrogramView sits behind the lane; GTrackView.inlineUnderlay punches a transparent plot-hole (clearRect) + transparent root, so audio shows through under the curves while opaque gutters hide the underlay's labels",
+    "per-lane soloInline (persisted) + setLaneSoloInline; gear placement toggle 'Under curves / Sub-lane' (hidden = soloMode off)",
+    "rendering matrix: inline shows ONE underlay (spectrum wins for 'both'; 'both' inline keeps wave as a sub-lane); non-inline = sub-lanes (GT4.1)"
    ],
-   "verify": "fragments render under curves inline; setting persists; vue-tsc+bun+build",
-   "startedAt": null,
-   "finishedAt": null,
+   "verify": "solo audio renders under the curves inline and aligns with time; placement persists; vue-tsc+bun+build",
+   "startedAt": "2026-07-11T06:20:00Z",
+   "finishedAt": "2026-07-11T06:50:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore 2aa75aa",
+    "vue-tsc 0; quasar build ok; ui+server 178/0"
+   ]
   },
   {
    "id": "GT4.3",
@@ -1467,6 +1471,12 @@
    "step": "GT4.1",
    "event": "done",
    "note": "Resumed the pre-detour plan. GT4.1 delivered via the GT4.3 solo render (not raw-clip-at-startSec): WaveformView gains soloVoiceIds; GTrackSoloMode extended off|wave|spectrum|both; lane gear is a 4-way toggle rendering solo wave/spectrum sub-lanes. An audiofile/noise voice's actual audio is now viewable (enable the voice -> lane -> gear Solo audio), schedule-accurate, resolving R4. Also completes GT4.3's wave/both follow-up. GnauralCore 9a63550; vue-tsc 0; build ok; 178/0. Phase 4 remaining: GT4.2 (inline under-curve blit)."
+  },
+  {
+   "ts": "2026-07-11T06:50:00Z",
+   "step": "GT4.2",
+   "event": "done",
+   "note": "Inline under-curve underlay done by LAYERING (not canvas blit): all 3 views share left:46/right:8 margins so time axes align; the solo view renders behind the lane, GTrackView.inlineUnderlay punches a transparent plot-hole + transparent root so audio shows through under the curves, opaque gutters hide the underlay's labels. Per-lane soloInline persisted; gear 'Under curves / Sub-lane' toggle. GnauralCore 2aa75aa; 178/0. PHASE 4 COMPLETE (GT4.1/4.2/4.3). Remaining overall: GT4.2 done -> next Phase 9 (lint) / Phase 8 (spectrum settings) / GT3.5 owner pause / BK1 last."
   },
   {
    "ts": "2026-07-11T06:00:00Z",
