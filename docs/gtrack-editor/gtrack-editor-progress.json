@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-11T10:30:00Z",
+ "updatedAt": "2026-07-11T11:00:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -33,7 +33,7 @@
   },
   {
    "id": "GT-D7",
-   "text": "Wave<->XML synchronization is Phase 5: design discussion with the owner first, code only after a separate go."
+   "text": "Wave<->XML synchronization is Phase 5: design discussion with the owner first, code only after a separate go. RESOLVED via GT5.1 design doc + Q&A (2026-07-11, wave-xml-sync-design.md): CURVES (B) are the single source of truth (XML+wave are projections -> no conflict/merge logic); owner wants (I1) live re-render on edit-pause/explicit scoped to the visible window/soloed voice, and a CONSTRAINED (I3) two-point base-freq tool on the spectrogram (click two points -> a base-freq segment; user hand-adjusts beat); NOT live raw-XML text (I2); plus a 'pointwise/partial sync' idea (re-render only affected fragments). Build steps GT5.2/5.3/5.4 defined, still gated on a separate owner go."
   },
   {
    "id": "GT-D8",
@@ -888,17 +888,74 @@
    "id": "GT5.1",
    "phase": 5,
    "title": "Wave <-> XML sync: design doc + owner Q&A (no code until a separate go)",
-   "status": "not-started",
-   "dependsOn": [
-    "GT3.5"
-   ],
+   "status": "done",
+   "dependsOn": [],
    "artifacts": [
-    "design doc in docs/gtrack-editor/"
+    "design doc docs/gtrack-editor/wave-xml-sync-design.md: 3 representations (XML text / curves / rendered wave), interpretations I1-I4, feasibility+cost, cross-cutting decisions, open questions",
+    "owner Q&A (2026-07-11) resolved: (1) want I1 live re-render + a CONSTRAINED I3 (two-point base-freq tool on the spectrogram; user hand-adjusts beat) -- NOT free-hand painting, NOT live raw-XML text (I2); (2) CURVES (B) are the single source of truth -> NO conflict/merge logic; (3) try both cadences + a 'pointwise/partial sync' that re-renders only affected fragments; (4) live-render scope = visible window / soloed voice",
+    "derived build plan GT5.2 (live re-render) / GT5.3 (partial-sync research) / GT5.4 (two-point base-freq tool) in the doc's section 8"
    ],
    "verify": "owner approves the sync design",
+   "startedAt": "2026-07-11T10:40:00Z",
+   "finishedAt": "2026-07-11T11:00:00Z",
+   "blockedReason": null,
+   "evidence": [
+    "MindWaveCore docs/gtrack-editor/wave-xml-sync-design.md (design + answered Q&A)"
+   ]
+  },
+  {
+   "id": "GT5.2",
+   "phase": 5,
+   "title": "Live re-render (I1): edit-pause/explicit, scoped to visible window / soloed voice",
+   "status": "not-started",
+   "dependsOn": [
+    "GT5.1"
+   ],
+   "artifacts": [
+    "toggle: re-render wave+spectrum from the in-memory schedule (temp .gnaural, no Save) on edit-pause (debounced) and/or explicit button",
+    "scope to the visible time window / edited (soloed) voice (reuse GT3.4 render path + GT4.3 solo render)",
+    "'stale / rendering' indicator; evaluate both cadences on real presets"
+   ],
+   "verify": "editing curves updates wave+spectrum live within the scoped window; long presets stay responsive",
    "startedAt": null,
    "finishedAt": null,
-   "blockedReason": null,
+   "blockedReason": "code only after a separate owner go (GT-D7)",
+   "evidence": []
+  },
+  {
+   "id": "GT5.3",
+   "phase": 5,
+   "title": "Pointwise / partial sync (research + impl): re-render only affected fragments",
+   "status": "not-started",
+   "dependsOn": [
+    "GT5.2"
+   ],
+   "artifacts": [
+    "SPIKE: Gnaural.exe has no partial-render flag -> evaluate (a) render a temp schedule truncated to the affected window, (b) whole-file render + re-analyze only changed STFT frames, (c) debounced whole-file under the GT5.2 scope",
+    "measure render time vs window length; pick the approach"
+   ],
+   "verify": "an edit re-renders/re-analyzes only the affected fragment; measured faster than whole-file",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": "code only after a separate owner go (GT-D7); after GT5.2",
+   "evidence": []
+  },
+  {
+   "id": "GT5.4",
+   "phase": 5,
+   "title": "Two-point base-frequency tool on the spectrogram (constrained I3)",
+   "status": "not-started",
+   "dependsOn": [
+    "GT5.2"
+   ],
+   "artifacts": [
+    "point-mode tool: pick a target voice, click two points on the spectrogram; map Y -> base freq (spectrogram freq axis), X span -> a time segment; add/set the voice's base-freq points (model op on B, one undo unit)",
+    "user then adjusts beat freq manually; then re-render (GT5.2). Scope: base-freq only, single target voice"
+   ],
+   "verify": "two clicks author a base-freq segment for the target voice; undo restores; re-render reflects it",
+   "startedAt": null,
+   "finishedAt": null,
+   "blockedReason": "code only after a separate owner go (GT-D7); after GT5.2",
    "evidence": []
   },
   {
@@ -1534,6 +1591,12 @@
    "step": "GT6.2",
    "event": "done",
    "note": "PHASE 6 COMPLETE (GT6.1+GT6.2). Cache manifest records provenance on every render/convert write; GET/DELETE /api/audio/cache; UI in the gnaural Settings tab (total, per-source accordion, orphans, delete by entry/source/all with confirm). MindWaveCore 01e5a8b + GnauralCore de19520; manifest 3/3; ui+server 188/0. Remaining: Phase 5 (wave<->XML sync DESIGN - needs owner Q&A), Phase 7 (GT7.2-7.4 thin client), GT3.5 owner pause, BK1 last."
+  },
+  {
+   "ts": "2026-07-11T11:00:00Z",
+   "step": "GT5.1",
+   "event": "done",
+   "note": "GT5.1 DONE (design + owner Q&A). wave-xml-sync-design.md frames the 3 representations (XML/curves/wave) and resolves the ambiguity: CURVES (B) are the single source of truth -> no conflict logic. Owner wants I1 live re-render (edit-pause/explicit, scoped to visible window/soloed voice) + a CONSTRAINED I3 two-point base-freq tool on the spectrogram (user hand-adjusts beat); NOT live raw-XML text; plus a 'pointwise/partial sync' idea. Derived code steps GT5.2 (live re-render), GT5.3 (partial-sync research), GT5.4 (two-point base-freq tool) -- all still gated on a separate owner go (GT-D7). Remaining overall: Phase 5 code (GT5.2-5.4 on go), Phase 7 (thin client GT7.2-7.4), GT3.5 owner pause, BK1 last."
   }
  ]
 }
