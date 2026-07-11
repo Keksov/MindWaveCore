@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-11T09:20:00Z",
+ "updatedAt": "2026-07-11T10:30:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -905,36 +905,43 @@
    "id": "GT6.1",
    "phase": 6,
    "title": "Cache manifest + endpoints (GET/DELETE /api/audio/cache)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [],
    "artifacts": [
-    "manifest on cache write",
-    "retro-scan orphans",
-    "summary + delete endpoints"
+    "MindWaveCore server/audio-cache-manifest.ts: AudioCacheManifest (auto-load/persist JSON); record() hooked into both finalize points (single-loop render + createCachedAudioOutput render/convert)",
+    "summary() scans the cache dirs + joins the manifest, groups by source, reports unknown files as orphans; deleteEntry/deleteBySource/clearAll guarded to the cache dirs (no arbitrary-path deletion)",
+    "routes: GET /api/audio/cache (total + per-source + orphans), DELETE ?all=1|source=|cacheFile=",
+    "+3 bun tests (record/summary/orphans/persist-reload/delete/guard); server bundles clean (49 modules)"
    ],
    "verify": "cache summary lists per-source sizes; delete removes files+manifest; server bundles/tests",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-11T09:40:00Z",
+   "finishedAt": "2026-07-11T10:10:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "MindWaveCore 01e5a8b",
+    "manifest tests 3/3; server bundle 49 modules 0 errors"
+   ]
   },
   {
    "id": "GT6.2",
    "phase": 6,
    "title": "Cache UI (total size, per-source list, delete/clear)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [
     "GT6.1"
    ],
    "artifacts": [
-    "cache panel",
-    "delete + clear-all with confirm"
+    "audio-api: fetchAudioCacheSummary + deleteAudioCache({all|source|cacheFile}) + client CacheSummary types",
+    "GnauralSettingsTab 'Audio cache' section: total size, per-source accordion (name/path/total + per-variant entries w/ sizes), orphan line, delete-entry / delete-source / clear-all (source+all behind a confirm dialog); loads on mount + refresh"
    ],
    "verify": "panel shows size + entries; delete/clear update live; vue-tsc+build",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-11T10:10:00Z",
+   "finishedAt": "2026-07-11T10:30:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore de19520",
+    "vue-tsc 0; quasar build ok; ui+server 188/0"
+   ]
   },
   {
    "id": "GT7.1",
@@ -1514,13 +1521,19 @@
    "ts": "2026-07-11T09:20:00Z",
    "step": "GT8.2",
    "event": "done",
-   "note": "PHASE 8 COMPLETE (GT8.1+GT8.2). Per-lane spectrum settings without touching the shared global panel/store (R7 frozen-tab safe): useGtrackLanes holds a per-lane SpectrogramSettings override (persisted per file, absent=global); GTrackSpectrumSettings.vue is a compact q-expansion-item accordion (Analysis/Display core fields) editing it via v-model; the lane gear has an 'own spectrum settings' toggle; solo wave/spectrum views resolve per-lane override via toAnalysisParams/toRenderOptions. GnauralCore 5d75f77; ui+server 188/0. Note: the whole-file MAIN spectrogram still uses the global header panel (a follow-up if the owner wants its gear too). Remaining: Phase 5 (sync design), Phase 6 (cache), Phase 7 (thin client), GT3.5 pause, BK1 last."
+   "note": "GT6 placeholder-superseded. PHASE 8 COMPLETE (GT8.1+GT8.2). Per-lane spectrum settings without touching the shared global panel/store (R7 frozen-tab safe): useGtrackLanes holds a per-lane SpectrogramSettings override (persisted per file, absent=global); GTrackSpectrumSettings.vue is a compact q-expansion-item accordion (Analysis/Display core fields) editing it via v-model; the lane gear has an 'own spectrum settings' toggle; solo wave/spectrum views resolve per-lane override via toAnalysisParams/toRenderOptions. GnauralCore 5d75f77; ui+server 188/0. Note: the whole-file MAIN spectrogram still uses the global header panel (a follow-up if the owner wants its gear too). Remaining: Phase 5 (sync design), Phase 6 (cache), Phase 7 (thin client), GT3.5 pause, BK1 last."
   },
   {
    "ts": "2026-07-11T06:00:00Z",
    "step": "BK1",
    "event": "plan",
    "note": "Owner: return to the CandyWreck.gnaural click-fix tail (2 voices needing walk-back-donor fade) LAST, once everything else is done. Logged as backlog item BK1, blockedReason set."
+  },
+  {
+   "ts": "2026-07-11T10:30:00Z",
+   "step": "GT6.2",
+   "event": "done",
+   "note": "PHASE 6 COMPLETE (GT6.1+GT6.2). Cache manifest records provenance on every render/convert write; GET/DELETE /api/audio/cache; UI in the gnaural Settings tab (total, per-source accordion, orphans, delete by entry/source/all with confirm). MindWaveCore 01e5a8b + GnauralCore de19520; manifest 3/3; ui+server 188/0. Remaining: Phase 5 (wave<->XML sync DESIGN - needs owner Q&A), Phase 7 (GT7.2-7.4 thin client), GT3.5 owner pause, BK1 last."
   }
  ]
 }
