@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-11T12:10:00Z",
+ "updatedAt": "2026-07-11T14:00:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -1217,220 +1217,253 @@
    "id": "GT10.11",
    "phase": 10,
    "title": "BUG: preparse generator not found when rendering a temp copy (req 59) — PRIORITY",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [],
    "artifacts": [
-    "single-loop/solo renders write a temp .gnaural into tmp/audio-render; Gnaural.exe resolves the preparse generator (circle.exe) relative to the temp file -> not found",
-    "fix: rewrite the generator path to absolute (relative to the ORIGINAL source dir) in the temp copy, or run the render with the source dir as cwd; check BOTH render paths (MindWaveCore server renderGnauralSpectrogramWav + GnauralCore SpectrogramAudioSource.defaultRenderGnaural)"
+    "render temp copies (single-loop HTTP, single-loop worker, solo worker) now written beside the source .gnaural (dot-named, cleaned up) — generators + pcm resolve correctly"
    ],
    "verify": "circle.gnaural opens with spectrum on Треки without the error",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-11T12:20:00Z",
+   "finishedAt": "2026-07-11T14:00:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore c92e->(9f17..)…; commits: GnauralCore + MindWaveCore 'temp render copies live next to the source'",
+    "vue-tsc 0; quasar build ok; ui+server 188/0"
+   ]
   },
   {
    "id": "GT10.1",
    "phase": 10,
    "title": "i18n fixes: lint messages + preparse-fix Cancel (reqs 43, 60)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [],
    "artifacts": [
-    "gtrack-lint messages built via i18n keys (message -> {key, params}) rendered with t()",
-    "$q.dialog cancel label localized"
+    "lint diagnostics carry messageKey+params rendered via t() (ru/en keys added); Cancel localized in the preparse-fix and cache dialogs"
    ],
    "verify": "lint list + fix dialog fully localized in ru/en",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-11T12:20:00Z",
+   "finishedAt": "2026-07-11T14:00:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore batch commit",
+    "vue-tsc 0; quasar build ok; ui+server 188/0"
+   ]
   },
   {
    "id": "GT10.2",
    "phase": 10,
    "title": "Visual grouping: accent stripe on a lane's solo wave/spectrum sub-lanes (req 44)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [],
    "artifacts": [
-    "pass the lane accent colour to solo WaveformView/SpectrogramView sub-lanes (left stripe like GT-D20)"
+    "solo wave/spectrum sub-lanes wrapped with the lane's voice accent stripe (same colour as the curve lane)"
    ],
    "verify": "sub-lanes of a voice's block carry the same stripe",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-11T12:20:00Z",
+   "finishedAt": "2026-07-11T14:00:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore batch commit",
+    "vue-tsc 0; quasar build ok; ui+server 188/0"
+   ]
   },
   {
    "id": "GT10.3",
    "phase": 10,
    "title": "Sub-lane gears: wave gear opens its lane settings; spectrum sub-lane gets a gear (reqs 45-46)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [],
    "artifacts": [
-    "solo wave sub-lane gear -> the owning lane's gear dialog",
-    "solo spectrum sub-lane gear -> per-lane spectrum settings (GT8)"
+    "wave sub-lane gear now opens its lane's settings; SpectrogramView gained showSettingsGear -> spectrum sub-lane has a gear opening the same lane settings (incl. per-lane spectrum settings)"
    ],
    "verify": "both sub-lanes have working gears",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-11T12:20:00Z",
+   "finishedAt": "2026-07-11T14:00:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore batch commit",
+    "vue-tsc 0; quasar build ok; ui+server 188/0"
+   ]
   },
   {
    "id": "GT10.4",
    "phase": 10,
    "title": "Inline underlay: fix 'both'+under-curves wave flicker; translucent wave + colour/opacity setting (reqs 47-48)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [],
    "artifacts": [
-    "investigate the flickering/disappearing wave sub-lane in 'both'+inline",
-    "inline wave rendered translucent; per-lane colour + opacity settings (user-visible)",
-    "consider: 'both' inline = spectrum underlay + wave as overlay line (like SpectrogramView waveformOverlay)"
+    "per-lane solo-wave colour+opacity (gear controls; amber 0.6 default, distinct from curve palette) applied to inline + sub-lane wave. The req-47 flicker/emptiness is most likely the GT10.11 silent-solo-render bug — NEEDS OWNER RETEST after both fixes"
    ],
    "verify": "both+inline shows stable wave+spectrum; wave distinguishable from the curve colour",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-11T12:20:00Z",
+   "finishedAt": "2026-07-11T14:00:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore batch commit",
+    "vue-tsc 0; quasar build ok; ui+server 188/0"
+   ]
   },
   {
    "id": "GT10.5",
    "phase": 10,
    "title": "Global point mode: the toggle enables point mode on ALL lanes (req 49)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [],
    "artifacts": [
-    "pointMode becomes a single global flag (per file) instead of per-lane set"
+    "point mode is one global flag: the lane toggle enables/disables it on every lane at once (per-lane API kept for callers)"
    ],
    "verify": "one toggle -> vertices interactive on every lane",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-11T12:20:00Z",
+   "finishedAt": "2026-07-11T14:00:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore batch commit",
+    "vue-tsc 0; quasar build ok; ui+server 188/0"
+   ]
   },
   {
    "id": "GT10.6",
    "phase": 10,
    "title": "Numeric spinbox step: Ctrl held -> step 1, else current mechanism (req 50, owner's chosen variant)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [],
    "artifacts": [
-    "inspector/table number inputs: keydown/step logic; Ctrl+arrow = 1.0 step"
+    "Ctrl+ArrowUp/Down steps any inspector/table numeric field by 1.0 (owner's chosen variant); plain arrows keep the fine step"
    ],
    "verify": "Ctrl+arrows steps by 1; plain arrows keep the fine step",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-11T12:20:00Z",
+   "finishedAt": "2026-07-11T14:00:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore batch commit",
+    "vue-tsc 0; quasar build ok; ui+server 188/0"
+   ]
   },
   {
    "id": "GT10.7",
    "phase": 10,
    "title": "Autosave default ON (req 51)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [],
    "artifacts": [
-    "pointAutosave default true when no stored value"
+    "autosave default ON (only an explicit stored '0' disables)"
    ],
    "verify": "fresh profile opens with autosave enabled",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-11T12:20:00Z",
+   "finishedAt": "2026-07-11T14:00:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore batch commit",
+    "vue-tsc 0; quasar build ok; ui+server 188/0"
+   ]
   },
   {
    "id": "GT10.8",
    "phase": 10,
    "title": "Undo button in the inspector (req 52)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [],
    "artifacts": [
-    "undo/redo buttons wired to the existing model history (all steps already recorded)"
+    "undo/redo buttons in the inspector header wired to the model history (all steps recorded already)"
    ],
    "verify": "button undoes the last edit; disabled when nothing to undo",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-11T12:20:00Z",
+   "finishedAt": "2026-07-11T14:00:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore batch commit",
+    "vue-tsc 0; quasar build ok; ui+server 188/0"
+   ]
   },
   {
    "id": "GT10.9",
    "phase": 10,
    "title": "Table mode: auto-width (no h-scrollbar) + per-row checkboxes + 'delete selected' (reqs 53-54)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [],
    "artifacts": [
-    "inspector width grows to fit the table",
-    "checkbox column (all checked by default); bulk delete removes only checked rows"
+    "table inspector width:max-content (no h-scrollbar, capped at viewport); checkbox column (all checked by default); 'delete selected' removes only checked rows via removePointsBulk (one undo unit)"
    ],
    "verify": "no horizontal scrollbar; delete respects checkboxes",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-11T12:20:00Z",
+   "finishedAt": "2026-07-11T14:00:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore batch commit",
+    "vue-tsc 0; quasar build ok; ui+server 188/0"
+   ]
   },
   {
    "id": "GT10.10",
    "phase": 10,
    "title": "Interaction model rework (reqs 55-58)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [],
    "artifacts": [
-    "point mode: SINGLE click on a vertex opens the dialog",
-    "normal mode: dbl-click on a vertex opens the dialog; Ctrl-click on a vertex starts drag; Ctrl-click on a curve adds a node",
-    "revisit seek/click conflicts (normal-mode clicks currently seek)"
+    "point mode: single click on a vertex opens the dialog (3px drag threshold; motionless press-release cancels the empty drag txn via new drag-cancel event); normal mode: dblclick vertex -> dialog, Ctrl-click vertex -> drag, Ctrl-click curve -> add node; Ctrl-clicks never seek"
    ],
    "verify": "all four gestures work; seek still works on plain click in normal mode",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-11T12:20:00Z",
+   "finishedAt": "2026-07-11T14:00:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore batch commit",
+    "vue-tsc 0; quasar build ok; ui+server 188/0"
+   ]
   },
   {
    "id": "GT10.12",
    "phase": 10,
    "title": "Investigate: wave/spectrum invisible for short wav (audiofile) voices (req 61)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [],
    "artifacts": [
-    "reproduce with ForestMeditation nature clips; likely very short signal on a long axis or solo render silence",
-    "decide a visualization (zoom hint? min-width rendering?)"
+    "root cause identified = GT10.11: solo renders of pcm voices from a temp dir resolved audio files to nothing -> silent WAV -> 'invisible' wave/spectrum (and likely the req-47 flicker). Plus the same-colour invisibility fixed by GT10.4. NEEDS OWNER RETEST"
    ],
    "verify": "cause identified + fix or design proposed",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-11T12:20:00Z",
+   "finishedAt": "2026-07-11T14:00:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "investigation concluded",
+    "vue-tsc 0; quasar build ok; ui+server 188/0"
+   ]
   },
   {
    "id": "GT10.13",
    "phase": 10,
    "title": "Sticky header above the tracks (req 62)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [],
    "artifacts": [
-    "the toolbar/header stays fixed while the lane stack scrolls"
+    "header above the lane stack is position:sticky (z-index 40, opaque bg) — stays put while lanes scroll"
    ],
    "verify": "header visible with 30+ lanes scrolled",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-11T12:20:00Z",
+   "finishedAt": "2026-07-11T14:00:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore batch commit",
+    "vue-tsc 0; quasar build ok; ui+server 188/0"
+   ]
   },
   {
    "id": "GT10.14",
    "phase": 10,
    "title": "'+ lane' adds an EMPTY lane (req 63)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [],
    "artifacts": [
-    "addLane() creates {voiceIds: [], mode: default} instead of the all-tonal copy"
+    "'+ lane' creates an empty lane (voices added via its gear)"
    ],
    "verify": "new lane appears empty; voices added via its gear",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-11T12:20:00Z",
+   "finishedAt": "2026-07-11T14:00:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore batch commit",
+    "vue-tsc 0; quasar build ok; ui+server 188/0"
+   ]
   },
   {
    "id": "GT10.15",
@@ -1451,31 +1484,37 @@
    "id": "GT10.16",
    "phase": 10,
    "title": "File-open progress as an event list (req 65)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [],
    "artifacts": [
-    "stage events (render, analysis open, tiles) instead of a single misleading 'loading file' phrase; wording correct for the thin client; esp. for gnaural (render step visible)"
+    "opening a file shows an event list of stages (schedule dump / server WAV render / backend analysis) with spinner/check per stage; thin-client wording"
    ],
    "verify": "opening a gnaural shows staged progress",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-11T12:20:00Z",
+   "finishedAt": "2026-07-11T14:00:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore GT10.16 commit",
+    "vue-tsc 0; quasar build ok; ui+server 188/0"
+   ]
   },
   {
    "id": "GT10.17",
    "phase": 10,
    "title": "Move Audio settings out of the general Settings tab into the Audio tab (req 66)",
-   "status": "not-started",
+   "status": "done",
    "dependsOn": [],
    "artifacts": [
-    "presets-root + cache form relocate; general Settings tab drops the audio section"
+    "audio settings (presets root + cache form) open as a dialog on the Audio tab; module.settingsTabs emptied so the general Settings page no longer hosts them"
    ],
    "verify": "audio settings reachable only from the Audio tab",
-   "startedAt": null,
-   "finishedAt": null,
+   "startedAt": "2026-07-11T12:20:00Z",
+   "finishedAt": "2026-07-11T14:00:00Z",
    "blockedReason": null,
-   "evidence": []
+   "evidence": [
+    "GnauralCore GT10.17 commit",
+    "vue-tsc 0; quasar build ok; ui+server 188/0"
+   ]
   },
   {
    "id": "GT10.18",
@@ -1907,6 +1946,12 @@
    "step": null,
    "event": "plan",
    "note": "Owner: GT10.15 (lane ops dialog) + GT10.18 (cache v2) discussions deferred until everything else is done (not relevant now) - revisit at the end with BK1. Proceeding with the Phase 10 fix batch; owner review list (req numbers + how fixed) to be produced at the end."
+  },
+  {
+   "ts": "2026-07-11T14:00:00Z",
+   "step": null,
+   "event": "done",
+   "note": "Phase 10 fix batch complete: GT10.1-10.14, 10.16, 10.17 done (16 of 18; GT10.15/GT10.18 deferred by owner to the very end). Key: GT10.11 root cause (temp render copies in tmp dirs broke generator + pcm resolution) also explains req-47 flicker and req-61 invisibility -> owner retest requested. Commits: GnauralCore batch + GT10.16/17 + both-repo GT10.11; all suites green (188/0, build ok). Owner review list produced."
   }
  ]
 }
