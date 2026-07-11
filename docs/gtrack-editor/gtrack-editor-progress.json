@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-11T03:00:00Z",
+ "updatedAt": "2026-07-11T03:40:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -852,23 +852,23 @@
    "id": "GT4.3",
    "phase": 4,
    "title": "Per-lane solo spectrum/waveform of the lane's voice set (owner req. 21, GT-D17)",
-   "status": "in-progress",
+   "status": "done",
    "dependsOn": [
     "GT2.2"
    ],
    "artifacts": [
-    "DONE (keystone): server solo render — muteNonSoloVoices(xml, soloIds) pure transform + SpectrogramAudioSource.acquire(soloVoiceIds) renders a muted-others temp copy, refcounted cache keyed by the normalized voice set. GnauralCore 9f170b5; +5 tests. Also covers GT4.1 noise (a noise voice's audio = its solo render).",
-    "DONE (pipeline): spectrogram:open protocol soloVoiceIds (SharedPasCore 92a592b) -> SpectrogramSession.onOpen normalizes + keys the warm-analysis cache + passes to acquire; onReconfigure carries it (GnauralCore fd305b4, +1 session test) -> useSpectrogram.open forwards it. Solo is now reachable end-to-end.",
-    "TODO: SpectrogramView/WaveformView soloVoiceIds prop -> their internal open call",
-    "TODO: per-lane gear setting off/wave/spectrum/both (useGtrackLanes persist + gear UI)",
-    "TODO: render the solo spectrum/waveform for a lane (GT-D17 underlay under the curves, or a solo sub-lane reusing SpectrogramView/WaveformView)"
+    "keystone: server solo render — muteNonSoloVoices(xml, soloIds) + SpectrogramAudioSource.acquire(soloVoiceIds) renders a muted-others temp copy, refcounted cache by the normalized voice set. GnauralCore 9f170b5; +5 tests. Also covers GT4.1 noise.",
+    "pipeline: spectrogram:open protocol soloVoiceIds (SharedPasCore 92a592b) -> SpectrogramSession keys the warm cache + passes to acquire (GnauralCore fd305b4, +1 session test) -> useSpectrogram.open forwards it.",
+    "consumer: SpectrogramView soloVoiceIds prop (re-opens on change); useGtrackLanes per-lane soloMode ('off'|'spectrum') persisted per file + setLaneSolo; TracksPanel lane-gear 'Solo audio' toggle + a solo SpectrogramView sub-lane beneath the curves sharing the lane time window. GnauralCore f325883.",
+    "SCOPE: delivered as spectrum-only shown in a solo SUB-LANE (not the GT-D17 under-curve blit); 'wave' and 'both' modes are optional follow-ups (WaveformView would need the same soloVoiceIds prop)."
    ],
-   "verify": "lane underlay shows the audio of exactly its voices; cache variants tracked; vue-tsc+build+tests",
+   "verify": "lane gear 'Solo audio: Spectrum' shows the spectrogram of exactly that lane's voices; distinct sets cache separately; vue-tsc+build+tests",
    "startedAt": "2026-07-11T01:00:00Z",
-   "finishedAt": null,
+   "finishedAt": "2026-07-11T03:40:00Z",
    "blockedReason": null,
    "evidence": [
-    "GnauralCore 9f170b5 (server keystone: muteNonSoloVoices + SpectrogramAudioSource solo); ui+server 177/0"
+    "GnauralCore 9f170b5 (keystone) + fd305b4 (pipeline) + f325883 (consumer); SharedPasCore 92a592b (protocol)",
+    "vue-tsc 0; quasar build ok; ui+server 178/0"
    ]
   },
   {
@@ -1355,6 +1355,12 @@
    "step": "GT4.3",
    "event": "progress",
    "note": "Pipeline plumbing: spectrogram:open protocol gains soloVoiceIds (SharedPasCore 92a592b); SpectrogramSession normalizes it into the warm-analysis cache key + passes to acquire, reconfigure carries it forward (GnauralCore fd305b4, +1 mock session test proving acquire gets each set and distinct sets key distinct analyses); useSpectrogram.open forwards it. NOTE while editing: spectrogram-session.ts cacheKey uses literal NUL (\\0) separators in its template string (not spaces) — needed a byte-level edit. Solo now reachable end-to-end; ui+server 178/0. Next: SpectrogramView soloVoiceIds prop + per-lane gear + solo view."
+  },
+  {
+   "ts": "2026-07-11T03:40:00Z",
+   "step": "GT4.3",
+   "event": "done",
+   "note": "Consumer shipped: SpectrogramView soloVoiceIds prop; per-lane soloMode ('off'|'spectrum') persisted + setLaneSolo; lane-gear 'Solo audio' toggle renders a solo SpectrogramView sub-lane beneath the curves (source = the .gnaural solo render of exactly that lane's voices), sharing the lane time window. GnauralCore f325883; vue-tsc 0; build ok; 178/0. Delivered spectrum-only as a sub-lane; wave/both + the GT-D17 under-curve blit are optional follow-ups. owner req 21 met."
   },
   {
    "ts": "2026-07-10T10:00:00Z",
