@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-11T12:00:00Z",
+ "updatedAt": "2026-07-11T12:10:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -1444,7 +1444,7 @@
    "verify": "owner-approved design, then implementation",
    "startedAt": null,
    "finishedAt": null,
-   "blockedReason": "owner: needs a design discussion before code",
+   "blockedReason": "owner 2026-07-11: discussion deferred until EVERYTHING ELSE is done (not relevant now); revisit at the end together with BK1",
    "evidence": []
   },
   {
@@ -1489,7 +1489,7 @@
    "verify": "owner-approved design, then implementation",
    "startedAt": null,
    "finishedAt": null,
-   "blockedReason": "owner: requires separate approval before code",
+   "blockedReason": "owner 2026-07-11: discussion deferred until EVERYTHING ELSE is done (not relevant now); revisit at the end together with BK1",
    "evidence": []
   }
  ],
@@ -1901,6 +1901,12 @@
    "step": "GT3.5",
    "event": "feedback",
    "note": "Owner performed the GT3.5 verification: 25 feedback items recorded as reqs 43-67 and Phase 10 steps GT10.1-GT10.18. Priority: GT10.11 (BUG: preparse generator resolved relative to the temp render copy -> 'Preparse generator not found ...tmp/audio-render/circle.exe'; must resolve relative to the source .gnaural in BOTH render paths). Needs owner discussion before code: GT10.15 (lane ops dialog Dup/Clean/New), GT10.18 (cache form v2 - explicitly requires approval). Decided by owner in the feedback: spinbox Ctrl->step 1 (req 50), autosave default ON (req 51). GT3.5 set to in-progress; closes after core fixes."
+  },
+  {
+   "ts": "2026-07-11T12:10:00Z",
+   "step": null,
+   "event": "plan",
+   "note": "Owner: GT10.15 (lane ops dialog) + GT10.18 (cache v2) discussions deferred until everything else is done (not relevant now) - revisit at the end with BK1. Proceeding with the Phase 10 fix batch; owner review list (req numbers + how fixed) to be produced at the end."
   }
  ]
 }
