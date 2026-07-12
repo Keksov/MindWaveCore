@@ -423,19 +423,22 @@
       "id": "FB4.1",
       "phase": 4,
       "title": "Menu bar spans the whole Audio form incl. side panels (owner req. 12, FB-D12)",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [
         "FB3.1"
       ],
       "artifacts": [
-        "move the menu bar from inside the content card up to the top of the Audio page, above BOTH the sidebar (Presets, and any future panel) and the content area",
-        "keep File -> Open; the bar owns the whole form width"
+        "AudioPage: menu bar moved out of the content card to the top of the page (first child of q-page, above audio-page__inner)",
+        "CSS: .audio-page is now a flex column (menubar flex:0 auto + inner flex:1); .audio-page__inner dropped height:100% for flex:1",
+        "menu bar now spans the sidebar (Presets) + content full width"
       ],
       "verify": "menu bar sits above the sidebar + content and stays put across tab/panel changes; vue-tsc+build",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-12T11:40:00Z",
+      "finishedAt": "2026-07-12T12:00:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "vue-tsc 0 errors; quasar build clean"
+      ]
     },
     {
       "id": "FB4.2",
@@ -478,18 +481,21 @@
       "id": "FB4.4",
       "phase": 4,
       "title": "Distinct icons + colors per supported file type (owner req. 16, FB-D14)",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [
         "FB3.2"
       ],
       "artifacts": [
-        "per-kind icon + color map (gnaural / wav / flac distinct; dirs + unsupported have their own); applied across table / list / icon views"
+        "FileOpenDialog entryVisual(): gnaural=graphic_eq/purple-5, wav=audiotrack/light-blue-6, flac=music_note/teal-5, dir=folder/amber-8, unsupported=insert_drive_file/blue-grey-5",
+        "applied across table / list / icon views (q-icon :name + :color)"
       ],
       "verify": "each supported type shows its own icon + color in all three views; vue-tsc+build",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-12T11:30:00Z",
+      "finishedAt": "2026-07-12T11:40:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "vue-tsc 0 errors; quasar build clean"
+      ]
     }
   ]
 }
