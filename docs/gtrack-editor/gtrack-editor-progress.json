@@ -1576,7 +1576,9 @@
       "startedAt": "2026-07-12T02:00:00Z",
       "finishedAt": "2026-07-12",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Root cause: Gnaural circular schedule -> terminal loop-return anchor mirrors point[0]; lint now evaluates the effective audible end + seam-mismatch only; degenerate-tail only on real collapse. Corpus 780 false positives -> ~0; ForestMeditation 56 -> 0. 194 tests pass, build OK."
+      ]
     },
     {
       "id": "GT10.22",
