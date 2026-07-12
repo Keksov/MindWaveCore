@@ -44,6 +44,10 @@
       "text": "Editor-supported type filter (owner req. 1 clarified, 2026-07-12). The dialog lists ONLY editor-supported files by default — audio/gnaural extensions (.gnaural/.wav/.flac via getAudioFileKind); directories are always shown for navigation. The provider still walks the whole filesystem; the type filter is applied to the file listing (a filetype dropdown may expose 'all files' later, but the default and primary mode is supported-types-only)."
     },
     {
+      "id": "FB-D11",
+      "text": "Loopback must never be proxied (owner: 'bun must not use a proxy in dev', 2026-07-12). This dev machine sets HTTP_PROXY=http://127.0.0.1:2080; Bun's fetch honors it and routes same-machine 127.0.0.1 requests through the proxy -> ECONNRESET/502, breaking the loopback file-browse server (FB-D2) and its tests. Bun does NOT override env vars already present in the environment from a .env file, so a committed .env is ineffective (removed). Fix is in-process: ensureLoopbackNoProxy() (server/fs-browser-server.ts) merges localhost/127.0.0.1/::1 into NO_PROXY WITHOUT touching HTTP_PROXY (external hosts / bun install keep the proxy). Called at server.ts startup (covers bun run dev/start in all modes) and in the tests; dev.bat also adds loopback to NO_PROXY for the spawned dev process tree. Verified: loopback fetch returns 200 with HTTP_PROXY still set. NOTE: the browser/webview's own proxy behavior for localhost is a separate OS/webview concern, not bun."
+    },
+    {
       "id": "FB-D10",
       "text": "Favorites / bookmarks (owner req. 11, 2026-07-12). The dialog can add sources to a favorites list — folders, files, etc. A favorite is stored as {providerId, path, label, kind:'dir'|'file'} so it generalizes to non-local providers later. User adds/removes a favorite from the dialog (e.g. star/context action); the list persists (localStorage) and shows in a sidebar next to the roots; clicking a favorite jumps to that folder (or selects that file). presetsRoot seeds the list as a default favorite. Distinct from OS-provided roots (FB-D3): roots come from listRoots(), favorites are user-curated."
     }
