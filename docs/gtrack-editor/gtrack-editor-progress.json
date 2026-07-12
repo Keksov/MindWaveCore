@@ -1934,6 +1934,30 @@
       "evidence": [
         "TracksPanel.vue/use-gtrack-lanes.ts. 159 tests, tsc 0, build OK."
       ]
+    },
+    {
+      "id": "GT10.43",
+      "phase": "10d",
+      "title": "Табл.режим: колонка с номером точки после чекбокса",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [],
+      "verify": "owner",
+      "startedAt": "2026-07-12",
+      "finishedAt": "2026-07-12",
+      "evidence": [
+        "TracksPanel.vue: # column (row.pointIndex), colspan 6->7. 159 tests, build OK."
+      ]
+    },
+    {
+      "id": "BK7",
+      "phase": "backlog",
+      "title": "Глобальный персистентный журнал Undo (панель, автоочистка, размер в кэш-менеджере)",
+      "status": "not-started",
+      "dependsOn": [],
+      "artifacts": [],
+      "verify": "owner",
+      "blockedReason": "owner: после закрытия всех ошибок"
     }
   ],
   "log": [
