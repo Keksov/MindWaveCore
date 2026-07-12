@@ -1,0 +1,416 @@
+{
+  "schemaVersion": 1,
+  "plan": "file-browser",
+  "planDoc": "docs/file-browser/file-browser-plan.md",
+  "title": "file-browser: universal file-open dialog with source-provider adapters (open any file; localhost-only)",
+  "status": "in-progress",
+  "createdAt": "2026-07-12T00:00:00Z",
+  "updatedAt": "2026-07-12T06:10:00Z",
+  "decisions": [
+    {
+      "id": "FB-D1",
+      "text": "Adapter architecture in TS/Bun (owner agreed 2026-07-12). A FileSourceProvider interface { id, listRoots(), listDir(path, opts), stat(path), openStream(path) } with a server-side provider registry; the UI selects a provider by id. LocalFsProvider (Bun node:fs/promises) ships first. Future providers (RemoteAgentProvider on another Bun host, DbProvider, WebProvider) plug in as additional ids behind the same UI. FPC-CLI REJECTED: Bun is already the filesystem data-plane (readdir/stat/realpath over WS) and a self-contained per-host agent; the repo's FPC cli/ is a DSP engine and AppMain.exe is a webview host, not a file service. FPC would add a second language + new IPC for a capability Bun already has."
+    },
+    {
+      "id": "FB-D2",
+      "text": "Security = localhost-only, via a SEPARATE 127.0.0.1 bind (owner choice 2026-07-12). The file-browse endpoints (fs.*) listen on their OWN loopback-only socket bound to 127.0.0.1, not reachable over the LAN — chosen over per-message remote-address checks for a harder guarantee that doesn't depend on proxy-forwarded addresses. This replaces the single-root isPathInsideBase sandbox (audio-file-utils.ts:62-90) for the local provider: full-machine read, but only from localhost. Path canonicalization (realpath) is kept to avoid symlink/traversal surprises. The main server keeps serving UI/other endpoints to LAN clients as before; only file-browse is loopback-locked. Transport = HTTP REST on this loopback server (GET /fs/roots, /fs/list, /fs/stat) — chosen over WS since a separate bind is naturally a second Bun.serve and it matches the existing audio HTTP endpoints. The main server exposes GET /api/fs/info (loopback-detected via server.requestIP) so the UI discovers the loopback URL + availability; remote clients get available:false and cannot reach the bind anyway. CORS is permissive on the loopback server (safe: only same-machine browsers can reach it). Remote sources get their own auth as separate providers later."
+    },
+    {
+      "id": "FB-D3",
+      "text": "OS-specific roots, OS-agnostic UI (owner req. 3, 2026-07-12). Provider.listRoots() is OS-aware: Windows -> drive letters (C:\\, D:\\, ...) plus known folders (Desktop/Documents/home); POSIX -> '/' (plus home and mounted volumes). The UI NEVER hardcodes 'drives' — it renders whatever listRoots() returns as top-level entries (label+icon) and navigates over opaque path strings from the provider. All Windows-vs-unix difference lives inside the provider; the dialog is identical on every OS."
+    },
+    {
+      "id": "FB-D4",
+      "text": "Three view modes (owner req. 5, 2026-07-12): (a) linear LIST — names only, dense; (b) ICONS — small/medium/large sizes; (c) TABLE 'Total Commander style' — columns name/ext/size/mtime/attributes, each column sortable in both directions. View mode + last sort are a persisted UI preference (localStorage). FsEntry carries {name, path, isDir, isSymlink, size, mtimeMs, ext, kind} so all three views + all sort keys work from one payload."
+    },
+    {
+      "id": "FB-D5",
+      "text": "Quick regexp filter, TC Ctrl-S style (owner req. 6, 2026-07-12). An incremental filter box narrows the visible list live as the user types; matches against the entry name. Regexp by default (case-insensitive, toggleable); an invalid regexp falls back to a literal substring match (no error spam). Esc clears the filter and restores the full list. Filtering is client-side over the already-loaded dir payload."
+    },
+    {
+      "id": "FB-D6",
+      "text": "Performance & sorting (owner req. 7, 2026-07-12). listDir returns the full dir payload with metadata (name/isDir/size/mtime/ext) in one pass via readdir({withFileTypes}) + batched stat; sort & filter run client-side for typical dirs, with q-virtual-scroll for large ones. Provider.listDir(opts) reserves optional server-side sort+paginate params for huge dirs (100k+) as a later optimization — not built up front. Directories sort before files by default; sort is stable."
+    },
+    {
+      "id": "FB-D7",
+      "text": "Coexists with the preset browser during migration (owner choice 2026-07-12, REVISED). The universal dialog is invoked from a classic menu bar (File -> Open, FB-D8); the old presetsRoot q-tree STAYS in place for now — the dialog is added beside it, not a replacement yet (full retirement is a later migration step). presetsRoot survives as the dialog's default/initial location. The editor's open path reuses resolveAllowedAudioFilePath's kind-detection, but path authorization shifts from single-root to the loopback bind + canonicalize (FB-D2). Favorites are in scope (FB-D10); image thumbnails are future (Phase 4)."
+    },
+    {
+      "id": "FB-D8",
+      "text": "Classic application menu bar (owner req. 9, 2026-07-12). A classic-style top menu bar is added; a File menu with an Open item invokes the universal dialog. This is new UI chrome (Quasar) hosting the entry point for the dialog; further menu items can follow later. The menu bar is where the migration off the q-tree eventually lands (open/recent/etc.)."
+    },
+    {
+      "id": "FB-D9",
+      "text": "Editor-supported type filter (owner req. 1 clarified, 2026-07-12). The dialog lists ONLY editor-supported files by default — audio/gnaural extensions (.gnaural/.wav/.flac via getAudioFileKind); directories are always shown for navigation. The provider still walks the whole filesystem; the type filter is applied to the file listing (a filetype dropdown may expose 'all files' later, but the default and primary mode is supported-types-only)."
+    },
+    {
+      "id": "FB-D10",
+      "text": "Favorites / bookmarks (owner req. 11, 2026-07-12). The dialog can add sources to a favorites list — folders, files, etc. A favorite is stored as {providerId, path, label, kind:'dir'|'file'} so it generalizes to non-local providers later. User adds/removes a favorite from the dialog (e.g. star/context action); the list persists (localStorage) and shows in a sidebar next to the roots; clicking a favorite jumps to that folder (or selects that file). presetsRoot seeds the list as a default favorite. Distinct from OS-provided roots (FB-D3): roots come from listRoots(), favorites are user-curated."
+    }
+  ],
+  "steps": [
+    {
+      "id": "FB0.1",
+      "phase": 0,
+      "title": "Plan + ledger authored (this file + file-browser-plan.md)",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [
+        "docs/file-browser/file-browser-plan.md (owner reqs verbatim, architecture, phases)",
+        "docs/file-browser/file-browser-progress.json (decisions FB-D1..FB-D7, steps)"
+      ],
+      "verify": "owner reads the plan; requirements + decisions match the discussion",
+      "startedAt": "2026-07-12T00:00:00Z",
+      "finishedAt": "2026-07-12T00:00:00Z",
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "FB0.2",
+      "phase": 0,
+      "title": "PAUSE: owner review of the plan before any code",
+      "status": "done",
+      "dependsOn": [
+        "FB0.1"
+      ],
+      "artifacts": [
+        "owner gave 'go' for Phase 1 (2026-07-12); FB-D2 favorites/menu-bar/type-filter refinements folded in first"
+      ],
+      "verify": "owner confirms architecture (FB-D1..FB-D10), scope, and phase order; gives a go for Phase 1",
+      "startedAt": "2026-07-12T00:00:00Z",
+      "finishedAt": "2026-07-12T03:00:00Z",
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "FB1.1",
+      "phase": 1,
+      "title": "FileSourceProvider interface + shared types (FsEntry, Root, ListResult, provider registry)",
+      "status": "done",
+      "dependsOn": [
+        "FB0.2"
+      ],
+      "artifacts": [
+        "server/fs-browser-provider.ts: FileSourceProvider { id, listRoots, listDir, stat }; FsEntry {name, path, isDir, isSymlink, size, mtimeMs, ext, kind}; FsRoot {id, label, path, kind}; ListDirResult {path, parent, entries}; StatResult",
+        "createFsProviderRegistry(): register/get/ids keyed by provider id",
+        "openStream deferred to integration (FB3.2 reuses the existing /api/audio/file streaming)"
+      ],
+      "verify": "types compile (tsc 5.7.3 clean for fs-browser files); registry resolves a provider by id",
+      "startedAt": "2026-07-12T04:00:00Z",
+      "finishedAt": "2026-07-12T04:20:00Z",
+      "blockedReason": null,
+      "evidence": [
+        "tsc@5.7.3 --ignoreDeprecations 5.0: 0 errors in fs-browser-*.ts"
+      ]
+    },
+    {
+      "id": "FB1.2",
+      "phase": 1,
+      "title": "LocalFsProvider (Bun fs): OS-aware listRoots, listDir, stat",
+      "status": "done",
+      "dependsOn": [
+        "FB1.1"
+      ],
+      "artifacts": [
+        "server/fs-browser-local.ts: listRoots OS-aware — Windows drive letters (parallel A-Z probe) + known folders (Home/Desktop/Documents/Downloads); POSIX '/' + known folders + best-effort volumes (/Volumes, /media/<user>, /mnt) (FB-D3)",
+        "listDir via readdir({withFileTypes}) + batched stat -> FsEntry[]; dotfiles hidden unless showHidden; parent=null at a root boundary (FB-D6)",
+        "stat: realpath canonicalization (FB-D2); dir size normalized to 0; lowercased ext"
+      ],
+      "verify": "listDir on a temp tree returns correct entries/kinds/sizes; listRoots returns a drive letter on Windows; hidden filter + parent boundary covered",
+      "startedAt": "2026-07-12T04:20:00Z",
+      "finishedAt": "2026-07-12T04:45:00Z",
+      "blockedReason": null,
+      "evidence": [
+        "fs-browser-local.test.ts: 5 pass",
+        "smoke: listRoots -> C:\\Users\\1 (Home), C:\\, D:\\ in 3.5ms"
+      ]
+    },
+    {
+      "id": "FB1.3",
+      "phase": 1,
+      "title": "Separate 127.0.0.1 bind for file-browse endpoints (owner req. 2, FB-D2)",
+      "status": "done",
+      "dependsOn": [
+        "FB1.1"
+      ],
+      "artifacts": [
+        "server/fs-browser-server.ts: startFsBrowserServer() = own Bun.serve({hostname:'127.0.0.1', port:0}); GET-only /fs/* routes; the main LAN-facing server exposes NO /fs/* routes",
+        "isLoopbackAddress() helper (127.*, ::1, ::ffff:127.*) for the main server's /api/fs/info gate",
+        "server.ts: fsBrowserServer started before Bun.serve; stopped in disposeAudioSession; boot logs its loopback URL"
+      ],
+      "verify": "/fs/* reachable over 127.0.0.1 bind; main server has no /fs routes; isLoopbackAddress accepts loopback + rejects LAN",
+      "startedAt": "2026-07-12T04:45:00Z",
+      "finishedAt": "2026-07-12T05:20:00Z",
+      "blockedReason": null,
+      "evidence": [
+        "fs-browser-server.test.ts: bind url matches ^http://127.0.0.1:\\d+$; isLoopbackAddress cases pass",
+        "boot log: [server] file-browse (loopback-only): http://127.0.0.1:62669"
+      ]
+    },
+    {
+      "id": "FB1.4",
+      "phase": 1,
+      "title": "HTTP REST wiring on the loopback server: GET /fs/roots, /fs/list, /fs/stat + /api/fs/info discovery",
+      "status": "done",
+      "dependsOn": [
+        "FB1.2",
+        "FB1.3"
+      ],
+      "artifacts": [
+        "GET /fs/roots|/fs/list|/fs/stat carry ?provider=&path=(&hidden=1); dispatch through the registry; permissive CORS (*) + OPTIONS 204; 400 unknown-provider/missing-path; 404 unknown route",
+        "main server GET /api/fs/info reports {available, url, providers} via server.requestIP loopback detection (remote -> available:false, url:null)"
+      ],
+      "verify": "round-trip over 127.0.0.1: /fs/roots -> /fs/list(root) -> /fs/stat(file); /api/fs/info reports available:true from localhost",
+      "startedAt": "2026-07-12T05:20:00Z",
+      "finishedAt": "2026-07-12T05:50:00Z",
+      "blockedReason": null,
+      "evidence": [
+        "fs-browser-server.test.ts round-trip + CORS + error cases pass",
+        "live boot smoke: /api/fs/info -> {available:true, url, providers:[local]}; ${url}/fs/roots returns roots JSON",
+        "NOTE: tests strip HTTP_PROXY (dev machine sets HTTP_PROXY=127.0.0.1:2080 which Bun's fetch would route loopback through -> ECONNRESET); real browsers do not proxy own-origin localhost"
+      ]
+    },
+    {
+      "id": "FB1.5",
+      "phase": 1,
+      "title": "Server tests: listDir tree, Windows roots, canonicalize/traversal, loopback bind isolation",
+      "status": "done",
+      "dependsOn": [
+        "FB1.4"
+      ],
+      "artifacts": [
+        "fs-browser-local.test.ts: temp-tree listDir (kind/size/ext), dotfile hide/show, parent boundary, stat file/dir/absent, OS-aware roots",
+        "fs-browser-server.test.ts: 127.0.0.1 bind, roots->list->stat round-trip, CORS+OPTIONS, unknown provider/route, missing path, isLoopbackAddress"
+      ],
+      "verify": "bun test green; edge cases covered",
+      "startedAt": "2026-07-12T05:50:00Z",
+      "finishedAt": "2026-07-12T06:10:00Z",
+      "blockedReason": null,
+      "evidence": [
+        "bun test (server): 14 pass / 0 fail across 3 files; fs-browser suites: 11 pass / 43 expect()",
+        "PRE-EXISTING (not this change): audio-cache-manifest.ts:146 TS2540 under tsc 5.7.3 — file untouched; repo tsconfig is mid-migration (baseUrl + ignoreDeprecations:6.0)"
+      ]
+    },
+    {
+      "id": "FB2.1",
+      "phase": 2,
+      "title": "Universal dialog shell (Quasar): roots + breadcrumb + navigation, provider-agnostic",
+      "status": "todo",
+      "dependsOn": [
+        "FB1.4"
+      ],
+      "artifacts": [
+        "renders listRoots() as top-level entries; navigates opaque provider paths (FB-D3)",
+        "breadcrumb + up/back; provider selector (single local provider for now)"
+      ],
+      "verify": "navigate from a root down and back on Windows; no 'drive' assumptions in UI code; vue-tsc+build",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "FB2.2",
+      "phase": 2,
+      "title": "Table view (Total Commander): sortable columns name/ext/size/mtime/attrs, both directions",
+      "status": "todo",
+      "dependsOn": [
+        "FB2.1"
+      ],
+      "artifacts": [
+        "columns name/ext/size/date/attributes; click-to-sort, toggle direction; dirs-first default (FB-D4, FB-D6)"
+      ],
+      "verify": "each column sorts asc/desc; stable; dirs group first; vue-tsc+build",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "FB2.3",
+      "phase": 2,
+      "title": "List view (names only, dense) + Icon view (small/medium/large)",
+      "status": "todo",
+      "dependsOn": [
+        "FB2.2"
+      ],
+      "artifacts": [
+        "dense name-only list; icon grid with 3 sizes (FB-D4)"
+      ],
+      "verify": "both views render the same dir payload; icon size switches; vue-tsc+build",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "FB2.4",
+      "phase": 2,
+      "title": "View-mode toggle + persisted preference + virtualization (q-virtual-scroll)",
+      "status": "todo",
+      "dependsOn": [
+        "FB2.3"
+      ],
+      "artifacts": [
+        "toggle table/list/icons; persist mode + last sort (localStorage)",
+        "virtual scroll for large dirs (FB-D6)"
+      ],
+      "verify": "mode/sort survive reload; a large dir scrolls smoothly; vue-tsc+build",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "FB2.5",
+      "phase": 2,
+      "title": "Quick regexp filter (TC Ctrl-S): incremental, case-insensitive, invalid->substring, Esc clears",
+      "status": "todo",
+      "dependsOn": [
+        "FB2.4"
+      ],
+      "artifacts": [
+        "live filter box over the loaded payload; regexp default + literal fallback; Esc restores (FB-D5)"
+      ],
+      "verify": "typing narrows live; invalid regexp still filters as substring; Esc clears; vue-tsc+build",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "FB2.6",
+      "phase": 2,
+      "title": "Keyboard navigation (Enter open, Backspace up, arrows, type-ahead)",
+      "status": "todo",
+      "dependsOn": [
+        "FB2.4"
+      ],
+      "artifacts": [
+        "Enter opens dir / selects file; Backspace up; arrow keys move selection"
+      ],
+      "verify": "full keyboard traversal without the mouse; vue-tsc+build",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "FB2.7",
+      "phase": 2,
+      "title": "Type-filter dropdown: editor-supported types default (.gnaural/.wav/.flac); dirs always shown (owner req. 1, FB-D9)",
+      "status": "todo",
+      "dependsOn": [
+        "FB2.4"
+      ],
+      "artifacts": [
+        "filetype dropdown; default = supported audio/gnaural via getAudioFileKind; directories never hidden",
+        "distinct from the Ctrl-S quick regexp filter (FB2.5), which narrows within the current type set"
+      ],
+      "verify": "only supported files listed by default; navigation into any folder still works; vue-tsc+build",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "FB2.8",
+      "phase": 2,
+      "title": "Favorites: add/remove sources (folders/files) to a persisted list in a sidebar (owner req. 11, FB-D10)",
+      "status": "todo",
+      "dependsOn": [
+        "FB2.1"
+      ],
+      "artifacts": [
+        "favorite = {providerId, path, label, kind}; add/remove from the dialog; persisted (localStorage)",
+        "favorites sidebar beside the roots; click jumps to folder / selects file; presetsRoot seeds a default favorite"
+      ],
+      "verify": "add a folder and a file as favorites; they survive reload; clicking navigates/selects; vue-tsc+build",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "FB3.1",
+      "phase": 3,
+      "title": "Classic menu bar (File -> Open) invokes the dialog; keep the old q-tree during migration (owner req. 9-10, FB-D7, FB-D8)",
+      "status": "todo",
+      "dependsOn": [
+        "FB2.5",
+        "FB2.7"
+      ],
+      "artifacts": [
+        "classic-style top menu bar (Quasar); File menu with an Open item that opens the universal dialog",
+        "old presetsRoot q-tree stays in place; presetsRoot is the dialog's default/initial location"
+      ],
+      "verify": "File -> Open reaches any supported file on the machine; the old q-tree still works; vue-tsc+build",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "FB3.2",
+      "phase": 3,
+      "title": "Wire selected file into the editor open path (kind-detect reuse, loopback-gated auth)",
+      "status": "todo",
+      "dependsOn": [
+        "FB3.1"
+      ],
+      "artifacts": [
+        "reuse getAudioFileKind; path auth via loopback gate + canonicalize instead of single-root (FB-D2, FB-D7)"
+      ],
+      "verify": "a chosen .gnaural/.wav/.flac opens end-to-end; non-audio handled gracefully; vue-tsc+bun+build",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "FB3.3",
+      "phase": 3,
+      "title": "PAUSE: owner verification of the full open flow (all views, filter, localhost gate)",
+      "status": "todo",
+      "dependsOn": [
+        "FB3.2"
+      ],
+      "artifacts": [],
+      "verify": "owner confirms open-any-file UX, three views, Ctrl-S filter, and localhost-only behaviour",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": "owner checkpoint",
+      "evidence": []
+    },
+    {
+      "id": "FB4.1",
+      "phase": 4,
+      "title": "FUTURE: RemoteAgentProvider (Bun agent on another host) behind the same UI",
+      "status": "todo",
+      "dependsOn": [
+        "FB3.3"
+      ],
+      "artifacts": [],
+      "verify": "deferred — not in the current scope",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": "future scope",
+      "evidence": []
+    },
+    {
+      "id": "FB4.2",
+      "phase": 4,
+      "title": "FUTURE: DB/Web providers, image thumbnails",
+      "status": "todo",
+      "dependsOn": [
+        "FB3.3"
+      ],
+      "artifacts": [],
+      "verify": "deferred — not in the current scope",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": "future scope",
+      "evidence": []
+    }
+  ]
+}

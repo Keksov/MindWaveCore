@@ -19,6 +19,9 @@ import {
   type GnauralSession,
 } from "../../GnauralCore/server"
 import { AudioCacheManifest } from "./audio-cache-manifest"
+import { createFsProviderRegistry } from "./fs-browser-provider"
+import { createLocalFsProvider } from "./fs-browser-local"
+import { startFsBrowserServer, isLoopbackAddress, type FsBrowserServer } from "./fs-browser-server"
 import { createLogArchiveStore } from "./log-db"
 import { createLogReplayManager } from "./log-replay"
 import { createPublishCallbacks } from "./publish"
@@ -1111,6 +1114,7 @@ const disposeAudioSession = async (): Promise<void> => {
   })
 
   scheduleWatcher.dispose()
+  fsBrowserServer.stop() // FB-D2: tear down the loopback file-browse server on shutdown.
 
   await audioSessionDisposePromise
 }
@@ -1849,6 +1853,13 @@ gnauralSession = createGnauralSession(runtimeDir, {
   },
 })
 
+// FB1.3/FB1.4 (FB-D2): the file-browse capability runs on its OWN loopback-only (127.0.0.1) HTTP
+// server, unreachable over the LAN. The main server only advertises its URL via /api/fs/info, and
+// only to loopback callers.
+const fsProviderRegistry = createFsProviderRegistry()
+fsProviderRegistry.register(createLocalFsProvider())
+const fsBrowserServer: FsBrowserServer = startFsBrowserServer(fsProviderRegistry)
+
 server = Bun.serve<SocketData>({
   port: getPort(),
   idleTimeout: SERVER_IDLE_TIMEOUT_SEC,
@@ -1860,6 +1871,18 @@ server = Bun.serve<SocketData>({
         data: { kind: "ui" }
       })
       return ok ? undefined : new Response("WebSocket upgrade failed", { status: 400 })
+    }
+
+    // FB-D2: only same-machine (loopback) callers may discover the file-browse server. Remote
+    // clients get available:false and cannot reach the 127.0.0.1 bind regardless.
+    if (url.pathname === "/api/fs/info") {
+      const clientIp = aServer.requestIP(aRequest)?.address ?? null
+      const available = isLoopbackAddress(clientIp)
+      return jsonResponse({
+        available,
+        url: available ? fsBrowserServer.url : null,
+        providers: available ? fsProviderRegistry.ids() : [],
+      })
     }
 
     const apiResponse = await handleApiRequest(aRequest)
@@ -1905,6 +1928,7 @@ server = Bun.serve<SocketData>({
 registerShutdownHandlers()
 
 console.log(`[server] listening on http://localhost:${server.port}`)
+console.log(`[server] file-browse (loopback-only): ${fsBrowserServer.url}`)
 console.log(`[server] static files: ${publicDir}`)
 console.log(`[server] endpoints: /ws/ui, /api/logs, /api/log-settings, /api/audio-settings, /api/audio/presets, /api/audio/file, /api/audio/schedule, /api/audio/schedule/voice-state, /api/audio/editor, /api/audio/editor/save, /api/audio/editor/autosave, /api/audio/editor/history`)
 if (isUiOnlyMode) {
