@@ -1595,7 +1595,8 @@
       "blockedReason": null,
       "evidence": [
         "ctrlStep hardened: stopPropagation+preventDefault (no native double-step), pure ctrlStepValue with per-field clamp. +1 test. Verify pending.",
-        "Re-fix: native capture-phase @keydown on form/table wrappers (QInput @keydown lost Ctrl / ran after native step); data-step-field + data-step-row identify the target."
+        "Re-fix: native capture-phase @keydown on form/table wrappers (QInput @keydown lost Ctrl / ran after native step); data-step-field + data-step-row identify the target.",
+        "Owner clarified: wanted Alt+click on the field spinner arrows. Alt now big-steps BOTH spinner-click (via :step=1 while Alt held) and arrow keys. Ctrl dropped."
       ]
     },
     {
