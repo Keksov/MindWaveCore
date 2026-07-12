@@ -1962,6 +1962,20 @@
       "artifacts": [],
       "verify": "owner",
       "blockedReason": "owner: после закрытия всех ошибок"
+    },
+    {
+      "id": "GT10.44",
+      "phase": "10d",
+      "title": "Иконка удаления дорожки под глазом",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [],
+      "verify": "owner",
+      "startedAt": "2026-07-13",
+      "finishedAt": "2026-07-13",
+      "evidence": [
+        "GTrackView side-actions: delete btn -> emit remove-lane -> gtracks.removeLane. 159 tests, build OK."
+      ]
     }
   ],
   "log": [
