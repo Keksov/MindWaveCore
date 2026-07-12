@@ -1763,6 +1763,90 @@
       "evidence": [
         "TracksPanel.vue/GTrackView.vue: fixed-frame inspector; onAddPoint opens dialog; onClick no seek; deleteCurrentPointFromDialog refocuses. tsc 0, 157 tests, build OK."
       ]
+    },
+    {
+      "id": "GT10.33-rev",
+      "phase": "10d",
+      "title": "Разрешить удалять все точки; диалог открыт для Undo",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [],
+      "verify": "owner",
+      "startedAt": "2026-07-12",
+      "finishedAt": "2026-07-12",
+      "evidence": [
+        "gtrack-model.ts/TracksPanel.vue/GTrackView.vue. 157 ui tests, tsc 0, build OK."
+      ]
+    },
+    {
+      "id": "GT10.34",
+      "phase": "10d",
+      "title": "Точки у нижнего края не клипаются (plain-margin 10)",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [],
+      "verify": "owner",
+      "startedAt": "2026-07-12",
+      "finishedAt": "2026-07-12",
+      "evidence": [
+        "gtrack-model.ts/TracksPanel.vue/GTrackView.vue. 157 ui tests, tsc 0, build OK."
+      ]
+    },
+    {
+      "id": "GT10.35",
+      "phase": "10d",
+      "title": "Белый круг фокуса следует за диалогом",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [],
+      "verify": "owner",
+      "startedAt": "2026-07-12",
+      "finishedAt": "2026-07-12",
+      "evidence": [
+        "gtrack-model.ts/TracksPanel.vue/GTrackView.vue. 157 ui tests, tsc 0, build OK."
+      ]
+    },
+    {
+      "id": "GT10.36",
+      "phase": "10d",
+      "title": "Undo восстановленной точки → фокус на неё",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [],
+      "verify": "owner",
+      "startedAt": "2026-07-12",
+      "finishedAt": "2026-07-12",
+      "evidence": [
+        "gtrack-model.ts/TracksPanel.vue/GTrackView.vue. 157 ui tests, tsc 0, build OK."
+      ]
+    },
+    {
+      "id": "GT10.37",
+      "phase": "10d",
+      "title": "Громкость → числовое поле",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [],
+      "verify": "owner",
+      "startedAt": "2026-07-12",
+      "finishedAt": "2026-07-12",
+      "evidence": [
+        "gtrack-model.ts/TracksPanel.vue/GTrackView.vue. 157 ui tests, tsc 0, build OK."
+      ]
+    },
+    {
+      "id": "GT10.38",
+      "phase": "10d",
+      "title": "Ползунок Баланса не переполняет диалог",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [],
+      "verify": "owner",
+      "startedAt": "2026-07-12",
+      "finishedAt": "2026-07-12",
+      "evidence": [
+        "gtrack-model.ts/TracksPanel.vue/GTrackView.vue. 157 ui tests, tsc 0, build OK."
+      ]
     }
   ],
   "log": [
