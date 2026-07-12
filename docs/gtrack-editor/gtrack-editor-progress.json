@@ -1791,7 +1791,8 @@
       "evidence": [
         "gtrack-model.ts/TracksPanel.vue/GTrackView.vue. 157 ui tests, tsc 0, build OK.",
         "Re-fix: clamp vertex dot centre to canvas (margin alone insufficient — out-of-range/edge values). Verified on wakeup.gnaural.",
-        "Re-fix2: canvas height:100% — clientHeight/cssH now == visible lane (was intrinsic-overflow, clipping the vertex margins at both edges)."
+        "Re-fix2: canvas height:100% — clientHeight/cssH now == visible lane (was intrinsic-overflow, clipping the vertex margins at both edges).",
+        "Fix3: canvas position:absolute;inset:0 (root relative) so clientHeight==lane height; flex+height:100% still allowed intrinsic overflow."
       ]
     },
     {
@@ -1863,7 +1864,8 @@
       "finishedAt": "2026-07-12",
       "evidence": [
         "GTrackView.onClick: restored seek on empty-space click (node click still opens dialog).",
-        "Re-fix: persistent local playhead in TracksPanel (survives idle transport); curve lanes always seekable."
+        "Re-fix: persistent local playhead in TracksPanel (survives idle transport); curve lanes always seekable.",
+        "Fix3: guard real seek to active session (playing/paused) to avoid idle-gnaural error toast; local cursor always set."
       ]
     }
   ],
