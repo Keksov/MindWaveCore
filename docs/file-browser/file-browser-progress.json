@@ -406,16 +406,18 @@
       "id": "FB3.3",
       "phase": 3,
       "title": "PAUSE: owner verification of the full open flow (all views, filter, localhost gate)",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [
         "FB3.2"
       ],
       "artifacts": [],
       "verify": "owner confirms open-any-file UX, three views, Ctrl-S filter, and localhost-only behaviour",
-      "startedAt": null,
-      "finishedAt": null,
-      "blockedReason": "owner checkpoint",
-      "evidence": []
+      "startedAt": "2026-07-12T10:10:00Z",
+      "finishedAt": "2026-07-12T11:30:00Z",
+      "blockedReason": null,
+      "evidence": [
+        "owner verified the full open flow (2026-07-12): File -> Open, browse any file, three views, Ctrl-S filter, favorites, localhost gate — approved"
+      ]
     },
     {
       "id": "FB4.1",
