@@ -41,6 +41,16 @@ echo [dev] Starting MindWave development processes...
 echo [dev] Backend: bun run dev (from %HOST_PACKAGE_JSON%)
 echo [dev] UI:      bun run dev (quasar dev)
 
+rem [dev] Never route same-machine loopback through a local HTTP proxy (bun's fetch honors
+rem HTTP_PROXY). Adds loopback to NO_PROXY for the spawned bun processes; the external proxy stays
+rem intact for genuine hosts. The server also enforces this in-process (ensureLoopbackNoProxy).
+if defined NO_PROXY (
+    set "NO_PROXY=%NO_PROXY%,localhost,127.0.0.1,::1"
+) else (
+    set "NO_PROXY=localhost,127.0.0.1,::1"
+)
+set "no_proxy=%NO_PROXY%"
+
 start "MindWave Backend (watch)" cmd /k "cd /d %HOST_DIR% && %BUN% run dev"
 start "MindWave UI (dev)" cmd /k "cd /d %UI_DIR% && %BUN% run dev"
 

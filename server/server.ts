@@ -21,7 +21,7 @@ import {
 import { AudioCacheManifest } from "./audio-cache-manifest"
 import { createFsProviderRegistry } from "./fs-browser-provider"
 import { createLocalFsProvider } from "./fs-browser-local"
-import { startFsBrowserServer, isLoopbackAddress, type FsBrowserServer } from "./fs-browser-server"
+import { startFsBrowserServer, isLoopbackAddress, ensureLoopbackNoProxy, type FsBrowserServer } from "./fs-browser-server"
 import { createLogArchiveStore } from "./log-db"
 import { createLogReplayManager } from "./log-replay"
 import { createPublishCallbacks } from "./publish"
@@ -30,6 +30,10 @@ import { isRecord, toJson } from "./protocol"
 import { handleUiClose, handleUiMessage, handleUiOpen, type UiSocketData } from "./ui-ws-handler"
 import { createScheduleWatcher } from "../../GnauralCore/server/schedule-watcher"
 import { checkSpectrogramWorkerHealth } from "../../GnauralCore/server/spectrogram-bridge"
+
+// Never route same-machine loopback fetches through a local HTTP proxy (owner: "bun must not use a
+// proxy in dev"). Must run before anything issues a loopback fetch.
+ensureLoopbackNoProxy()
 
 type SocketData = UiSocketData
 

@@ -12,6 +12,27 @@ export interface FsBrowserServer {
   stop(): void
 }
 
+// Bun's fetch honors HTTP_PROXY/NO_PROXY. On machines with a local proxy tool (e.g.
+// HTTP_PROXY=http://127.0.0.1:2080) same-machine loopback requests would be routed through the
+// proxy and fail (ECONNRESET/502) — breaking the loopback file-browse server (FB-D2) and its tests.
+// Ensure the loopback hosts are always in NO_PROXY so loopback is reachable, while leaving the proxy
+// intact for genuine external hosts (bun install, etc.). Bun does NOT override env vars already set
+// in the environment from a .env file, so this must mutate process.env in-process, early at startup.
+export const ensureLoopbackNoProxy = (): void => {
+  const loopbackHosts = ["localhost", "127.0.0.1", "::1"]
+  for (const key of ["NO_PROXY", "no_proxy"] as const) {
+    const existing = (process.env[key] ?? "")
+      .split(",")
+      .map((token) => token.trim())
+      .filter((token) => token !== "")
+    const merged = new Set(existing)
+    for (const host of loopbackHosts) {
+      merged.add(host)
+    }
+    process.env[key] = [...merged].join(",")
+  }
+}
+
 // Loopback detection for /api/fs/info on the main (LAN-facing) server. Covers IPv4, IPv6, and the
 // IPv4-mapped-IPv6 form Bun may report.
 export const isLoopbackAddress = (aAddress: string | null | undefined): boolean => {

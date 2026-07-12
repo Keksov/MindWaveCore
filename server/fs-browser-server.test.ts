@@ -9,15 +9,11 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test"
 
 import { createFsProviderRegistry } from "./fs-browser-provider"
 import { createLocalFsProvider, LOCAL_FS_PROVIDER_ID } from "./fs-browser-local"
-import { isLoopbackAddress, startFsBrowserServer, type FsBrowserServer } from "./fs-browser-server"
+import { ensureLoopbackNoProxy, isLoopbackAddress, startFsBrowserServer, type FsBrowserServer } from "./fs-browser-server"
 
-// This dev machine sets HTTP_PROXY=http://127.0.0.1:2080; Bun's fetch would route our loopback
-// requests through it and get ECONNRESET/502. Real browsers never proxy their own-origin localhost
-// calls, so this is purely a test-env concern — strip the proxy vars for this suite.
-for (const key of ["HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy"]) {
-  delete process.env[key]
-}
-process.env.NO_PROXY = "127.0.0.1,localhost"
+// The dev machine may set HTTP_PROXY=http://127.0.0.1:2080; without this, Bun's fetch would route
+// our loopback requests through it and get ECONNRESET/502. Same fix the server uses at startup.
+ensureLoopbackNoProxy()
 
 let browser: FsBrowserServer
 let treeRoot: string
