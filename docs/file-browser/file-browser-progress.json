@@ -5,7 +5,7 @@
   "title": "file-browser: universal file-open dialog with source-provider adapters (open any file; localhost-only)",
   "status": "in-progress",
   "createdAt": "2026-07-12T00:00:00Z",
-  "updatedAt": "2026-07-12T08:30:00Z",
+  "updatedAt": "2026-07-12T10:10:00Z",
   "decisions": [
     {
       "id": "FB-D1",
@@ -37,7 +37,7 @@
     },
     {
       "id": "FB-D8",
-      "text": "Classic application menu bar (owner req. 9, 2026-07-12). A classic-style top menu bar is added; a File menu with an Open item invokes the universal dialog. This is new UI chrome (Quasar) hosting the entry point for the dialog; further menu items can follow later. The menu bar is where the migration off the q-tree eventually lands (open/recent/etc.)."
+      "text": "Classic menu bar INSIDE the Audio page (owner req. 9 + placement choice 2026-07-12: 'the audio tab must be self-contained, so the menu lives in it'). A classic-style menu bar sits at the top of the Audio page content card (above the Player/Editor tabs), NOT in the global MainLayout header. A File menu with an Open item invokes the universal dialog. Further menu items (recent/etc.) can follow; this is where the migration off the q-tree eventually lands."
     },
     {
       "id": "FB-D9",
@@ -346,37 +346,45 @@
       "id": "FB3.1",
       "phase": 3,
       "title": "Classic menu bar (File -> Open) invokes the dialog; keep the old q-tree during migration (owner req. 9-10, FB-D7, FB-D8)",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [
         "FB2.5",
         "FB2.7"
       ],
       "artifacts": [
-        "classic-style top menu bar (Quasar); File menu with an Open item that opens the universal dialog",
-        "old presetsRoot q-tree stays in place; presetsRoot is the dialog's default/initial location"
+        "AudioPage.vue: classic menu bar at the top of the content card (above the Player/Editor tabs) with a File -> Open item; FileOpenDialog mounted with v-model + :initial-path=presetsRoot",
+        "old presetsRoot q-tree sidebar left untouched (migration coexistence, FB-D7)",
+        "i18n audio.menuFile / audio.menuOpen (en + ru)"
       ],
-      "verify": "File -> Open reaches any supported file on the machine; the old q-tree still works; vue-tsc+build",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "File -> Open opens the dialog seeded at presetsRoot; the old q-tree still works; vue-tsc+build",
+      "startedAt": "2026-07-12T09:00:00Z",
+      "finishedAt": "2026-07-12T09:40:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "vue-tsc 0 errors; quasar build clean (FileOpenDialog now imported by AudioPage, so vite fully compiles the SFC)"
+      ]
     },
     {
       "id": "FB3.2",
       "phase": 3,
-      "title": "Wire selected file into the editor open path (kind-detect reuse, loopback-gated auth)",
-      "status": "todo",
+      "title": "Wire selected file into the editor open path (out-of-tree selection)",
+      "status": "done",
       "dependsOn": [
         "FB3.1"
       ],
       "artifacts": [
-        "reuse getAudioFileKind; path auth via loopback gate + canonicalize instead of single-root (FB-D2, FB-D7)"
+        "audio store: selectExternalPath(path, fileKind) builds an out-of-tree PresetTreeNode (selectPath resolves only against presetsTree) and runs the same recent-files / local-stop / gnaural-schedule-load logic",
+        "AudioPage handleExternalFileOpen: reuses the unsaved-changes guard (editorPanel.prepareForPathChange) + playback stop + wav/flac view switch from the tree-selection flow, then calls selectExternalPath + ensureLocalAudioReady",
+        "dialog only emits open for supported kinds (audioFileKindForExt); server-side auth stays loopback + canonicalize (FB-D2)"
       ],
-      "verify": "a chosen .gnaural/.wav/.flac opens end-to-end; non-audio handled gracefully; vue-tsc+bun+build",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "a chosen .gnaural/.wav/.flac opens end-to-end; unsaved-changes guard fires; vue-tsc+build",
+      "startedAt": "2026-07-12T09:40:00Z",
+      "finishedAt": "2026-07-12T10:10:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "vue-tsc 0 errors; quasar build clean",
+        "behavioral (open a real file, all views, filter, localhost gate) is the owner checkpoint FB3.3"
+      ]
     },
     {
       "id": "FB3.3",
