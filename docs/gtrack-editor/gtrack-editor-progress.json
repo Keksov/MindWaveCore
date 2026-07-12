@@ -1603,16 +1603,18 @@
       "id": "GT10.23",
       "phase": 10,
       "title": "Table: values misaligned with column headers (req 72)",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": [],
       "artifacts": [
         "explicit column widths + matching text-align for header/cells (checkbox, voice, numeric columns)"
       ],
       "verify": "headers sit exactly over their values",
       "startedAt": null,
-      "finishedAt": null,
+      "finishedAt": "2026-07-12",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Right-aligned numeric columns + input-class text-right + narrow chk column, in the regrouped table."
+      ]
     },
     {
       "id": "GT10.24",
@@ -1889,6 +1891,48 @@
       "evidence": [
         "gtrackAxis(editable): base log-headroom x1.15/x1.5(flat), beat +25%; GTrackView passes pointMode. Flat wakeup voice now draggable. 158 tests, build OK.",
         "Extended: reactive dragging flag makes axis editable during a normal-mode Ctrl-drag too (headroom while pulling a vertex)."
+      ]
+    },
+    {
+      "id": "GT10.40",
+      "phase": "10d",
+      "title": "Табличный режим: колонка Время (read-only)",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [],
+      "verify": "owner",
+      "startedAt": "2026-07-12",
+      "finishedAt": "2026-07-12",
+      "evidence": [
+        "TracksPanel.vue/use-gtrack-lanes.ts. 159 tests, tsc 0, build OK."
+      ]
+    },
+    {
+      "id": "GT10.41",
+      "phase": "10d",
+      "title": "Табличный режим: группировка по голосу под сворачивающимся заголовком; колонка голоса убрана",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [],
+      "verify": "owner",
+      "startedAt": "2026-07-12",
+      "finishedAt": "2026-07-12",
+      "evidence": [
+        "TracksPanel.vue/use-gtrack-lanes.ts. 159 tests, tsc 0, build OK."
+      ]
+    },
+    {
+      "id": "GT10.42",
+      "phase": "10d",
+      "title": "Табличный редактор открывается со 2-й выбранной точки (seed single selection)",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [],
+      "verify": "owner",
+      "startedAt": "2026-07-12",
+      "finishedAt": "2026-07-12",
+      "evidence": [
+        "TracksPanel.vue/use-gtrack-lanes.ts. 159 tests, tsc 0, build OK."
       ]
     }
   ],
