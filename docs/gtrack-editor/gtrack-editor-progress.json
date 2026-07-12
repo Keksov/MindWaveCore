@@ -1552,16 +1552,18 @@
       "id": "GT10.20",
       "phase": 10,
       "title": "Wave colour dot opens a colour picker (req 69)",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": [],
       "artifacts": [
         "q-badge -> clickable with q-popup-proxy + q-color bound to setLaneSoloWaveStyle"
       ],
       "verify": "clicking the dot opens a picker; chosen colour applies + persists",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-12",
+      "finishedAt": "2026-07-12",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Colour circle (.tracks-panel__color-swatch) opens q-color in q-popup-proxy; wired to setLaneSoloWaveStyle. 159 tests, build OK."
+      ]
     },
     {
       "id": "GT10.21",
