@@ -5,7 +5,7 @@
   "title": "file-browser: universal file-open dialog with source-provider adapters (open any file; localhost-only)",
   "status": "in-progress",
   "createdAt": "2026-07-12T00:00:00Z",
-  "updatedAt": "2026-07-12T14:50:00Z",
+  "updatedAt": "2026-07-12T16:00:00Z",
   "decisions": [
     {
       "id": "FB-D1",
@@ -62,6 +62,10 @@
     {
       "id": "FB-D14",
       "text": "Per-type icons + colors (owner req. 16, 2026-07-12). Each supported kind gets a distinct icon AND color: gnaural / wav / flac each their own; directories and unsupported files their own too. Centralize a kind->{icon,color} map and apply it across all three views (table / list / icons). Replaces the current single 'music_note' for every supported file."
+    },
+    {
+      "id": "FB-D17",
+      "text": "File-list panel refinements (owner 2026-07-12). (1) Table columns are resizable and persisted: name/ext/size are drag-resizable via a grip on each header's right edge (store.tableColWidths, localStorage), while the date column flex-fills the remainder. (2) The nav toolbar (Back/Refresh/Breadcrumbs) plus the view/type/hidden controls move INTO the file-list panel (FsEntryList) as a STICKY TOP toolbar that never scrolls with the list — one toolbar instead of two. (3) The filter is hidden by default and summoned only by a funnel icon on that toolbar or Ctrl-S (store.filterVisible / toggleFilter; Ctrl-S handled at the dialog root sets it visible and FsEntryList focuses it). (4) When shown, the filter sits at the BOTTOM of the list panel, sticky, not scrolling (flex layout: toolbar / scroll / filter). FsEntryList is now a self-contained store-driven panel; the dialog's own toolbar + filter rows were removed."
     },
     {
       "id": "FB-D16",
@@ -525,6 +529,28 @@
       "verify": "dock left/right shows the accordion; dock menu switches modes from one icon; both layouts share one list; vue-tsc+build",
       "startedAt": "2026-07-12T14:00:00Z",
       "finishedAt": "2026-07-12T14:50:00Z",
+      "blockedReason": null,
+      "evidence": [
+        "vue-tsc 0 errors; quasar build clean"
+      ]
+    },
+    {
+      "id": "FB4.6",
+      "phase": 4,
+      "title": "File-list panel: resizable+persisted columns, in-panel sticky toolbar, summoned bottom filter (owner 2026-07-12, FB-D17)",
+      "status": "done",
+      "dependsOn": [
+        "FB4.5"
+      ],
+      "artifacts": [
+        "store: tableColWidths {name,ext,size} persisted + setTableColWidth (clamped 40-800); filterVisible + setFilterVisible/toggleFilter (clears text on hide)",
+        "FsEntryList: sticky top toolbar (Back/Refresh/Breadcrumbs + view/type/hidden + funnel) that does not scroll; scrollable content; sticky bottom filter shown only when filterVisible (Esc hides+clears; autofocus on show)",
+        "table columns resizable via header right-edge grips (name/ext/size persist; date flex-fills); resizer stops sort-click propagation",
+        "FileOpenDialog: removed its own toolbar + filter rows; Ctrl-S at the dialog root sets filterVisible; dead CSS removed"
+      ],
+      "verify": "resize columns -> widths persist across reload; toolbar stays pinned while the list scrolls; funnel/Ctrl-S toggles the bottom filter; filter does not scroll; vue-tsc+build",
+      "startedAt": "2026-07-12T15:00:00Z",
+      "finishedAt": "2026-07-12T16:00:00Z",
       "blockedReason": null,
       "evidence": [
         "vue-tsc 0 errors; quasar build clean"
