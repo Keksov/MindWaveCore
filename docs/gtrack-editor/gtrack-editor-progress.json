@@ -1707,6 +1707,62 @@
       "finishedAt": null,
       "blockedReason": null,
       "evidence": []
+    },
+    {
+      "id": "GT10.30",
+      "phase": "10c",
+      "title": "Инспектор точки под шапкой/уезжает — pin to frame",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [],
+      "verify": "owner",
+      "startedAt": "2026-07-12",
+      "finishedAt": "2026-07-12",
+      "evidence": [
+        "TracksPanel.vue/GTrackView.vue: fixed-frame inspector; onAddPoint opens dialog; onClick no seek; deleteCurrentPointFromDialog refocuses. tsc 0, 157 tests, build OK."
+      ]
+    },
+    {
+      "id": "GT10.31",
+      "phase": "10c",
+      "title": "После add-point открывать диалог",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [],
+      "verify": "owner",
+      "startedAt": "2026-07-12",
+      "finishedAt": "2026-07-12",
+      "evidence": [
+        "TracksPanel.vue/GTrackView.vue: fixed-frame inspector; onAddPoint opens dialog; onClick no seek; deleteCurrentPointFromDialog refocuses. tsc 0, 157 tests, build OK."
+      ]
+    },
+    {
+      "id": "GT10.32",
+      "phase": "10c",
+      "title": "Клик по пустому месту не seek",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [],
+      "verify": "owner",
+      "startedAt": "2026-07-12",
+      "finishedAt": "2026-07-12",
+      "evidence": [
+        "TracksPanel.vue/GTrackView.vue: fixed-frame inspector; onAddPoint opens dialog; onClick no seek; deleteCurrentPointFromDialog refocuses. tsc 0, 157 tests, build OK."
+      ]
+    },
+    {
+      "id": "GT10.33",
+      "phase": "10c",
+      "title": "После удаления — перевод фокуса",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [],
+      "verify": "owner",
+      "startedAt": "2026-07-12",
+      "finishedAt": "2026-07-12",
+      "evidence": [
+        "TracksPanel.vue/GTrackView.vue: fixed-frame inspector; onAddPoint opens dialog; onClick no seek; deleteCurrentPointFromDialog refocuses. tsc 0, 157 tests, build OK."
+      ]
     }
   ],
   "log": [
