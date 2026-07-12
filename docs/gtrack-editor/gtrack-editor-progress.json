@@ -1881,7 +1881,8 @@
       "startedAt": "2026-07-12",
       "finishedAt": "2026-07-12",
       "evidence": [
-        "gtrackAxis(editable): base log-headroom x1.15/x1.5(flat), beat +25%; GTrackView passes pointMode. Flat wakeup voice now draggable. 158 tests, build OK."
+        "gtrackAxis(editable): base log-headroom x1.15/x1.5(flat), beat +25%; GTrackView passes pointMode. Flat wakeup voice now draggable. 158 tests, build OK.",
+        "Extended: reactive dragging flag makes axis editable during a normal-mode Ctrl-drag too (headroom while pulling a vertex)."
       ]
     }
   ],
