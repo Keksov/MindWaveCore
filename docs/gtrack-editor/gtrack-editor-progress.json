@@ -1793,7 +1793,8 @@
         "Re-fix: clamp vertex dot centre to canvas (margin alone insufficient — out-of-range/edge values). Verified on wakeup.gnaural.",
         "Re-fix2: canvas height:100% — clientHeight/cssH now == visible lane (was intrinsic-overflow, clipping the vertex margins at both edges).",
         "Fix3: canvas position:absolute;inset:0 (root relative) so clientHeight==lane height; flex+height:100% still allowed intrinsic overflow.",
-        "Fix4: reverted absolute (it collapsed width/killed curve); real fix flex:1 1 0 — canvas fills lane by growth, no intrinsic overflow, stays in flow."
+        "Fix4: reverted absolute (it collapsed width/killed curve); real fix flex:1 1 0 — canvas fills lane by growth, no intrinsic overflow, stays in flow.",
+        "Fix5: inset value->Y mapping by vertex radius (6px) in draw + all hit-tests; extreme nodes render inside the plot band aligned with axis labels. Works regardless of canvas height."
       ]
     },
     {
