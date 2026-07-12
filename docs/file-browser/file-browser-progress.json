@@ -5,7 +5,7 @@
   "title": "file-browser: universal file-open dialog with source-provider adapters (open any file; localhost-only)",
   "status": "in-progress",
   "createdAt": "2026-07-12T00:00:00Z",
-  "updatedAt": "2026-07-12T11:00:00Z",
+  "updatedAt": "2026-07-12T13:50:00Z",
   "decisions": [
     {
       "id": "FB-D1",
@@ -444,38 +444,44 @@
       "id": "FB4.2",
       "phase": 4,
       "title": "Draggable dialog by its title bar (owner req. 13, FB-D13)",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [
         "FB4.1"
       ],
       "artifacts": [
-        "floating window can be moved by dragging its title bar; reuse the gtrack draggable-inspector pattern if present",
-        "position clamped to the viewport"
+        "FileOpenDialog is now a panel (not q-dialog): a title bar with a drag handle moves the floating window via pointer events (beginDrag helper), clamped to the viewport",
+        "floatRect {x,y,w,h} persisted in the store; a bottom-right grip resizes the floating window"
       ],
-      "verify": "drag the floating dialog around by the title; it stays on screen; vue-tsc+build",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "drag the floating window by the title; resize from the corner; geometry persists; vue-tsc+build",
+      "startedAt": "2026-07-12T12:10:00Z",
+      "finishedAt": "2026-07-12T13:00:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "vue-tsc 0 errors; quasar build clean"
+      ]
     },
     {
       "id": "FB4.3",
       "phase": 4,
       "title": "Dockable panel: left/right/top/bottom with editor layout reflow (owner req. 14, FB-D13)",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [
         "FB4.2"
       ],
       "artifacts": [
-        "two modes: floating (draggable) and docked to an edge of the editor form; docking reorganizes the layout so the panel takes its edge and the editor shrinks",
-        "dock side + size + mode persisted (localStorage); a resizer on the docked edge",
+        "title-bar dock buttons switch mode: floating / left / right / top / bottom (store.windowMode, persisted)",
+        "AudioPage hosts the panel in an audio-page__dock-wrap flex container (row for left/right, column for top/bottom); the panel is a flex sibling (order 0/2) of audio-page__inner so the editor reflows around it",
+        "floating -> <Teleport to=body :disabled> so the fixed overlay is not clipped by ancestors; docked -> in-place flex child sized by store.dockSize with an edge resizer (persisted, clamped 240-900)",
         "supersedes the plain-modal q-dialog from FB2.1"
       ],
-      "verify": "dock left/right/top/bottom -> the editor reflows; undock -> floating restored; state persists across reload; vue-tsc+build",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "dock left/right/top/bottom -> the editor reflows; resize the dock edge; float -> draggable overlay; state persists across reload; vue-tsc+build",
+      "startedAt": "2026-07-12T13:00:00Z",
+      "finishedAt": "2026-07-12T13:50:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "vue-tsc 0 errors; quasar build clean",
+        "behavioral (drag, dock each side, reflow, resize, persistence) is an owner visual check"
+      ]
     },
     {
       "id": "FB4.4",
