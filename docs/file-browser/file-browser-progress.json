@@ -5,11 +5,11 @@
   "title": "file-browser: universal file-open dialog with source-provider adapters (open any file; localhost-only)",
   "status": "in-progress",
   "createdAt": "2026-07-12T00:00:00Z",
-  "updatedAt": "2026-07-12T10:10:00Z",
+  "updatedAt": "2026-07-12T11:00:00Z",
   "decisions": [
     {
       "id": "FB-D1",
-      "text": "Adapter architecture in TS/Bun (owner agreed 2026-07-12). A FileSourceProvider interface { id, listRoots(), listDir(path, opts), stat(path), openStream(path) } with a server-side provider registry; the UI selects a provider by id. LocalFsProvider (Bun node:fs/promises) ships first. Future providers (RemoteAgentProvider on another Bun host, DbProvider, WebProvider) plug in as additional ids behind the same UI. FPC-CLI REJECTED: Bun is already the filesystem data-plane (readdir/stat/realpath over WS) and a self-contained per-host agent; the repo's FPC cli/ is a DSP engine and AppMain.exe is a webview host, not a file service. FPC would add a second language + new IPC for a capability Bun already has."
+      "text": "Adapter architecture in TS/Bun (owner agreed 2026-07-12). A FileSourceProvider interface { id, listRoots(), listDir(path, opts), stat(path), openStream(path) } with a server-side provider registry; the UI selects a provider by id. LocalFsProvider (Bun node:fs/promises) ships first. Remote/DB/web providers are dropped from scope (FB-D15) but the architecture still allows them later as additional ids behind the same UI without a rewrite. FPC-CLI REJECTED: Bun is already the filesystem data-plane (readdir/stat/realpath over WS) and a self-contained per-host agent; the repo's FPC cli/ is a DSP engine and AppMain.exe is a webview host, not a file service. FPC would add a second language + new IPC for a capability Bun already has."
     },
     {
       "id": "FB-D2",
@@ -37,7 +37,7 @@
     },
     {
       "id": "FB-D8",
-      "text": "Classic menu bar INSIDE the Audio page (owner req. 9 + placement choice 2026-07-12: 'the audio tab must be self-contained, so the menu lives in it'). A classic-style menu bar sits at the top of the Audio page content card (above the Player/Editor tabs), NOT in the global MainLayout header. A File menu with an Open item invokes the universal dialog. Further menu items (recent/etc.) can follow; this is where the migration off the q-tree eventually lands."
+      "text": "Classic menu bar INSIDE the Audio page (owner req. 9 + placement choice 2026-07-12: 'the audio tab must be self-contained, so the menu lives in it'). A classic-style menu bar sits at the top of the Audio page content card (above the Player/Editor tabs), NOT in the global MainLayout header. A File menu with an Open item invokes the universal dialog. Further menu items (recent/etc.) can follow; this is where the migration off the q-tree eventually lands. NOTE: scope revised by FB-D12 — the bar moves up to span the whole Audio form (over the side panels too) in Phase 4 (FB4.1)."
     },
     {
       "id": "FB-D9",
@@ -50,6 +50,22 @@
     {
       "id": "FB-D10",
       "text": "Favorites / bookmarks (owner req. 11, 2026-07-12). The dialog can add sources to a favorites list — folders, files, etc. A favorite is stored as {providerId, path, label, kind:'dir'|'file'} so it generalizes to non-local providers later. User adds/removes a favorite from the dialog (e.g. star/context action); the list persists (localStorage) and shows in a sidebar next to the roots; clicking a favorite jumps to that folder (or selects that file). presetsRoot seeds the list as a default favorite. Distinct from OS-provided roots (FB-D3): roots come from listRoots(), favorites are user-curated."
+    },
+    {
+      "id": "FB-D12",
+      "text": "Menu bar spans the whole Audio form (owner req. 12, 2026-07-12, REVISES FB-D8). The classic menu bar moves from inside the content card up to the top of the Audio page, above BOTH the side panels (Presets today, others later) AND the content/tabs — i.e. it owns the full form width, like a real app menu bar. File -> Open stays. FB3.1 placed it inside the content card; FB4.1 lifts it to the page level."
+    },
+    {
+      "id": "FB-D13",
+      "text": "Draggable + dockable window (owner req. 13-14, 2026-07-12; SUPERSEDES the plain-modal FB2.1). The file dialog stops being a pure modal. Two modes: (1) FLOATING — a window movable by dragging its title bar (position clamped to the viewport; reuse the gtrack draggable-inspector pattern if present); (2) DOCKED — snapped to an edge of the editor form (left/right/top/bottom), where the editor LAYOUT REFLOWS to give the panel its edge and the editor shrinks, with a resizer on the shared edge. Dock side + size + mode persist (localStorage). This is a real window/panel component, not q-dialog's built-in modal."
+    },
+    {
+      "id": "FB-D14",
+      "text": "Per-type icons + colors (owner req. 16, 2026-07-12). Each supported kind gets a distinct icon AND color: gnaural / wav / flac each their own; directories and unsupported files their own too. Centralize a kind->{icon,color} map and apply it across all three views (table / list / icons). Replaces the current single 'music_note' for every supported file."
+    },
+    {
+      "id": "FB-D15",
+      "text": "Remote / DB / web providers dropped from the plan (owner req. 15, 2026-07-12). Explicitly removed from scope — no steps planned. The FileSourceProvider adapter architecture (FB-D1) is LEFT INTACT precisely because it still allows adding them later (a new provider id behind the same UI) without a rewrite; this decision just records that we are not building them now."
     }
   ],
   "steps": [
@@ -404,31 +420,73 @@
     {
       "id": "FB4.1",
       "phase": 4,
-      "title": "FUTURE: RemoteAgentProvider (Bun agent on another host) behind the same UI",
+      "title": "Menu bar spans the whole Audio form incl. side panels (owner req. 12, FB-D12)",
       "status": "todo",
       "dependsOn": [
-        "FB3.3"
+        "FB3.1"
       ],
-      "artifacts": [],
-      "verify": "deferred — not in the current scope",
+      "artifacts": [
+        "move the menu bar from inside the content card up to the top of the Audio page, above BOTH the sidebar (Presets, and any future panel) and the content area",
+        "keep File -> Open; the bar owns the whole form width"
+      ],
+      "verify": "menu bar sits above the sidebar + content and stays put across tab/panel changes; vue-tsc+build",
       "startedAt": null,
       "finishedAt": null,
-      "blockedReason": "future scope",
+      "blockedReason": null,
       "evidence": []
     },
     {
       "id": "FB4.2",
       "phase": 4,
-      "title": "FUTURE: DB/Web providers, image thumbnails",
+      "title": "Draggable dialog by its title bar (owner req. 13, FB-D13)",
       "status": "todo",
       "dependsOn": [
-        "FB3.3"
+        "FB4.1"
       ],
-      "artifacts": [],
-      "verify": "deferred — not in the current scope",
+      "artifacts": [
+        "floating window can be moved by dragging its title bar; reuse the gtrack draggable-inspector pattern if present",
+        "position clamped to the viewport"
+      ],
+      "verify": "drag the floating dialog around by the title; it stays on screen; vue-tsc+build",
       "startedAt": null,
       "finishedAt": null,
-      "blockedReason": "future scope",
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "FB4.3",
+      "phase": 4,
+      "title": "Dockable panel: left/right/top/bottom with editor layout reflow (owner req. 14, FB-D13)",
+      "status": "todo",
+      "dependsOn": [
+        "FB4.2"
+      ],
+      "artifacts": [
+        "two modes: floating (draggable) and docked to an edge of the editor form; docking reorganizes the layout so the panel takes its edge and the editor shrinks",
+        "dock side + size + mode persisted (localStorage); a resizer on the docked edge",
+        "supersedes the plain-modal q-dialog from FB2.1"
+      ],
+      "verify": "dock left/right/top/bottom -> the editor reflows; undock -> floating restored; state persists across reload; vue-tsc+build",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "FB4.4",
+      "phase": 4,
+      "title": "Distinct icons + colors per supported file type (owner req. 16, FB-D14)",
+      "status": "todo",
+      "dependsOn": [
+        "FB3.2"
+      ],
+      "artifacts": [
+        "per-kind icon + color map (gnaural / wav / flac distinct; dirs + unsupported have their own); applied across table / list / icon views"
+      ],
+      "verify": "each supported type shows its own icon + color in all three views; vue-tsc+build",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
       "evidence": []
     }
   ]
