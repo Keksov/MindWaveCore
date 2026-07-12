@@ -1692,16 +1692,18 @@
       "id": "GT10.28",
       "phase": 10,
       "title": "'+ lane' moves focus to the new lane (req 77)",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": [],
       "artifacts": [
         "after addLane: scrollIntoView the new lane + a brief visual highlight"
       ],
       "verify": "adding a lane scrolls to it",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-12",
+      "finishedAt": "2026-07-12",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "addLane returns id; onAddLane scrollIntoView(center) + 1.8s highlight glow. 159 tests, build OK."
+      ]
     },
     {
       "id": "GT10.29",
