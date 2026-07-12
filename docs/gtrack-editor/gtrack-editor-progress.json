@@ -1584,16 +1584,18 @@
       "id": "GT10.22",
       "phase": 10,
       "title": "Ctrl+Arrow step=1 does not work (req 71)",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": [],
       "artifacts": [
         "investigate why the keydown handler doesn't take effect on q-input type=number (native spinner/Quasar ordering); fix so Ctrl+Up/Down steps by exactly 1"
       ],
       "verify": "Ctrl+Up in any inspector/table numeric field increments by 1",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-12",
+      "finishedAt": "2026-07-12",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "ctrlStep hardened: stopPropagation+preventDefault (no native double-step), pure ctrlStepValue with per-field clamp. +1 test. Verify pending."
+      ]
     },
     {
       "id": "GT10.23",
