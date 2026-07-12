@@ -1663,16 +1663,18 @@
       "id": "GT10.27",
       "phase": 10,
       "title": "Problems panel opens out of view when tracks are scrolled (req 76)",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": [],
       "artifacts": [
         "slide-over panels positioned relative to the VIEWPORT (fixed) or auto-scrolled into view on open"
       ],
       "verify": "panel fully visible regardless of the editor scroll position",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-12",
+      "finishedAt": "2026-07-12",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "TracksPanel.vue: flyouts pinned to editor frame via position:fixed + --tp-* rect vars (measureOverlayFrame on open+scroll+resize). tsc 0, build OK."
+      ]
     },
     {
       "id": "GT10.28",
