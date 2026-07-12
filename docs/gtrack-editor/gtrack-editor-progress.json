@@ -1629,16 +1629,18 @@
       "id": "GT10.25",
       "phase": 10,
       "title": "Normal mode: single click on a node opens the dialog; remove dbl-click entirely (req 74)",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": [],
       "artifacts": [
         "normal-mode plain click on a vertex -> dialog (empty space still seeks); delete the dblclick handler + binding altogether"
       ],
       "verify": "single click on a node opens the dialog in both modes; dblclick does nothing",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-12",
+      "finishedAt": "2026-07-12",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "GTrackView.vue: onClick opens edit-point on a vertex hit in normal mode (empty=seek); onDblClick + @dblclick removed. 157 ui tests pass, build OK."
+      ]
     },
     {
       "id": "GT10.26",
