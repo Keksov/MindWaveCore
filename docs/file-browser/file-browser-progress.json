@@ -5,7 +5,7 @@
   "title": "file-browser: universal file-open dialog with source-provider adapters (open any file; localhost-only)",
   "status": "in-progress",
   "createdAt": "2026-07-12T00:00:00Z",
-  "updatedAt": "2026-07-12T13:50:00Z",
+  "updatedAt": "2026-07-12T14:50:00Z",
   "decisions": [
     {
       "id": "FB-D1",
@@ -62,6 +62,10 @@
     {
       "id": "FB-D14",
       "text": "Per-type icons + colors (owner req. 16, 2026-07-12). Each supported kind gets a distinct icon AND color: gnaural / wav / flac each their own; directories and unsupported files their own too. Centralize a kind->{icon,color} map and apply it across all three views (table / list / icons). Replaces the current single 'music_note' for every supported file."
+    },
+    {
+      "id": "FB-D16",
+      "text": "FB4.3 refinements (owner 2026-07-12, after verifying FB4.1/FB4.2 = 'Fixed'). (1) Collapse the five dock-mode buttons into ONE title-bar icon (showing the current mode) + a dropdown menu, to cut visual noise. (2) In the left/right (narrow-column) dock, replace the two-pane sidebar+list with a single-column ACCORDION of three sections in this order: 'File list' (sectionFiles, default-open, flex-grows) / 'Locations' (roots) / 'Favorites'. Every other mode (floating/top/bottom) keeps the two-pane sidebar+list. The file listing was extracted into FsEntryList.vue so it is reused verbatim in both layouts (no duplication)."
     },
     {
       "id": "FB-D15",
@@ -437,7 +441,8 @@
       "finishedAt": "2026-07-12T12:00:00Z",
       "blockedReason": null,
       "evidence": [
-        "vue-tsc 0 errors; quasar build clean"
+        "vue-tsc 0 errors; quasar build clean",
+        "owner verified 2026-07-12 ('Fixed')"
       ]
     },
     {
@@ -457,7 +462,8 @@
       "finishedAt": "2026-07-12T13:00:00Z",
       "blockedReason": null,
       "evidence": [
-        "vue-tsc 0 errors; quasar build clean"
+        "vue-tsc 0 errors; quasar build clean",
+        "owner verified 2026-07-12 ('Fixed')"
       ]
     },
     {
@@ -498,6 +504,27 @@
       "verify": "each supported type shows its own icon + color in all three views; vue-tsc+build",
       "startedAt": "2026-07-12T11:30:00Z",
       "finishedAt": "2026-07-12T11:40:00Z",
+      "blockedReason": null,
+      "evidence": [
+        "vue-tsc 0 errors; quasar build clean"
+      ]
+    },
+    {
+      "id": "FB4.5",
+      "phase": 4,
+      "title": "FB4.3 refinements: single dock-menu icon + accordion in left/right dock (owner 2026-07-12, FB-D16)",
+      "status": "done",
+      "dependsOn": [
+        "FB4.3"
+      ],
+      "artifacts": [
+        "title bar: five dock buttons -> one icon (current mode) + q-menu dropdown listing floating/left/right/top/bottom",
+        "left/right dock: two-pane replaced by a single-column q-expansion-item accordion — File list (default-open, grows) / Locations / Favorites; other modes keep the two-pane",
+        "extracted FsEntryList.vue (table/list/icon + virtual scroll + keyboard) reused in both layouts; FileOpenDialog emits-driven (select/activate/sort/nav-up)"
+      ],
+      "verify": "dock left/right shows the accordion; dock menu switches modes from one icon; both layouts share one list; vue-tsc+build",
+      "startedAt": "2026-07-12T14:00:00Z",
+      "finishedAt": "2026-07-12T14:50:00Z",
       "blockedReason": null,
       "evidence": [
         "vue-tsc 0 errors; quasar build clean"
