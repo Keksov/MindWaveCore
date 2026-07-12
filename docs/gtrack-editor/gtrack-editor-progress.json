@@ -1594,7 +1594,8 @@
       "finishedAt": "2026-07-12",
       "blockedReason": null,
       "evidence": [
-        "ctrlStep hardened: stopPropagation+preventDefault (no native double-step), pure ctrlStepValue with per-field clamp. +1 test. Verify pending."
+        "ctrlStep hardened: stopPropagation+preventDefault (no native double-step), pure ctrlStepValue with per-field clamp. +1 test. Verify pending.",
+        "Re-fix: native capture-phase @keydown on form/table wrappers (QInput @keydown lost Ctrl / ran after native step); data-step-field + data-step-row identify the target."
       ]
     },
     {
