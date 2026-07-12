@@ -1614,16 +1614,18 @@
       "id": "GT10.24",
       "phase": 10,
       "title": "Ctrl+Z after Ctrl-click node add must undo (req 73)",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": [],
       "artifacts": [
         "verify insertPointAt lands on the undo stack and the hotkey reaches undoEdit after a normal-mode Ctrl-click add; fix whatever breaks the chain"
       ],
       "verify": "Ctrl-click adds a node; Ctrl+Z removes it",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-12",
+      "finishedAt": "2026-07-12",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Undo/redo hotkeys moved before shouldIgnoreHotkey (like Ctrl+S) so Ctrl+Z undoes a just-added node regardless of focus. Model insert+undo already tested. tsc/build OK."
+      ]
     },
     {
       "id": "GT10.25",
