@@ -4,48 +4,19 @@
 // keeps a registry keyed by provider id; the loopback-only browse server (FB-D2) dispatches through
 // it. All OS-specific detail (drive letters vs '/', FB-D3) lives inside a provider, never in the UI.
 
-export type FsEntryKind = "dir" | "file"
+// The data shapes (FsEntry/FsRoot/ListDirResult/StatResult) live in the shared protocol so the UI
+// consumes the exact same types via @protocol (FB-D1). Re-exported here so server modules can keep
+// importing them from "./fs-browser-provider".
+export type {
+  FsEntry,
+  FsEntryKind,
+  FsRoot,
+  FsRootKind,
+  ListDirResult,
+  StatResult,
+} from "./protocol"
 
-// One directory entry. `size` is 0 for directories; `ext` is the lowercased extension without the
-// dot ("" when none). `path` is absolute and provider-navigable.
-export interface FsEntry {
-  readonly name: string
-  readonly path: string
-  readonly isDir: boolean
-  readonly isSymlink: boolean
-  readonly size: number
-  readonly mtimeMs: number
-  readonly ext: string
-  readonly kind: FsEntryKind
-}
-
-// A top-level navigation anchor from listRoots(): a Windows drive, POSIX '/', the home dir, a known
-// folder, or a mounted volume. The UI renders whatever the provider returns — it never enumerates
-// drives itself.
-export type FsRootKind = "drive" | "root" | "home" | "known" | "volume"
-
-export interface FsRoot {
-  readonly id: string
-  readonly label: string
-  readonly path: string
-  readonly kind: FsRootKind
-}
-
-export interface ListDirResult {
-  readonly path: string
-  // Parent directory to navigate up to, or null at a root boundary (a drive root / '/').
-  readonly parent: string | null
-  readonly entries: readonly FsEntry[]
-}
-
-export interface StatResult {
-  readonly path: string
-  readonly exists: boolean
-  readonly isDir: boolean
-  readonly isFile: boolean
-  readonly size: number
-  readonly mtimeMs: number
-}
+import type { FsRoot, ListDirResult, StatResult } from "./protocol"
 
 export interface ListDirOptions {
   // Include dotfiles / hidden entries. Default false.

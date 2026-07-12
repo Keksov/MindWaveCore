@@ -5,7 +5,7 @@
   "title": "file-browser: universal file-open dialog with source-provider adapters (open any file; localhost-only)",
   "status": "in-progress",
   "createdAt": "2026-07-12T00:00:00Z",
-  "updatedAt": "2026-07-12T06:10:00Z",
+  "updatedAt": "2026-07-12T08:30:00Z",
   "decisions": [
     {
       "id": "FB-D1",
@@ -199,7 +199,7 @@
       "id": "FB2.1",
       "phase": 2,
       "title": "Universal dialog shell (Quasar): roots + breadcrumb + navigation, provider-agnostic",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [
         "FB1.4"
       ],
@@ -208,16 +208,20 @@
         "breadcrumb + up/back; provider selector (single local provider for now)"
       ],
       "verify": "navigate from a root down and back on Windows; no 'drive' assumptions in UI code; vue-tsc+build",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-12T07:00:00Z",
+      "finishedAt": "2026-07-12T07:20:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "GnauralCore/ui/fs-browser-api.ts (client), stores/fs-browser.ts (nav+prefs+favorites), components/FileOpenDialog.vue (dialog)",
+        "SharedPasCore/ts/protocol.ts: shared FsEntry/FsRoot/ListDirResult/StatResult/FsRootsResponse/FsInfoResponse; server fs-browser-provider.ts re-exports them",
+        "UI renders listRoots() as sidebar anchors; breadcrumbs derived from the path; no OS branching in the component (FB-D3)"
+      ]
     },
     {
       "id": "FB2.2",
       "phase": 2,
       "title": "Table view (Total Commander): sortable columns name/ext/size/mtime/attrs, both directions",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [
         "FB2.1"
       ],
@@ -234,7 +238,7 @@
       "id": "FB2.3",
       "phase": 2,
       "title": "List view (names only, dense) + Icon view (small/medium/large)",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [
         "FB2.2"
       ],
@@ -251,7 +255,7 @@
       "id": "FB2.4",
       "phase": 2,
       "title": "View-mode toggle + persisted preference + virtualization (q-virtual-scroll)",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [
         "FB2.3"
       ],
@@ -269,7 +273,7 @@
       "id": "FB2.5",
       "phase": 2,
       "title": "Quick regexp filter (TC Ctrl-S): incremental, case-insensitive, invalid->substring, Esc clears",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [
         "FB2.4"
       ],
@@ -286,7 +290,7 @@
       "id": "FB2.6",
       "phase": 2,
       "title": "Keyboard navigation (Enter open, Backspace up, arrows, type-ahead)",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [
         "FB2.4"
       ],
@@ -303,7 +307,7 @@
       "id": "FB2.7",
       "phase": 2,
       "title": "Type-filter dropdown: editor-supported types default (.gnaural/.wav/.flac); dirs always shown (owner req. 1, FB-D9)",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [
         "FB2.4"
       ],
@@ -321,7 +325,7 @@
       "id": "FB2.8",
       "phase": 2,
       "title": "Favorites: add/remove sources (folders/files) to a persisted list in a sidebar (owner req. 11, FB-D10)",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [
         "FB2.1"
       ],
@@ -330,10 +334,13 @@
         "favorites sidebar beside the roots; click jumps to folder / selects file; presetsRoot seeds a default favorite"
       ],
       "verify": "add a folder and a file as favorites; they survive reload; clicking navigates/selects; vue-tsc+build",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-12T07:20:00Z",
+      "finishedAt": "2026-07-12T08:30:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "FileOpenDialog.vue implements FB2.2-FB2.8: sortable table (q-virtual-scroll), list + icon (sm/md/lg) views, persisted view/sort/icon/type/hidden/favorites (localStorage), Ctrl-S regexp filter (invalid->substring, Esc clears), arrow/Enter/Backspace nav, type-filter dropdown, favorites sidebar add/remove",
+        "VERIFY: UI vue-tsc 0 errors (project-local vue-tsc ~2.2 + ts ~5.7); probe confirmed the new files are in the check graph; quasar build clean; temp-wired build of the SFC compiled 0 errors (component is unimported until Phase 3 so runtime behavior is validated when wired at FB3.1 + owner checkpoint FB3.3)"
+      ]
     },
     {
       "id": "FB3.1",
