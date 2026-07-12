@@ -1789,7 +1789,8 @@
       "startedAt": "2026-07-12",
       "finishedAt": "2026-07-12",
       "evidence": [
-        "gtrack-model.ts/TracksPanel.vue/GTrackView.vue. 157 ui tests, tsc 0, build OK."
+        "gtrack-model.ts/TracksPanel.vue/GTrackView.vue. 157 ui tests, tsc 0, build OK.",
+        "Re-fix: clamp vertex dot centre to canvas (margin alone insufficient — out-of-range/edge values). Verified on wakeup.gnaural."
       ]
     },
     {
@@ -1817,7 +1818,8 @@
       "startedAt": "2026-07-12",
       "finishedAt": "2026-07-12",
       "evidence": [
-        "gtrack-model.ts/TracksPanel.vue/GTrackView.vue. 157 ui tests, tsc 0, build OK."
+        "gtrack-model.ts/TracksPanel.vue/GTrackView.vue. 157 ui tests, tsc 0, build OK.",
+        "Re-fix: focus the CHANGED point via before/after time diff (handles deleted-right + click-elsewhere-then-undo)."
       ]
     },
     {
@@ -1846,6 +1848,20 @@
       "finishedAt": "2026-07-12",
       "evidence": [
         "gtrack-model.ts/TracksPanel.vue/GTrackView.vue. 157 ui tests, tsc 0, build OK."
+      ]
+    },
+    {
+      "id": "GT10.32-rev",
+      "phase": "10d",
+      "title": "Клик по пустому месту ДОЛЖЕН двигать плейхед (reversal)",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [],
+      "verify": "owner",
+      "startedAt": "2026-07-12",
+      "finishedAt": "2026-07-12",
+      "evidence": [
+        "GTrackView.onClick: restored seek on empty-space click (node click still opens dialog)."
       ]
     }
   ],
