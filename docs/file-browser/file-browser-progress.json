@@ -5,7 +5,7 @@
   "title": "file-browser: universal file-open dialog with source-provider adapters (open any file; localhost-only)",
   "status": "in-progress",
   "createdAt": "2026-07-12T00:00:00Z",
-  "updatedAt": "2026-07-12T16:00:00Z",
+  "updatedAt": "2026-07-13T09:00:00Z",
   "decisions": [
     {
       "id": "FB-D1",
@@ -546,7 +546,8 @@
         "store: tableColWidths {name,ext,size} persisted + setTableColWidth (clamped 40-800); filterVisible + setFilterVisible/toggleFilter (clears text on hide)",
         "FsEntryList: sticky top toolbar (Back/Refresh/Breadcrumbs + view/type/hidden + funnel) that does not scroll; scrollable content; sticky bottom filter shown only when filterVisible (Esc hides+clears; autofocus on show)",
         "table columns resizable via header right-edge grips (name/ext/size persist; date flex-fills); resizer stops sort-click propagation",
-        "FileOpenDialog: removed its own toolbar + filter rows; Ctrl-S at the dialog root sets filterVisible; dead CSS removed"
+        "FileOpenDialog: removed its own toolbar + filter rows; Ctrl-S at the dialog root sets filterVisible; dead CSS removed",
+        "narrow vertical (left/right dock) layout: breadcrumbs move to their own row directly under the button toolbar so the buttons row is not crowded (isColumn); other layouts keep breadcrumbs inline"
       ],
       "verify": "resize columns -> widths persist across reload; toolbar stays pinned while the list scrolls; funnel/Ctrl-S toggles the bottom filter; filter does not scroll; vue-tsc+build",
       "startedAt": "2026-07-12T15:00:00Z",
