@@ -5,7 +5,7 @@
  "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
  "status": "in-progress",
  "createdAt": "2026-07-08T02:30:00Z",
- "updatedAt": "2026-07-12T01:00:00Z",
+ "updatedAt": "2026-07-12T02:00:00Z",
  "decisions": [
   {
    "id": "GT-D1",
@@ -1565,13 +1565,13 @@
    "id": "GT10.21",
    "phase": 10,
    "title": "subterranean.gnaural: fix does not persist (req 70)",
-   "status": "not-started",
+   "status": "in-progress",
    "dependsOn": [],
    "artifacts": [
-    "trace fix -> dirty -> Ctrl+S patch -> dump -> re-lint on the real file (loops=100); related to GT10.26 (the fix may have silently failed)"
+    "explained by GT10.26 root cause: the fix DID apply; the second click (on the swapped loop-click row) reverted the model to pristine -> Save correctly said 'no changes'. With the corrected lint semantics the trap is gone. Awaiting owner end-to-end check (fix -> save -> reopen)."
    ],
    "verify": "fix Nizy Face -> diagnostic disappears -> save -> reopen -> still fixed",
-   "startedAt": null,
+   "startedAt": "2026-07-12T02:00:00Z",
    "finishedAt": null,
    "blockedReason": null,
    "evidence": []
@@ -1643,15 +1643,16 @@
    "status": "in-progress",
    "dependsOn": [],
    "artifacts": [
-    "ROOT CAUSE: fixEndClick rejected any tail <=0.11s (Nizy Face tail = exactly 0.1s). Rewritten: long tail -> insert+zero (as before); short tail >=20ms -> zero the last point (tail IS the fade); degenerate (<20ms incl. zero-run clusters) -> walk back to the last real segment, borrow the fade (insert inside it) and zero all points after. Awaiting owner verification."
+    "ROOT CAUSE (probed on the real file): end-click on a LOOPED schedule + its fade-fix created loop-click for the same voice (row 'stayed', second click reverted everything -> 'no changes'). Lint now: loopCount!=1 -> seam rule only (no end-click); subterranean's 5 diags were false positives (constant voices) -> now 0.",
+    "fixes extracted to pure bun-tested applyEndClickFix/applyLoopClickFix (GTrackFixTarget structural param); end fix handles short/degenerate tails (walk-back borrow); +5 tests incl. real-shape fixtures. Awaiting owner verification."
    ],
    "verify": "Fix buttons succeed on the audited presets; failures only where genuinely impossible",
    "startedAt": "2026-07-12T01:00:00Z",
    "finishedAt": null,
    "blockedReason": null,
    "evidence": [
-    "GnauralCore commit 'GT10.26: end-click auto-fix handles short + degenerate tails'",
-    "vue-tsc 0; build ok; 188/0"
+    "GnauralCore commit 'GT10.26+GT10.21: looped schedules use the seam rule only'",
+    "ground-truth probe on d:/.../subterranean.gnaural via --dump-schedule; 193/0; vue-tsc 0; build ok"
    ]
   },
   {
@@ -2126,6 +2127,12 @@
    "step": null,
    "event": "plan",
    "note": "Owner 2nd verification round: 11 problems (reqs 68-78) -> Phase 10b steps GT10.19-GT10.29, one bug = one item per owner instruction. Hypotheses recorded: 68 = sticky-header z-index over overlays; 70 likely consequence of 75 (auto-fix silently failing; candidates: degenerate tails need the walk-back-donor borrow); 74 also removes dblclick entirely. Plan shown to owner before fixing."
+  },
+  {
+   "ts": "2026-07-12T02:00:00Z",
+   "step": "GT10.26",
+   "event": "fix",
+   "note": "Owner retest showed 'green but nothing changes'. Ground-truth probe on the real subterranean dump revealed the true mechanics: the end-click fix WORKED but immediately spawned loop-click for the same voice (loops=100), keeping the row count at 5; clicking Fix again reverted to pristine (hence 'no changes to save'). Fixed the SEMANTICS: looped schedules (loopCount!=1) emit only the seam rule (loop-click), never end-click - mirroring the bulk-fix script's deliberate loop-file skip. subterranean now lints CLEAN (its 5 diags were false positives: constant voices, seam already aligned). Fix logic extracted to pure bun-tested functions (+5 tests, incl. the 0.1s Nizy tail and degenerate-cluster borrow)."
   }
  ]
 }
