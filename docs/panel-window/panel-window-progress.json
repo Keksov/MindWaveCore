@@ -3,9 +3,9 @@
   "plan": "panel-window",
   "planDoc": "docs/panel-window/panel-window-plan.md",
   "title": "panel-window: universal panel control (floating / docked / detached OS window); first consumer = file-open panel",
-  "status": "in-progress",
+  "status": "done",
   "createdAt": "2026-07-13T00:00:00Z",
-  "updatedAt": "2026-07-13T21:05:00Z",
+  "updatedAt": "2026-07-13T21:30:00Z",
   "decisions": [
     {
       "id": "PW-D1",
@@ -223,7 +223,7 @@
       "id": "PW4.2",
       "phase": 4,
       "title": "AppCore verification: default WebView2 popup behavior under AppMain.exe (incl. owner req. 6: NO address bar in the child window)",
-      "status": "in-progress",
+      "status": "done",
       "dependsOn": [
         "PW4.1"
       ],
@@ -234,13 +234,14 @@
       ],
       "verify": "owner checkpoint on the real AppCore build",
       "startedAt": "2026-07-13T15:30:00Z",
-      "finishedAt": null,
+      "finishedAt": "2026-07-13T21:30:00Z",
       "blockedReason": null,
       "evidence": [
         "owner verified in AppMain.exe (2026-07-13): the WebView2 DEFAULT popup DOES show an address bar — the PW-D1 assumption (bare title-bar-only window) is wrong on this point; owner req. 6 (no address bar) is NOT met by the default popup -> plan B triggered",
         "finding: AppCore vendored webview/ is gitignored (pristine upstream, 0 tracked files) — a NewWindowRequested patch must be pinned either by committing the patched backend or by keeping a .patch applied in build_webview.bat (owner call)",
         "assessment: a win32_edge.hh add_NewWindowRequested handler (own chromeless Win32 window + CreateCoreWebView2Controller from the SAME environment, put_NewWindow + Handled, WindowFeatures size/pos, WM_SIZE bounds, WindowCloseRequested -> DestroyWindow, DocumentTitleChanged -> caption) keeps the same profile/browser process, so BroadcastChannel/localStorage/close-with-host all keep working and NO UI code changes; a second AppCore process would BREAK BroadcastChannel+localStorage across windows (separate WebView2 environments) and require a WS-based bridge redesign",
-        "plan B IMPLEMENTED (2026-07-13): AppCore vendored-webview patch (win32_edge.hh NewWindowRequested -> bare native popup from the same environment; no address bar, document.title caption, opener icons, window.close support, default-popup fallback on early failure). AppCore repo: docs/popup-window/ (plan+ledger POP1.1 done, commits ccd1d0c + 9d00d7c; patch pinned on nested-repo branch appcore-patches b937913 + exported .patch). libwebview.dll + AppMain.exe rebuilt; MindWaveCore/server copy was blocked by the running exe — ExeAutoUpdate swaps binaries on next launch. Owner verification pending (restart MindWave, detach)."
+        "plan B IMPLEMENTED (2026-07-13): AppCore vendored-webview patch (win32_edge.hh NewWindowRequested -> bare native popup from the same environment; no address bar, document.title caption, opener icons, window.close support, default-popup fallback on early failure). AppCore repo: docs/popup-window/ (plan+ledger POP1.1 done, commits ccd1d0c + 9d00d7c; patch pinned on nested-repo branch appcore-patches b937913 + exported .patch). libwebview.dll + AppMain.exe rebuilt; MindWaveCore/server copy was blocked by the running exe — ExeAutoUpdate swaps binaries on next launch. Owner verification pending (restart MindWave, detach).",
+        "owner verified in the exe (2026-07-13): detached window has NO address bar, correct title/icon; file picks reach the editor; close-main closes child; move/resize + reopen restores place & size drift-free — \"Всё работает как и ожидалось\""
       ]
     }
   ]
