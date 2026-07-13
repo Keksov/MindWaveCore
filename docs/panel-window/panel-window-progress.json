@@ -5,7 +5,7 @@
   "title": "panel-window: universal panel control (floating / docked / detached OS window); first consumer = file-open panel",
   "status": "in-progress",
   "createdAt": "2026-07-13T00:00:00Z",
-  "updatedAt": "2026-07-13T13:40:00Z",
+  "updatedAt": "2026-07-13T14:10:00Z",
   "decisions": [
     {
       "id": "PW-D1",
@@ -132,19 +132,24 @@
       "id": "PW2.2",
       "phase": 2,
       "title": "BroadcastChannel bridge: usePanelBridgeParent/Child (hello/heartbeat/parent-gone/child-ready/child-closed/panel-event/close-panel) + child self-close",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [
         "PW2.1"
       ],
       "artifacts": [
-        "MindWaveCore/ui/src/components/panel/use-panel-bridge.ts (PW-D5): channel lifecycle, heartbeat timer, grace-period self-close (PW-D2)",
-        "PanelHostPage wires usePanelBridgeChild: child-ready on mount, panel-event forwarding, self-close on parent loss"
+        "@panel/use-panel-bridge.ts (PW-D5): createPanelBridgeParent (hello on create + on child-ready, 2s heartbeat, parent-gone on pagehide, requestClose) and createPanelBridgeChild (child-ready, child-closed on pagehide, sendEvent panel-event, obeys close-panel)",
+        "child self-close watchdog (PW-D2): parent-gone + 5s grace (F5 of the main window re-adopts in time via the new parent-hello) OR 7s heartbeat silence after adoption; a never-adopted (hand-opened debug) tab is left alone",
+        "PanelHostPage: creates the child bridge per window, forwards the declared panel events over it, disposes on unmount; close still = window.close() (pagehide notifies the parent)"
       ],
       "verify": "typecheck+build; manual: open child tab, kill parent tab -> child closes itself after timeout; F5 parent -> child stays",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-13T13:50:00Z",
+      "finishedAt": "2026-07-13T14:10:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "vue-tsc --noEmit: 0 errors; quasar build: success (2026-07-13)",
+        "commit: MindWaveCore a1e5ee0",
+        "NOTE: parent side is implemented but wired only in PW3.1 (detach opens the child) — the kill-parent/F5-parent scenarios are manually verified there"
+      ]
     },
     {
       "id": "PW3.1",
