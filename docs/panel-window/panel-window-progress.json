@@ -1,0 +1,193 @@
+{
+  "schemaVersion": 1,
+  "plan": "panel-window",
+  "planDoc": "docs/panel-window/panel-window-plan.md",
+  "title": "panel-window: universal panel control (floating / docked / detached OS window); first consumer = file-open panel",
+  "status": "in-progress",
+  "createdAt": "2026-07-13T00:00:00Z",
+  "updatedAt": "2026-07-13T00:00:00Z",
+  "decisions": [
+    {
+      "id": "PW-D1",
+      "text": "Detached mechanism = window.open() of the same SPA, NO second AppCore process (answers owner's question, 2026-07-13). AppCore (c:\\projects\\Games\\AppCore, FreePascal) hosts one WebView2 window via the webview/webview library (libwebview.dll); that library does NOT subscribe to NewWindowRequested (verified by grep over webview/core) -> WebView2's DEFAULT behavior applies: the runtime itself creates a child top-level popup window for window.open() — same browser process, same profile, same origin (shared localStorage + BroadcastChannel), and it dies with the host process. The child window opens '#/panel/<panelId>' (hash router) resolved against the current origin, so the SAME built SPA serves both windows in dev (quasar dev, plain browser popup) and prod (AppCore). Zero Pascal changes. A second AppCore process was REJECTED as heavy: AppMain.exe is built around launching bun + one window; it would need a window-only config mode plus a parent-PID watchdog, all in another repo. Fallback: if window.open returns null (popup blocker), stay floating and show a Quasar Notify."
+    },
+    {
+      "id": "PW-D2",
+      "text": "Child-depends-on-parent (owner req. 2) is enforced on three levels: (a) the parent's pagehide handler broadcasts 'parent-gone'; the child then waits a grace period (~5s) for a fresh 'parent-hello' — this SURVIVES F5/hot-reload of the main window (the reloaded parent re-adopts the child) — and self-closes otherwise (window.close() is permitted for script-opened windows); (b) the parent heartbeats over the BroadcastChannel every ~2s; child silence-timeout (~6-8s) self-close covers a crashed/killed main tab where pagehide never fired; (c) the platform itself: when the AppCore host process exits, the WebView2 browser process and all its popup windows die. No server involvement."
+    },
+    {
+      "id": "PW-D3",
+      "text": "Universal control (owner req. 3) = PanelWindow.vue + usePanelWindowState(panelId, opts). Generic state {open, mode: 'floating'|'left'|'right'|'top'|'bottom'|'detached', floatRect, dockSize, prevMode} persisted per panel under 'mindwave-panel-<id>-*' localStorage keys; opts lets a panel pass LEGACY key names so the file-open panel keeps its existing 'mindwave-fs-browser-*' keys (windowMode/dockSize/float/open) — backward compatible, no migration. The window chrome currently inlined in FileOpenDialog.vue moves into PanelWindow: titlebar (icon + title + drag), the collapsed dock-menu button (gains an 'Отдельное окно' item), close button, float corner-resizer and dock edge-resizer, plus the floating/docked mode classes and geometry style. Panel content and footer are slots. The fs-browser store keeps only browser domain state; its window-model fields move behind the shared composable."
+    },
+    {
+      "id": "PW-D4",
+      "text": "Child-window content = a top-level route '/panel/:panelId' OUTSIDE MainLayout (no nav/header) rendering PanelHostPage.vue, which resolves the panel component from a PANEL REGISTRY contributed via module manifests — gnauralModule gains panels: [{id:'file-open', component, titleKey, icon}], collected in MindWaveCore/ui/src/modules/index.ts exactly like routes/settingsTabs. To make the same content usable in both windows, FileOpenDialog.vue splits into: PanelWindow (chrome, main window only) + FileOpenPanel.vue (body + footer: the browser UI, emits open/close) hosted by both FileOpenDialog-in-main and PanelHostPage-in-child. PanelHostPage sets document.title from titleKey so the OS window gets a proper caption."
+    },
+    {
+      "id": "PW-D5",
+      "text": "Parent<->child bridge = BroadcastChannel('mw-panel:<id>') — same-origin is guaranteed by PW-D1. Message protocol: parent -> 'parent-hello' (on open + on reload), 'heartbeat', 'parent-gone' (pagehide), 'close-panel'; child -> 'child-ready', 'child-closed' (its own pagehide), 'panel-event' {name, payload}. Composables usePanelBridgeParent(id)/usePanelBridgeChild(id) own channel lifecycle + timers. Panel events carry domain actions: the file-open panel emits 'open' {path, kind}; the parent side re-emits it to AudioPage.handleExternalFileOpen — identical code path to an in-window open. Pinia stores are per-window instances (the child is a separate app instance); shared localStorage keeps preferences/favorites consistent, and navigation state is intentionally independent per window."
+    },
+    {
+      "id": "PW-D6",
+      "text": "Detached lifecycle: choosing 'Отдельное окно' stores prevMode=current mode, sets mode='detached', calls window.open('#/panel/<id>', 'mw-panel-<id>', features from the persisted detached rect) and stops rendering the panel content in the main window (PanelWindow renders nothing while detached; the dock reflow releases the edge). User closes the CHILD window -> 'child-closed' -> panel returns to prevMode in the main window (panel stays open). Closing from the MAIN side (close-panel or open=false) closes the child too. On app start with open && mode='detached', auto-reopen is attempted ONCE (WebView2 default popup may be allowed without a user gesture; a browser blocker may return null) -> on failure fall back to floating + Notify (per PW-D1)."
+    },
+    {
+      "id": "PW-D7",
+      "text": "Detached window geometry persists like float/dock geometry: the child tracks resize events and polls screenX/screenY on its heartbeat tick (there is no move event) and writes 'mindwave-panel-<id>-detached-rect' to the shared localStorage; the next detach/auto-reopen passes width/height/left/top window features from it. Best-effort: if the platform ignores position features, the window still opens at its default spot."
+    },
+    {
+      "id": "PW-D8",
+      "text": "Code placement: the universal control lives in the core repo — MindWaveCore/ui/src/components/panel/ (PanelWindow.vue, use-panel-window.ts, use-panel-bridge.ts, panel-registry.ts types) — exposed to module repos via a new '@panel' alias in quasar.config.ts + tsconfig.json paths, mirroring the existing '@protocol' alias. Module repos (GnauralCore) import via the alias, never via ../../ relative paths into another repo. Commits: MindWaveCore (core control, router, modules/index, aliases, docs) and GnauralCore (FileOpenDialog split, module manifest, store slimming) are staged separately per repo per the multi-repo rule."
+    }
+  ],
+  "steps": [
+    {
+      "id": "PW0.1",
+      "phase": 0,
+      "title": "Plan + ledger authored (this file + panel-window-plan.md)",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [
+        "docs/panel-window/panel-window-plan.md (owner reqs verbatim, mechanism recommendation PW-D1, architecture, phases)",
+        "docs/panel-window/panel-window-progress.json (decisions PW-D1..PW-D8, steps)"
+      ],
+      "verify": "owner reads the plan; esp. PW-D1 (window.open instead of a second AppCore) matches the owner's intent",
+      "startedAt": "2026-07-13T00:00:00Z",
+      "finishedAt": "2026-07-13T00:00:00Z",
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PW1.1",
+      "phase": 1,
+      "title": "Extract usePanelWindowState + PanelWindow.vue (floating/docked chrome) into MindWaveCore/ui/src/components/panel/ + '@panel' alias",
+      "status": "todo",
+      "dependsOn": ["PW0.1"],
+      "artifacts": [
+        "MindWaveCore/ui/src/components/panel/use-panel-window.ts: generic {open, mode, floatRect, dockSize, prevMode} with per-field localStorage persist; opts.storageKeys for legacy key names",
+        "MindWaveCore/ui/src/components/panel/PanelWindow.vue: titlebar (icon/title/drag), dock-menu, close, float+dock resizers, mode classes/styles; #default + #footer slots",
+        "quasar.config.ts + tsconfig.json: '@panel' alias (PW-D8)"
+      ],
+      "verify": "bun run typecheck + build in MindWaveCore/ui",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PW1.2",
+      "phase": 1,
+      "title": "FileOpenDialog migrates onto PanelWindow: split into chrome (PanelWindow) + FileOpenPanel.vue content; behavior 1:1",
+      "status": "todo",
+      "dependsOn": ["PW1.1"],
+      "artifacts": [
+        "GnauralCore/ui/components/FileOpenPanel.vue: body (sidebar/accordion + FsEntryList) + footer, emits open/close; no window chrome",
+        "GnauralCore/ui/components/FileOpenDialog.vue: thin wrapper = PanelWindow + FileOpenPanel",
+        "fs-browser store: windowMode/dockSize/floatRect/open served through usePanelWindowState with legacy 'mindwave-fs-browser-*' keys (PW-D3); AudioPage bindings unchanged"
+      ],
+      "verify": "typecheck+build; manual: float drag/resize, all 4 dock sides + resize, open-state persists across reload — identical to before",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PW2.1",
+      "phase": 2,
+      "title": "Child-window infrastructure: /panel/:panelId top-level route + PanelHostPage + panels[] in module manifests",
+      "status": "todo",
+      "dependsOn": ["PW1.2"],
+      "artifacts": [
+        "MindWaveCore/ui/src/router/routes.ts: top-level '/panel/:panelId' outside MainLayout",
+        "MindWaveCore/ui/src/pages/PanelHostPage.vue: resolves panel component from the registry, full-window render, sets document.title",
+        "modules/index.ts + gnauralModule.panels: [{id:'file-open', component: FileOpenPanel, titleKey, icon}] (PW-D4)"
+      ],
+      "verify": "typecheck+build; manual: open '#/panel/file-open' directly in a browser tab -> the file panel renders full-window and browses",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PW2.2",
+      "phase": 2,
+      "title": "BroadcastChannel bridge: usePanelBridgeParent/Child (hello/heartbeat/parent-gone/child-ready/child-closed/panel-event/close-panel) + child self-close",
+      "status": "todo",
+      "dependsOn": ["PW2.1"],
+      "artifacts": [
+        "MindWaveCore/ui/src/components/panel/use-panel-bridge.ts (PW-D5): channel lifecycle, heartbeat timer, grace-period self-close (PW-D2)",
+        "PanelHostPage wires usePanelBridgeChild: child-ready on mount, panel-event forwarding, self-close on parent loss"
+      ],
+      "verify": "typecheck+build; manual: open child tab, kill parent tab -> child closes itself after timeout; F5 parent -> child stays",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PW3.1",
+      "phase": 3,
+      "title": "Detached mode in PanelWindow: dock-menu item, window.open, prevMode return, main-side close, popup-blocked fallback",
+      "status": "todo",
+      "dependsOn": ["PW2.2"],
+      "artifacts": [
+        "PanelWindow: 'detached' in the mode menu (icon open_in_new); while detached the main window renders no panel content (PW-D6)",
+        "parent bridge: opens/adopts/closes the child; child-closed -> mode=prevMode; open=false -> close-panel",
+        "window.open null -> mode stays/reverts to floating + Notify (PW-D1)"
+      ],
+      "verify": "typecheck+build; manual: detach -> OS window opens, main reflows; close child -> panel returns docked/floating; close main -> child dies",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PW3.2",
+      "phase": 3,
+      "title": "File-open events over the bridge: selecting a file in the detached window opens it in the main editor; auto-reopen on start",
+      "status": "todo",
+      "dependsOn": ["PW3.1"],
+      "artifacts": [
+        "FileOpenPanel 'open' event -> panel-event over the channel -> parent re-emits to AudioPage.handleExternalFileOpen (PW-D5)",
+        "startup: open && mode='detached' -> one auto-reopen attempt, fallback floating (PW-D6)"
+      ],
+      "verify": "typecheck+build; manual: pick a file in the detached window -> it loads in the main editor; restart with detached open -> window reappears (or falls back with Notify)",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PW4.1",
+      "phase": 4,
+      "title": "Detached geometry persist + polish (document.title, focus existing child instead of duplicates)",
+      "status": "todo",
+      "dependsOn": ["PW3.2"],
+      "artifacts": [
+        "child tracks resize + polls screenX/Y on heartbeat, writes 'mindwave-panel-<id>-detached-rect' (PW-D7); open features use it",
+        "re-detach while a child exists focuses it (named window target) instead of spawning another"
+      ],
+      "verify": "typecheck+build; manual: move/resize child, close+reopen -> same place/size",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PW4.2",
+      "phase": 4,
+      "title": "AppCore verification: default WebView2 popup behavior under AppMain.exe",
+      "status": "todo",
+      "dependsOn": ["PW4.1"],
+      "artifacts": [
+        "manual run of AppMain.exe: detach opens a popup, closes with the main window, geometry restores, file-open round-trips",
+        "if the default popup turns out crippled: record findings + decide (owner) whether a minimal AppCore NewWindowRequested handler or plan B (second process) is needed"
+      ],
+      "verify": "owner checkpoint on the real AppCore build",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    }
+  ]
+}
