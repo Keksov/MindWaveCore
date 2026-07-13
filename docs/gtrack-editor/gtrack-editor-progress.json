@@ -1995,6 +1995,24 @@
       "evidence": [
         "AudioPage: Edit q-btn-dropdown, Ctrl+P handler (preventDefault Print), two-pane dialog (subsystem list Cache | GnauralSettingsTab). 159 tests, build OK."
       ]
+    },
+    {
+      "id": "GT7.5",
+      "phase": "7",
+      "title": "Удалить вкладку Спектрограмма (перед GT7.3/7.4)",
+      "status": "not-started",
+      "dependsOn": [],
+      "artifacts": [],
+      "verify": "owner"
+    },
+    {
+      "id": "BK8",
+      "phase": "backlog",
+      "title": "Удалить вкладку Воспроизведение",
+      "status": "not-started",
+      "dependsOn": [],
+      "artifacts": [],
+      "verify": "owner"
     }
   ],
   "log": [
