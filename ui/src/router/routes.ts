@@ -3,6 +3,7 @@ import {
   loadLogArchivePage,
   loadLogPage,
   loadMainLayout,
+  loadPanelHostPage,
   loadSettingsPage,
 } from '../../router/page-loaders'
 import { moduleRoutes } from '../modules'
@@ -14,6 +15,11 @@ const moduleRouteRecords: RouteRecordRaw[] = moduleRoutes.map((route) => ({
 }))
 
 const routes: RouteRecordRaw[] = [
+  // PW2.1 (PW-D4): a detached child window's content — OUTSIDE MainLayout (no nav/header).
+  {
+    path: '/panel/:panelId',
+    component: loadPanelHostPage,
+  },
   {
     path: '/',
     component: loadMainLayout,

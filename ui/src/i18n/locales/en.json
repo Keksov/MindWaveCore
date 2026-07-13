@@ -127,7 +127,8 @@
     "dockTop": "Dock top",
     "dockBottom": "Dock bottom",
     "detach": "Separate window",
-    "close": "Close"
+    "close": "Close",
+    "unknown": "Unknown panel"
   }
 }
 
