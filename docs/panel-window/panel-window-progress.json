@@ -5,7 +5,7 @@
   "title": "panel-window: universal panel control (floating / docked / detached OS window); first consumer = file-open panel",
   "status": "in-progress",
   "createdAt": "2026-07-13T00:00:00Z",
-  "updatedAt": "2026-07-13T16:50:00Z",
+  "updatedAt": "2026-07-13T21:05:00Z",
   "decisions": [
     {
       "id": "PW-D1",
@@ -199,19 +199,25 @@
       "id": "PW4.1",
       "phase": 4,
       "title": "Detached geometry persist + polish (document.title, focus existing child instead of duplicates)",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [
         "PW3.2"
       ],
       "artifacts": [
-        "child tracks resize + polls screenX/Y on heartbeat, writes 'mindwave-panel-<id>-detached-rect' (PW-D7); open features use it",
-        "re-detach while a child exists focuses it (named window target) instead of spawning another"
+        "use-panel-window.ts: PanelScreenRect {x,y,w,h} + detachedRectKey(panelId) (always the default mindwave-panel-<id>-detached-rect scheme so parent+child agree) + read/writePanelScreenRect (shared localStorage)",
+        "PanelHostPage (child): captureGeometry writes screenX/screenY + innerWidth/innerHeight on resize and a 1s poll (no move event exists), guarded by a change signature; listeners/timer torn down on unmount",
+        "PanelWindow (parent): openChildWindow reads the saved rect -> left/top/width/height window features; first detach falls back to floatRect size; named target mw-panel-<id> reuses a still-open child (dedup) instead of spawning a duplicate",
+        "AppCore popup patch updated in tandem: features left/top anchor the CONTENT top-left (frame offset by non-client margins) so the persisted rect round-trips drift-free (AppCore d4df8d6)"
       ],
       "verify": "typecheck+build; manual: move/resize child, close+reopen -> same place/size",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-13T20:40:00Z",
+      "finishedAt": "2026-07-13T21:05:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "vue-tsc --noEmit: 0 errors; quasar build: success (2026-07-13)",
+        "commit MindWaveCore b8a49d8; AppCore popup patch rebuild d4df8d6",
+        "owner manual verification pending: move/resize the detached window, close + reopen -> same place/size"
+      ]
     },
     {
       "id": "PW4.2",
