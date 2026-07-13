@@ -2000,10 +2000,14 @@
       "id": "GT7.5",
       "phase": "7",
       "title": "Удалить вкладку Спектрограмма (перед GT7.3/7.4)",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": [],
       "artifacts": [],
-      "verify": "owner"
+      "verify": "owner",
+      "finishedAt": "2026-07-13",
+      "evidence": [
+        "AudioPage: removed spectrogram sub-tab + panel; retype activePlayerViewTab main|tracks; redirects -> tracks. tsc 0, 159 tests, build OK."
+      ]
     },
     {
       "id": "BK8",
