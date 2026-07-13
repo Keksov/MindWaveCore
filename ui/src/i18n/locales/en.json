@@ -118,6 +118,16 @@
     "label": "Language",
     "en": "English",
     "ru": "Русский"
+  },
+  "panel": {
+    "dockMenu": "Window position",
+    "dockFloat": "Floating window",
+    "dockLeft": "Dock left",
+    "dockRight": "Dock right",
+    "dockTop": "Dock top",
+    "dockBottom": "Dock bottom",
+    "detach": "Separate window",
+    "close": "Close"
   }
 }
 

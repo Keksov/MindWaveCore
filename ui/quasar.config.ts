@@ -25,7 +25,9 @@ export default function (/* ctx */) {
       vueRouterMode: 'hash',
       distDir: resolve(currentDir, '..', 'server', 'public'),
       alias: {
-        '@protocol': resolve(currentDir, '..', '..', 'SharedPasCore', 'ts', 'protocol.ts')
+        '@protocol': resolve(currentDir, '..', '..', 'SharedPasCore', 'ts', 'protocol.ts'),
+        // PW1.1 (PW-D8): the universal panel control, importable from module repos.
+        '@panel': resolve(currentDir, 'src', 'components', 'panel')
       },
       extendViteConf(viteConf) {
         viteConf.resolve ??= {}

@@ -5,7 +5,7 @@
   "title": "panel-window: universal panel control (floating / docked / detached OS window); first consumer = file-open panel",
   "status": "in-progress",
   "createdAt": "2026-07-13T00:00:00Z",
-  "updatedAt": "2026-07-13T00:00:00Z",
+  "updatedAt": "2026-07-13T12:00:00Z",
   "decisions": [
     {
       "id": "PW-D1",
@@ -61,18 +61,21 @@
       "id": "PW1.1",
       "phase": 1,
       "title": "Extract usePanelWindowState + PanelWindow.vue (floating/docked chrome) into MindWaveCore/ui/src/components/panel/ + '@panel' alias",
-      "status": "todo",
+      "status": "done",
       "dependsOn": ["PW0.1"],
       "artifacts": [
-        "MindWaveCore/ui/src/components/panel/use-panel-window.ts: generic {open, mode, floatRect, dockSize, prevMode} with per-field localStorage persist; opts.storageKeys for legacy key names",
-        "MindWaveCore/ui/src/components/panel/PanelWindow.vue: titlebar (icon/title/drag), dock-menu, close, float+dock resizers, mode classes/styles; #default + #footer slots",
-        "quasar.config.ts + tsconfig.json: '@panel' alias (PW-D8)"
+        "MindWaveCore/ui/src/components/panel/use-panel-window.ts: reactive per-panel {open, mode, prevMode, dockSize, floatRect} + setMode/setDockSize/setFloatRect, per-field localStorage persist, per-panelId instance cache; opts.storageKeys for legacy key names; PanelMode includes 'detached' (chrome renders nothing in that mode until PW3.1)",
+        "MindWaveCore/ui/src/components/panel/PanelWindow.vue: titlebar (icon/title/drag), collapsed dock-menu (floating/left/right/top/bottom; detached item comes in PW3.1), close, float corner-resizer + dock edge-resizer, mode classes/geometry styles; #default + #footer slots; keydown reaches the root via attrs fallthrough (tabindex=0)",
+        "quasar.config.ts (build.alias) + tsconfig.json (paths '@panel/*'): '@panel' alias (PW-D8)",
+        "core i18n en/ru: 'panel' section (dockMenu/dockFloat/dockLeft/dockRight/dockTop/dockBottom/detach/close) — wording mirrors the fsBrowser dock labels"
       ],
       "verify": "bun run typecheck + build in MindWaveCore/ui",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-13T00:00:00Z",
+      "finishedAt": "2026-07-13T00:00:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "vue-tsc --noEmit: 0 errors; quasar build: success (2026-07-13)"
+      ]
     },
     {
       "id": "PW1.2",
