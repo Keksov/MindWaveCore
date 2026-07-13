@@ -5,7 +5,7 @@
   "title": "panel-window: universal panel control (floating / docked / detached OS window); first consumer = file-open panel",
   "status": "in-progress",
   "createdAt": "2026-07-13T00:00:00Z",
-  "updatedAt": "2026-07-13T12:00:00Z",
+  "updatedAt": "2026-07-13T13:00:00Z",
   "decisions": [
     {
       "id": "PW-D1",
@@ -62,7 +62,9 @@
       "phase": 1,
       "title": "Extract usePanelWindowState + PanelWindow.vue (floating/docked chrome) into MindWaveCore/ui/src/components/panel/ + '@panel' alias",
       "status": "done",
-      "dependsOn": ["PW0.1"],
+      "dependsOn": [
+        "PW0.1"
+      ],
       "artifacts": [
         "MindWaveCore/ui/src/components/panel/use-panel-window.ts: reactive per-panel {open, mode, prevMode, dockSize, floatRect} + setMode/setDockSize/setFloatRect, per-field localStorage persist, per-panelId instance cache; opts.storageKeys for legacy key names; PanelMode includes 'detached' (chrome renders nothing in that mode until PW3.1)",
         "MindWaveCore/ui/src/components/panel/PanelWindow.vue: titlebar (icon/title/drag), collapsed dock-menu (floating/left/right/top/bottom; detached item comes in PW3.1), close, float corner-resizer + dock edge-resizer, mode classes/geometry styles; #default + #footer slots; keydown reaches the root via attrs fallthrough (tabindex=0)",
@@ -81,25 +83,35 @@
       "id": "PW1.2",
       "phase": 1,
       "title": "FileOpenDialog migrates onto PanelWindow: split into chrome (PanelWindow) + FileOpenPanel.vue content; behavior 1:1",
-      "status": "todo",
-      "dependsOn": ["PW1.1"],
+      "status": "done",
+      "dependsOn": [
+        "PW1.1"
+      ],
       "artifacts": [
-        "GnauralCore/ui/components/FileOpenPanel.vue: body (sidebar/accordion + FsEntryList) + footer, emits open/close; no window chrome",
-        "GnauralCore/ui/components/FileOpenDialog.vue: thin wrapper = PanelWindow + FileOpenPanel",
-        "fs-browser store: windowMode/dockSize/floatRect/open served through usePanelWindowState with legacy 'mindwave-fs-browser-*' keys (PW-D3); AudioPage bindings unchanged"
+        "GnauralCore/ui/components/FileOpenPanel.vue: panel content (unavailable banner, accordion/two-pane body, footer, selection/activate/favorites/init-on-mount, navigateToDir tree-reveal); emits open/close, no window logic",
+        "GnauralCore/ui/components/FileOpenDialog.vue: thin wrapper = PanelWindow (@panel) + FileOpenPanel; floating-only auto-close after open; Ctrl-S filter shortcut via attrs-fallthrough keydown",
+        "GnauralCore/ui/stores/file-open-panel.ts: useFileOpenPanelState(FILE_OPEN_PANEL_ID) with legacy mindwave-fs-browser-* keys (PW-D3, no migration)",
+        "fs-browser store slimmed: FsWindowMode/FsFloatRect/windowMode/dockSize/floatRect/open + setters + their persist keys removed; FsEntryList isColumn reads panel.mode",
+        "AudioPage: filePanel = useFileOpenPanelState(); v-if/teleport/dockWrapClass/openFileDialog on the panel state; v-model dropped",
+        "GnauralCore i18n en/ru: unused fsBrowser dock* labels removed (chrome uses core panel.* keys)"
       ],
       "verify": "typecheck+build; manual: float drag/resize, all 4 dock sides + resize, open-state persists across reload — identical to before",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-13T12:30:00Z",
+      "finishedAt": "2026-07-13T13:00:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "vue-tsc --noEmit: 0 errors; quasar build: success (2026-07-13)",
+        "GnauralCore commit 3c4c269"
+      ]
     },
     {
       "id": "PW2.1",
       "phase": 2,
       "title": "Child-window infrastructure: /panel/:panelId top-level route + PanelHostPage + panels[] in module manifests",
       "status": "todo",
-      "dependsOn": ["PW1.2"],
+      "dependsOn": [
+        "PW1.2"
+      ],
       "artifacts": [
         "MindWaveCore/ui/src/router/routes.ts: top-level '/panel/:panelId' outside MainLayout",
         "MindWaveCore/ui/src/pages/PanelHostPage.vue: resolves panel component from the registry, full-window render, sets document.title",
@@ -116,7 +128,9 @@
       "phase": 2,
       "title": "BroadcastChannel bridge: usePanelBridgeParent/Child (hello/heartbeat/parent-gone/child-ready/child-closed/panel-event/close-panel) + child self-close",
       "status": "todo",
-      "dependsOn": ["PW2.1"],
+      "dependsOn": [
+        "PW2.1"
+      ],
       "artifacts": [
         "MindWaveCore/ui/src/components/panel/use-panel-bridge.ts (PW-D5): channel lifecycle, heartbeat timer, grace-period self-close (PW-D2)",
         "PanelHostPage wires usePanelBridgeChild: child-ready on mount, panel-event forwarding, self-close on parent loss"
@@ -132,7 +146,9 @@
       "phase": 3,
       "title": "Detached mode in PanelWindow: dock-menu item, window.open, prevMode return, main-side close, popup-blocked fallback",
       "status": "todo",
-      "dependsOn": ["PW2.2"],
+      "dependsOn": [
+        "PW2.2"
+      ],
       "artifacts": [
         "PanelWindow: 'detached' in the mode menu (icon open_in_new); while detached the main window renders no panel content (PW-D6)",
         "parent bridge: opens/adopts/closes the child; child-closed -> mode=prevMode; open=false -> close-panel",
@@ -149,7 +165,9 @@
       "phase": 3,
       "title": "File-open events over the bridge: selecting a file in the detached window opens it in the main editor; auto-reopen on start",
       "status": "todo",
-      "dependsOn": ["PW3.1"],
+      "dependsOn": [
+        "PW3.1"
+      ],
       "artifacts": [
         "FileOpenPanel 'open' event -> panel-event over the channel -> parent re-emits to AudioPage.handleExternalFileOpen (PW-D5)",
         "startup: open && mode='detached' -> one auto-reopen attempt, fallback floating (PW-D6)"
@@ -165,7 +183,9 @@
       "phase": 4,
       "title": "Detached geometry persist + polish (document.title, focus existing child instead of duplicates)",
       "status": "todo",
-      "dependsOn": ["PW3.2"],
+      "dependsOn": [
+        "PW3.2"
+      ],
       "artifacts": [
         "child tracks resize + polls screenX/Y on heartbeat, writes 'mindwave-panel-<id>-detached-rect' (PW-D7); open features use it",
         "re-detach while a child exists focuses it (named window target) instead of spawning another"
@@ -181,7 +201,9 @@
       "phase": 4,
       "title": "AppCore verification: default WebView2 popup behavior under AppMain.exe",
       "status": "todo",
-      "dependsOn": ["PW4.1"],
+      "dependsOn": [
+        "PW4.1"
+      ],
       "artifacts": [
         "manual run of AppMain.exe: detach opens a popup, closes with the main window, geometry restores, file-open round-trips",
         "if the default popup turns out crippled: record findings + decide (owner) whether a minimal AppCore NewWindowRequested handler or plan B (second process) is needed"
