@@ -1087,7 +1087,9 @@
       "startedAt": null,
       "finishedAt": null,
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Part1: Tracks spectrogramBuffer refs removed. R2 closed via reloadKey re-open (replaces after-save ensureGnauralSpectrogram). Store decode removal deferred to BK8."
+      ]
     },
     {
       "id": "BK1",
@@ -2019,6 +2021,19 @@
       "dependsOn": [],
       "artifacts": [],
       "verify": "owner"
+    },
+    {
+      "id": "R2",
+      "phase": "risk",
+      "title": "Инвалидация/обновление бэкенд-спектра после Save",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [],
+      "verify": "owner",
+      "finishedAt": "2026-07-13",
+      "evidence": [
+        "Broken: views only re-open on filePath/analysis change; Save keeps path. Fix: reloadKey prop bumped on save -> re-open; server render mtime-keyed -> fresh. 159 tests, build OK."
+      ]
     }
   ],
   "log": [

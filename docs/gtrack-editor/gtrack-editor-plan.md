@@ -412,7 +412,7 @@ atomic per-step commits (префикс id шага), verify перед done, п
 - [x] **GT7.3 — Оверлей волны с бэка.** Оверлей в `SpectrogramView` — на `get-peaks` (как у
   `WaveformView`), убрать зависимость от `waveformBuffer` во «Треках». (После GT7.5 буфер-оверлей
   больше нигде не нужен — можно переводить оверлей на getPeaks напрямую.)
-- [ ] **GT7.4 — Чистка.** Убрать во «Треках» все ссылки на `audio.spectrogramBuffer` и вызов
+- [~] **GT7.4 — Чистка (часть 1 done: во «Треках» ссылки на spectrogramBuffer убраны; R2 — обновление спектра после save — ЗАКРЫТ через reloadKey re-open; стор-декод удалить вместе с BK8).** Убрать во «Треках» все ссылки на `audio.spectrogramBuffer` и вызов
   `ensureGnauralSpectrogram`; метаданные — только из бэкенд-анализа. После этого стор-декод спектра
   (`spectrogramBuffer`/`ensureGnauralSpectrogram`) не нужен для отображения — удалить его (декод для
   локального воспроизведения wav/flac оставить). 
