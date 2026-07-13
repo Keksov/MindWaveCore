@@ -1974,7 +1974,8 @@
       "startedAt": "2026-07-13",
       "finishedAt": "2026-07-13",
       "evidence": [
-        "GTrackView side-actions: delete btn -> emit remove-lane -> gtracks.removeLane. 159 tests, build OK."
+        "GTrackView side-actions: delete btn -> emit remove-lane -> gtracks.removeLane. 159 tests, build OK.",
+        "removeLane returns {lane,index}; onRemoveLane shows notify with Undo -> restoreLane at prior position. No confirm."
       ]
     }
   ],
