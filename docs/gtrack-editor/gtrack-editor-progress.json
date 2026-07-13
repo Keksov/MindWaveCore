@@ -1088,7 +1088,8 @@
       "finishedAt": null,
       "blockedReason": null,
       "evidence": [
-        "Part1: Tracks spectrogramBuffer refs removed. R2 closed via reloadKey re-open (replaces after-save ensureGnauralSpectrogram). Store decode removal deferred to BK8."
+        "Part1: Tracks spectrogramBuffer refs removed. R2 closed via reloadKey re-open (replaces after-save ensureGnauralSpectrogram). Store decode removal deferred to BK8.",
+        "Part2 (remove store-decode: ensureGnauralSpectrogram/spectrogramBuffer/decode + AudioPage dead computeds/prepare gate) sequenced after BK8b, when the last consumer (the main tab prepare flow) is gone."
       ]
     },
     {
@@ -2020,7 +2021,43 @@
       "status": "not-started",
       "dependsOn": [],
       "artifacts": [],
-      "verify": "owner"
+      "verify": "owner",
+      "evidence": [
+        "Owner decision 2026-07-13 (Option A): migrate per-voice mute into Треки FIRST, then remove the tab. Scouted: Треки already has full transport + waveform + spectrum + wav/flac; the tab-unique feature was GnauralScheduleView per-voice mute (persisted voice_mute).",
+        "Decomposed: BK8a (mute in Треки) DONE; BK8b (remove Воспроизведение sub-tab + collapse selector) pending; then GT7.4 part2 (remove dead store-decode)."
+      ]
+    },
+    {
+      "id": "BK8a",
+      "phase": "backlog",
+      "title": "Per-voice playback mute in the Треки voices panel (migrated from ScheduleView)",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [
+        "TracksPanel mute toggle -> patch-voice-state"
+      ],
+      "verify": "owner",
+      "startedAt": "2026-07-13",
+      "finishedAt": "2026-07-13",
+      "blockedReason": null,
+      "evidence": [
+        "Commit 6c97dbd (GnauralCore): mute toggle per voice row (state from dump), emits patch-voice-state -> AudioPage existing handler; auto-saves dirty curve edits first to avoid reload clobber. vue-tsc 0, 159 UI tests, build OK. Awaiting owner verification."
+      ]
+    },
+    {
+      "id": "BK8b",
+      "phase": "backlog",
+      "title": "Remove the Воспроизведение (main) sub-tab + collapse the single-tab selector",
+      "status": "not-started",
+      "dependsOn": [
+        "BK8a"
+      ],
+      "artifacts": [],
+      "verify": "owner",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
     },
     {
       "id": "R2",
