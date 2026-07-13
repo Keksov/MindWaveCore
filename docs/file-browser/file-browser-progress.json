@@ -584,7 +584,8 @@
       "blockedReason": null,
       "evidence": [
         "vue-tsc 0 errors; quasar build clean (quasar v2.19.3)",
-        "behavioral (expand a dir, filter the tree, open a file from a deep subtree) is an owner visual check"
+        "behavioral (expand a dir, filter the tree, open a file from a deep subtree) is an owner visual check",
+        "FIX (owner 2026-07-13): in tree mode a favorite/root folder click now REVEALS the folder in the tree (FsEntryList.revealPath expands the ancestor chain via store.pathCrumbs + lazy-loads each level, then selects it) instead of a no-op flat openDir; store.pathCrumbs extracted from the breadcrumbs getter"
       ]
     },
     {
@@ -606,7 +607,8 @@
       "blockedReason": null,
       "evidence": [
         "vue-tsc 0 errors; quasar build clean",
-        "behavioral (dock, reload, panel reappears; close, reload, stays closed) is an owner visual check"
+        "behavioral (dock, reload, panel reappears; close, reload, stays closed) is an owner visual check",
+        "FIX (owner 2026-07-13): a DOCKED panel now stays open after opening a file — only the floating window auto-closes (closeAfterOpen gated on isFloating); so a docked browser behaves like a persistent side panel"
       ]
     }
   ]
