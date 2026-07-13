@@ -127,6 +127,7 @@
     "dockTop": "Dock top",
     "dockBottom": "Dock bottom",
     "detach": "Separate window",
+    "detachBlocked": "Couldn't open the separate window (blocked by the browser)",
     "close": "Close",
     "unknown": "Unknown panel"
   }

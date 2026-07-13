@@ -30,7 +30,7 @@
               :key="opt.mode"
               clickable
               :active="state.mode === opt.mode"
-              @click="state.setMode(opt.mode)"
+              @click="onModeSelect(opt.mode)"
             >
               <q-item-section avatar><q-icon :name="opt.icon" /></q-item-section>
               <q-item-section>{{ t(opt.label) }}</q-item-section>
@@ -58,9 +58,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, type CSSProperties } from 'vue'
+import { computed, onBeforeUnmount, onMounted, watch, type CSSProperties } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useQuasar } from 'quasar'
 import type { PanelMode, PanelWindowState } from './use-panel-window'
+import { createPanelBridgeParent, type PanelBridgeParent, type PanelEventPayload } from './use-panel-bridge'
 
 const props = defineProps<{
   readonly state: PanelWindowState
@@ -70,9 +72,12 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: []
+  // PW3.1 (PW-D5): a content event bridged back from the detached child window.
+  panelEvent: [name: string, payload: PanelEventPayload]
 }>()
 
 const { t } = useI18n()
+const $q = useQuasar()
 
 const isFloating = computed<boolean>(() => props.state.mode === 'floating')
 const modeClass = computed<string>(() =>
@@ -94,13 +99,13 @@ interface ModeOption {
   readonly icon: string
   readonly label: string
 }
-// 'detached' joins this menu in PW3.1.
 const modeOptions: readonly ModeOption[] = [
   { mode: 'floating', icon: 'picture_in_picture_alt', label: 'panel.dockFloat' },
   { mode: 'left', icon: 'border_left', label: 'panel.dockLeft' },
   { mode: 'right', icon: 'border_right', label: 'panel.dockRight' },
   { mode: 'top', icon: 'border_top', label: 'panel.dockTop' },
   { mode: 'bottom', icon: 'border_bottom', label: 'panel.dockBottom' },
+  { mode: 'detached', icon: 'open_in_new', label: 'panel.detach' },
 ]
 const modeIcon = computed<string>(() => modeOptions.find((o) => o.mode === props.state.mode)?.icon ?? 'picture_in_picture_alt')
 
@@ -108,6 +113,117 @@ const close = (): void => {
   props.state.open = false
   emit('close')
 }
+
+// ---- Detached mode (PW3.1, PW-D1/PW-D6) --------------------------------------------------------
+// The panel content moves to a child OS window: same SPA at #/panel/<id> via window.open — in
+// AppCore that's WebView2's default popup (same process/origin), in a browser a normal popup.
+// While detached this component stays mounted (the host keeps it while the panel is open) but
+// renders nothing; it owns the parent side of the bridge.
+
+let bridge: PanelBridgeParent | null = null
+// A child F5 looks like child-closed followed by child-ready — debounce the "restore to the
+// previous in-window mode" reaction so a reload doesn't yank the panel back (PW-D6).
+let childClosedTimer: number | null = null
+
+const cancelChildClosedTimer = (): void => {
+  if (childClosedTimer !== null) {
+    window.clearTimeout(childClosedTimer)
+    childClosedTimer = null
+  }
+}
+
+const inWindowMode = (): PanelMode =>
+  props.state.prevMode !== 'detached' ? props.state.prevMode : 'floating'
+
+const openChildWindow = (): boolean => {
+  const r = props.state.floatRect
+  const win = window.open(
+    `#/panel/${props.state.panelId}`,
+    `mw-panel-${props.state.panelId}`,
+    `width=${Math.round(r.w)},height=${Math.round(r.h)}`,
+  )
+  if (win === null) {
+    return false
+  }
+  win.focus()
+  return true
+}
+
+const teardownBridge = (): void => {
+  cancelChildClosedTimer()
+  bridge?.dispose()
+  bridge = null
+}
+
+const ensureBridge = (): void => {
+  if (bridge !== null) {
+    return
+  }
+  bridge = createPanelBridgeParent(props.state.panelId, {
+    onChildReady: cancelChildClosedTimer,
+    onChildClosed: (): void => {
+      cancelChildClosedTimer()
+      childClosedTimer = window.setTimeout(() => {
+        childClosedTimer = null
+        // The user closed the child window — the panel returns to the main window (stays open).
+        if (props.state.mode === 'detached' && props.state.open) {
+          teardownBridge()
+          props.state.setMode(inWindowMode())
+        }
+      }, 1000)
+    },
+    onPanelEvent: (name, payload): void => emit('panelEvent', name, payload),
+  })
+}
+
+const detachBlocked = (): void => {
+  $q.notify({ type: 'warning', message: t('panel.detachBlocked') })
+}
+
+const onModeSelect = (mode: PanelMode): void => {
+  if (mode !== 'detached') {
+    props.state.setMode(mode)
+    return
+  }
+  // Open the child first (still inside the click's user activation); only then flip the mode —
+  // a blocked popup (PW-D1 fallback) leaves the panel exactly where it was.
+  if (!openChildWindow()) {
+    detachBlocked()
+    return
+  }
+  ensureBridge()
+  props.state.setMode('detached')
+}
+
+// App start / returning to the hosting page with a persisted detached panel: one auto-reopen
+// attempt (PW-D6); without user activation a browser blocker may refuse -> fall back in-window.
+onMounted(() => {
+  if (props.state.open && props.state.mode === 'detached') {
+    if (openChildWindow()) {
+      ensureBridge()
+    } else {
+      props.state.setMode(inWindowMode())
+      detachBlocked()
+    }
+  }
+})
+
+// Main-side close while detached (PW-D6): closing the panel closes the child window too.
+watch(() => props.state.open, (open) => {
+  if (!open && bridge !== null) {
+    bridge.requestClose()
+    teardownBridge()
+  }
+})
+
+// Host unmount (e.g. the main window navigates away): close the child cleanly instead of letting
+// its watchdog time out. mode stays 'detached' + open stays true, so remounting reopens it.
+onBeforeUnmount(() => {
+  if (bridge !== null && props.state.open && props.state.mode === 'detached') {
+    bridge.requestClose()
+  }
+  teardownBridge()
+})
 
 const clamp = (value: number, min: number, max: number): number => Math.max(min, Math.min(value, max))
 
