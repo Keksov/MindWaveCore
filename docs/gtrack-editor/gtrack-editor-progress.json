@@ -5,7 +5,7 @@
   "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
   "status": "in-progress",
   "createdAt": "2026-07-08T02:30:00Z",
-  "updatedAt": "2026-07-12T02:00:00Z",
+  "updatedAt": "2026-07-13",
   "decisions": [
     {
       "id": "GT-D1",
@@ -2032,7 +2032,10 @@
       "verify": "owner",
       "finishedAt": "2026-07-13",
       "evidence": [
-        "Broken: views only re-open on filePath/analysis change; Save keeps path. Fix: reloadKey prop bumped on save -> re-open; server render mtime-keyed -> fresh. 159 tests, build OK."
+        "Round 1 (insufficient): added reloadKey prop -> client close+open after Save. Owner: no reaction.",
+        "Root cause: server SpectrogramSession warm-analysis LRU keyed by path+params+solo but NOT mtime, so re-opening an edited+saved file returned the stale warm analysis AND its cached tiles (render layer, which IS mtime-keyed, was never reached).",
+        "Round 2 fix (commit 1e51b97): SpectrogramWavHandle exposes mtimeMs; onOpen acquires first then folds mtime into the warm-cache key; warm hit releases the extra acquisition; onReconfigure passes existing handle mtime. New R2 regression test (changed mtime -> fresh analysis). 38 server tests pass, server tsc clean.",
+        "Test aid: d:/bin/Presets/Новое/test.gnaural (constant 300 Hz tone) — edit a base-freq point + Ctrl+S, the spectral line should move. Awaiting owner re-verification."
       ]
     }
   ],
