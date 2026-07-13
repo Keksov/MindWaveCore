@@ -1709,16 +1709,18 @@
       "id": "GT10.29",
       "phase": 10,
       "title": "Settings dialog: Close button + X icon (req 78)",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": [],
       "artifacts": [
         "dialog header with a top-right X; a Close button at the bottom (GT10.17 dialog)"
       ],
       "verify": "both close affordances work",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-13",
+      "finishedAt": "2026-07-13",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "AudioPage settings q-dialog -> q-card with header title+close X and footer Close button; body scrolls. i18n close. 159 tests, build OK."
+      ]
     },
     {
       "id": "GT10.30",
