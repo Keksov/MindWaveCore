@@ -172,3 +172,43 @@ export function usePanelWindowState(panelId: string, opts: PanelWindowOptions = 
   instances.set(panelId, state)
   return state
 }
+
+// ---- Detached child-window geometry (PW4.1, PW-D7) --------------------------------------------
+// The detached OS window's on-screen rectangle in CONTENT coordinates: (x, y) = window.screenX/
+// screenY and (w, h) = innerWidth/innerHeight. Distinct from floatRect (an in-page floating rect
+// in viewport space) — this is a real OS window position. The child window (a separate app
+// instance) writes it to the SHARED localStorage; the parent reads it to size/place the next
+// window.open. The key always uses the default scheme so both windows agree without the child
+// having to know the panel's storageKeys.
+export interface PanelScreenRect {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+export const detachedRectKey = (panelId: string): string => `mindwave-panel-${panelId}-detached-rect`
+
+export function readPanelScreenRect(key: string): PanelScreenRect | null {
+  try {
+    const raw = localStorage.getItem(key)
+    if (raw === null) {
+      return null
+    }
+    const parsed = JSON.parse(raw) as Partial<PanelScreenRect>
+    if (
+      typeof parsed.x === 'number' && typeof parsed.y === 'number' &&
+      typeof parsed.w === 'number' && typeof parsed.h === 'number' &&
+      parsed.w > 0 && parsed.h > 0
+    ) {
+      return { x: parsed.x, y: parsed.y, w: parsed.w, h: parsed.h }
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+export function writePanelScreenRect(key: string, rect: PanelScreenRect): void {
+  persist(key, JSON.stringify(rect))
+}

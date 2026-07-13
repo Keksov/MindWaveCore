@@ -18,10 +18,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onBeforeUnmount, watchEffect, type Component } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, watchEffect, type Component } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { createPanelBridgeChild, type PanelBridgeChild } from '@panel/use-panel-bridge'
+import { detachedRectKey, writePanelScreenRect } from '@panel/use-panel-window'
 import { modulePanels } from '../src/modules'
 
 const route = useRoute()
@@ -35,7 +36,43 @@ const panel = computed(() => modulePanels.find((p) => p.id === panelId.value))
 // the content component's events to the main window. One bridge per window: the panel id is
 // fixed by this window's URL.
 let bridge: PanelBridgeChild | null = panel.value !== undefined ? createPanelBridgeChild(panelId.value) : null
+
+// PW4.1 (PW-D7): remember this window's on-screen rect so the next detach/auto-reopen restores
+// it. There is no move event, so poll screenX/screenY on an interval as well as on resize; write
+// only when it actually changed. Content coordinates (screenX/screenY + innerWidth/innerHeight).
+let geometryTimer: number | null = null
+let lastGeometry = ''
+
+const captureGeometry = (): void => {
+  if (panelId.value === '') {
+    return
+  }
+  const w = window.innerWidth
+  const h = window.innerHeight
+  if (w <= 0 || h <= 0) {
+    return
+  }
+  const rect = { x: window.screenX, y: window.screenY, w, h }
+  const signature = `${rect.x},${rect.y},${rect.w},${rect.h}`
+  if (signature === lastGeometry) {
+    return
+  }
+  lastGeometry = signature
+  writePanelScreenRect(detachedRectKey(panelId.value), rect)
+}
+
+onMounted(() => {
+  window.addEventListener('resize', captureGeometry)
+  geometryTimer = window.setInterval(captureGeometry, 1000)
+  captureGeometry()
+})
+
 onBeforeUnmount(() => {
+  window.removeEventListener('resize', captureGeometry)
+  if (geometryTimer !== null) {
+    window.clearInterval(geometryTimer)
+    geometryTimer = null
+  }
   bridge?.dispose()
   bridge = null
 })

@@ -61,7 +61,7 @@
 import { computed, onBeforeUnmount, onMounted, watch, type CSSProperties } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useQuasar } from 'quasar'
-import type { PanelMode, PanelWindowState } from './use-panel-window'
+import { detachedRectKey, readPanelScreenRect, type PanelMode, type PanelWindowState } from './use-panel-window'
 import { createPanelBridgeParent, type PanelBridgeParent, type PanelEventPayload } from './use-panel-bridge'
 
 const props = defineProps<{
@@ -136,11 +136,18 @@ const inWindowMode = (): PanelMode =>
   props.state.prevMode !== 'detached' ? props.state.prevMode : 'floating'
 
 const openChildWindow = (): boolean => {
+  // Reopen at the child's last on-screen rect (PW4.1); first-ever detach falls back to the
+  // floating size. The named target means a still-open child is reused/focused, never duplicated.
+  const saved = readPanelScreenRect(detachedRectKey(props.state.panelId))
   const r = props.state.floatRect
+  const features = [`width=${Math.round(saved?.w ?? r.w)}`, `height=${Math.round(saved?.h ?? r.h)}`]
+  if (saved !== null) {
+    features.push(`left=${Math.round(saved.x)}`, `top=${Math.round(saved.y)}`)
+  }
   const win = window.open(
     `#/panel/${props.state.panelId}`,
     `mw-panel-${props.state.panelId}`,
-    `width=${Math.round(r.w)},height=${Math.round(r.h)}`,
+    features.join(','),
   )
   if (win === null) {
     return false
