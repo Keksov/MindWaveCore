@@ -5,7 +5,7 @@
   "title": "panel-window: universal panel control (floating / docked / detached OS window); first consumer = file-open panel",
   "status": "in-progress",
   "createdAt": "2026-07-13T00:00:00Z",
-  "updatedAt": "2026-07-13T15:00:00Z",
+  "updatedAt": "2026-07-13T15:20:00Z",
   "decisions": [
     {
       "id": "PW-D1",
@@ -216,14 +216,15 @@
     {
       "id": "PW4.2",
       "phase": 4,
-      "title": "AppCore verification: default WebView2 popup behavior under AppMain.exe",
+      "title": "AppCore verification: default WebView2 popup behavior under AppMain.exe (incl. owner req. 6: NO address bar in the child window)",
       "status": "todo",
       "dependsOn": [
         "PW4.1"
       ],
       "artifacts": [
         "manual run of AppMain.exe: detach opens a popup, closes with the main window, geometry restores, file-open round-trips",
-        "if the default popup turns out crippled: record findings + decide (owner) whether a minimal AppCore NewWindowRequested handler or plan B (second process) is needed"
+        "owner req. 6: verify the default popup has NO address bar (expected: a bare WebView2 window with just a title bar). In a plain dev browser the bar cannot be hidden (anti-spoofing; location=no is ignored) — dev-only limitation, not a prod concern",
+        "if the default popup turns out crippled (address bar present / features ignored): record findings + decide (owner) whether a minimal AppCore NewWindowRequested handler (own chromeless window) or plan B (second process) is needed"
       ],
       "verify": "owner checkpoint on the real AppCore build",
       "startedAt": null,
