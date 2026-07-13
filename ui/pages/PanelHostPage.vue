@@ -18,9 +18,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, watchEffect, type Component } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, watchEffect, type Component } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { createPanelBridgeChild, type PanelBridgeChild } from '@panel/use-panel-bridge'
 import { modulePanels } from '../src/modules'
 
 const route = useRoute()
@@ -28,6 +29,16 @@ const { t } = useI18n()
 
 const panelId = computed<string>(() => String(route.params.panelId ?? ''))
 const panel = computed(() => modulePanels.find((p) => p.id === panelId.value))
+
+// PW2.2 (PW-D5): the child side of the panel bridge — announces child-ready, keeps the
+// parent-liveness watchdog (self-close on parent loss, PW-D2), obeys close-panel, and carries
+// the content component's events to the main window. One bridge per window: the panel id is
+// fixed by this window's URL.
+let bridge: PanelBridgeChild | null = panel.value !== undefined ? createPanelBridgeChild(panelId.value) : null
+onBeforeUnmount(() => {
+  bridge?.dispose()
+  bridge = null
+})
 
 const panelComponent = computed<Component | null>(() => {
   const p = panel.value
@@ -41,8 +52,8 @@ watchEffect(() => {
 })
 
 // Generic listeners for the content component: 'close' closes this OS window (allowed for
-// script-opened windows); the panel's declared events go to the main window over the
-// BroadcastChannel bridge in PW2.2 — until then they are accepted and dropped.
+// script-opened windows; the pagehide handler tells the parent); the panel's declared events
+// are forwarded over the bridge to the main window (PW2.2).
 const eventHandlers = computed<Record<string, (...args: unknown[]) => void>>(() => {
   const p = panel.value
   if (p === undefined) {
@@ -52,8 +63,8 @@ const eventHandlers = computed<Record<string, (...args: unknown[]) => void>>(() 
     onClose: (): void => window.close(),
   }
   for (const name of p.events ?? []) {
-    handlers[`on${name.charAt(0).toUpperCase()}${name.slice(1)}`] = (): void => {
-      // PW2.2: forward over the panel bridge to the main window.
+    handlers[`on${name.charAt(0).toUpperCase()}${name.slice(1)}`] = (...args: unknown[]): void => {
+      bridge?.sendEvent(name, args)
     }
   }
   return handlers
