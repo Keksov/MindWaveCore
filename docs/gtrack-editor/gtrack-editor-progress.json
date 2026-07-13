@@ -1979,6 +1979,20 @@
         "GTrackView side-actions: delete btn -> emit remove-lane -> gtracks.removeLane. 159 tests, build OK.",
         "removeLane returns {lane,index}; onRemoveLane shows notify with Undo -> restoreLane at prior position. No confirm."
       ]
+    },
+    {
+      "id": "GT10.45",
+      "phase": "10d",
+      "title": "Меню Правка→Настройки (Ctrl+P); двухпанельный диалог настроек (подсистемы | контент)",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [],
+      "verify": "owner",
+      "startedAt": "2026-07-13",
+      "finishedAt": "2026-07-13",
+      "evidence": [
+        "AudioPage: Edit q-btn-dropdown, Ctrl+P handler (preventDefault Print), two-pane dialog (subsystem list Cache | GnauralSettingsTab). 159 tests, build OK."
+      ]
     }
   ],
   "log": [
