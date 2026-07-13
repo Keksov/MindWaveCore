@@ -1055,7 +1055,7 @@
       "id": "GT7.3",
       "phase": 7,
       "title": "Spectrogram overlay waveform via backend get-peaks (drop waveformBuffer dependency)",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": [
         "GT7.1"
       ],
@@ -1065,9 +1065,11 @@
       ],
       "verify": "overlay matches; frozen Spectrogram tab unaffected; vue-tsc+build",
       "startedAt": null,
-      "finishedAt": null,
+      "finishedAt": "2026-07-13",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "SpectrogramView overlay via spec.getPeaks (async cache); removed wfModel/useAudioModel. 159 tests, build OK."
+      ]
     },
     {
       "id": "GT7.4",
