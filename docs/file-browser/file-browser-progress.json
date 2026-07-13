@@ -5,7 +5,7 @@
   "title": "file-browser: universal file-open dialog with source-provider adapters (open any file; localhost-only)",
   "status": "in-progress",
   "createdAt": "2026-07-12T00:00:00Z",
-  "updatedAt": "2026-07-13T09:00:00Z",
+  "updatedAt": "2026-07-13T09:10:00Z",
   "decisions": [
     {
       "id": "FB-D1",
@@ -74,6 +74,14 @@
     {
       "id": "FB-D15",
       "text": "Remote / DB / web providers dropped from the plan (owner req. 15, 2026-07-12). Explicitly removed from scope — no steps planned. The FileSourceProvider adapter architecture (FB-D1) is LEFT INTACT precisely because it still allows adding them later (a new provider id behind the same UI) without a rewrite; this decision just records that we are not building them now."
+    },
+    {
+      "id": "FB-D18",
+      "text": "Tree view = a fourth view mode (owner req. 17, 2026-07-13). 'tree' joins table/list/icons in FsViewMode + the view-toggle (icon account_tree), persisted like the others. Implemented with Quasar q-tree LAZY-LOAD: root nodes = provider listRoots(); expanding a dir fires @lazy-load which calls a new store.listChildren(path) (lists a dir WITHOUT mutating currentPath, honoring showHidden) and returns dirs + type-filtered files as child nodes (dirs get lazy:true). The quick regexp filter reuses q-tree's built-in :filter + :filter-method backed by store.fsNameMatches (same regexp-then-substring semantics as the flat list). Toggling showHidden/typeFilter rebuilds the tree (collapses). Selecting a file node emits select; dblclick/Enter activates (open); dblclick on a dir toggles its expansion. entryVisual() was refactored to (isDir, ext) so both flat rows and tree nodes share one icon+color map. Tree state (nodes/expanded) is local to FsEntryList (view-specific), not persisted; only the mode value is."
+    },
+    {
+      "id": "FB-D19",
+      "text": "Persist the dialog's open state across restarts (owner req. 18, 2026-07-13). windowMode/dockSize/floatRect already persisted (FB-D13), but the open/closed flag lived in AudioPage as a transient ref, so a docked panel never reappeared after a program restart. Fix: the open flag moves into the fs-browser store as a persisted field (localStorage key ...-open), and AudioPage binds its v-model to store.open. On next launch, if it was open, FileOpenDialog mounts with modelValue true, runs init() (loopback discovery + start dir), and restores at the persisted mode+geometry — a docked panel comes back on its edge, a floating one at its saved rect. Scope note: the dialog belongs to the Audio form, so 'program open' = arriving on the Audio page (where the panel lives)."
     }
   ],
   "steps": [
@@ -555,6 +563,50 @@
       "blockedReason": null,
       "evidence": [
         "vue-tsc 0 errors; quasar build clean"
+      ]
+    },
+    {
+      "id": "FB5.1",
+      "phase": 5,
+      "title": "Tree view mode (owner req. 17, FB-D18): q-tree lazy-load as a fourth view",
+      "status": "done",
+      "dependsOn": [
+        "FB4.6"
+      ],
+      "artifacts": [
+        "store: 'tree' added to FsViewMode + KEY_VIEW allow-list; listChildren(path) lists a dir without mutating currentPath; fsNameMatches(name, pattern) exported (regexp-then-substring)",
+        "FsEntryList: view toggle gains a tree option (account_tree); tree branch renders q-tree lazy-load — roots -> lazy dirs -> type-filtered children; :filter=filterText + :filter-method=fsNameMatches; dblclick file activates, dblclick dir toggles expand; showHidden/typeFilter rebuild the tree",
+        "entryVisual() refactored to (isDir, ext) and reused by flat rows + tree nodes; keyboard arrow-nav guarded off in tree mode"
+      ],
+      "verify": "tree lists roots; expanding a dir lazy-loads children; only supported files show (unless 'all'); quick filter narrows the tree; open a file from the tree; vue-tsc+build",
+      "startedAt": "2026-07-13T09:10:00Z",
+      "finishedAt": "2026-07-13T09:40:00Z",
+      "blockedReason": null,
+      "evidence": [
+        "vue-tsc 0 errors; quasar build clean (quasar v2.19.3)",
+        "behavioral (expand a dir, filter the tree, open a file from a deep subtree) is an owner visual check"
+      ]
+    },
+    {
+      "id": "FB5.2",
+      "phase": 5,
+      "title": "Persist dialog open state (owner req. 18, FB-D19): docked panel reappears at the same place",
+      "status": "done",
+      "dependsOn": [
+        "FB4.3"
+      ],
+      "artifacts": [
+        "store: persisted 'open' field (KEY_OPEN, localStorage) with a watch; exposed alongside windowMode/dockSize/floatRect",
+        "AudioPage: v-model binds to store.open (was a transient local ref); openFileDialog sets store.open = true",
+        "on next launch, an open+docked panel restores on its edge (mode+dockSize) and an open+floating one at its saved floatRect, via FileOpenDialog's existing modelValue-driven init()"
+      ],
+      "verify": "dock the panel, reload -> it reappears docked at the same side/size; close it, reload -> stays closed; float+reload -> restores at rect; vue-tsc+build",
+      "startedAt": "2026-07-13T09:10:00Z",
+      "finishedAt": "2026-07-13T09:40:00Z",
+      "blockedReason": null,
+      "evidence": [
+        "vue-tsc 0 errors; quasar build clean",
+        "behavioral (dock, reload, panel reappears; close, reload, stays closed) is an owner visual check"
       ]
     }
   ]
