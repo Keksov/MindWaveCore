@@ -5,7 +5,7 @@
   "title": "panel-window: universal panel control (floating / docked / detached OS window); first consumer = file-open panel",
   "status": "in-progress",
   "createdAt": "2026-07-13T00:00:00Z",
-  "updatedAt": "2026-07-13T13:00:00Z",
+  "updatedAt": "2026-07-13T13:40:00Z",
   "decisions": [
     {
       "id": "PW-D1",
@@ -108,20 +108,25 @@
       "id": "PW2.1",
       "phase": 2,
       "title": "Child-window infrastructure: /panel/:panelId top-level route + PanelHostPage + panels[] in module manifests",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [
         "PW1.2"
       ],
       "artifacts": [
-        "MindWaveCore/ui/src/router/routes.ts: top-level '/panel/:panelId' outside MainLayout",
-        "MindWaveCore/ui/src/pages/PanelHostPage.vue: resolves panel component from the registry, full-window render, sets document.title",
-        "modules/index.ts + gnauralModule.panels: [{id:'file-open', component: FileOpenPanel, titleKey, icon}] (PW-D4)"
+        "@panel/panel-registry.ts: PanelContribution {id, titleKey, icon, lazy component, events[]}",
+        "modules/index.ts: optional panels[] on CoreModuleDescriptor + modulePanels aggregate",
+        "routes.ts: top-level /panel/:panelId OUTSIDE MainLayout -> ui/pages/PanelHostPage.vue (page-loaders loadPanelHostPage)",
+        "PanelHostPage.vue: resolves the content component by route param, full-window flex render, document.title from titleKey (locale-aware), close -> window.close(), declared events stubbed until PW2.2; panel.unknown banner for bad ids",
+        "GnauralCore module.ts: panels [{id file-open, titleKey fsBrowser.title, icon folder_open, lazy FileOpenPanel, events [open]}]"
       ],
       "verify": "typecheck+build; manual: open '#/panel/file-open' directly in a browser tab -> the file panel renders full-window and browses",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-13T13:10:00Z",
+      "finishedAt": "2026-07-13T13:40:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "vue-tsc --noEmit: 0 errors; quasar build: success; PanelHostPage-*.js + FileOpenPanel-*.js chunks present in server/public/assets (2026-07-13)",
+        "commits: MindWaveCore 286d46c, GnauralCore b2ae516"
+      ]
     },
     {
       "id": "PW2.2",
