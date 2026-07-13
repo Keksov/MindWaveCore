@@ -5,7 +5,7 @@
   "title": "panel-window: universal panel control (floating / docked / detached OS window); first consumer = file-open panel",
   "status": "in-progress",
   "createdAt": "2026-07-13T00:00:00Z",
-  "updatedAt": "2026-07-13T14:10:00Z",
+  "updatedAt": "2026-07-13T15:00:00Z",
   "decisions": [
     {
       "id": "PW-D1",
@@ -155,38 +155,45 @@
       "id": "PW3.1",
       "phase": 3,
       "title": "Detached mode in PanelWindow: dock-menu item, window.open, prevMode return, main-side close, popup-blocked fallback",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [
         "PW2.2"
       ],
       "artifacts": [
-        "PanelWindow: 'detached' in the mode menu (icon open_in_new); while detached the main window renders no panel content (PW-D6)",
-        "parent bridge: opens/adopts/closes the child; child-closed -> mode=prevMode; open=false -> close-panel",
-        "window.open null -> mode stays/reverts to floating + Notify (PW-D1)"
+        "PanelWindow: detached item in the mode menu (open_in_new, panel.detach); onModeSelect opens the child FIRST inside the click user-activation (#/panel/<id>, named mw-panel-<id>, sized from floatRect) and flips the mode only on success — blocked popup = stay put + Notify panel.detachBlocked (PW-D1 fallback)",
+        "parent bridge in PanelWindow: onChildClosed -> return to prevMode (1s debounce cancelled by child-ready so a child F5 does not yank the panel back); onPanelEvent -> re-emitted as @panel-event to the host",
+        "open=false while detached -> requestClose() (main-side close, PW-D6); onBeforeUnmount -> clean requestClose, mode/open persist so remount reopens",
+        "onMounted auto-reopen of a persisted detached panel with in-window fallback + Notify (PW-D6)"
       ],
       "verify": "typecheck+build; manual: detach -> OS window opens, main reflows; close child -> panel returns docked/floating; close main -> child dies",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-13T14:20:00Z",
+      "finishedAt": "2026-07-13T14:50:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "vue-tsc 0 errors; quasar build ok (2026-07-13)",
+        "commit MindWaveCore 70b4237"
+      ]
     },
     {
       "id": "PW3.2",
       "phase": 3,
       "title": "File-open events over the bridge: selecting a file in the detached window opens it in the main editor; auto-reopen on start",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [
         "PW3.1"
       ],
       "artifacts": [
-        "FileOpenPanel 'open' event -> panel-event over the channel -> parent re-emits to AudioPage.handleExternalFileOpen (PW-D5)",
-        "startup: open && mode='detached' -> one auto-reopen attempt, fallback floating (PW-D6)"
+        "FileOpenDialog @panel-event handler: bridged open {path, kind} goes through the same onOpen path as an in-window pick -> AudioPage.handleExternalFileOpen; detached keeps the panel open (like docked)",
+        "startup auto-reopen lives in PanelWindow onMounted (PW3.1) — fires when the hosting page mounts with a persisted open+detached panel"
       ],
       "verify": "typecheck+build; manual: pick a file in the detached window -> it loads in the main editor; restart with detached open -> window reappears (or falls back with Notify)",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-13T14:50:00Z",
+      "finishedAt": "2026-07-13T15:00:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "vue-tsc 0 errors; quasar build ok (2026-07-13)",
+        "commit GnauralCore 3f5dc2a"
+      ]
     },
     {
       "id": "PW4.1",
