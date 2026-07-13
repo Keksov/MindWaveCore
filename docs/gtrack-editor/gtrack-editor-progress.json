@@ -805,7 +805,7 @@
       "id": "GT3.5",
       "phase": 3,
       "title": "PAUSE: owner verification of the full edit cycle",
-      "status": "in-progress",
+      "status": "done",
       "dependsOn": [
         "GT3.3",
         "GT3.4"
@@ -815,9 +815,11 @@
       ],
       "verify": "owner confirms drag+dialog+save UX",
       "startedAt": "2026-07-11T12:00:00Z",
-      "finishedAt": null,
+      "finishedAt": "2026-07-13",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Owner 2026-07-13: closed (GT10.26 superseded by GT10.21 seam-aware lint)."
+      ]
     },
     {
       "id": "GT4.1",
