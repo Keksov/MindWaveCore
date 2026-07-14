@@ -5,7 +5,7 @@
   "title": "file-browser: universal file-open dialog with source-provider adapters (open any file; localhost-only)",
   "status": "in-progress",
   "createdAt": "2026-07-12T00:00:00Z",
-  "updatedAt": "2026-07-14T09:30:00Z",
+  "updatedAt": "2026-07-14T09:40:00Z",
   "decisions": [
     {
       "id": "FB-D1",
@@ -671,7 +671,8 @@
       "evidence": [
         "vue-tsc --noEmit: 0 errors; quasar build: success (2026-07-14)",
         "GnauralCore commit 65b7a6a",
-        "owner manual check recommended: narrow the docked/floating panel -> buttons shrink to sm, then split to two rows (Up+Refresh row 1, controls row 2); widen -> reverts; no horizontal scrollbar on the button row"
+        "owner manual check recommended: narrow the docked/floating panel -> buttons shrink to sm, then split to two rows (Up+Refresh row 1, controls row 2); widen -> reverts; no horizontal scrollbar on the button row",
+        "owner-confirmed in-app (2026-07-14): \"Fixed!\" — buttons shrink to sm then wrap to two rows on narrow, revert on widen"
       ]
     }
   ]
