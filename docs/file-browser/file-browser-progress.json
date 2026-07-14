@@ -5,7 +5,7 @@
   "title": "file-browser: universal file-open dialog with source-provider adapters (open any file; localhost-only)",
   "status": "in-progress",
   "createdAt": "2026-07-12T00:00:00Z",
-  "updatedAt": "2026-07-14T09:00:00Z",
+  "updatedAt": "2026-07-14T09:30:00Z",
   "decisions": [
     {
       "id": "FB-D1",
@@ -654,20 +654,25 @@
       "id": "FB5.4",
       "phase": 5,
       "title": "Responsive file-list toolbar (owner req. 20, FB-D21): shrink buttons to sm, then wrap to two rows",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [
         "FB5.3"
       ],
       "artifacts": [
-        "FsEntryList: :size=btnSize on every toolbar button/toggle; toolbarCompact + toolbarTwoRows refs; ResizeObserver(root) + measureToolbar() escalation (default -> sm -> two rows)",
-        "controls grouped in one flex item; forced flex-break element before it when twoRows; toolbar flex-nowrap for measuring, flex-wrap when twoRows",
-        "CSS: min size matches TracksPanel dense/flat/round size=sm"
+        "FsEntryList: :size=btnSize on Up/Refresh + the view/icon-size/audio/hidden/filter buttons (btnSize = sm when compact, else default)",
+        "controls wrapped in .fs-entry-list__controls (single no-wrap flex item) + a .fs-entry-list__toolbar-break (flex:0 0 100%; height:0) that forces them to row 2 when toolbarTwoRows",
+        "measure/escalate: ResizeObserver(root, width-guarded) -> runToolbarPass resets to roomy then escalates default->sm->two-rows, stopping at the first non-overflowing layout (scrollWidth>clientWidth while flex-nowrap); mid-measure resize coalesced via measurePending",
+        "CSS: toolbar flex-nowrap by default (measurable), --wrap => flex-wrap:wrap; re-measure on viewMode/isColumn change"
       ],
       "verify": "typecheck+build; manual: shrink the docked/floating panel -> buttons shrink to sm, then split to two rows (Up+Refresh row 1, rest row 2); widen -> reverts; no horizontal scrollbar on the button row",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-14T09:05:00Z",
+      "finishedAt": "2026-07-14T09:30:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "vue-tsc --noEmit: 0 errors; quasar build: success (2026-07-14)",
+        "GnauralCore commit 65b7a6a",
+        "owner manual check recommended: narrow the docked/floating panel -> buttons shrink to sm, then split to two rows (Up+Refresh row 1, controls row 2); widen -> reverts; no horizontal scrollbar on the button row"
+      ]
     }
   ]
 }
