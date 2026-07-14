@@ -120,10 +120,17 @@
         "AudioPage.vue: invokeMenuCommand records the leaf id via useMenuMru; render a q-separator + MRU rows AFTER «Выход» (label/icon from the flat registry by id); empty MRU hides both; clicking a recent row re-runs invokeMenuCommand (re-bumps to top)"
       ],
       "verify": "typecheck+build+tests (incl. new useMenuMru test); manual: invoke Открыть/Экспорт/Настройки -> they appear under the divider, most-recent first, max 5, deduped; reload -> MRU persists; click a recent -> runs + moves to top",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-15T00:00:00Z",
+      "finishedAt": "2026-07-15T00:00:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "composables/menu-mru.ts: pure pushMru (dedup+prepend+cap 5) + parseStoredMru (defensive de-dup/cap) + MENU_MRU_STORAGE_KEY/MENU_MRU_MAX",
+        "composables/menu-mru.test.ts: 11 unit tests (pushMru order/dedup/cap/immutability; parseStoredMru null/valid/non-string/corrupt/dedup-cap/invalid-json/non-array)",
+        "composables/use-menu-mru.ts: module-singleton ref persisted to localStorage 'mindwave-menu-mru'; record(id) via pushMru + write-through",
+        "AudioPage.vue: invokeMenuCommand now records node.id in the MRU; menuLeafById (flattened leaf registry) + mruNodes (ids -> leaf nodes, stale ids dropped); template renders a q-separator + a second AppMenuList of mruNodes after «Выход», hidden when empty; clicking a recent re-invokes (re-bumps to top)",
+        "vue-tsc 0; quasar build success; bun test GnauralCore/ui 205/205 (+11) (2026-07-15)",
+        "owner manual verification pending: use commands -> appear under the divider, most-recent-first, max 5, deduped; reload persists; click a recent re-runs + moves to top"
+      ]
     },
     {
       "id": "MR4.1",
