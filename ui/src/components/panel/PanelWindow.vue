@@ -64,19 +64,22 @@ import { useQuasar } from 'quasar'
 import { detachedRectKey, readPanelScreenRect, type PanelMode, type PanelWindowState } from './use-panel-window'
 import { createPanelBridgeParent, type PanelBridgeParent, type PanelEventPayload } from './use-panel-bridge'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   readonly state: PanelWindowState
   readonly title: string
   readonly icon?: string
-  // PW5.6c: a panel whose content depends on the MAIN window's in-memory state (e.g. «Список
-  // треков», which shares the gtracks singleton) can't run in a separate OS-window app instance
-  // without a remote-control redesign — the child would build its own gtracks and clobber the same
-  // per-file localStorage. Such panels set this false to hide the "Separate window" option.
+  // PW5.6c: a panel that can't sensibly run in a separate OS window opts out with allow-detach=false
+  // to hide the "Separate window" mode. PW5.7c-fix: this MUST default to true — a type-only Boolean
+  // prop that is ABSENT is cast by Vue to `false` (not `undefined`), so without the default below
+  // modeOptions would drop «detached» for EVERY panel that doesn't explicitly pass :allow-detach.
+  // That silent cast is exactly what hid the mode for both file-open and «Список треков».
   readonly allowDetach?: boolean
   // PW5.7: remote-control panels push a serializable state snapshot to their detached child window
   // (which holds no state of its own). Ignored while in-window / for panels that don't set it.
   readonly bridgeState?: unknown
-}>()
+}>(), {
+  allowDetach: true,
+})
 
 const emit = defineEmits<{
   close: []
