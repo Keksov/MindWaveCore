@@ -198,7 +198,8 @@
       "blockedReason": null,
       "evidence": [
         "vue-tsc 0; quasar build success; bun test GnauralCore/ui 205/205 (2026-07-15)",
-        "owner manual verification pending: control sits right of «Меню»; label + recent-files quick-pick behave exactly as before"
+        "tweak (owner 2026-07-15): label «Выбранный файл» -> «Текущий файл» (i18n key selectedFile renamed to currentFile, ru/en; only that one usage); added a gap between the label and the file name (q-mr-sm + neutralized the old .audio-page__file-dropdown -8px margin inside the menubar)",
+        "owner manual verification pending: control sits right of «Меню»; label reads «Текущий файл» with a gap before the name; recent-files quick-pick behaves exactly as before"
       ]
     }
   ]
