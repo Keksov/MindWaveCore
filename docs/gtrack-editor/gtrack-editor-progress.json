@@ -2129,17 +2129,22 @@
       "id": "GT11.4",
       "phase": 11,
       "title": "Огибающие кривые бита на базовом графике редактируемы (drag краёв полосы ⇒ beatFreqHalf)",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": [
         "GT11.3"
       ],
-      "artifacts": [],
+      "artifacts": [
+        "GTrackView.vue: beatEdgeAtPixel() hit-tests per-point band-edge handles (base ± beat/2), Base+showBeatBand only, skips preparse voices + zero-width bands; beginBeatEdgeDrag + a beat branch in onPointerDown/Move/Up emit drag-beat-move {point, beatFreqHalf = |cursorFreq − baseFreq|} (band symmetric in Hz, both edges move); small edge handles drawn (grow + white ring + ns-resize cursor on hover/drag)",
+        "use-gtrack-lanes.ts: dragPointBeat() sets beatFreqHalf inside the same beginPointDrag->endPointDrag transaction (one undo unit); GTrackModel single source (GT-D16) syncs to the voice's other lanes; time/index untouched. New GTrackBeatDragMove payload type",
+        "TracksPanel.vue: @drag-beat-move -> gtracks.dragPointBeat"
+      ],
       "verify": "owner",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-15",
+      "finishedAt": "2026-07-15",
       "blockedReason": null,
       "evidence": [
-        "Owner 'Добавь в план' #1 (2026-07-14): the beat-band edges (base ± beat/2) on the Base graph become draggable; dragging an edge sets the point's beatFreqHalf (=> Beat freq), synced with the voice's beat curve in other lanes (GT-D16), one undo unit. Only in Base mode with the beat band (GT11.3) on."
+        "Owner 'Добавь в план' #1 (2026-07-14): the beat-band edges (base ± beat/2) on the Base graph become draggable; dragging an edge sets the point's beatFreqHalf (=> Beat freq), synced with the voice's beat curve in other lanes (GT-D16), one undo unit. Only in Base mode with the beat band (GT11.3) on.",
+        "DONE (2026-07-15): implemented per spec. Point-mode select = plain drag of a band edge; normal mode = Ctrl-drag (mirrors vertex editing). vue-tsc 0, quasar build 0, 205/205 UI tests. GnauralCore commit 6c88935. Owner to verify the drag feel (verify=owner)."
       ]
     },
     {
