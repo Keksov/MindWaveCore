@@ -5,7 +5,7 @@
   "title": "file-browser: universal file-open dialog with source-provider adapters (open any file; localhost-only)",
   "status": "in-progress",
   "createdAt": "2026-07-12T00:00:00Z",
-  "updatedAt": "2026-07-13T22:00:00Z",
+  "updatedAt": "2026-07-13T22:10:00Z",
   "decisions": [
     {
       "id": "FB-D1",
@@ -642,7 +642,8 @@
       "evidence": [
         "vue-tsc --noEmit: 0 errors; quasar build: success (2026-07-13)",
         "GnauralCore commit 1f1ceeb",
-        "owner manual check recommended: browse into a nested folder, F5 -> same folder (flat: listed; tree: branch revealed); delete the folder + F5 -> falls back without an error loop"
+        "owner manual check recommended: browse into a nested folder, F5 -> same folder (flat: listed; tree: branch revealed); delete the folder + F5 -> falls back without an error loop",
+        "owner-confirmed in-app (2026-07-13): \"Fixed!\" — refresh reopens the same folder"
       ]
     }
   ]
