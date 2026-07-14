@@ -13,7 +13,7 @@
     },
     {
       "id": "MR-D2",
-      "text": "Menu model + recursive render. A model array of nodes { id, labelKey, icon?, shortcut?, run?(): void, children?: MenuNode[], disabled?: () => boolean } plus a FLAT registry keyed by id (for the MRU lookup). Render: a q-item per node; a node WITH children renders a nested Quasar submenu — an inner <q-menu anchor=\"top end\" self=\"top start\"> (the standard sideways-submenu pattern) plus a chevron_right icon on the right; a LEAF (has run) is a clickable q-item with v-close-popup; disabled?() reactively greys/blocks an item (Экспорт uses !canExportCurrentFile). Initial model: Файл -> [Открыть, Экспорт], Настройки (leaf), Выход (leaf). Keeping it data-driven means adding future submenus (owner req. 3) is a model edit, not new template."
+      "text": "Menu model + recursive render. A model array of nodes { id, labelKey, icon?, shortcut?, run?(): void, children?: MenuNode[], disabled?: () => boolean } plus a FLAT registry keyed by id (for the MRU lookup). Render: a q-item per node; a node WITH children renders a nested Quasar submenu — an inner <q-menu anchor=\"top end\" self=\"top start\"> (the standard sideways-submenu pattern) plus a chevron_right icon on the right; a LEAF (has run) is a clickable q-item with v-close-popup; disabled?() reactively greys/blocks an item (Экспорт uses !canExportCurrentFile). Initial model: Файл -> [Открыть, Экспорт], Настройки (leaf), Выход (leaf). Keeping it data-driven means adding future submenus (owner req. 3) is a model edit, not new template. HOVER-OPEN (owner req. 8, 2026-07-14): a container's q-menu is no-parent-event; @mouseenter on the item shows its submenu after SUBMENU_HOVER_DELAY_MS=120ms (barely perceptible) and hides sibling submenus at the same level, @mouseleave cancels the pending timer; a click opens it immediately. Per-AppMenuList-instance Map<id,QMenu> holds the submenu refs; the timer is cleared in onBeforeUnmount."
     },
     {
       "id": "MR-D3",
@@ -94,10 +94,17 @@
         "GnauralCore/ui/i18n/ru.json + en.json: add audio.exportDialogTitle/exportFormat/exportFileName/exportAction/exportCancel; keep exportWav/exportFlac/exportFailed as needed"
       ],
       "verify": "bun run typecheck + build in MindWaveCore/ui; bun test in GnauralCore/ui green; manual: no «Экспорт» button in the toolbar; Файл→Экспорт disabled for non-gnaural; for a .gnaural it opens the dialog; switching type swaps the filename extension; Экспорт downloads a file with the entered name; editor save-first guard still fires",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-14T00:00:00Z",
+      "finishedAt": "2026-07-14T00:00:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "GnauralTransportControls.vue: «Экспорт» q-btn-dropdown + showExport/exportDisabled/exportLoading props + export emit removed (transport-only now); the 3 :show-export/@export bindings dropped in AudioPage",
+        "AudioPage.vue: Файл→Экспорт leaf (disabled=!canExportCurrentFile) -> openExportDialog(); exportDialog reactive {open,format,fileName}; q-dialog with q-option-group WAV|FLAC + q-input filename (prefilled via buildExportFileName, extension swapped on type change via swapExportExtension) + Отмена/Экспорт; confirmExport -> downloadSelectedAudio(format, fileName); downloadSelectedAudio gained an optional fileName param feeding link.download; existing prepareForExternalMutation save-first guard + error handling preserved",
+        "i18n ru/en: exportDialogTitle/exportFormat/exportFileName/exportAction/exportCancel added; unused exportWav/exportFlac removed (dialog uses literal WAV/FLAC)",
+        "ALSO in this pass (owner req. 8): AppMenuList hover-open (120ms) — see MR-D2",
+        "vue-tsc 0; quasar build success; bun test GnauralCore/ui 194/194 (2026-07-14)",
+        "owner manual verification pending: toolbar has no Экспорт; Файл→Экспорт greyed for non-gnaural; dialog type/name works; download uses the entered name; submenu auto-opens on hover after a slight delay"
+      ]
     },
     {
       "id": "MR3.1",
@@ -127,7 +134,8 @@
         "MR3.1"
       ],
       "artifacts": [
-        "AudioPage.vue menu styles: chevron_right on submenu parents, hover-to-open side submenu, item padding/hover, separator styling to read like the reference screenshot",
+        "AudioPage.vue menu styles: chevron_right on submenu parents, item padding/hover, separator styling to read like the reference screenshot",
+        "NOTE: hover-to-open of side submenus (owner req. 8) already landed in the MR2.1 pass (AppMenuList, 120ms) — remaining here is only visual polish + the AppCore check",
         "manual run of AppMain.exe: «Выход» closes the AppCore window"
       ],
       "verify": "owner checkpoint: typecheck+build+tests; look-and-feel matches the screenshot; «Выход» closes the app window in AppCore",
