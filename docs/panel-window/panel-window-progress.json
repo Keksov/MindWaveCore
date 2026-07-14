@@ -5,7 +5,7 @@
   "title": "panel-window: universal panel control (floating / docked / detached OS window); first consumer = file-open panel",
   "status": "in-progress",
   "createdAt": "2026-07-13T00:00:00Z",
-  "updatedAt": "2026-07-14T16:30:00Z",
+  "updatedAt": "2026-07-14T17:00:00Z",
   "decisions": [
     {
       "id": "PW-D1",
@@ -325,19 +325,25 @@
       "id": "PW5.4",
       "phase": 5,
       "title": "Add overall-waveform + overall-spectrum rows to the list (name + visibility eye); the list represents ALL tracks (voices + overall wave + overall spectrum)",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": [
         "PW5.3"
       ],
       "artifacts": [
-        "TracksPanel.vue list body: two extra rows — 'Общая волна' (t('audio.tracksOverallWave')) and 'Общий спектр' (t('audio.tracksOverallSpectrum')); each a name + a visibility eye. DEFAULT semantics (owner-flag): the eye toggles show/hide of that overall graph in the tab body (maps to overallWaveFolded/overallSpectrumFolded or the viewMode waveform/spectrogram inclusion) — names-only rows, not the graphs",
-        "audio-file (no voices) case: the list still shows these two rows, so it is useful for plain wav/flac"
+        "GnauralCore/ui/composables/use-overall-graphs.ts: useOverallGraphs() singleton (waveFolded/spectrumFolded + toggles, persisted to mindwave-tracks-overall-folded) so the tab + the AudioPage-hosted list toggle ONE source",
+        "TrackListPanel.vue: two rows at the top of the list — 'Общая волна' (tracksOverallWave) + 'Общий спектр' (tracksOverallSpectrum), name + a visibility eye; separator before the voices",
+        "TracksPanel.vue: overallWaveFolded/overallSpectrumFolded + toggles now alias the singleton (template unchanged); local refs + persist removed",
+        "owner-flag: eye = FOLD (collapse) of the overall graph in the tab, NOT a view-mode remove — fold is an independent per-graph boolean (viewMode is a coupled 4-way enum with no 'none'). Say if full view-mode hide is wanted.",
+        "audio-file (no voices) case: the list shows these two rows, so it is useful for plain wav/flac"
       ],
-      "verify": "typecheck+build; manual: rows appear with correct names; toggling the eye shows/hides the overall wave/spectrum; works for gnaural + wav/flac",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "typecheck+build+tests; manual: rows appear with correct names; toggling the eye folds/unfolds the overall wave/spectrum in the tab; state shared with the tab's fold headers; works for gnaural + wav/flac",
+      "startedAt": "2026-07-14T16:40:00Z",
+      "finishedAt": "2026-07-14T17:00:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "vue-tsc 0; quasar build exit 0; 159/159 UI tests pass (2026-07-14)",
+        "GnauralCore commit 16d953d"
+      ]
     },
     {
       "id": "PW5.5",
