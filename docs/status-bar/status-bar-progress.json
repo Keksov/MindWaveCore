@@ -3,9 +3,9 @@
   "plan": "status-bar",
   "planDoc": "docs/status-bar/status-bar-plan.md",
   "title": "status bar at the bottom of the Tracks editor: editable cursor position + time formats + relocated minimap",
-  "status": "in-progress",
+  "status": "done",
   "createdAt": "2026-07-14",
-  "updatedAt": "2026-07-14",
+  "updatedAt": "2026-07-15",
   "decisions": [
     {
       "id": "SB-D1",
@@ -216,7 +216,7 @@
       "id": "SB2.5",
       "phase": 2,
       "title": "PAUSE: owner-проверка статус-бара (всегда виден; позиция во всех форматах; авто-подбор+персист; минимап по оси; зазор 2px; шапка над скролбаром; шестерёнка+стрелочки в рамке; авто-ширина; тогл минимапа; подпись формата; верхние Позиция/Длительность убраны)",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [
         "SB2.2",
         "SB2.3",
@@ -226,10 +226,12 @@
       ],
       "artifacts": [],
       "verify": "owner",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-15",
+      "finishedAt": "2026-07-15",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Owner visual verification PASSED (2026-07-15, 'Fixed'): status bar always visible (incl. immediately on opening a large slow-rendering file, SB2.9); editable position across the 6 formats; auto-pick + per-file persistence; minimap aligned to the graph axis; 2px gap; header above the scrollbar; gear+step arrows inside the position frame; auto-width field; minimap show/hide toggle; format caption under the value; top Position/Duration removed."
+      ]
     }
   ],
   "log": [
@@ -248,6 +250,10 @@
     {
       "at": "2026-07-14",
       "text": "Owner req.: opening a large, slow-rendering file made the status bar appear with a big delay -> SB2.9: render <track-status-bar> unconditionally (dropped the 'showSpectrogram && hasSpectrogramData' gate) so it shows the instant the Tracks tab is up, regardless of file/render state; the data-dependent minimap inside is gated on hasSpectrogramData instead."
+    },
+    {
+      "at": "2026-07-15",
+      "text": "Owner visual verification PASSED ('Fixed') -> SB2.5 done. All steps complete; plan status -> done."
     }
   ]
 }
