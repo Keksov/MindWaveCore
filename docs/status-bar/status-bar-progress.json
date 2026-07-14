@@ -67,10 +67,15 @@
         "GnauralCore/ui/components/TracksPanel.vue"
       ],
       "verify": "vue-tsc + quasar build; manual: minimap не уезжает при скролле, t=0 совпадает с осью, sticky header + --tp-* панели работают",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-14",
+      "finishedAt": "2026-07-14",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "TracksPanel root .audio-page__output-section--spectrogram: overflow auto -> hidden + flex:1/min-height:0; the tracks stack now scrolls inside a new .tracks-panel__scroll (flex:1; overflow:auto; position:relative so lane absolute descendants still anchor/scroll as before). Toolbar/banners stay above it.",
+        "Minimap (.audio-page__minimap-wrap + SF26 mode gear) moved OUT of the scrolling .col into a new .tracks-panel__statusbar (flex:0 0 auto) pinned below the scroll region -> always visible (req 1). Wrapped in .tracks-panel__statusbar-minimap with padding-left:46/right:8 (= GTrackView AXIS_MARGIN) so the minimap t=0 aligns with the graph plot-area left edge and free space remains on the right where the gear sits (req 3).",
+        "Sticky header top -16px -> 0 (its sticky ancestor is now .tracks-panel__scroll, no padding of its own). Flyouts unaffected: measureOverlayFrame still measures rootEl's rect and the capture scroll listener still catches the inner scroll.",
+        "Verify: MindWaveCore/ui vue-tsc 0 errors; quasar build OK; GnauralCore bun test ui 180 pass. Runtime layout confirmed by owner at SB2.5 (after SB2.2)."
+      ]
     },
     {
       "id": "SB2.2",
