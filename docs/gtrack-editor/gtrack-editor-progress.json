@@ -2242,6 +2242,25 @@
         "Owner 'Добавь в план' (2026-07-14): the overall wave + overall spectrum get the same fold header bar as the per-track headers (GT11.5).",
         "Commit 929975b (GnauralCore): TracksPanel wraps the overall waveform stack and the overall spectrogram stack each in a header bar (stripe + Fold/Unfold chevron + tracksOverallWave/tracksOverallSpectrum title); v-show on the stack collapses it; overallWaveFolded/overallSpectrumFolded persisted globally (mindwave-tracks-overall-folded, matching the other tracks-panel UI state); the spectrum top time-axis shows when the wave stack is folded. vue-tsc 0, 159 UI tests, quasar build OK. Awaiting owner verification."
       ]
+    },
+    {
+      "id": "GT11.11",
+      "phase": 11,
+      "title": "Тоггл-глаз в header bar: список скрытых графиков группы + восстановление",
+      "status": "done",
+      "dependsOn": [
+        "GT11.10"
+      ],
+      "artifacts": [],
+      "verify": "owner",
+      "startedAt": "2026-07-14",
+      "finishedAt": "2026-07-14",
+      "blockedReason": null,
+      "evidence": [
+        "Owner 2026-07-14: if a group has hidden graphs, show an eye toggle in its header (right of the collapse icon, before the name) opening a dropdown of the hidden graphs, each restorable.",
+        "Commit 097bc55 (GnauralCore): extracted hiddenChannelEntries(kind) (now shared by the global hidden-tracks dropdown) + hiddenWaveList/hiddenSpectrumList computeds; an eye q-btn+q-menu on the overall wave + overall spectrum headers, shown only when that group has hidden channel graphs (L/R), each item calls showTrack. vue-tsc 0, 159 UI tests, quasar build OK. Awaiting owner verification.",
+        "SCOPE (flag to owner): only the overall wave/spectrum groups can have hidden graphs today (their L/R channels). A gtrack lane has no per-graph hide within it yet — that is GT11.8 (individual wave/spectrum sub-lane hide, currently broken); once GT11.8 lands, extend the same header eye to lane headers."
+      ]
     }
   ],
   "log": [
@@ -2700,6 +2719,12 @@
       "step": "GT11.2",
       "event": "fix",
       "note": "Owner reported flac files show only the minimap + 'Все голоса исключены из общего спектра/волны'. Root cause: GT11.2's overall wave/spectrum gate hasMixVoices = voices.some(...) is false for a non-gnaural file (no voices). Fix 272f738: overallMixActive = displayMode !== 'gnaural' || hasMixVoices gates the two stacks and the 'all excluded' message; mixVoiceIds stays [] for non-gnaural = whole file renders. vue-tsc 0, quasar build OK. Awaiting owner re-verification on a flac."
+    },
+    {
+      "ts": "2026-07-14T04:00:00Z",
+      "step": "GT11.11",
+      "event": "done",
+      "note": "Header-bar hidden-graph eye (owner req). GnauralCore 097bc55: extracted hiddenChannelEntries(kind) shared with the global hidden-tracks dropdown; hiddenWaveList/hiddenSpectrumList; an eye q-btn+q-menu on the overall wave + overall spectrum headers, shown only when that group has hidden channel graphs, each item restores via showTrack. vue-tsc 0, 159 UI tests, quasar build OK. Scope flagged: only overall wave/spectrum groups have hideable graphs today; gtrack lanes need GT11.8 (per-sublane hide) before their headers get the eye. Awaiting owner verification. Remaining Phase 11: GT11.4/11.6/11.7/11.8."
     }
   ]
 }
