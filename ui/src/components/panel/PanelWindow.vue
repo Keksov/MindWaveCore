@@ -68,6 +68,11 @@ const props = defineProps<{
   readonly state: PanelWindowState
   readonly title: string
   readonly icon?: string
+  // PW5.6c: a panel whose content depends on the MAIN window's in-memory state (e.g. «Список
+  // треков», which shares the gtracks singleton) can't run in a separate OS-window app instance
+  // without a remote-control redesign — the child would build its own gtracks and clobber the same
+  // per-file localStorage. Such panels set this false to hide the "Separate window" option.
+  readonly allowDetach?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -99,7 +104,7 @@ interface ModeOption {
   readonly icon: string
   readonly label: string
 }
-const modeOptions: readonly ModeOption[] = [
+const ALL_MODE_OPTIONS: readonly ModeOption[] = [
   { mode: 'floating', icon: 'picture_in_picture_alt', label: 'panel.dockFloat' },
   { mode: 'left', icon: 'border_left', label: 'panel.dockLeft' },
   { mode: 'right', icon: 'border_right', label: 'panel.dockRight' },
@@ -107,7 +112,10 @@ const modeOptions: readonly ModeOption[] = [
   { mode: 'bottom', icon: 'border_bottom', label: 'panel.dockBottom' },
   { mode: 'detached', icon: 'open_in_new', label: 'panel.detach' },
 ]
-const modeIcon = computed<string>(() => modeOptions.find((o) => o.mode === props.state.mode)?.icon ?? 'picture_in_picture_alt')
+const modeOptions = computed<readonly ModeOption[]>(() =>
+  props.allowDetach === false ? ALL_MODE_OPTIONS.filter((o) => o.mode !== 'detached') : ALL_MODE_OPTIONS,
+)
+const modeIcon = computed<string>(() => ALL_MODE_OPTIONS.find((o) => o.mode === props.state.mode)?.icon ?? 'picture_in_picture_alt')
 
 const close = (): void => {
   props.state.open = false
