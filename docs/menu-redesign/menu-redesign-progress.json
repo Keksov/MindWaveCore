@@ -1,0 +1,140 @@
+{
+  "schemaVersion": 1,
+  "plan": "menu-redesign",
+  "planDoc": "docs/menu-redesign/menu-redesign-plan.md",
+  "title": "menu-redesign: single «Меню» dropdown (vertical, sideways submenus, MRU of last-5 commands) replacing the Файл/Правка menubar in AudioPage; Export moves from the toolbar into Файл→Экспорт with a type+filename dialog",
+  "status": "in-progress",
+  "createdAt": "2026-07-14T00:00:00Z",
+  "updatedAt": "2026-07-14T00:00:00Z",
+  "decisions": [
+    {
+      "id": "MR-D1",
+      "text": "Single «Меню» dropdown. The two top-level q-btn-dropdowns in AudioPage.vue's .audio-page__menubar (:5-28) — «Файл» (t('audio.menuFile'), one item «Открыть…» -> openFileDialog) and «Правка» (t('audio.editMenu'), one item «Настройки» -> goToSettings, Ctrl+P) — are REPLACED by ONE q-btn-dropdown with label t('audio.menuRoot') («Меню»), whose popup is a vertical q-list. Content is built from a DECLARATIVE menu model (MR-D2) so sideways submenus + the MRU section are data-driven and extensible (owner req. 3: every item may have a submenu). Owner reqs 1,2,5."
+    },
+    {
+      "id": "MR-D2",
+      "text": "Menu model + recursive render. A model array of nodes { id, labelKey, icon?, shortcut?, run?(): void, children?: MenuNode[], disabled?: () => boolean } plus a FLAT registry keyed by id (for the MRU lookup). Render: a q-item per node; a node WITH children renders a nested Quasar submenu — an inner <q-menu anchor=\"top end\" self=\"top start\"> (the standard sideways-submenu pattern) plus a chevron_right icon on the right; a LEAF (has run) is a clickable q-item with v-close-popup; disabled?() reactively greys/blocks an item (Экспорт uses !canExportCurrentFile). Initial model: Файл -> [Открыть, Экспорт], Настройки (leaf), Выход (leaf). Keeping it data-driven means adding future submenus (owner req. 3) is a model edit, not new template."
+    },
+    {
+      "id": "MR-D3",
+      "text": "Leaf actions. Открыть -> openFileDialog() (opens the file panel). Экспорт -> openExportDialog() (MR-D7). Настройки -> goToSettings() (the two-pane settings dialog; the existing Ctrl+P handler in handlePlayerKeyDown stays unchanged). Выход -> window.close() (owner req. 6: close the AppCore host window; detached panel windows already use window.close(), same mechanism; in a dev browser window.close() only affects script-opened windows -> effectively a no-op there, a dev-only limitation). Every leaf runs through ONE wrapper invokeMenuCommand(node) that (a) calls node.run() and (b) records node.id into the MRU (MR-D4), so a single code path feeds both the click and the MRU. A disabled?() leaf neither runs nor records."
+    },
+    {
+      "id": "MR-D4",
+      "text": "MRU of the last 5 commands (owner req. 4, clarified 2026-07-14 = menu COMMANDS, not recent files). A composable useMenuMru() in GnauralCore/ui/composables/use-menu-mru.ts: reactive ids: string[], persisted to localStorage under 'mindwave-menu-mru'; push(id) = dedup + prepend + truncate to 5 (most-recent-first). Render: a q-separator AFTER «Выход», then the MRU rows (label/icon resolved from the flat registry by id); clicking a row calls the same invokeMenuCommand (which re-bumps it to the top). Empty MRU -> neither the separator nor the section render. Only LEAF commands enter the MRU (container nodes like «Файл» never do). «Выход» IS a command so by the literal requirement it enters the MRU too — FLAG: if the owner dislikes that a stray click on a recent item could close the app, exclude 'exit' from the MRU later."
+    },
+    {
+      "id": "MR-D5",
+      "text": "i18n. New keys audio.menuRoot («Меню» / 'Menu') and audio.menuExit («Выход» / 'Exit'). Reused: menuFile («Файл»), menuOpen («Открыть…»), openSettings («Настройки»). The audio.editMenu key («Правка») is REMOVED with its dropdown (owner req. 5). audio.recentFiles* keys are untouched — that is a separate on-form control, not the menu MRU."
+    },
+    {
+      "id": "MR-D6",
+      "text": "Code placement. The menu markup + invokeMenuCommand live in AudioPage.vue (where the menubar already is). The menu model is a local const/computed in AudioPage setup (it closes over openFileDialog/goToSettings/openExportDialog). The MRU is a standalone composable (use-menu-mru.ts) so it is unit-testable. Multi-repo rule: code -> GnauralCore repo, this Plan+Ledger -> MindWaveCore repo, staged/committed separately."
+    },
+    {
+      "id": "MR-D7",
+      "text": "Export moves into the menu + a dialog (owner req. 7, 2026-07-14). REMOVE the «Экспорт» dropdown button from GnauralTransportControls.vue (the showExport prop, its wav/flac q-items, the export emit) and its three bindings in AudioPage (:show-export/:export-disabled/:export-loading/@export at ~:275, :325, :362). ADD a leaf Меню -> Файл -> Экспорт with disabled=!canExportCurrentFile (gnaural-only, same gate as today). Clicking opens an EXPORT DIALOG (q-dialog, new component ExportDialog.vue or an inline dialog in AudioPage): a TYPE control (wav | flac radio/select) + a FILE NAME q-input prefilled from buildExportFileName(path, format) and re-derived when the type changes (swap the extension), plus Отмена / Экспорт buttons. Экспорт calls the existing downloadSelectedAudio(format) but link.download uses the entered name; keep the existing prepareForExternalMutation save-first guard + error handling. Choosing a real save FOLDER is out of scope (the browser <a download> lands in Downloads); a File System Access API showSaveFilePicker upgrade is a later option (flag). New i18n: audio.exportDialogTitle, audio.exportFormat, audio.exportFileName, audio.exportAction, audio.exportCancel; existing export/exportWav/exportFlac/exportFailed reused or cleaned up."
+    }
+  ],
+  "steps": [
+    {
+      "id": "MR0.1",
+      "phase": 0,
+      "title": "Plan + ledger authored (menu-redesign-plan.md + this file); owner clarifications captured (Выход=close AppCore window; recent=menu commands)",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [
+        "docs/menu-redesign/menu-redesign-plan.md (owner reqs verbatim, clarifications 4a/6, architecture MR-D1..MR-D6, phases)",
+        "docs/menu-redesign/menu-redesign-progress.json (decisions MR-D1..MR-D6, steps MR0.1..MR3.1)"
+      ],
+      "verify": "owner reads the plan; confirms the single «Меню» structure, the Выход=window.close() behavior, and MRU=menu commands",
+      "startedAt": "2026-07-14T00:00:00Z",
+      "finishedAt": "2026-07-14T00:00:00Z",
+      "blockedReason": null,
+      "evidence": [
+        "owner answered (2026-07-14): «Выход» = Закрыть окно AppCore; пункт 4 = Команды меню (MRU)"
+      ]
+    },
+    {
+      "id": "MR1.1",
+      "phase": 1,
+      "title": "Single «Меню» dropdown with data-driven model + sideways submenus: Файл→Открыть, Настройки, Выход; remove the Файл/Правка dropdowns; i18n menuRoot/menuExit, drop editMenu",
+      "status": "pending",
+      "dependsOn": [
+        "MR0.1"
+      ],
+      "artifacts": [
+        "GnauralCore/ui/pages/AudioPage.vue: replace the two q-btn-dropdowns (:6-27) with ONE q-btn-dropdown label=t('audio.menuRoot'); vertical q-list rendered from a menu model (MR-D2); Файл is a container node with a nested q-menu (anchor top end / self top start) + chevron_right holding «Открыть» -> openFileDialog; Настройки leaf -> goToSettings (Ctrl+P handler untouched); Выход leaf -> window.close() (MR-D3); leaves invoked via invokeMenuCommand wrapper (MRU no-op stub until MR2.1)",
+        "GnauralCore/ui/i18n/ru.json + en.json: add audio.menuRoot (Меню/Menu), audio.menuExit (Выход/Exit); remove audio.editMenu"
+      ],
+      "verify": "bun run typecheck + build in MindWaveCore/ui; bun test in GnauralCore/ui green; manual: «Меню» opens; «Файл» opens a sideways submenu; «Открыть» opens the file panel; «Настройки» opens settings (Ctrl+P still works); «Выход» calls window.close(); no «Правка»/«Файл» top-level items remain",
+      "startedAt": "2026-07-14T00:00:00Z",
+      "finishedAt": "2026-07-14T00:00:00Z",
+      "blockedReason": null,
+      "evidence": [
+        "GnauralCore/ui/components/app-menu/menu-node.ts (MenuNode model + helpers) + AppMenuList.vue (recursive q-list; container = sideways q-menu anchor top-end/self top-start + chevron; leaf = v-close-popup + @select)",
+        "AudioPage.vue: two q-btn-dropdowns («Файл»/«Правка») replaced by ONE «Меню» q-btn-dropdown (ref menuDropdownRef) hosting AppMenuList :nodes=menuModel @select=onMenuSelect; menuModel = Файл→[Открыть], Настройки (Ctrl+P), Выход; invokeMenuCommand wrapper (MRU stub) + exitApp=window.close()",
+        "i18n ru/en: menuRoot (Меню/Menu) + menuExit (Выход/Exit) added; editMenu (Правка/Edit) removed; grep editMenu -> no matches",
+        "vue-tsc --noEmit: 0 errors; quasar build: success; bun test GnauralCore/ui: 194/194 pass (2026-07-14)",
+        "owner manual verification pending: «Меню» opens; «Файл» opens sideways; «Открыть»/«Настройки»/«Выход» work; picking a submenu leaf closes the whole menu"
+      ]
+    },
+    {
+      "id": "MR2.1",
+      "phase": 2,
+      "title": "Export moves from the toolbar into Файл→Экспорт + a type/filename dialog (owner req. 7)",
+      "status": "pending",
+      "dependsOn": [
+        "MR1.1"
+      ],
+      "artifacts": [
+        "GnauralCore/ui/components/GnauralTransportControls.vue: remove the «Экспорт» q-btn-dropdown, the showExport/exportDisabled/exportLoading props, and the export emit",
+        "GnauralCore/ui/pages/AudioPage.vue: remove the three :show-export/:export-disabled/:export-loading/@export bindings on GnauralTransportControls (~:275, :325, :362); add Файл→Экспорт leaf (disabled=!canExportCurrentFile) -> openExportDialog()",
+        "Export dialog (new GnauralCore/ui/components/ExportDialog.vue OR an inline q-dialog in AudioPage): type control (wav|flac) + filename q-input prefilled via buildExportFileName and re-derived on type change; Отмена/Экспорт; Экспорт calls downloadSelectedAudio(format) with link.download = entered name; keep prepareForExternalMutation save-first guard + error handling (MR-D7)",
+        "GnauralCore/ui/i18n/ru.json + en.json: add audio.exportDialogTitle/exportFormat/exportFileName/exportAction/exportCancel; keep exportWav/exportFlac/exportFailed as needed"
+      ],
+      "verify": "bun run typecheck + build in MindWaveCore/ui; bun test in GnauralCore/ui green; manual: no «Экспорт» button in the toolbar; Файл→Экспорт disabled for non-gnaural; for a .gnaural it opens the dialog; switching type swaps the filename extension; Экспорт downloads a file with the entered name; editor save-first guard still fires",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "MR3.1",
+      "phase": 3,
+      "title": "MRU of the last 5 menu commands under a separator after «Выход» (composable + record on invoke + re-invoke on click)",
+      "status": "pending",
+      "dependsOn": [
+        "MR2.1"
+      ],
+      "artifacts": [
+        "GnauralCore/ui/composables/use-menu-mru.ts: useMenuMru() — reactive ids[], localStorage 'mindwave-menu-mru', push(id) dedup+prepend+cap 5 (MR-D4)",
+        "GnauralCore/ui/composables/__tests__ (or existing test dir): unit test for useMenuMru (dedup, order, cap-5, persistence round-trip)",
+        "AudioPage.vue: invokeMenuCommand records the leaf id via useMenuMru; render a q-separator + MRU rows AFTER «Выход» (label/icon from the flat registry by id); empty MRU hides both; clicking a recent row re-runs invokeMenuCommand (re-bumps to top)"
+      ],
+      "verify": "typecheck+build+tests (incl. new useMenuMru test); manual: invoke Открыть/Экспорт/Настройки -> they appear under the divider, most-recent first, max 5, deduped; reload -> MRU persists; click a recent -> runs + moves to top",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "MR4.1",
+      "phase": 4,
+      "title": "Polish to match the screenshot (chevron + hover-open sideways submenu, spacing/dividers) + AppCore manual check; OWNER CHECKPOINT",
+      "status": "pending",
+      "dependsOn": [
+        "MR3.1"
+      ],
+      "artifacts": [
+        "AudioPage.vue menu styles: chevron_right on submenu parents, hover-to-open side submenu, item padding/hover, separator styling to read like the reference screenshot",
+        "manual run of AppMain.exe: «Выход» closes the AppCore window"
+      ],
+      "verify": "owner checkpoint: typecheck+build+tests; look-and-feel matches the screenshot; «Выход» closes the app window in AppCore",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    }
+  ]
+}
