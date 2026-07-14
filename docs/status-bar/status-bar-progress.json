@@ -147,14 +147,40 @@
       ]
     },
     {
+      "id": "SB2.7",
+      "phase": 2,
+      "title": "Доработки 2-й итерации: авто-ширина поля позиции; тогл показать/скрыть минимап; подпись формата под значением",
+      "status": "done",
+      "dependsOn": [
+        "SB2.6"
+      ],
+      "artifacts": [
+        "GnauralCore/ui/components/TracksPanel.vue",
+        "GnauralCore/ui/components/TrackStatusBar.vue",
+        "GnauralCore/ui/i18n/en.json",
+        "GnauralCore/ui/i18n/ru.json"
+      ],
+      "verify": "vue-tsc + quasar build; manual: поле сужается/расширяется под формат; тогл скрывает минимап и уменьшает высоту; формат виден под значением",
+      "startedAt": "2026-07-14",
+      "finishedAt": "2026-07-14",
+      "blockedReason": null,
+      "evidence": [
+        "#1 auto-width: the position field is wrapped in a column whose width = fieldWidth computed = calc(max(len,4)ch + 78px); the input fills it and uses tabular-nums so each digit is one ch -> the frame tracks the formatted value per format. Fixed 210px removed.",
+        "#2 minimap toggle: TrackStatusBar gets minimapVisible prop + update:minimapVisible emit; a 'map' q-btn on the right (q-space before it) toggles it. The #minimap slot is v-if=minimapVisible (not v-show) so hiding drops the row and the status bar shrinks by the minimap height. Host persists globally (localStorage mindwave-tracks-minimap-hidden). i18n statusToggleMinimap.",
+        "#3 format caption: t(audio.timeFormat_<format>) shown under the value in a 10px muted caption (.track-status-bar__format).",
+        "Verify: MindWaveCore/ui vue-tsc 0 errors; quasar build OK; GnauralCore bun test ui 180 pass. Runtime confirmed by owner at SB2.5."
+      ]
+    },
+    {
       "id": "SB2.5",
       "phase": 2,
-      "title": "PAUSE: owner-проверка статус-бара (всегда виден; позиция во всех форматах; авто-подбор+персист; минимап по оси; зазор 2px; шапка над скролбаром; шестерёнка+стрелочки в рамке)",
+      "title": "PAUSE: owner-проверка статус-бара (всегда виден; позиция во всех форматах; авто-подбор+персист; минимап по оси; зазор 2px; шапка над скролбаром; шестерёнка+стрелочки в рамке; авто-ширина; тогл минимапа; подпись формата)",
       "status": "todo",
       "dependsOn": [
         "SB2.2",
         "SB2.3",
-        "SB2.6"
+        "SB2.6",
+        "SB2.7"
       ],
       "artifacts": [],
       "verify": "owner",
