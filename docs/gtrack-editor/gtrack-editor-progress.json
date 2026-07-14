@@ -2195,15 +2195,18 @@
       "id": "GT11.8",
       "phase": 11,
       "title": "BUG: кнопка скрыть/показать у индивидуальных графиков волны и спектра не работает",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": [],
       "artifacts": [],
       "verify": "owner",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-14",
+      "finishedAt": "2026-07-14",
       "blockedReason": null,
       "evidence": [
-        "Owner 'Добавь в план' #5 (2026-07-14): the show/hide toggle on the individual wave and spectrum sub-lanes currently does nothing — fix it."
+        "Owner 'Добавь в план' #5 (2026-07-14): the show/hide toggle on the individual wave and spectrum sub-lanes currently does nothing — fix it.",
+        "Root cause: the sub-lane WaveformView/SpectrogramView render an eye button that emits 'hide' (confirmed WaveformView L28-30, SpectrogramView L80), but the TracksPanel sub-lane usages bound only @open-settings, never @hide -> the button was a no-op.",
+        "Commit 7cc8a14 (GnauralCore): per-lane soloWaveHidden/soloSpectrumHidden flags in use-gtrack-lanes (persisted per file, mirroring folded/beatBand) + setLaneSoloGraphHidden(id, which, hidden); the sub-lane eye now sets the flag (@hide) and the sub-lane render gates on !hidden; restore via the track header eye — extended the GT11.11 hidden-graph eye to gtrack lane headers (laneHiddenGraphs lists a lane's configured-but-hidden solo wave/spectrum sub-graphs, restoring by clearing the flag). vue-tsc 0, 159 UI tests, quasar build OK. Awaiting owner verification.",
+        "NOTE: the hidden flags are independent of soloMode; toggling soloMode off/on in the gear does not auto-clear a hidden flag (the graph stays hidden, but the header eye still offers restore). Refine if the owner finds it confusing."
       ]
     },
     {
@@ -2725,6 +2728,12 @@
       "step": "GT11.11",
       "event": "done",
       "note": "Header-bar hidden-graph eye (owner req). GnauralCore 097bc55: extracted hiddenChannelEntries(kind) shared with the global hidden-tracks dropdown; hiddenWaveList/hiddenSpectrumList; an eye q-btn+q-menu on the overall wave + overall spectrum headers, shown only when that group has hidden channel graphs, each item restores via showTrack. vue-tsc 0, 159 UI tests, quasar build OK. Scope flagged: only overall wave/spectrum groups have hideable graphs today; gtrack lanes need GT11.8 (per-sublane hide) before their headers get the eye. Awaiting owner verification. Remaining Phase 11: GT11.4/11.6/11.7/11.8."
+    },
+    {
+      "ts": "2026-07-14T05:00:00Z",
+      "step": "GT11.8",
+      "event": "done",
+      "note": "Fixed the dead hide button on solo wave/spectrum sub-lanes (owner bug). Root cause: the sub-lane eye emitted 'hide' but TracksPanel never bound @hide. GnauralCore 7cc8a14: per-lane soloWaveHidden/soloSpectrumHidden flags (persisted) + setLaneSoloGraphHidden; the eye hides the sub-graph, render gates on !hidden, and the track header eye (GT11.11 extended to lane headers via laneHiddenGraphs) restores it. vue-tsc 0, 159 UI tests, quasar build OK. Awaiting owner verification. Remaining Phase 11: GT11.4 (editable beat curves), GT11.6 (icon mini-toolbars), GT11.7 (per-graph resize)."
     }
   ]
 }
