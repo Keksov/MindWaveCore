@@ -172,15 +172,36 @@
       ]
     },
     {
+      "id": "SB2.8",
+      "phase": 2,
+      "title": "Убрать Позицию/Длительность из верхней meta-полосы редактора (дубль статус-бара)",
+      "status": "done",
+      "dependsOn": [
+        "SB2.2"
+      ],
+      "artifacts": [
+        "GnauralCore/ui/pages/AudioPage.vue"
+      ],
+      "verify": "vue-tsc + quasar build; manual: в верхней meta-полосе больше нет Позиция/Длительность; статус-бар их показывает",
+      "startedAt": "2026-07-14",
+      "finishedAt": "2026-07-14",
+      "blockedReason": null,
+      "evidence": [
+        "AudioPage top meta strip: the two metric cells (audio.position/positionLabel, audio.duration/durationLabel) removed — they duplicated the new Tracks status bar. positionLabel/durationLabel dropped from the useAudioTransport destructuring (still exported by the composable, unused now). Only the file dropdown remains in the strip.",
+        "Verify: MindWaveCore/ui vue-tsc 0 errors; quasar build OK; GnauralCore bun test ui 180 pass."
+      ]
+    },
+    {
       "id": "SB2.5",
       "phase": 2,
-      "title": "PAUSE: owner-проверка статус-бара (всегда виден; позиция во всех форматах; авто-подбор+персист; минимап по оси; зазор 2px; шапка над скролбаром; шестерёнка+стрелочки в рамке; авто-ширина; тогл минимапа; подпись формата)",
+      "title": "PAUSE: owner-проверка статус-бара (всегда виден; позиция во всех форматах; авто-подбор+персист; минимап по оси; зазор 2px; шапка над скролбаром; шестерёнка+стрелочки в рамке; авто-ширина; тогл минимапа; подпись формата; верхние Позиция/Длительность убраны)",
       "status": "todo",
       "dependsOn": [
         "SB2.2",
         "SB2.3",
         "SB2.6",
-        "SB2.7"
+        "SB2.7",
+        "SB2.8"
       ],
       "artifacts": [],
       "verify": "owner",
