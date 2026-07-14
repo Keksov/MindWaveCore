@@ -5,7 +5,7 @@
   "title": "file-browser: universal file-open dialog with source-provider adapters (open any file; localhost-only)",
   "status": "in-progress",
   "createdAt": "2026-07-12T00:00:00Z",
-  "updatedAt": "2026-07-13T22:10:00Z",
+  "updatedAt": "2026-07-14T09:00:00Z",
   "decisions": [
     {
       "id": "FB-D1",
@@ -86,6 +86,10 @@
     {
       "id": "FB-D20",
       "text": "Restore the current folder across a page refresh (owner req. 19, FB5.3). A single last-dir string persists to localStorage (mindwave-fs-browser-last-dir) on every successful openDir AND on every tree reveal/browse (requestReveal + tree-node folder click), since tree navigation does not go through openDir/currentPath. init() start-dir priority is: remembered last-dir > caller initialPath > first favorite dir > first root. NOTE: this deviates from the original FB5.3 note (\"explicit initialPath still wins\") — in practice initialPath is always presetsRoot, a DEFAULT seed, not an explicit navigation target, so the remembered folder must win over it for the feature to work; a future explicit-target caller can add an override flag. openDir now returns boolean so init tries candidates in order and a stale/removed folder falls through to the next instead of opening onto an error. Tree mode reuses the existing currentPath->revealPath watchers to expand the restored branch."
+    },
+    {
+      "id": "FB-D21",
+      "text": "Responsive file-list toolbar (owner req. 20, FB5.4). Three-stage adaptation as the panel narrows, coordinated by a ResizeObserver on the FsEntryList root + a measure-and-escalate routine (all buttons bind :size=btnSize): (1) roomy -> default button size, single row; (2) overflow -> shrink every toolbar button to size=\"sm\" (the exact track-editor toolbar size in TracksPanel), still one row; (3) still overflowing at sm -> the toolbar becomes two rows: Up + Refresh (+ breadcrumbs, which stay next to the nav buttons) on row 1, the control buttons (view toggle / icon-size / audio / hidden / filter) wrap to row 2 via a forced flex line-break element. Measurement uses scrollWidth>clientWidth while the toolbar is flex-nowrap (breadcrumbs shrink to 0 so the fixed buttons are what overflow); the two-row state switches the toolbar to flex-wrap. Escalation resets to the roomiest layout each pass (widening recovers md/one-row); nextTick between steps means the intermediate states settle before paint (no flicker). The ResizeObserver is width-guarded so the height change from wrapping never feeds back into a loop."
     }
   ],
   "steps": [
@@ -645,6 +649,25 @@
         "owner manual check recommended: browse into a nested folder, F5 -> same folder (flat: listed; tree: branch revealed); delete the folder + F5 -> falls back without an error loop",
         "owner-confirmed in-app (2026-07-13): \"Fixed!\" — refresh reopens the same folder"
       ]
+    },
+    {
+      "id": "FB5.4",
+      "phase": 5,
+      "title": "Responsive file-list toolbar (owner req. 20, FB-D21): shrink buttons to sm, then wrap to two rows",
+      "status": "todo",
+      "dependsOn": [
+        "FB5.3"
+      ],
+      "artifacts": [
+        "FsEntryList: :size=btnSize on every toolbar button/toggle; toolbarCompact + toolbarTwoRows refs; ResizeObserver(root) + measureToolbar() escalation (default -> sm -> two rows)",
+        "controls grouped in one flex item; forced flex-break element before it when twoRows; toolbar flex-nowrap for measuring, flex-wrap when twoRows",
+        "CSS: min size matches TracksPanel dense/flat/round size=sm"
+      ],
+      "verify": "typecheck+build; manual: shrink the docked/floating panel -> buttons shrink to sm, then split to two rows (Up+Refresh row 1, rest row 2); widen -> reverts; no horizontal scrollbar on the button row",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
     }
   ]
 }
