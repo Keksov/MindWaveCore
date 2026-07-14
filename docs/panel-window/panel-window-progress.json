@@ -5,7 +5,7 @@
   "title": "panel-window: universal panel control (floating / docked / detached OS window); first consumer = file-open panel",
   "status": "in-progress",
   "createdAt": "2026-07-13T00:00:00Z",
-  "updatedAt": "2026-07-14T15:00:00Z",
+  "updatedAt": "2026-07-14T15:30:00Z",
   "decisions": [
     {
       "id": "PW-D1",
@@ -46,6 +46,10 @@
     {
       "id": "PW-D10",
       "text": "PW5.6 (owner 2026-07-14): «Список треков» must dock at the FULL editor height, in the SAME dock as «Открыть файл» — i.e. hosted at the AudioPage level, NOT inside the Треки tab (PW5.2's placement). The player-view q-tab-panels have NO keep-alive, so TracksPanel is destroyed on every tab switch; a panel hosted/teleported from there cannot persist cross-tab. Owner picked 'like Открыть файл (cross-tab)' over a lighter tab-scoped teleport, so the list content is EXTRACTED into a standalone TrackListPanel.vue hosted by AudioPage beside FileOpenDialog. Enablers: PW5.6a — gtracks becomes a shared singleton useSharedGtrackLanes() (detached effectScope; useGtrackLanes has no lifecycle hooks) so the tab + the panel edit ONE instance. PW5.6b — 'save unsaved curve edits before a voice-patch reload' moves into gtracks.saveEdits() and a central guard in AudioPage.applyScheduleVoiceStatePatches (covers all voice-patch callers), so muting from the panel is safe even with the tab unmounted; useAudioStore is read at CALL time to keep the composable Pinia-free at creation (unit tests). PW5.6c — extract TrackListPanel + TrackListDialog (PanelWindow wrapper), host in the AudioPage dock-wrap, emit patch-voice-state/-batch, REVERT PW5.2's in-TracksPanel dock-wrap/dock-inner + root-scroll move, keep the toolbar button toggling the shared tracksListPanel.open. TracksPanel keeps its own saveGtrackEdits for the explicit save button (small duplication with gtracks.saveEdits — flagged, dedupe later)."
+    },
+    {
+      "id": "PW-D11",
+      "text": "PW5.6c (owner found 2026-07-14): detached (Отдельное окно) for «Список треков» is UNSOUND as an independent app instance. The child window (window.open '#/panel/track-list') is a separate Vue/Pinia app: (a) it has no loaded gnaural file — the app deliberately does NOT restore the last file on boot (stores/audio.ts SF20) — so the voice list is empty; (b) its own useSharedGtrackLanes() singleton writes the SAME per-file localStorage keys (mindwave-gtrack-*) as the main window, so structural edits (mode/visibility/in-mix/merge/spread) in the two windows clobber each other; (c) only voice mutes could bridge back (patch-voice-state), the rest can't live-sync. The bug surfaced because the detached menu item was exposed without the panel being registered in module.ts -> 'Неизвестная панель: track-list'. Fix: PanelWindow gains an allowDetach prop (default true; file-open keeps detach) and TrackListDialog sets it false + clears any stuck persisted detached mode. A TRUE detached «Список треков» would need a remote-control redesign — the child renders from a snapshot pushed by the parent and emits EVERY action over the bridge to the parent's authoritative gtracks (no child-side gtracks/persistence) — deferred as a separate task pending owner decision."
     }
   ],
   "steps": [
@@ -335,10 +339,10 @@
     {
       "id": "PW5.5",
       "phase": 5,
-      "title": "Detached mode for «Список треков»: extract list content to a standalone component + module.ts panels[] registration + cross-window data plumbing (or record the empty-list limitation). OWNER CHECKPOINT",
-      "status": "not-started",
+      "title": "Detached mode for «Список треков» — DISABLED (unsound as a separate app instance, PW-D11); a true version needs a remote-control redesign. OWNER CHECKPOINT",
+      "status": "blocked",
       "dependsOn": [
-        "PW5.4"
+        "PW5.6c"
       ],
       "artifacts": [
         "GnauralCore/ui/components/TrackListPanel.vue: standalone chrome-free content (mirror FileOpenPanel) reusable by both the in-window PanelWindow slot and PanelHostPage in the child window",
@@ -348,8 +352,10 @@
       "verify": "owner checkpoint: typecheck+build; manual: 'Separate window' opens the list; decide required detached fidelity",
       "startedAt": null,
       "finishedAt": null,
-      "blockedReason": null,
-      "evidence": []
+      "blockedReason": "Detached is unsound for this shared-state live panel (PW-D11): the child window is a separate app instance with no loaded file + its own gtracks clobbering the same localStorage. Hidden via PanelWindow allowDetach=false (MindWaveCore b7813f6, GnauralCore fa716a7). A true detached «Список треков» needs a remote-control redesign — deferred pending owner decision.",
+      "evidence": [
+        "owner 2026-07-14: 'Отдельное окно' opened a child window showing 'Неизвестная панель: track-list' (panel not registered in module.ts) -> root-caused to the deeper unsoundness (PW-D11); detach hidden for this panel via allowDetach"
+      ]
     },
     {
       "id": "PW5.6a",
