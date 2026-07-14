@@ -182,19 +182,24 @@
       "id": "MR5.1",
       "phase": 5,
       "title": "Move the «Выбранный файл» control into the menubar, right of «Меню» (behavior identical) — owner req. 9",
-      "status": "pending",
+      "status": "done",
       "dependsOn": [
         "MR1.1"
       ],
       "artifacts": [
-        "AudioPage.vue: move the selected-file cell (label t('audio.selectedFile') + q-btn-dropdown selectedFileLabel + recent-files list over audio.recentFiles -> audio.selectPath, title=full path) from .audio-page__meta-strip (:227-259) into .audio-page__menubar, right of the «Меню» dropdown (MR-D8)",
-        "keep behavior 1:1 (same computed/selectPath/recent-list); add only flex-row alignment styling in the menubar; remove the emptied meta-strip cell (drop the strip if nothing remains)"
+        "AudioPage.vue: the selected-file control (t('audio.selectedFile') label + q-btn-dropdown selectedFileLabel + recent-files list over audio.recentFiles -> audio.selectPath, title=full path) moved from the tabs-bar .audio-page__meta-strip into .audio-page__menubar as .audio-page__menubar-file, right of the «Меню» dropdown; laid out inline (label + dropdown in a row) instead of the old stacked cell (MR-D8)",
+        "the emptied .audio-page__meta-strip removed from the tabs-bar (only the SB2.8 comment remained); markup/logic otherwise 1:1 (same recent-list/selectPath/title/label)",
+        "new .audio-page__menubar-file CSS clamps width to min(48vw,560px) overflow hidden so a long name never stretches the bar",
+        "FLAG: the .audio-page__meta-strip/meta-cell*/meta-label/meta-value CSS rules (incl. their responsive blocks) are now dead (the whole meta-strip was already partly orphaned by SB2.8); left in place to avoid churn while the owner edits this file — sweep later"
       ],
       "verify": "typecheck+build+tests; manual: the selected-file dropdown sits right of «Меню» in the menubar; label reflects the current file; recent-files pick still selects; identical to before",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-15T00:00:00Z",
+      "finishedAt": "2026-07-15T00:00:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "vue-tsc 0; quasar build success; bun test GnauralCore/ui 205/205 (2026-07-15)",
+        "owner manual verification pending: control sits right of «Меню»; label + recent-files quick-pick behave exactly as before"
+      ]
     }
   ]
 }
