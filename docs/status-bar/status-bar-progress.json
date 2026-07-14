@@ -192,6 +192,27 @@
       ]
     },
     {
+      "id": "SB2.9",
+      "phase": 2,
+      "title": "Статус-бар рендерится безусловно (owner req.): виден сразу при открытии вкладки, без ожидания рендера файла; минимап внутри — по наличию данных",
+      "status": "done",
+      "dependsOn": [
+        "SB2.2"
+      ],
+      "artifacts": [
+        "GnauralCore/ui/components/TracksPanel.vue"
+      ],
+      "verify": "vue-tsc + quasar build; manual: открыть большой файл — статус-бар (поля позиции/длительности) виден мгновенно, минимап появляется, когда готовы данные; без открытого файла статус-бар тоже присутствует",
+      "startedAt": "2026-07-14",
+      "finishedAt": "2026-07-14",
+      "blockedReason": null,
+      "evidence": [
+        "Owner req.: on opening a large, slow-to-render file the status bar appeared with a big delay because <track-status-bar> was gated on 'showSpectrogram && hasSpectrogramData'. Removed that v-if — the bar is now rendered unconditionally so it is present the moment the Tracks tab is shown, independent of whether a file is open or still rendering. positionSec/durationSec degrade to 0 (formatTime(0) is valid) and timeFormat falls back to autoPickFormat(0)=sec_ms.",
+        "The minimap needs real data to draw, so the #minimap slot content (.tracks-panel__statusbar-minimap) got its own v-if='hasSpectrogramData': while nothing is open (or a big file is still rendering) the bar shows just the fields row and the minimap appears once analysis/duration are ready.",
+        "Verify: MindWaveCore/ui vue-tsc 0 errors; quasar build OK."
+      ]
+    },
+    {
       "id": "SB2.5",
       "phase": 2,
       "title": "PAUSE: owner-проверка статус-бара (всегда виден; позиция во всех форматах; авто-подбор+персист; минимап по оси; зазор 2px; шапка над скролбаром; шестерёнка+стрелочки в рамке; авто-ширина; тогл минимапа; подпись формата; верхние Позиция/Длительность убраны)",
@@ -223,6 +244,10 @@
     {
       "at": "2026-07-14",
       "text": "SB1.1..SB2.3 implemented + committed. Owner SB2.5 review feedback (#1-3) -> SB2.6: header moved above the scroll region (scrollbar no longer runs past it); format gear moved inside the position field frame; segment step arrows (+ Up/Down keys) that change the field the caret sits in. Also fixed the ledger: SB2.1/2.2/2.3 statuses were left 'todo' by narrow evidence edits though committed -> set to 'done'."
+    },
+    {
+      "at": "2026-07-14",
+      "text": "Owner req.: opening a large, slow-rendering file made the status bar appear with a big delay -> SB2.9: render <track-status-bar> unconditionally (dropped the 'showSpectrogram && hasSpectrogramData' gate) so it shows the instant the Tracks tab is up, regardless of file/render state; the data-dependent minimap inside is gated on hasSpectrogramData instead."
     }
   ]
 }
