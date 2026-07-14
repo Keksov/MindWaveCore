@@ -5,7 +5,7 @@
   "title": "file-browser: universal file-open dialog with source-provider adapters (open any file; localhost-only)",
   "status": "in-progress",
   "createdAt": "2026-07-12T00:00:00Z",
-  "updatedAt": "2026-07-13T12:30:00Z",
+  "updatedAt": "2026-07-13T22:00:00Z",
   "decisions": [
     {
       "id": "FB-D1",
@@ -82,6 +82,10 @@
     {
       "id": "FB-D19",
       "text": "Persist the dialog's open state across restarts (owner req. 18, 2026-07-13). windowMode/dockSize/floatRect already persisted (FB-D13), but the open/closed flag lived in AudioPage as a transient ref, so a docked panel never reappeared after a program restart. Fix: the open flag moves into the fs-browser store as a persisted field (localStorage key ...-open), and AudioPage binds its v-model to store.open. On next launch, if it was open, FileOpenDialog mounts with modelValue true, runs init() (loopback discovery + start dir), and restores at the persisted mode+geometry — a docked panel comes back on its edge, a floating one at its saved rect. Scope note: the dialog belongs to the Audio form, so 'program open' = arriving on the Audio page (where the panel lives)."
+    },
+    {
+      "id": "FB-D20",
+      "text": "Restore the current folder across a page refresh (owner req. 19, FB5.3). A single last-dir string persists to localStorage (mindwave-fs-browser-last-dir) on every successful openDir AND on every tree reveal/browse (requestReveal + tree-node folder click), since tree navigation does not go through openDir/currentPath. init() start-dir priority is: remembered last-dir > caller initialPath > first favorite dir > first root. NOTE: this deviates from the original FB5.3 note (\"explicit initialPath still wins\") — in practice initialPath is always presetsRoot, a DEFAULT seed, not an explicit navigation target, so the remembered folder must win over it for the feature to work; a future explicit-target caller can add an override flag. openDir now returns boolean so init tries candidates in order and a stale/removed folder falls through to the next instead of opening onto an error. Tree mode reuses the existing currentPath->revealPath watchers to expand the restored branch."
     }
   ],
   "steps": [
@@ -621,20 +625,25 @@
       "id": "FB5.3",
       "phase": 5,
       "title": "Persist current folder across refresh (owner req. 19): the dialog reopens in the folder it was in before the page reload",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [
         "FB5.2"
       ],
       "artifacts": [
-        "fs-browser store: persist currentPath (localStorage, e.g. KEY_LAST_DIR) on every successful openDir",
-        "init(): saved folder takes priority over favorite/first-root as the start dir (explicit initialPath still wins); fallback to the old chain when the saved dir fails to list (deleted/unavailable drive)",
-        "tree mode: after init, reveal + expand the restored folder via requestReveal/revealPath (FB5.1 machinery)"
+        "fs-browser store: KEY_LAST_DIR + rememberDir()/readLastDir(); openDir returns boolean and calls rememberDir on success; requestReveal calls rememberDir (tree favorites/roots/reveal)",
+        "init(): candidate chain lastDir > initialPath > favorite > firstRoot, tried in order with fallthrough on list failure (FB-D20)",
+        "FsEntryList onTreeNodeClick: store.rememberDir(node.path) on a dir click so pure tree browsing is remembered too",
+        "tree restore: openDir(startDir) sets currentPath -> existing reveal watchers expand/select the branch"
       ],
       "verify": "browse into a nested folder, F5 -> dialog shows the same folder (flat views: listed; tree view: branch revealed); delete/rename the folder, F5 -> falls back to favorite/root without an error loop",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-13T21:45:00Z",
+      "finishedAt": "2026-07-13T22:00:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "vue-tsc --noEmit: 0 errors; quasar build: success (2026-07-13)",
+        "GnauralCore commit 1f1ceeb",
+        "owner manual check recommended: browse into a nested folder, F5 -> same folder (flat: listed; tree: branch revealed); delete the folder + F5 -> falls back without an error loop"
+      ]
     }
   ]
 }
