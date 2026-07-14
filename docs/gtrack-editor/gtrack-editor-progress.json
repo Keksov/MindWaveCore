@@ -2145,15 +2145,17 @@
       "id": "GT11.5",
       "phase": 11,
       "title": "Header bar над графиком: имя волны + цветная полоса трека слева + иконка Fold/Unfold (сворачивает все графики трека)",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": [],
       "artifacts": [],
       "verify": "owner",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-14",
+      "finishedAt": "2026-07-14",
       "blockedReason": null,
       "evidence": [
-        "Owner 'Добавь в план' #2 (2026-07-14): a header bar above each graph showing the wave name (from the combined graph's voice list); a colour stripe of the track colour on the bar's left edge; a Fold/Unfold icon before the name that collapses/expands ALL graphs belonging to that track (base/beat/volume/balance + wave/spectrum sub-lanes)."
+        "Owner 'Добавь в план' #2 (2026-07-14): a header bar above each graph showing the wave name (from the combined graph's voice list); a colour stripe of the track colour on the bar's left edge; a Fold/Unfold icon before the name that collapses/expands ALL graphs belonging to that track (base/beat/volume/balance + wave/spectrum sub-lanes).",
+        "Commit a6d9f0e (GnauralCore): per-lane `folded` flag in use-gtrack-lanes (persisted per file, mirrors beatBand) + toggleLaneFolded; TracksPanel renders a per-track header bar (laneHeaderColor stripe on the left + fold q-btn chevron + gtrackLaneLabel name); the curve (v-show) and the solo wave/spectrum sub-lanes (v-if) gate on !folded; the top time-axis rides the first UNFOLDED lane (firstUnfoldedGIndex, so folding the first track doesn't lose the ruler); the in-canvas GTrackView label is suppressed (name now lives in the header); i18n gtrackFold/gtrackUnfold. vue-tsc 0, 159 UI tests, quasar build OK. Awaiting owner verification.",
+        "INTERPRETATION (flag to owner): 'track' = one lane; 'все графики трека' = its curve + solo wave/spectrum sub-lanes. Per-VOICE folding (one toggle collapsing ALL mode-lanes base/beat/volume/balance of a voice at once) was NOT built — refine if that was the intent. Single-voice header stripe/title = voice colour; combined (multi-voice) lane = neutral grey stripe, default title."
       ]
     },
     {
@@ -2642,6 +2644,12 @@
       "step": null,
       "event": "plan",
       "note": "Owner 'Добавь в план' (2026-07-14), after verifying the beat band. New Phase 11 (Треки lane-graph work). Recorded 3 done lead-up features from this session: GT11.1 mute->wave/spectrum redraw + unify-with-Save (3d38c6d), GT11.2 per-voice include/exclude in the overall mix (9a2b9d6), GT11.3 per-track beat band (211ab1f); BK8a evidence extended with the lane mute-mirror (adb877b). Added 5 not-started requests: GT11.4 editable beat-envelope curves (drag band edges -> beatFreqHalf), GT11.5 graph header bar (name + track colour stripe + Fold/Unfold all track graphs), GT11.6 lane-icon refactor (mute mini-toolbar [eye,mute]; spectrum mini-toolbar [in-mix, show individual wave, show individual spectrum]; 6-dot grip -> 3 dots in the colour stripe), GT11.7 per-graph resize bar + persisted heights, GT11.8 BUG individual wave/spectrum hide button broken. GT11.4-11.8 not started - awaiting owner priority."
+    },
+    {
+      "ts": "2026-07-14T01:00:00Z",
+      "step": "GT11.5",
+      "event": "done",
+      "note": "Per-track header bar (owner req #2). GnauralCore a6d9f0e: use-gtrack-lanes gains a persisted per-lane `folded` flag + toggleLaneFolded; TracksPanel renders a header bar above each lane (track-colour stripe + Fold/Unfold chevron + wave name), the curve + solo wave/spectrum sub-lanes collapse on fold, the top time-axis rides the first unfolded lane, and the old in-canvas label is suppressed; i18n gtrackFold/gtrackUnfold. vue-tsc 0, 159 UI tests, quasar build OK. INTERPRETATION flagged: track=lane (fold collapses that lane's curve+sub-lanes), NOT per-voice folding of all mode-lanes — awaiting owner verification. Next (owner priority): GT11.4/11.6/11.7/11.8."
     }
   ]
 }
