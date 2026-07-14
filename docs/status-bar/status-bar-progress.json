@@ -61,7 +61,7 @@
       "id": "SB2.1",
       "phase": 2,
       "title": "Реструктуризация раскладки TracksPanel + переезд минимапа в низ, выравнивание по оси (req 1, 3)",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [],
       "artifacts": [
         "GnauralCore/ui/components/TracksPanel.vue"
@@ -81,7 +81,7 @@
       "id": "SB2.2",
       "phase": 2,
       "title": "TrackStatusBar.vue: редактируемая позиция + шестерёнка форматов (per file, авто-подбор) + read-only длительность (req 2)",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [
         "SB1.1",
         "SB2.1"
@@ -105,7 +105,7 @@
       "id": "SB2.3",
       "phase": 2,
       "title": "Горизонтальный зазор 2px: .audio-page__output-section padding 16px 2px (req 4, SB-D7)",
-      "status": "todo",
+      "status": "done",
       "dependsOn": [
         "SB2.1"
       ],
@@ -122,13 +122,39 @@
       ]
     },
     {
+      "id": "SB2.6",
+      "phase": 2,
+      "title": "Доработки по проверке SB2.5 (feedback #1-3): шапка над скролбаром; шестерёнка+стрелочки в рамке позиции; сегментный шаг",
+      "status": "done",
+      "dependsOn": [
+        "SB2.2"
+      ],
+      "artifacts": [
+        "GnauralCore/ui/components/TracksPanel.vue",
+        "GnauralCore/ui/components/TrackStatusBar.vue",
+        "GnauralCore/ui/i18n/en.json",
+        "GnauralCore/ui/i18n/ru.json"
+      ],
+      "verify": "vue-tsc + quasar build; manual: скролбар не касается шапки; стрелочки меняют сегмент под курсором во всех форматах",
+      "startedAt": "2026-07-14",
+      "finishedAt": "2026-07-14",
+      "blockedReason": null,
+      "evidence": [
+        "#1: the header .audio-page__spectrogram-header moved OUT of .tracks-panel__scroll to a flex:0 0 auto row ABOVE it (no longer position:sticky/z-40) — the tracks scrollbar now spans only the lane region and never runs past the header.",
+        "#2: the format gear moved into the position field via q-input #append (inside the outlined frame), replacing the standalone button.",
+        "#3: segment step arrows added left of the gear (inside the frame) + ArrowUp/Down keys. The caret's group = separators (':'/'.') before it; per-format unit map (sec/sec_ms/hms/dhms/hms_cs/hms_ms -> days/hours/min/sec/hundredths/millis). step() parses buf, +/- the segment unit, clamps to duration, emits seek, reformats, and re-selects the same group so repeated steps stay on that field. i18n statusStepUp/Down (en+ru).",
+        "Verify: MindWaveCore/ui vue-tsc 0 errors; quasar build OK; GnauralCore bun test ui 180 pass. Runtime confirmed by owner at SB2.5."
+      ]
+    },
+    {
       "id": "SB2.5",
       "phase": 2,
-      "title": "PAUSE: owner-проверка статус-бара (всегда виден; позиция во всех форматах; авто-подбор+персист; минимап по оси; зазор 2px)",
+      "title": "PAUSE: owner-проверка статус-бара (всегда виден; позиция во всех форматах; авто-подбор+персист; минимап по оси; зазор 2px; шапка над скролбаром; шестерёнка+стрелочки в рамке)",
       "status": "todo",
       "dependsOn": [
         "SB2.2",
-        "SB2.3"
+        "SB2.3",
+        "SB2.6"
       ],
       "artifacts": [],
       "verify": "owner",
@@ -146,6 +172,10 @@
     {
       "at": "2026-07-14",
       "text": "Owner follow-up (2026-07-14): (1) auto-pick thresholds confirmed; (2) 'hh:mm:ss + samples' format dropped -> 6 formats, sampleRate no longer needed (R2 closed); (3) new req 4 -> reduce the tracks' left/right gap to the editor border to 2px. Added SB-D7 + step SB2.3 (padding), SB-D5 locked, PAUSE renumbered SB2.3 -> SB2.5."
+    },
+    {
+      "at": "2026-07-14",
+      "text": "SB1.1..SB2.3 implemented + committed. Owner SB2.5 review feedback (#1-3) -> SB2.6: header moved above the scroll region (scrollbar no longer runs past it); format gear moved inside the position field frame; segment step arrows (+ Up/Down keys) that change the field the caret sits in. Also fixed the ledger: SB2.1/2.2/2.3 statuses were left 'todo' by narrow evidence edits though committed -> set to 'done'."
     }
   ]
 }
