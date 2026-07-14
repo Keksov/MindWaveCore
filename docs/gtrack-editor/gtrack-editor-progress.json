@@ -2204,6 +2204,43 @@
       "evidence": [
         "Owner 'Добавь в план' #5 (2026-07-14): the show/hide toggle on the individual wave and spectrum sub-lanes currently does nothing — fix it."
       ]
+    },
+    {
+      "id": "GT11.9",
+      "phase": 11,
+      "title": "Не писать название внутри графиков волны/спектра/голоса — имя несёт header bar",
+      "status": "done",
+      "dependsOn": [
+        "GT11.5"
+      ],
+      "artifacts": [],
+      "verify": "owner",
+      "startedAt": "2026-07-14",
+      "finishedAt": "2026-07-14",
+      "blockedReason": null,
+      "evidence": [
+        "Owner 'Добавь в план' (2026-07-14): don't draw the name inside the wave/spectrum/voice graphs — the header bar (GT11.5/GT11.10) is enough.",
+        "Commit 929975b (GnauralCore): dropped the ◑/◐ voice-name labels on the solo wave/spectrum sub-lanes and the L/R labels on the overall wave/spectrum tracks (:label=''); the gtrack curve label was already suppressed in GT11.5. vue-tsc 0, 159 UI tests, quasar build OK. Awaiting owner verification.",
+        "NOTE (flag to owner): removing the overall-stereo L/R markers leaves the two channels distinguished only positionally (L top, R bottom). If per-channel labels are wanted, restore small L/R or put them in the overall header title."
+      ]
+    },
+    {
+      "id": "GT11.10",
+      "phase": 11,
+      "title": "Сворачивающийся header bar для общей волны и общего спектра (как у дорожек)",
+      "status": "done",
+      "dependsOn": [
+        "GT11.5"
+      ],
+      "artifacts": [],
+      "verify": "owner",
+      "startedAt": "2026-07-14",
+      "finishedAt": "2026-07-14",
+      "blockedReason": null,
+      "evidence": [
+        "Owner 'Добавь в план' (2026-07-14): the overall wave + overall spectrum get the same fold header bar as the per-track headers (GT11.5).",
+        "Commit 929975b (GnauralCore): TracksPanel wraps the overall waveform stack and the overall spectrogram stack each in a header bar (stripe + Fold/Unfold chevron + tracksOverallWave/tracksOverallSpectrum title); v-show on the stack collapses it; overallWaveFolded/overallSpectrumFolded persisted globally (mindwave-tracks-overall-folded, matching the other tracks-panel UI state); the spectrum top time-axis shows when the wave stack is folded. vue-tsc 0, 159 UI tests, quasar build OK. Awaiting owner verification."
+      ]
     }
   ],
   "log": [
@@ -2650,6 +2687,12 @@
       "step": "GT11.5",
       "event": "done",
       "note": "Per-track header bar (owner req #2). GnauralCore a6d9f0e: use-gtrack-lanes gains a persisted per-lane `folded` flag + toggleLaneFolded; TracksPanel renders a header bar above each lane (track-colour stripe + Fold/Unfold chevron + wave name), the curve + solo wave/spectrum sub-lanes collapse on fold, the top time-axis rides the first unfolded lane, and the old in-canvas label is suppressed; i18n gtrackFold/gtrackUnfold. vue-tsc 0, 159 UI tests, quasar build OK. INTERPRETATION flagged: track=lane (fold collapses that lane's curve+sub-lanes), NOT per-voice folding of all mode-lanes — awaiting owner verification. Next (owner priority): GT11.4/11.6/11.7/11.8."
+    },
+    {
+      "ts": "2026-07-14T02:00:00Z",
+      "step": "GT11.10",
+      "event": "done",
+      "note": "Header-bar polish (owner 'Добавь в план'). GnauralCore 929975b: GT11.10 = the overall waveform and overall spectrogram stacks each get the same fold header bar as the per-track ones (stripe + Fold/Unfold + title; overallWaveFolded/overallSpectrumFolded persisted globally); GT11.9 = names no longer drawn inside the graphs (dropped ◑/◐ sub-lane voice-name labels + overall L/R labels; curve label already gone in GT11.5). vue-tsc 0, 159 UI tests, quasar build OK. Flagged to owner: overall-stereo L/R markers were removed (channels now positional). Awaiting owner verification. Remaining Phase 11: GT11.4/11.6/11.7/11.8."
     }
   ]
 }
