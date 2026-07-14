@@ -5,7 +5,7 @@
   "title": "panel-window: universal panel control (floating / docked / detached OS window); first consumer = file-open panel",
   "status": "in-progress",
   "createdAt": "2026-07-13T00:00:00Z",
-  "updatedAt": "2026-07-14T18:20:00Z",
+  "updatedAt": "2026-07-14T18:45:00Z",
   "decisions": [
     {
       "id": "PW-D1",
@@ -438,12 +438,13 @@
       "id": "PW5.7",
       "phase": 5,
       "title": "True detached «Список треков» via remote-control: the child renders a parent-pushed snapshot and bridges every action back (no child-side gtracks/persistence); re-enable detach for the panel",
-      "status": "not-started",
+      "status": "in-progress",
       "dependsOn": [
         "PW5.4"
       ],
       "artifacts": [
-        "@panel/use-panel-bridge.ts: new parent->child 'panel-state' message (parent.sendState(payload) on child-ready + on change, child.onState) alongside hello/heartbeat — the snapshot channel; file-open unaffected (never sends state)",
+        "DECOMPOSED (2026-07-14): PW5.7a bridge state-push infra = DONE (MindWaveCore 6b68680); PW5.7b = extract TrackListView (pure snapshot view) + TrackListPanel becomes the in-window adapter (parity); PW5.7c = TrackListRemote child adapter + TrackListDialog snapshot push & @panel-event mapping + module.ts registration + re-enable detach",
+        "@panel/use-panel-bridge.ts: new parent->child 'panel-state' message (parent.sendState(payload) on child-ready + on change, child.onState) alongside hello/heartbeat — the snapshot channel; file-open unaffected (never sends state) [PW5.7a DONE]",
         "TrackListPanel split into a pure view + two adapters: TrackListView.vue (dumb: props = serializable snapshot {voices:[{id,label,type,preparse,mode,visible,muted,inMix}], allLanesHidden, pointDragMode, overallRows}, one emit per action) + in-window adapter (binds useSharedGtrackLanes directly — current behaviour) + child adapter TrackListRemote.vue (renders ONLY the bridged snapshot; every action -> bridge panel-event; NO gtracks, NO mindwave-gtrack-* localStorage writes; fix-preparse confirm dialog runs child-side, the confirmed action bridges)",
         "parent side (TrackListDialog): watch shared gtracks + audio.gnauralSchedule -> debounced snapshot push; @panel-event maps each action onto the authoritative gtracks (mute via AudioPage applyScheduleVoiceStatePatches with the PW5.6b save-first guard)",
         "GnauralCore module.ts panels[]: register {id:'track-list', titleKey:'audio.tracksListPanel', icon:'queue_music', component: TrackListRemote, events:[voice-mode, voice-visible, voice-mute, voice-inmix, merge-all, spread-all, all-modes, hide-all, all-in-mode, drag-mode, fix-preparse, overall-row toggles]}",
@@ -451,10 +452,12 @@
         "dependsOn PW5.4 because the snapshot schema includes the overall wave/spectrum rows added there (avoid a schema break right after shipping)"
       ],
       "verify": "typecheck+build+tests; manual: detach opens the OS window with the LIVE list; child edits reflect in the main tracks instantly and vice versa; close child -> panel returns to prevMode; parent F5 -> child re-adopts and re-receives the snapshot; devtools: zero mindwave-gtrack-* writes from the child window",
-      "startedAt": null,
+      "startedAt": "2026-07-14T18:30:00Z",
       "finishedAt": null,
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "PW5.7a DONE (2026-07-14): @panel bridge sendState/onState + PanelWindow bridgeState prop + PanelHostPage passes :bridge-state to the content; file-open unaffected. vue-tsc 0, quasar build ok, 180/180 tests. MindWaveCore commit 6b68680"
+      ]
     },
     {
       "id": "PW5.8",
