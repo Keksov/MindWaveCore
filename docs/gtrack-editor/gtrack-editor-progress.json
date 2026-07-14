@@ -5,7 +5,7 @@
   "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
   "status": "in-progress",
   "createdAt": "2026-07-08T02:30:00Z",
-  "updatedAt": "2026-07-14",
+  "updatedAt": "2026-07-15",
   "decisions": [
     {
       "id": "GT-D1",
@@ -1075,7 +1075,7 @@
       "id": "GT7.4",
       "phase": 7,
       "title": "Cleanup: remove the Tracks WAV decode/fetch-for-display path",
-      "status": "not-started",
+      "status": "in-progress",
       "dependsOn": [
         "GT7.2",
         "GT7.3"
@@ -1096,7 +1096,7 @@
       "id": "BK1",
       "phase": 9,
       "title": "Backlog (deferred to last): finish CandyWreck.gnaural (2 voices) click-fix",
-      "status": "not-started",
+      "status": "deferred",
       "dependsOn": [],
       "artifacts": [
         "2 voices have a run of zero-duration entries before the end -> fade must borrow from the nearest long entry (walk-back donor)",
@@ -1476,7 +1476,7 @@
       "id": "GT10.15",
       "phase": 10,
       "title": "Lane properties dialog + Dup/Clean/New operations (req 64) — DISCUSS FIRST",
-      "status": "not-started",
+      "status": "deferred",
       "dependsOn": [],
       "artifacts": [
         "design to discuss with the owner: what lives in lane properties; duplicate/clear/new semantics"
@@ -1527,7 +1527,7 @@
       "id": "GT10.18",
       "phase": 10,
       "title": "Cache form v2: paths, base-file existence, age, delete-older-than (req 67) — NEEDS OWNER APPROVAL",
-      "status": "not-started",
+      "status": "deferred",
       "dependsOn": [],
       "artifacts": [
         "show temp-file location + base file name; check base file exists; show age; cleanup list / delete older than (day/week/month/year)"
@@ -1966,7 +1966,7 @@
       "id": "BK7",
       "phase": "backlog",
       "title": "Глобальный персистентный журнал Undo (панель, 2-шаговый откат, автоочистка+закрытие проекта, размер в кэш-менеджере, гибкая git-подобная архитектура)",
-      "status": "not-started",
+      "status": "deferred",
       "dependsOn": [],
       "artifacts": [],
       "verify": "owner",
@@ -2018,7 +2018,7 @@
       "id": "BK8",
       "phase": "backlog",
       "title": "Удалить вкладку Воспроизведение",
-      "status": "not-started",
+      "status": "in-progress",
       "dependsOn": [],
       "artifacts": [],
       "verify": "owner",
