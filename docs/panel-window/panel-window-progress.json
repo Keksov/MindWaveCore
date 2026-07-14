@@ -5,7 +5,7 @@
   "title": "panel-window: universal panel control (floating / docked / detached OS window); first consumer = file-open panel",
   "status": "in-progress",
   "createdAt": "2026-07-13T00:00:00Z",
-  "updatedAt": "2026-07-14T13:00:00Z",
+  "updatedAt": "2026-07-14T14:30:00Z",
   "decisions": [
     {
       "id": "PW-D1",
@@ -42,6 +42,10 @@
     {
       "id": "PW-D9",
       "text": "Фаза 5 — «Список треков» (renamed from «Голоса расписания» in PW5.1) is the SECOND consumer of the @panel control. PLACEMENT: the panel is hosted INSIDE TracksPanel.vue, NOT in AudioPage like file-open, because gtracks = useGtrackLanes(schedule, filePath) is a per-call factory created in TracksPanel setup (not a singleton Pinia store) — hosting the PanelWindow there lets floating+docked share the exact same reactive gtrack/voice state with zero plumbing; hosting elsewhere would spawn a second useGtrackLanes instance with divergent in-memory state. TOOLBAR: the toggle button stays in TracksPanel own header (audio-page__spectrogram-header — the toolbar the owner meant), moved to leftmost BEFORE the zoom_in / Zoom-plus button and un-gated (drop v-if displayMode==='gnaural') so it is always visible incl. plain wav/flac. LIST ROWS: add Общая-волна / Общий-спектр rows reusing existing i18n tracksOverallWave/tracksOverallSpectrum, name + a visibility eye — names-only rows, NOT the graphs (owner 2026-07-14: 'речь идёт только о СПИСКЕ треков, а не о графике'). DETACHED (PW5.5, owner checkpoint, deferred): unlike file-open — which only needs the filesystem, re-fetchable by the child over HTTP — the track list is driven by the in-memory loaded schedule + spectrogram analysis, which a detached child app instance does NOT have (separate Pinia, no loaded file), so a detached window shows an empty voice list until a snapshot is bridged or the file is re-analyzed child-side. Float+dock deliver the value immediately; detached is a separate decision."
+    },
+    {
+      "id": "PW-D10",
+      "text": "PW5.6 (owner 2026-07-14): «Список треков» must dock at the FULL editor height, in the SAME dock as «Открыть файл» — i.e. hosted at the AudioPage level, NOT inside the Треки tab (PW5.2's placement). The player-view q-tab-panels have NO keep-alive, so TracksPanel is destroyed on every tab switch; a panel hosted/teleported from there cannot persist cross-tab. Owner picked 'like Открыть файл (cross-tab)' over a lighter tab-scoped teleport, so the list content is EXTRACTED into a standalone TrackListPanel.vue hosted by AudioPage beside FileOpenDialog. Enablers: PW5.6a — gtracks becomes a shared singleton useSharedGtrackLanes() (detached effectScope; useGtrackLanes has no lifecycle hooks) so the tab + the panel edit ONE instance. PW5.6b — 'save unsaved curve edits before a voice-patch reload' moves into gtracks.saveEdits() and a central guard in AudioPage.applyScheduleVoiceStatePatches (covers all voice-patch callers), so muting from the panel is safe even with the tab unmounted; useAudioStore is read at CALL time to keep the composable Pinia-free at creation (unit tests). PW5.6c — extract TrackListPanel + TrackListDialog (PanelWindow wrapper), host in the AudioPage dock-wrap, emit patch-voice-state/-batch, REVERT PW5.2's in-TracksPanel dock-wrap/dock-inner + root-scroll move, keep the toolbar button toggling the shared tracksListPanel.open. TracksPanel keeps its own saveGtrackEdits for the explicit save button (small duplication with gtracks.saveEdits — flagged, dedupe later)."
     }
   ],
   "steps": [
@@ -342,6 +346,69 @@
         "cross-window data (PW-D9): a detached child has no loaded schedule/analysis — decide with owner: (a) bridge a voice-list snapshot + route each edit (visibility/mute/mode/in-mix) back over the channel like file-open's 'open' event, or (b) ship detached with a documented empty/limited list, or (c) leave detached out for this panel"
       ],
       "verify": "owner checkpoint: typecheck+build; manual: 'Separate window' opens the list; decide required detached fidelity",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PW5.6a",
+      "phase": 5,
+      "title": "Shared gtracks singleton (useSharedGtrackLanes) — the Треки tab + the AudioPage-hosted panel edit ONE instance (re-host groundwork, PW-D10)",
+      "status": "done",
+      "dependsOn": [
+        "PW5.2"
+      ],
+      "artifacts": [
+        "use-gtrack-lanes.ts: useSharedGtrackLanes() — a detached effectScope(true) singleton of useGtrackLanes (no lifecycle hooks -> safe), fed the audio store schedule + displayFilePath; imports effectScope + useAudioStore",
+        "TracksPanel.vue: const gtracks = useSharedGtrackLanes() (was useGtrackLanes(...)); no behaviour change"
+      ],
+      "verify": "typecheck+build+tests; no behaviour change",
+      "startedAt": "2026-07-14T13:15:00Z",
+      "finishedAt": "2026-07-14T13:40:00Z",
+      "blockedReason": null,
+      "evidence": [
+        "vue-tsc 0; quasar build exit 0; 159/159 UI tests pass (2026-07-14)",
+        "GnauralCore commit 2720dc0"
+      ]
+    },
+    {
+      "id": "PW5.6b",
+      "phase": 5,
+      "title": "Shared gtracks.saveEdits() + central save-first guard in AudioPage.applyScheduleVoiceStatePatches (PW-D10)",
+      "status": "done",
+      "dependsOn": [
+        "PW5.6a"
+      ],
+      "artifacts": [
+        "use-gtrack-lanes.ts: gtracks.saveEdits() (persist curve edits to the .gnaural; throws on error; reloads on success) + gtracks.saving; patchGnauralXml import; useAudioStore read at CALL time (Pinia-free creation for the unit tests)",
+        "AudioPage.vue: const gtracks = useSharedGtrackLanes(); applyScheduleVoiceStatePatches saves dirty curve edits first (guard) before the voice-state patch reloads — covers every voice-patch caller (no-op when clean)"
+      ],
+      "verify": "typecheck+build+tests; existing mute/save behaviour preserved",
+      "startedAt": "2026-07-14T13:45:00Z",
+      "finishedAt": "2026-07-14T14:20:00Z",
+      "blockedReason": null,
+      "evidence": [
+        "vue-tsc 0; quasar build exit 0; 159/159 UI tests pass (2026-07-14)",
+        "GnauralCore commit 0d83a76"
+      ]
+    },
+    {
+      "id": "PW5.6c",
+      "phase": 5,
+      "title": "Extract TrackListPanel.vue + TrackListDialog.vue, host at AudioPage (full-height dock beside FileOpenDialog); revert PW5.2 in-TracksPanel dock-wrap",
+      "status": "not-started",
+      "dependsOn": [
+        "PW5.6b"
+      ],
+      "artifacts": [
+        "utils gtrack-voice-color.ts: voiceDotColor + fallback palette extracted (shared by TracksPanel + TrackListPanel)",
+        "TrackListPanel.vue: voice-list body (bulk actions + per-voice rows + point-drag mode) using useSharedGtrackLanes + audio store; emits patch-voice-state/-batch (+ close); mute just emits (AudioPage guard saves-first)",
+        "TrackListDialog.vue: <PanelWindow :state=tracksListPanel><TrackListPanel .../></PanelWindow> (mirror FileOpenDialog)",
+        "AudioPage.vue: host TrackListDialog in the dock-wrap beside FileOpenDialog (Teleport when floating) + @patch-voice-state(-batch); tracksListPanel = useTracksListPanelState(); dockWrapClass covers both panels",
+        "TracksPanel.vue: REVERT PW5.2 dock-wrap/dock-inner + root-scroll override; remove the PanelWindow + list body (now in TrackListPanel) + onToggleVoiceMuted; keep the header button toggling tracksListPanel.open (shared store)"
+      ],
+      "verify": "typecheck+build+tests; manual: open the list, dock left/right -> spans FULL editor height like Открыть файл; switch tabs -> panel persists; mute/mode/in-mix from the panel reflect in the tracks; mute with unsaved curve edits saves first",
       "startedAt": null,
       "finishedAt": null,
       "blockedReason": null,
