@@ -2192,7 +2192,8 @@
         "Commit b308a17 (GnauralCore): use-gtrack-lanes gains per-lane curveHeight/soloWaveHeight/soloSpectrumHeight (persisted per file, clamped 60..600) + setLaneGraphHeight(id, which, h); resolveLane defaults preserve the current look (curve = global laneHeight, wave 0.7x, spectrum 0.9x). TracksPanel: each graph (curve + solo wave/spectrum sub-lanes) sizes to its own height and gets its own resize handle below it (onGraphResizeDown/Move/Up); the single global gtrack bottom handle (onGtrackBottom*) was removed. vue-tsc 0, 159 UI tests, quasar build OK. Awaiting owner verification.",
         "The composable's global laneHeight/setLaneHeight remain (laneHeight is still the default source for a new lane's curveHeight); setLaneHeight is now unused but kept as harmless public API.",
         "REFINEMENT 32f7a93 (owner 2026-07-14): holding Ctrl/Cmd when a resize drag STARTS resizes every graph of the dragged lane's voice(s) together — setVoiceGraphsHeight(id, h) sets curve+wave+spectrum height on all lanes sharing a voice with `id`, to the same height; onGraphResizeDown captures ctrlKey||metaKey and routes the move accordingly. INTERPRETATION flag: Ctrl unifies ALL graph kinds of the voice to one height (not same-kind-only, not same-delta); a plain drag stays per-graph. vue-tsc 0, 159 UI tests, quasar build OK.",
-        "REFINEMENT 8f0dc5e (owner 2026-07-14): the same Ctrl-resize now applies to the OVERALL wave + spectrum. Ctrl/Cmd on either overall bottom handle -> syncAllOverallHeights sets every overall graph (all waveform + spectrogram channels) to one height; a plain drag keeps the existing uniform-by-delta resize. Ranges differ (wave 48..800, spectrum 120..1200) so each stack clamps to its own bounds (identical for a target in the shared 120..800 range). vue-tsc 0, 159 UI tests, quasar build OK."
+        "REFINEMENT 8f0dc5e (owner 2026-07-14): the same Ctrl-resize now applies to the OVERALL wave + spectrum. Ctrl/Cmd on either overall bottom handle -> syncAllOverallHeights sets every overall graph (all waveform + spectrogram channels) to one height; a plain drag keeps the existing uniform-by-delta resize. Ranges differ (wave 48..800, spectrum 120..1200) so each stack clamps to its own bounds (identical for a target in the shared 120..800 range). vue-tsc 0, 159 UI tests, quasar build OK.",
+        "UNIFIED MODEL 0223dc8 (owner 2026-07-14, supersedes the wave+spectrum Ctrl sync): every resize bar behaves like the gtrack graph handles — plain drag = only that graph (a voice curve/sub-graph OR an overall wave/spectrum channel); Ctrl/Cmd = every graph in the same GROUP to one height (a voice / the overall wave / the overall spectrum); Shift = ALL graphs everywhere to one height, on any bar. Overall wave/spectrum: the mutual divider + uniform bottom handle were replaced by per-channel resize (unified onOverallResize*; the divider resizes the channel above it, the bottom handle the last channel) — the bottom bar no longer resizes all channels at once. resizeModeOf + setAllGraphsHeight shared by both handler families; composable setAllLanesGraphsHeight covers the gtrack part of Shift. Ranges still differ (gtrack 60..600, wave 48..800, spectrum 120..1200) so Ctrl/Shift unify exactly within the shared range. vue-tsc 0, 159 UI tests, quasar build OK, net -94 lines."
       ]
     },
     {
@@ -2756,6 +2757,12 @@
       "step": "GT11.7",
       "event": "fix",
       "note": "GT11.7 refinement 2 (owner): Ctrl-resize now also works on the OVERALL wave + spectrum. GnauralCore 8f0dc5e: Ctrl/Cmd on either overall bottom handle -> syncAllOverallHeights unifies all overall waveform + spectrogram channels to one height (each stack clamped to its own range); plain drag unchanged. vue-tsc 0, 159 UI tests, quasar build OK. Awaiting owner verification. Remaining Phase 11: GT11.4, GT11.6."
+    },
+    {
+      "ts": "2026-07-14T08:00:00Z",
+      "step": "GT11.7",
+      "event": "fix",
+      "note": "Owner wanted ONE uniform resize model everywhere (supersedes the earlier overall Ctrl behavior). GnauralCore 0223dc8: every resize bar = plain (this graph) / Ctrl (its group: a voice / the overall wave / the overall spectrum) / Shift (ALL graphs). Overall wave/spectrum switched from mutual-divider + uniform-bottom-handle to per-channel resize via a unified onOverallResize*; the bottom bar no longer resizes all channels. setAllLanesGraphsHeight added for the Shift scope. vue-tsc 0, 159 UI tests, quasar build OK, net -94 lines. Awaiting owner verification. Remaining Phase 11: GT11.4, GT11.6."
     }
   ]
 }
