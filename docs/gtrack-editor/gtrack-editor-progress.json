@@ -2106,7 +2106,8 @@
       "finishedAt": "2026-07-13",
       "blockedReason": null,
       "evidence": [
-        "Commit 9a2b9d6 (GnauralCore): a separate 'include/exclude in the overall wave/spectrum' button under the eye (graphic_eq) + mirrored in the 'Голоса расписания' panel; excludedFromMix Set persisted per file (mindwave-gtrack-mix-excluded); mixVoiceIds computed drives the overall overlays; hasMixVoices gate + gtrackMixAllExcluded hint; independent of hide/mute. vue-tsc 0, 159 UI tests, quasar build OK. Awaiting owner verification."
+        "Commit 9a2b9d6 (GnauralCore): a separate 'include/exclude in the overall wave/spectrum' button under the eye (graphic_eq) + mirrored in the 'Голоса расписания' panel; excludedFromMix Set persisted per file (mindwave-gtrack-mix-excluded); mixVoiceIds computed drives the overall overlays; hasMixVoices gate + gtrackMixAllExcluded hint; independent of hide/mute. vue-tsc 0, 159 UI tests, quasar build OK. Awaiting owner verification.",
+        "REGRESSION FIX 272f738 (owner 2026-07-14): the hasMixVoices gate = voices.some(...) is false for a NON-gnaural file (flac/wav/mp3 have no voices), so it wrongly hid the overall wave+spectrum (only the minimap + 'all excluded' message showed). Now gated on overallMixActive = displayMode !== 'gnaural' || hasMixVoices; mixVoiceIds stays [] for non-gnaural = whole file. vue-tsc 0, quasar build OK."
       ]
     },
     {
@@ -2693,6 +2694,12 @@
       "step": "GT11.10",
       "event": "done",
       "note": "Header-bar polish (owner 'Добавь в план'). GnauralCore 929975b: GT11.10 = the overall waveform and overall spectrogram stacks each get the same fold header bar as the per-track ones (stripe + Fold/Unfold + title; overallWaveFolded/overallSpectrumFolded persisted globally); GT11.9 = names no longer drawn inside the graphs (dropped ◑/◐ sub-lane voice-name labels + overall L/R labels; curve label already gone in GT11.5). vue-tsc 0, 159 UI tests, quasar build OK. Flagged to owner: overall-stereo L/R markers were removed (channels now positional). Awaiting owner verification. Remaining Phase 11: GT11.4/11.6/11.7/11.8."
+    },
+    {
+      "ts": "2026-07-14T03:00:00Z",
+      "step": "GT11.2",
+      "event": "fix",
+      "note": "Owner reported flac files show only the minimap + 'Все голоса исключены из общего спектра/волны'. Root cause: GT11.2's overall wave/spectrum gate hasMixVoices = voices.some(...) is false for a non-gnaural file (no voices). Fix 272f738: overallMixActive = displayMode !== 'gnaural' || hasMixVoices gates the two stacks and the 'all excluded' message; mixVoiceIds stays [] for non-gnaural = whole file renders. vue-tsc 0, quasar build OK. Awaiting owner re-verification on a flac."
     }
   ]
 }
