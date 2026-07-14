@@ -5,7 +5,7 @@
   "title": "panel-window: universal panel control (floating / docked / detached OS window); first consumer = file-open panel",
   "status": "in-progress",
   "createdAt": "2026-07-13T00:00:00Z",
-  "updatedAt": "2026-07-14T18:00:00Z",
+  "updatedAt": "2026-07-14T18:20:00Z",
   "decisions": [
     {
       "id": "PW-D1",
@@ -459,7 +459,7 @@
     {
       "id": "PW5.8",
       "phase": 5,
-      "title": "Full-hide for the OVERALL waveform/spectrogram (incl. header bars), gtrack-analogous: Ctrl-click the tab fold control + the list eye hide FULLY (not just fold); restore via the hidden-tracks dropdown (owner 2026-07-14)",
+      "title": "Full-hide for the OVERALL waveform/spectrogram (incl. header bars), gtrack-analogous: Ctrl-click ANY L/R channel eye (owner-corrected 2026-07-14: NOT the fold header) + the list eye hide FULLY (not just fold); restore via the hidden-tracks dropdown",
       "status": "done",
       "dependsOn": [
         "PW5.4"
@@ -476,7 +476,8 @@
       "blockedReason": null,
       "evidence": [
         "vue-tsc 0; quasar build exit 0; 180/180 UI tests pass (2026-07-14)",
-        "GnauralCore commit 228063c (use-overall-graphs waveHidden/spectrumHidden; TracksPanel Ctrl-click hide + hiddenTrackList restore + template gates; TrackListPanel eye -> full-hide)"
+        "GnauralCore commit 228063c (use-overall-graphs waveHidden/spectrumHidden; hiddenTrackList restore + template gates; TrackListPanel eye -> full-hide)",
+        "trigger correction (owner 2026-07-14): the hide trigger is Ctrl/Cmd-click on a CHANNEL eye (WaveformView/SpectrogramView now pass the MouseEvent with 'hide') -> hides the whole overall graph; the Ctrl-on-fold-header logic was reverted (the chevron just folds). GnauralCore commit f87eec6"
       ]
     }
   ]
