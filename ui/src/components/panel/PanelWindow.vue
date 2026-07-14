@@ -73,6 +73,9 @@ const props = defineProps<{
   // without a remote-control redesign — the child would build its own gtracks and clobber the same
   // per-file localStorage. Such panels set this false to hide the "Separate window" option.
   readonly allowDetach?: boolean
+  // PW5.7: remote-control panels push a serializable state snapshot to their detached child window
+  // (which holds no state of its own). Ignored while in-window / for panels that don't set it.
+  readonly bridgeState?: unknown
 }>()
 
 const emit = defineEmits<{
@@ -170,12 +173,23 @@ const teardownBridge = (): void => {
   bridge = null
 }
 
+// PW5.7: push the current snapshot to the detached child (no-op while in-window — bridge is null).
+const sendCurrentState = (): void => {
+  if (bridge !== null && props.bridgeState !== undefined) {
+    bridge.sendState(props.bridgeState)
+  }
+}
+
 const ensureBridge = (): void => {
   if (bridge !== null) {
     return
   }
   bridge = createPanelBridgeParent(props.state.panelId, {
-    onChildReady: cancelChildClosedTimer,
+    onChildReady: (): void => {
+      cancelChildClosedTimer()
+      // A freshly-ready child gets the current snapshot immediately (PW5.7).
+      sendCurrentState()
+    },
     onChildClosed: (): void => {
       cancelChildClosedTimer()
       childClosedTimer = window.setTimeout(() => {
@@ -230,6 +244,9 @@ watch(() => props.state.open, (open) => {
     teardownBridge()
   }
 })
+
+// PW5.7: forward snapshot changes to the detached child (deep — the snapshot is an object).
+watch(() => props.bridgeState, () => sendCurrentState(), { deep: true })
 
 // Host unmount (e.g. the main window navigates away): close the child cleanly instead of letting
 // its watchdog time out. mode stays 'detached' + open stays true, so remounting reopens it.

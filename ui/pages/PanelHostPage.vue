@@ -7,6 +7,7 @@
     <component
       :is="panelComponent"
       v-if="panelComponent !== null"
+      :bridge-state="bridgeState"
       v-bind="eventHandlers"
     />
     <div v-else class="panel-host__missing">
@@ -18,7 +19,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, watchEffect, type Component } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watchEffect, type Component } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { createPanelBridgeChild, type PanelBridgeChild } from '@panel/use-panel-bridge'
@@ -35,7 +36,11 @@ const panel = computed(() => modulePanels.find((p) => p.id === panelId.value))
 // parent-liveness watchdog (self-close on parent loss, PW-D2), obeys close-panel, and carries
 // the content component's events to the main window. One bridge per window: the panel id is
 // fixed by this window's URL.
-let bridge: PanelBridgeChild | null = panel.value !== undefined ? createPanelBridgeChild(panelId.value) : null
+// PW5.7: the latest parent-pushed snapshot; remote-control content (e.g. «Список треков») renders it.
+const bridgeState = ref<unknown>(undefined)
+let bridge: PanelBridgeChild | null = panel.value !== undefined
+  ? createPanelBridgeChild(panelId.value, { onState: (s) => { bridgeState.value = s } })
+  : null
 
 // PW4.1 (PW-D7): remember this window's on-screen rect so the next detach/auto-reopen restores
 // it. There is no move event, so poll screenX/screenY on an interval as well as on resize; write

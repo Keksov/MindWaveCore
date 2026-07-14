@@ -25,8 +25,12 @@ interface BridgeMessage {
     | 'child-ready'
     | 'child-closed'
     | 'panel-event'
+    | 'panel-state'
   readonly name?: string
   readonly payload?: PanelEventPayload
+  // PW5.7: parent -> child state snapshot for remote-control panels (e.g. «Список треков»), whose
+  // child window holds NO state and renders whatever the parent pushes.
+  readonly state?: unknown
 }
 
 const HEARTBEAT_MS = 2000
@@ -45,6 +49,8 @@ export interface PanelBridgeParentHandlers {
 export interface PanelBridgeParent {
   /** Ask the child window to close (main-side close, PW-D6). */
   readonly requestClose: () => void
+  /** PW5.7: push a state snapshot to the child (remote-control panels). */
+  readonly sendState: (state: unknown) => void
   readonly dispose: () => void
 }
 
@@ -76,6 +82,7 @@ export function createPanelBridgeParent(
 
   return {
     requestClose: (): void => post({ type: 'close-panel' }),
+    sendState: (state: unknown): void => post({ type: 'panel-state', state }),
     dispose: (): void => {
       window.clearInterval(heartbeat)
       window.removeEventListener('pagehide', onPageHide)
@@ -90,7 +97,12 @@ export interface PanelBridgeChild {
   readonly dispose: () => void
 }
 
-export function createPanelBridgeChild(panelId: string): PanelBridgeChild {
+export interface PanelBridgeChildHandlers {
+  /** PW5.7: a state snapshot pushed by the parent (remote-control panels). */
+  readonly onState?: (state: unknown) => void
+}
+
+export function createPanelBridgeChild(panelId: string, handlers: PanelBridgeChildHandlers = {}): PanelBridgeChild {
   const channel = new BroadcastChannel(channelName(panelId))
   const post = (msg: BridgeMessage): void => channel.postMessage(msg)
 
@@ -108,6 +120,8 @@ export function createPanelBridgeChild(panelId: string): PanelBridgeChild {
       goneDeadline = Date.now() + GONE_GRACE_MS
     } else if (msg.type === 'close-panel') {
       window.close()
+    } else if (msg.type === 'panel-state') {
+      handlers.onState?.(msg.state)
     }
   }
 
