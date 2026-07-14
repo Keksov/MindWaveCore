@@ -5,7 +5,7 @@
   "title": "panel-window: universal panel control (floating / docked / detached OS window); first consumer = file-open panel",
   "status": "in-progress",
   "createdAt": "2026-07-13T00:00:00Z",
-  "updatedAt": "2026-07-14T14:30:00Z",
+  "updatedAt": "2026-07-14T15:00:00Z",
   "decisions": [
     {
       "id": "PW-D1",
@@ -397,7 +397,7 @@
       "id": "PW5.6c",
       "phase": 5,
       "title": "Extract TrackListPanel.vue + TrackListDialog.vue, host at AudioPage (full-height dock beside FileOpenDialog); revert PW5.2 in-TracksPanel dock-wrap",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": [
         "PW5.6b"
       ],
@@ -409,10 +409,14 @@
         "TracksPanel.vue: REVERT PW5.2 dock-wrap/dock-inner + root-scroll override; remove the PanelWindow + list body (now in TrackListPanel) + onToggleVoiceMuted; keep the header button toggling tracksListPanel.open (shared store)"
       ],
       "verify": "typecheck+build+tests; manual: open the list, dock left/right -> spans FULL editor height like Открыть файл; switch tabs -> panel persists; mute/mode/in-mix from the panel reflect in the tracks; mute with unsaved curve edits saves first",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-14T14:35:00Z",
+      "finishedAt": "2026-07-14T15:00:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "vue-tsc 0; quasar build exit 0; 159/159 UI tests pass (2026-07-14)",
+        "GnauralCore commit f70bb1b (new gtrack-voice-color.ts + TrackListPanel.vue + TrackListDialog.vue; AudioPage hosts it in the dock-wrap beside FileOpenDialog; TracksPanel reverted to no in-tab dock)",
+        "owner manual verification pending: header button opens «Список треков»; dock left/right spans FULL editor height like «Открыть файл»; switch tabs -> panel stays; mute/mode/visibility/in-mix reflect in the tracks; mute with unsaved curve edits saves first"
+      ]
     }
   ]
 }
