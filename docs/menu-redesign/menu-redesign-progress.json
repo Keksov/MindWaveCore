@@ -17,7 +17,7 @@
     },
     {
       "id": "MR-D3",
-      "text": "Leaf actions. Открыть -> openFileDialog() (opens the file panel). Экспорт -> openExportDialog() (MR-D7). Настройки -> goToSettings() (the two-pane settings dialog; the existing Ctrl+P handler in handlePlayerKeyDown stays unchanged). Выход -> window.close() (owner req. 6: close the AppCore host window; detached panel windows already use window.close(), same mechanism; in a dev browser window.close() only affects script-opened windows -> effectively a no-op there, a dev-only limitation). Every leaf runs through ONE wrapper invokeMenuCommand(node) that (a) calls node.run() and (b) records node.id into the MRU (MR-D4), so a single code path feeds both the click and the MRU. A disabled?() leaf neither runs nor records."
+      "text": "Leaf actions. Открыть -> openFileDialog() (opens the file panel). Экспорт -> openExportDialog() (MR-D7). Настройки -> goToSettings() (the two-pane settings dialog; the existing Ctrl+P handler in handlePlayerKeyDown stays unchanged). Выход -> exitApp(): calls window.__appcoreExit() when present (AppCore binds it, AppMain.pas:730, to terminate its run loop), else falls back to window.close() for the dev browser. CORRECTION (owner 2026-07-15): window.close() alone does NOT quit AppCore — WebView2's window.close() only raises WindowCloseRequested, which the AppCore webview library ignores; the native __appcoreExit binding is the real quit path. Every leaf runs through ONE wrapper invokeMenuCommand(node) that (a) calls node.run() and (b) records node.id into the MRU (MR-D4), so a single code path feeds both the click and the MRU. A disabled?() leaf neither runs nor records."
     },
     {
       "id": "MR-D4",
@@ -33,7 +33,11 @@
     },
     {
       "id": "MR-D7",
-      "text": "Export moves into the menu + a dialog (owner req. 7, 2026-07-14). REMOVE the «Экспорт» dropdown button from GnauralTransportControls.vue (the showExport prop, its wav/flac q-items, the export emit) and its three bindings in AudioPage (:show-export/:export-disabled/:export-loading/@export at ~:275, :325, :362). ADD a leaf Меню -> Файл -> Экспорт with disabled=!canExportCurrentFile (gnaural-only, same gate as today). Clicking opens an EXPORT DIALOG (q-dialog, new component ExportDialog.vue or an inline dialog in AudioPage): a TYPE control (wav | flac radio/select) + a FILE NAME q-input prefilled from buildExportFileName(path, format) and re-derived when the type changes (swap the extension), plus Отмена / Экспорт buttons. Экспорт calls the existing downloadSelectedAudio(format) but link.download uses the entered name; keep the existing prepareForExternalMutation save-first guard + error handling. Choosing a real save FOLDER is out of scope (the browser <a download> lands in Downloads); a File System Access API showSaveFilePicker upgrade is a later option (flag). New i18n: audio.exportDialogTitle, audio.exportFormat, audio.exportFileName, audio.exportAction, audio.exportCancel; existing export/exportWav/exportFlac/exportFailed reused or cleaned up."
+      "text": "Export moves into the menu + a dialog (owner req. 7, 2026-07-14). REMOVE the «Экспорт» dropdown button from GnauralTransportControls.vue (the showExport prop, its wav/flac q-items, the export emit) and its three bindings in AudioPage (:show-export/:export-disabled/:export-loading/@export at ~:275, :325, :362). ADD a leaf Меню -> Файл -> Экспорт with disabled=!canExportCurrentFile (gnaural-only, same gate as today). Clicking opens an EXPORT DIALOG (q-dialog, inline in AudioPage): a TYPE control (wav | flac) + a FILE NAME q-input prefilled from buildExportFileName(path, format) and re-derived when the type changes (swap the extension), plus Отмена / Экспорт buttons. Экспорт calls the existing downloadSelectedAudio(format, fileName) with the entered name; keep the existing prepareForExternalMutation save-first guard + error handling. Choosing a real save FOLDER is out of scope (the browser <a download> lands in Downloads); a File System Access API showSaveFilePicker upgrade is a later option (flag). New i18n: audio.exportDialogTitle, audio.exportFormat, audio.exportFileName, audio.exportAction, audio.exportCancel; unused exportWav/exportFlac removed."
+    },
+    {
+      "id": "MR-D8",
+      "text": "Move «Выбранный файл» into the menubar (owner req. 9, 2026-07-15). The selected-file control — a label t('audio.selectedFile') + a q-btn-dropdown (selectedFileLabel + a recent-files quick-pick over audio.recentFiles calling audio.selectPath, with the full path as title) currently in .audio-page__meta-strip below the content tabs (AudioPage :227-259) — moves INTO .audio-page__menubar, to the RIGHT of the «Меню» dropdown. Behavior stays identical: same computed/label/dropdown/recent-list/selectPath — only the markup location changes (and minor flex-row alignment styling in the menubar). The old meta-strip cell is removed; if the strip becomes empty it can be dropped. No change to selection logic, recent-files, or persistence."
     }
   ],
   "steps": [
@@ -133,6 +137,29 @@
       ]
     },
     {
+      "id": "MR3.2",
+      "phase": 3,
+      "title": "Owner fixes (2026-07-15): «Выход» actually quits AppCore (window.__appcoreExit); «Выход» excluded from the MRU",
+      "status": "done",
+      "dependsOn": [
+        "MR3.1"
+      ],
+      "artifacts": [
+        "AudioPage.vue exitApp(): call window.__appcoreExit() when present (AppCore native quit binding), else window.close() (dev fallback) — fixes «Выход» not terminating the app",
+        "menu-node.ts: MenuNode gains noMru?: boolean; the exit node sets noMru: true",
+        "AudioPage.vue: invokeMenuCommand skips menuMru.record when node.noMru === true; mruNodes also filters out noMru nodes so a stale 'exit' id already persisted disappears from the divider list"
+      ],
+      "verify": "typecheck+build+tests; manual (AppCore): «Выход» closes the app window; «Выход» never appears under the recent-commands divider even after being clicked",
+      "startedAt": "2026-07-15T00:00:00Z",
+      "finishedAt": "2026-07-15T00:00:00Z",
+      "blockedReason": null,
+      "evidence": [
+        "found: AppCore binds window.__appcoreExit (AppMain.pas:730) to terminate the run loop; its own comment notes window.close() only raises WindowCloseRequested which the webview library ignores — root cause of the owner's 'Выход не завершает программу'",
+        "vue-tsc 0; quasar build success; bun test GnauralCore/ui 205/205 (2026-07-15)",
+        "owner manual verification pending (AppCore): Выход quits; Выход absent from MRU"
+      ]
+    },
+    {
       "id": "MR4.1",
       "phase": 4,
       "title": "Polish to match the screenshot (chevron + hover-open sideways submenu, spacing/dividers) + AppCore manual check; OWNER CHECKPOINT",
@@ -146,6 +173,24 @@
         "manual run of AppMain.exe: «Выход» closes the AppCore window"
       ],
       "verify": "owner checkpoint: typecheck+build+tests; look-and-feel matches the screenshot; «Выход» closes the app window in AppCore",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "MR5.1",
+      "phase": 5,
+      "title": "Move the «Выбранный файл» control into the menubar, right of «Меню» (behavior identical) — owner req. 9",
+      "status": "pending",
+      "dependsOn": [
+        "MR1.1"
+      ],
+      "artifacts": [
+        "AudioPage.vue: move the selected-file cell (label t('audio.selectedFile') + q-btn-dropdown selectedFileLabel + recent-files list over audio.recentFiles -> audio.selectPath, title=full path) from .audio-page__meta-strip (:227-259) into .audio-page__menubar, right of the «Меню» dropdown (MR-D8)",
+        "keep behavior 1:1 (same computed/selectPath/recent-list); add only flex-row alignment styling in the menubar; remove the emptied meta-strip cell (drop the strip if nothing remains)"
+      ],
+      "verify": "typecheck+build+tests; manual: the selected-file dropdown sits right of «Меню» in the menubar; label reflects the current file; recent-files pick still selects; identical to before",
       "startedAt": null,
       "finishedAt": null,
       "blockedReason": null,
