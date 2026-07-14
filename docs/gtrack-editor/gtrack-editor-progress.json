@@ -2190,7 +2190,8 @@
       "evidence": [
         "Owner 'Добавь в план' #4 (2026-07-14): each graph gets its own horizontal resize bar instead of one shared per track; heights are persisted and restored per file (as with the other lane heights).",
         "Commit b308a17 (GnauralCore): use-gtrack-lanes gains per-lane curveHeight/soloWaveHeight/soloSpectrumHeight (persisted per file, clamped 60..600) + setLaneGraphHeight(id, which, h); resolveLane defaults preserve the current look (curve = global laneHeight, wave 0.7x, spectrum 0.9x). TracksPanel: each graph (curve + solo wave/spectrum sub-lanes) sizes to its own height and gets its own resize handle below it (onGraphResizeDown/Move/Up); the single global gtrack bottom handle (onGtrackBottom*) was removed. vue-tsc 0, 159 UI tests, quasar build OK. Awaiting owner verification.",
-        "The composable's global laneHeight/setLaneHeight remain (laneHeight is still the default source for a new lane's curveHeight); setLaneHeight is now unused but kept as harmless public API."
+        "The composable's global laneHeight/setLaneHeight remain (laneHeight is still the default source for a new lane's curveHeight); setLaneHeight is now unused but kept as harmless public API.",
+        "REFINEMENT 32f7a93 (owner 2026-07-14): holding Ctrl/Cmd when a resize drag STARTS resizes every graph of the dragged lane's voice(s) together — setVoiceGraphsHeight(id, h) sets curve+wave+spectrum height on all lanes sharing a voice with `id`, to the same height; onGraphResizeDown captures ctrlKey||metaKey and routes the move accordingly. INTERPRETATION flag: Ctrl unifies ALL graph kinds of the voice to one height (not same-kind-only, not same-delta); a plain drag stays per-graph. vue-tsc 0, 159 UI tests, quasar build OK."
       ]
     },
     {
@@ -2742,6 +2743,12 @@
       "step": "GT11.7",
       "event": "done",
       "note": "Per-graph resize (owner req #4). GnauralCore b308a17: per-lane curveHeight/soloWaveHeight/soloSpectrumHeight (persisted, clamped) + setLaneGraphHeight; each gtrack graph (curve + solo wave/spectrum sub-lanes) now has its own height and its own resize handle below it; removed the single global gtrack bottom handle. Defaults preserve the current look. vue-tsc 0, 159 UI tests, quasar build OK. Awaiting owner verification. Remaining Phase 11: GT11.4 (editable beat-envelope curves), GT11.6 (icon mini-toolbars)."
+    },
+    {
+      "ts": "2026-07-14T06:30:00Z",
+      "step": "GT11.7",
+      "event": "fix",
+      "note": "GT11.7 refinement (owner): Ctrl/Cmd during a graph-resize drag resizes all graphs of the voice together. GnauralCore 32f7a93: setVoiceGraphsHeight sets curve+wave+spectrum on every lane sharing a voice; onGraphResizeDown captures the modifier at drag start. Flagged: unifies all kinds to one height. vue-tsc 0, 159 UI tests, quasar build OK. Awaiting owner verification. Remaining Phase 11: GT11.4, GT11.6."
     }
   ]
 }
