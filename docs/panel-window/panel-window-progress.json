@@ -3,9 +3,9 @@
   "plan": "panel-window",
   "planDoc": "docs/panel-window/panel-window-plan.md",
   "title": "panel-window: universal panel control (floating / docked / detached OS window); first consumer = file-open panel",
-  "status": "done",
+  "status": "in-progress",
   "createdAt": "2026-07-13T00:00:00Z",
-  "updatedAt": "2026-07-13T21:30:00Z",
+  "updatedAt": "2026-07-14T12:00:00Z",
   "decisions": [
     {
       "id": "PW-D1",
@@ -38,6 +38,10 @@
     {
       "id": "PW-D8",
       "text": "Code placement: the universal control lives in the core repo — MindWaveCore/ui/src/components/panel/ (PanelWindow.vue, use-panel-window.ts, use-panel-bridge.ts, panel-registry.ts types) — exposed to module repos via a new '@panel' alias in quasar.config.ts + tsconfig.json paths, mirroring the existing '@protocol' alias. Module repos (GnauralCore) import via the alias, never via ../../ relative paths into another repo. Commits: MindWaveCore (core control, router, modules/index, aliases, docs) and GnauralCore (FileOpenDialog split, module manifest, store slimming) are staged separately per repo per the multi-repo rule."
+    },
+    {
+      "id": "PW-D9",
+      "text": "Фаза 5 — «Список треков» (renamed from «Голоса расписания» in PW5.1) is the SECOND consumer of the @panel control. PLACEMENT: the panel is hosted INSIDE TracksPanel.vue, NOT in AudioPage like file-open, because gtracks = useGtrackLanes(schedule, filePath) is a per-call factory created in TracksPanel setup (not a singleton Pinia store) — hosting the PanelWindow there lets floating+docked share the exact same reactive gtrack/voice state with zero plumbing; hosting elsewhere would spawn a second useGtrackLanes instance with divergent in-memory state. TOOLBAR: the toggle button stays in TracksPanel own header (audio-page__spectrogram-header — the toolbar the owner meant), moved to leftmost BEFORE the zoom_in / Zoom-plus button and un-gated (drop v-if displayMode==='gnaural') so it is always visible incl. plain wav/flac. LIST ROWS: add Общая-волна / Общий-спектр rows reusing existing i18n tracksOverallWave/tracksOverallSpectrum, name + a visibility eye — names-only rows, NOT the graphs (owner 2026-07-14: 'речь идёт только о СПИСКЕ треков, а не о графике'). DETACHED (PW5.5, owner checkpoint, deferred): unlike file-open — which only needs the filesystem, re-fetchable by the child over HTTP — the track list is driven by the in-memory loaded schedule + spectrogram analysis, which a detached child app instance does NOT have (separate Pinia, no loaded file), so a detached window shows an empty voice list until a snapshot is bridged or the file is re-analyzed child-side. Float+dock deliver the value immediately; detached is a separate decision."
     }
   ],
   "steps": [
@@ -243,6 +247,101 @@
         "plan B IMPLEMENTED (2026-07-13): AppCore vendored-webview patch (win32_edge.hh NewWindowRequested -> bare native popup from the same environment; no address bar, document.title caption, opener icons, window.close support, default-popup fallback on early failure). AppCore repo: docs/popup-window/ (plan+ledger POP1.1 done, commits ccd1d0c + 9d00d7c; patch pinned on nested-repo branch appcore-patches b937913 + exported .patch). libwebview.dll + AppMain.exe rebuilt; MindWaveCore/server copy was blocked by the running exe — ExeAutoUpdate swaps binaries on next launch. Owner verification pending (restart MindWave, detach).",
         "owner verified in the exe (2026-07-13): detached window has NO address bar, correct title/icon; file picks reach the editor; close-main closes child; move/resize + reopen restores place & size drift-free — \"Всё работает как и ожидалось\""
       ]
+    },
+    {
+      "id": "PW5.1",
+      "phase": 5,
+      "title": "i18n rename «Голоса расписания» → «Список треков» (key gtrackVoicesPanel → tracksListPanel; en 'Track list' / ru 'Список треков'); 4 refs in TracksPanel updated",
+      "status": "done",
+      "dependsOn": [
+        "PW4.2"
+      ],
+      "artifacts": [
+        "GnauralCore/ui/i18n/{en,ru}.json: key gtrackVoicesPanel renamed to tracksListPanel (en 'Track list', ru 'Список треков')",
+        "GnauralCore/ui/components/TracksPanel.vue: 4 t('audio.gtrackVoicesPanel') → t('audio.tracksListPanel') (toggle button aria-label + tooltip; voices aside aria-label + title)"
+      ],
+      "verify": "bun run typecheck + build in MindWaveCore/ui; grep shows zero remaining gtrackVoicesPanel in code",
+      "startedAt": "2026-07-14T11:30:00Z",
+      "finishedAt": "2026-07-14T11:45:00Z",
+      "blockedReason": null,
+      "evidence": [
+        "vue-tsc --noEmit: 0 errors; quasar build: success (2026-07-14)",
+        "grep gtrackVoicesPanel: no matches in *.vue/ts/json code",
+        "GnauralCore commit 2052804"
+      ]
+    },
+    {
+      "id": "PW5.2",
+      "phase": 5,
+      "title": "«Список треков» migrates onto PanelWindow (floating/docked): slide-over <aside> → <PanelWindow> + useTracksListPanelState('track-list'); hosted inside TracksPanel (shares gtracks); button toggles state.open; Esc/backdrop/anyOverlay rewired",
+      "status": "not-started",
+      "dependsOn": [
+        "PW5.1"
+      ],
+      "artifacts": [
+        "GnauralCore/ui/stores/track-list-panel.ts: useTracksListPanelState(TRACK_LIST_PANEL_ID='track-list') via usePanelWindowState — new panel, default mindwave-panel-track-list-* keys (no legacy mapping)",
+        "TracksPanel.vue: the voices <aside> (currently :787-924) becomes <PanelWindow :state :title=t('audio.tracksListPanel') icon='queue_music'> with the list as default slot; dock-wrap flex container + Teleport-to-body-when-floating (mirror the AudioPage file-open host); remove the bespoke backdrop + gtrack-voices-panel transition + Esc handler; voicesPanelOpen ref replaced by the panel store open",
+        "toggle button @click switches from voicesPanelOpen to tracksListPanel.open; :color reflects .open; anyOverlayOpen updated"
+      ],
+      "verify": "typecheck+build; manual: open the list, drag/resize floating, dock left/right/top/bottom + resize, open-state persists across reload; live voice edits still work (same app instance)",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PW5.3",
+      "phase": 5,
+      "title": "Toolbar button: move to leftmost (before the zoom_in / 'Zoom plus' button) + remove the v-if displayMode==='gnaural' gate → always visible incl. plain wav/flac",
+      "status": "not-started",
+      "dependsOn": [
+        "PW5.2"
+      ],
+      "artifacts": [
+        "TracksPanel.vue audio-page__spectrogram-header: relocate the track-list toggle q-btn above the zoom_in button (currently :25); drop v-if=\"audio.displayMode === 'gnaural'\" so it renders for decoded wav/flac too (the outer header already renders for both via showGtracks || hasSpectrogramData)"
+      ],
+      "verify": "typecheck+build; manual: button is leftmost before Zoom+; open a wav/flac → button present and opens the list",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PW5.4",
+      "phase": 5,
+      "title": "Add overall-waveform + overall-spectrum rows to the list (name + visibility eye); the list represents ALL tracks (voices + overall wave + overall spectrum)",
+      "status": "not-started",
+      "dependsOn": [
+        "PW5.3"
+      ],
+      "artifacts": [
+        "TracksPanel.vue list body: two extra rows — 'Общая волна' (t('audio.tracksOverallWave')) and 'Общий спектр' (t('audio.tracksOverallSpectrum')); each a name + a visibility eye. DEFAULT semantics (owner-flag): the eye toggles show/hide of that overall graph in the tab body (maps to overallWaveFolded/overallSpectrumFolded or the viewMode waveform/spectrogram inclusion) — names-only rows, not the graphs",
+        "audio-file (no voices) case: the list still shows these two rows, so it is useful for plain wav/flac"
+      ],
+      "verify": "typecheck+build; manual: rows appear with correct names; toggling the eye shows/hides the overall wave/spectrum; works for gnaural + wav/flac",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PW5.5",
+      "phase": 5,
+      "title": "Detached mode for «Список треков»: extract list content to a standalone component + module.ts panels[] registration + cross-window data plumbing (or record the empty-list limitation). OWNER CHECKPOINT",
+      "status": "not-started",
+      "dependsOn": [
+        "PW5.4"
+      ],
+      "artifacts": [
+        "GnauralCore/ui/components/TrackListPanel.vue: standalone chrome-free content (mirror FileOpenPanel) reusable by both the in-window PanelWindow slot and PanelHostPage in the child window",
+        "GnauralCore module.ts panels[]: add {id:'track-list', titleKey:'audio.tracksListPanel', icon:'queue_music', component: () => import('./components/TrackListPanel.vue'), events:[...]}",
+        "cross-window data (PW-D9): a detached child has no loaded schedule/analysis — decide with owner: (a) bridge a voice-list snapshot + route each edit (visibility/mute/mode/in-mix) back over the channel like file-open's 'open' event, or (b) ship detached with a documented empty/limited list, or (c) leave detached out for this panel"
+      ],
+      "verify": "owner checkpoint: typecheck+build; manual: 'Separate window' opens the list; decide required detached fidelity",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
     }
   ]
 }
