@@ -5,7 +5,7 @@
   "title": "panel-window: universal panel control (floating / docked / detached OS window); first consumer = file-open panel",
   "status": "in-progress",
   "createdAt": "2026-07-13T00:00:00Z",
-  "updatedAt": "2026-07-14T18:45:00Z",
+  "updatedAt": "2026-07-14T19:15:00Z",
   "decisions": [
     {
       "id": "PW-D1",
@@ -456,7 +456,8 @@
       "finishedAt": null,
       "blockedReason": null,
       "evidence": [
-        "PW5.7a DONE (2026-07-14): @panel bridge sendState/onState + PanelWindow bridgeState prop + PanelHostPage passes :bridge-state to the content; file-open unaffected. vue-tsc 0, quasar build ok, 180/180 tests. MindWaveCore commit 6b68680"
+        "PW5.7a DONE (2026-07-14): @panel bridge sendState/onState + PanelWindow bridgeState prop + PanelHostPage passes :bridge-state to the content; file-open unaffected. vue-tsc 0, quasar build ok, 180/180 tests. MindWaveCore commit 6b68680",
+        "PW5.7b DONE (2026-07-14): TrackListPanel split into a pure view + in-window adapter. New GnauralCore files: track-list-model.ts (serializable TrackListSnapshot {isGnaural, allLanesHidden, pointDragMode, waveHidden, spectrumHidden, voices:[{id,label,type,preparse,mode,visible,muted,inMix,dotColor}]} + TrackListAction union), track-list-actions.ts (applyTrackListAction — the authoritative action->state map, structurally typed, +14 unit tests), use-track-list-snapshot.ts (useTrackListSnapshot: snapshot from the shared singletons + audio store), TrackListView.vue (pure: snapshot in, one @action emit per gesture). TrackListPanel.vue thinned to the in-window adapter (snapshot via useTrackListSnapshot; @action -> applyTrackListAction; mute -> patch-voice-state up; fix-preparse confirm dialog stays adapter-side). DEVIATION from the plan artifacts: TrackListView emits ONE 'action' event carrying the serializable union (not one named event per action) — cleaner to bridge and enables the shared applier; so 5.7c registers events:['action'] and TrackListDialog maps each bridged action via the SAME applyTrackListAction. Snapshot carries dotColor + waveHidden/spectrumHidden (not the plan's 'overallRows'). In-window parity preserved. vue-tsc 0, quasar build 0, 194/194 UI tests (+14). GnauralCore commit 8e0eb3b"
       ]
     },
     {
