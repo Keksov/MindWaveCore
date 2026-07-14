@@ -91,10 +91,15 @@
         "GnauralCore/ui/components/TracksPanel.vue"
       ],
       "verify": "vue-tsc + quasar build; manual: правка позиции во всех 6 форматах -> seek; авто-подбор + персист per file; i18n названий форматов",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-14",
+      "finishedAt": "2026-07-14",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "TrackStatusBar.vue: presentational component with props positionSec/durationSec/format and emits update:positionSec/update:format. Row = editable position q-input + format gear (q-menu over TIME_FORMATS, current checked) + read-only duration. Position field mirrors the live playhead while not focused (follows playback, R4); on Enter/blur -> parseTime -> clampSec(_, duration) -> emit; Esc reverts. Minimap rendered by the host into the #minimap slot on top. Root .track-status-bar is flex:0 0 auto (pinned strip).",
+        "TracksPanel: timeFormat computed = per-file saved pick (localStorage mindwave-tracks-timeformat = {[filePath]: format}) else autoPickFormat(duration); setTimeFormat persists per file (SB-D5). Wired <track-status-bar :position-sec=gtrackPlayheadSec??0 :duration-sec=spectrogramDuration :format=timeFormat @update:position-sec=handleSeek @update:format=setTimeFormat> with the minimap in the slot.",
+        "i18n: audio.statusPosition/statusDuration/statusTimeFormat + timeFormat_{sec,sec_ms,hms,dhms,hms_cs,hms_ms} in en.json + ru.json (owner's verbatim Russian format names).",
+        "Verify: MindWaveCore/ui vue-tsc 0 errors; quasar build OK; GnauralCore bun test ui 180 pass. Runtime UX confirmed by owner at SB2.5."
+      ]
     },
     {
       "id": "SB2.3",
@@ -108,10 +113,13 @@
         "GnauralCore/ui/components/TracksPanel.vue"
       ],
       "verify": "vue-tsc + quasar build; manual: треки прижаты к границе на 2px; sticky header + выравнивание минимапа не поехали",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-14",
+      "finishedAt": "2026-07-14",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        ".audio-page__output-section--spectrogram gets padding-left/right:2px (top/bottom stay 16px, folded into the SB2.1 rule) — Tracks tab only. Sticky-header top:0 and minimap AXIS_MARGIN alignment are unaffected (they don't depend on the horizontal padding).",
+        "Verify: MindWaveCore/ui quasar build OK (vue-tsc already clean from SB2.2). Visual confirmation by owner at SB2.5."
+      ]
     },
     {
       "id": "SB2.5",
