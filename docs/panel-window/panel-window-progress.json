@@ -5,7 +5,7 @@
   "title": "panel-window: universal panel control (floating / docked / detached OS window); first consumer = file-open panel",
   "status": "in-progress",
   "createdAt": "2026-07-13T00:00:00Z",
-  "updatedAt": "2026-07-14T17:20:00Z",
+  "updatedAt": "2026-07-14T17:40:00Z",
   "decisions": [
     {
       "id": "PW-D1",
@@ -451,6 +451,26 @@
         "dependsOn PW5.4 because the snapshot schema includes the overall wave/spectrum rows added there (avoid a schema break right after shipping)"
       ],
       "verify": "typecheck+build+tests; manual: detach opens the OS window with the LIVE list; child edits reflect in the main tracks instantly and vice versa; close child -> panel returns to prevMode; parent F5 -> child re-adopts and re-receives the snapshot; devtools: zero mindwave-gtrack-* writes from the child window",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PW5.8",
+      "phase": 5,
+      "title": "Full-hide for the OVERALL waveform/spectrogram (incl. header bars), gtrack-analogous: Ctrl-click the tab fold control + the list eye hide FULLY (not just fold); restore via the hidden-tracks dropdown (owner 2026-07-14)",
+      "status": "not-started",
+      "dependsOn": [
+        "PW5.4"
+      ],
+      "artifacts": [
+        "use-overall-graphs.ts: add waveHidden/spectrumHidden (+ setters), persisted alongside folded in mindwave-tracks-overall-folded ({wave,spectrum,waveHidden,spectrumHidden}; back-compatible — old data has only wave/spectrum)",
+        "TracksPanel.vue: gate the overall waveform/spectrum <template v-if> with && !overallWaveHidden / && !overallSpectrumHidden so the WHOLE stack INCL. the fold header bar is removed; the fold chevron @click -> handler: Ctrl/Cmd-click sets hidden=true, plain click toggles fold; add the hidden overall graphs to hiddenTrackList (top 'Скрытые дорожки' dropdown) with restore=setHidden(false), like hidden lanes",
+        "TrackListPanel.vue: the overall-row eye toggles HIDDEN (full hide) instead of folded; icon reflects hidden (supersedes the PW5.4 fold-eye)",
+        "point 1 (owner): Ctrl-click the overall wave/spectrum fold control -> full hide incl. header (plain click still just folds). point 2 (owner): the list eye fully hides these graphs, not just folds. Full analogy with the gtrack lane hide."
+      ],
+      "verify": "typecheck+build+tests; manual: Ctrl-click the overall fold header -> the whole graph incl. header disappears + shows in the 'Скрытые дорожки' dropdown -> restore works; the list eye fully hides/shows (not fold); plain click on the fold header still only folds",
       "startedAt": null,
       "finishedAt": null,
       "blockedReason": null,
