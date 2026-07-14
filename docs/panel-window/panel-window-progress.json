@@ -5,7 +5,7 @@
   "title": "panel-window: universal panel control (floating / docked / detached OS window); first consumer = file-open panel",
   "status": "in-progress",
   "createdAt": "2026-07-13T00:00:00Z",
-  "updatedAt": "2026-07-14T12:00:00Z",
+  "updatedAt": "2026-07-14T13:00:00Z",
   "decisions": [
     {
       "id": "PW-D1",
@@ -274,7 +274,7 @@
       "id": "PW5.2",
       "phase": 5,
       "title": "«Список треков» migrates onto PanelWindow (floating/docked): slide-over <aside> → <PanelWindow> + useTracksListPanelState('track-list'); hosted inside TracksPanel (shares gtracks); button toggles state.open; Esc/backdrop/anyOverlay rewired",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": [
         "PW5.1"
       ],
@@ -284,10 +284,14 @@
         "toggle button @click switches from voicesPanelOpen to tracksListPanel.open; :color reflects .open; anyOverlayOpen updated"
       ],
       "verify": "typecheck+build; manual: open the list, drag/resize floating, dock left/right/top/bottom + resize, open-state persists across reload; live voice edits still work (same app instance)",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-14T12:15:00Z",
+      "finishedAt": "2026-07-14T13:00:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "vue-tsc --noEmit: 0 errors; quasar build: exit 0; 159/159 GnauralCore UI tests pass (2026-07-14)",
+        "GnauralCore commit 132be4f (new stores/track-list-panel.ts; TracksPanel voice-list <aside> -> PanelWindow + dock-wrap; root scroll container moved to .tracks-panel__dock-inner so a docked panel reflows instead of scrolling away)",
+        "owner manual verification pending: float drag/resize; dock all 4 sides + resize + content reflow; open persists across reload; live voice edits reflect in the tracks (same app instance)"
+      ]
     },
     {
       "id": "PW5.3",
