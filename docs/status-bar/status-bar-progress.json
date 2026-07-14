@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 1,
+  "plan": "status-bar",
+  "planDoc": "docs/status-bar/status-bar-plan.md",
+  "title": "status bar at the bottom of the Tracks editor: editable cursor position + time formats + relocated minimap",
+  "status": "in-progress",
+  "createdAt": "2026-07-14",
+  "updatedAt": "2026-07-14",
+  "decisions": [
+    {
+      "id": "SB-D1",
+      "text": "Layout restructure (owner req. 1). The TracksPanel root becomes a 3-zone flex column: (1) toolbar (flex:0 0 auto), (2) a scrollable tracks region (flex:1 1 auto; overflow:auto) that now owns everything currently scrolling (the sticky header stays sticky INSIDE it, gtrack stack, overall wave/spectrum), and (3) a fixed status bar (flex:0 0 auto) OUTSIDE the scroll, always visible. Moving overflow:auto off the root must not break the sticky header (top:-16px compensates the root's 16px padding), the --tp-* overlay-frame pinning (GT10.27 measureOverlayFrame), or scrollIntoView (GT10.28)."
+    },
+    {
+      "id": "SB-D2",
+      "text": "Minimap relocates into the status bar top row (owner req. 3). .audio-page__minimap-wrap (SpectrogramMinimap + SF26 mode gear) is lifted out of the bottom of the scroll flow and becomes the status bar's top row. Alignment: the minimap wrapper gets padding-left:46px; padding-right:8px (= GTrackView AXIS_MARGIN {left:46,right:8}) so the minimap's t=0 lines up with the graphs' plot-area left edge and free space remains on the right. Minimap view/zoom/pan behaviour unchanged; the mode gear sits in the free right margin."
+    },
+    {
+      "id": "SB-D3",
+      "text": "Status bar = new TrackStatusBar.vue component (GnauralCore/ui/components). Props: positionSec, durationSec, sampleRate, format; a top slot/region for the minimap; emits update:positionSec (seek) and update:format. Host TracksPanel passes gtrackPlayheadSec/spectrogramDuration and maps update:positionSec -> handleSeek. Keeps layout in one testable place."
+    },
+    {
+      "id": "SB-D4",
+      "text": "Pure time-format module time-format.ts + tests. The 7 owner formats (req 2b) as a const/enum; formatTime(sec, fmt, sampleRate), parseTime(str, fmt, sampleRate) (reverse parse for editing, req 2a), autoPickFormat(durationSec). Parse tolerant to partial input within a format; result clamped to [0, durationSec]. Bun round-trip tests format->parse per format."
+    },
+    {
+      "id": "SB-D5",
+      "text": "Auto-pick + per-file persistence (req 2b; LOCKED owner 2026-07-14). Set is 6 formats -- owner dropped 'hh:mm:ss + samples'. autoPickFormat by duration (thresholds CONFIRMED by owner): <60s -> sec+millis; <1h -> hh:mm:ss+hundredths; <24h -> hh:mm:ss; >=24h -> dd:hh:mm:ss. An explicit user pick overrides auto-pick and persists per file (localStorage mindwave-tracks-timeformat = {[filePath]: formatId}, the use-gtrack-lanes pattern); no saved pick -> auto. sampleRate no longer needed (samples format removed); R2 closed."
+    },
+    {
+      "id": "SB-D6",
+      "text": "Position editable, duration read-only, both in the current format (req 2a/2c). Position field commits on Enter/blur -> parseTime -> clamp -> handleSeek; while playing it shows the live position ONLY when not being edited (R4). Duration uses the same format, read-only."
+    },
+    {
+      "id": "SB-D7",
+      "text": "Horizontal gap 2px (req 4; LOCKED owner 2026-07-14). The root .audio-page__output-section left/right padding drops from 16px to 2px (padding:16px 2px); top/bottom stay 16px so the sticky header's top:-16px compensation is unchanged. Does not affect minimap alignment (that relies on AXIS_MARGIN inside the canvas, not the section padding)."
+    }
+  ],
+  "steps": [
+    {
+      "id": "SB1.1",
+      "phase": 1,
+      "title": "Модуль time-format.ts: 6 форматов + formatTime/parseTime/autoPickFormat + bun-тесты",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [
+        "GnauralCore/ui/composables/time-format.ts",
+        "GnauralCore/ui/composables/time-format.test.ts"
+      ],
+      "verify": "bun test ui (round-trip format->parse per format; autoPick thresholds; clamp)",
+      "startedAt": "2026-07-14",
+      "finishedAt": "2026-07-14",
+      "blockedReason": null,
+      "evidence": [
+        "time-format.ts: TimeFormat (6, samples dropped) + formatTime/parseTime/clampSec/autoPickFormat. Formatting decomposes an integer count of the format's smallest unit (1s/1/100s/1/1000s) so second/minute fields never roll over from FP; parseTime is lenient (decimal comma, fewer colon-groups read right-to-left); autoPick thresholds locked per owner 2026-07-14.",
+        "time-format.test.ts: 21 tests / 85 expect() pass (bun test) — per-format formatting incl. no-rollover at 59.999s, right-to-left lenient parse, round-trip format->parse within each format's resolution, clamp, autoPick thresholds + degenerate durations.",
+        "MindWaveCore/ui vue-tsc --noEmit: 0 errors."
+      ]
+    },
+    {
+      "id": "SB2.1",
+      "phase": 2,
+      "title": "Реструктуризация раскладки TracksPanel + переезд минимапа в низ, выравнивание по оси (req 1, 3)",
+      "status": "todo",
+      "dependsOn": [],
+      "artifacts": [
+        "GnauralCore/ui/components/TracksPanel.vue"
+      ],
+      "verify": "vue-tsc + quasar build; manual: minimap не уезжает при скролле, t=0 совпадает с осью, sticky header + --tp-* панели работают",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "SB2.2",
+      "phase": 2,
+      "title": "TrackStatusBar.vue: редактируемая позиция + шестерёнка форматов (per file, авто-подбор) + read-only длительность (req 2)",
+      "status": "todo",
+      "dependsOn": [
+        "SB1.1",
+        "SB2.1"
+      ],
+      "artifacts": [
+        "GnauralCore/ui/components/TrackStatusBar.vue",
+        "GnauralCore/ui/components/TracksPanel.vue"
+      ],
+      "verify": "vue-tsc + quasar build; manual: правка позиции во всех 6 форматах -> seek; авто-подбор + персист per file; i18n названий форматов",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "SB2.3",
+      "phase": 2,
+      "title": "Горизонтальный зазор 2px: .audio-page__output-section padding 16px 2px (req 4, SB-D7)",
+      "status": "todo",
+      "dependsOn": [
+        "SB2.1"
+      ],
+      "artifacts": [
+        "GnauralCore/ui/components/TracksPanel.vue"
+      ],
+      "verify": "vue-tsc + quasar build; manual: треки прижаты к границе на 2px; sticky header + выравнивание минимапа не поехали",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "SB2.5",
+      "phase": 2,
+      "title": "PAUSE: owner-проверка статус-бара (всегда виден; позиция во всех форматах; авто-подбор+персист; минимап по оси; зазор 2px)",
+      "status": "todo",
+      "dependsOn": [
+        "SB2.2",
+        "SB2.3"
+      ],
+      "artifacts": [],
+      "verify": "owner",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    }
+  ],
+  "log": [
+    {
+      "at": "2026-07-14",
+      "text": "Plan + ledger created for the Tracks-editor bottom status bar (owner req. 2026-07-14): always-visible bottom status bar with editable cursor position, selectable time formats (auto-picked by duration, persisted per file), read-only duration, and the minimap relocated to the status bar top aligned to the graphs' vertical axis (AXIS_MARGIN left:46/right:8). Decisions SB-D1..D6 proposed; owner review at the PAUSE step."
+    },
+    {
+      "at": "2026-07-14",
+      "text": "Owner follow-up (2026-07-14): (1) auto-pick thresholds confirmed; (2) 'hh:mm:ss + samples' format dropped -> 6 formats, sampleRate no longer needed (R2 closed); (3) new req 4 -> reduce the tracks' left/right gap to the editor border to 2px. Added SB-D7 + step SB2.3 (padding), SB-D5 locked, PAUSE renumbered SB2.3 -> SB2.5."
+    }
+  ]
+}
