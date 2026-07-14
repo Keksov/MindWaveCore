@@ -5,7 +5,7 @@
   "title": "panel-window: universal panel control (floating / docked / detached OS window); first consumer = file-open panel",
   "status": "in-progress",
   "createdAt": "2026-07-13T00:00:00Z",
-  "updatedAt": "2026-07-14T16:00:00Z",
+  "updatedAt": "2026-07-14T16:30:00Z",
   "decisions": [
     {
       "id": "PW-D1",
@@ -304,19 +304,22 @@
     {
       "id": "PW5.3",
       "phase": 5,
-      "title": "Toolbar button: move to leftmost (before the zoom_in / 'Zoom plus' button) + remove the v-if displayMode==='gnaural' gate → always visible incl. plain wav/flac",
-      "status": "not-started",
+      "title": "Toolbar button: move to RIGHTMOST (owner corrected 2026-07-14: far right of the Треки toolbar, after the settings gear — NOT leftmost before Zoom+) + remove the v-if displayMode==='gnaural' gate → always visible incl. plain wav/flac",
+      "status": "done",
       "dependsOn": [
-        "PW5.2"
+        "PW5.6c"
       ],
       "artifacts": [
-        "TracksPanel.vue audio-page__spectrogram-header: relocate the track-list toggle q-btn above the zoom_in button (currently :25); drop v-if=\"audio.displayMode === 'gnaural'\" so it renders for decoded wav/flac too (the outer header already renders for both via showGtracks || hasSpectrogramData)"
+        "TracksPanel.vue audio-page__spectrogram-header: relocate the track-list toggle q-btn to the LAST position (after the tune/settings button) so it is the rightmost control; drop v-if=\"audio.displayMode === 'gnaural'\" so it renders for decoded wav/flac too (the outer header already renders for both via showGtracks || hasSpectrogramData)"
       ],
-      "verify": "typecheck+build; manual: button is leftmost before Zoom+; open a wav/flac → button present and opens the list",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "typecheck+build; manual: button is the rightmost toolbar control; open a wav/flac -> button present and opens the list",
+      "startedAt": "2026-07-14T16:15:00Z",
+      "finishedAt": "2026-07-14T16:30:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "vue-tsc 0; quasar build exit 0; 159/159 UI tests pass (2026-07-14)",
+        "GnauralCore commit a5debc0"
+      ]
     },
     {
       "id": "PW5.4",
