@@ -5,7 +5,7 @@
   "title": "panel-window: universal panel control (floating / docked / detached OS window); first consumer = file-open panel",
   "status": "in-progress",
   "createdAt": "2026-07-13T00:00:00Z",
-  "updatedAt": "2026-07-14T15:30:00Z",
+  "updatedAt": "2026-07-14T16:00:00Z",
   "decisions": [
     {
       "id": "PW-D1",
@@ -49,7 +49,7 @@
     },
     {
       "id": "PW-D11",
-      "text": "PW5.6c (owner found 2026-07-14): detached (Отдельное окно) for «Список треков» is UNSOUND as an independent app instance. NOT about processes — per PW-D1 the popup is a lightweight same-process WebView2 window (shared localStorage/BroadcastChannel). 'Separate app instance' means the JS level: every window is its own JS realm, so the popup re-executes the SPA bundle — its own Vue runtime copy, own Pinia, own composables (PW-D5 fixed this for file-open already). Direct window.opener sharing of the parent's gtracks does not work: reactive proxies created by the parent's Vue copy register dependencies in the PARENT effect tracker, so the child's components never subscribe (no re-renders), and all references die on parent F5 — hence the event bridge. The child window (window.open '#/panel/track-list') is a separate Vue/Pinia app: (a) it has no loaded gnaural file — the app deliberately does NOT restore the last file on boot (stores/audio.ts SF20) — so the voice list is empty; (b) its own useSharedGtrackLanes() singleton writes the SAME per-file localStorage keys (mindwave-gtrack-*) as the main window, so structural edits (mode/visibility/in-mix/merge/spread) in the two windows clobber each other; (c) only voice mutes could bridge back (patch-voice-state), the rest can't live-sync. The bug surfaced because the detached menu item was exposed without the panel being registered in module.ts -> 'Неизвестная панель: track-list'. Fix: PanelWindow gains an allowDetach prop (default true; file-open keeps detach) and TrackListDialog sets it false + clears any stuck persisted detached mode. A TRUE detached «Список треков» would need a remote-control redesign — the child renders from a snapshot pushed by the parent and emits EVERY action over the bridge to the parent's authoritative gtracks (no child-side gtracks/persistence) — deferred as a separate task pending owner decision."
+      "text": "PW5.6c (owner found 2026-07-14): detached (Отдельное окно) for «Список треков» is UNSOUND as an independent app instance. NOT about processes — per PW-D1 the popup is a lightweight same-process WebView2 window (shared localStorage/BroadcastChannel). 'Separate app instance' means the JS level: every window is its own JS realm, so the popup re-executes the SPA bundle — its own Vue runtime copy, own Pinia, own composables (PW-D5 fixed this for file-open already). Direct window.opener sharing of the parent's gtracks does not work: reactive proxies created by the parent's Vue copy register dependencies in the PARENT effect tracker, so the child's components never subscribe (no re-renders), and all references die on parent F5 — hence the event bridge. The child window (window.open '#/panel/track-list') is a separate Vue/Pinia app: (a) it has no loaded gnaural file — the app deliberately does NOT restore the last file on boot (stores/audio.ts SF20) — so the voice list is empty; (b) its own useSharedGtrackLanes() singleton writes the SAME per-file localStorage keys (mindwave-gtrack-*) as the main window, so structural edits (mode/visibility/in-mix/merge/spread) in the two windows clobber each other; (c) only voice mutes could bridge back (patch-voice-state), the rest can't live-sync. The bug surfaced because the detached menu item was exposed without the panel being registered in module.ts -> 'Неизвестная панель: track-list'. Fix: PanelWindow gains an allowDetach prop (default true; file-open keeps detach) and TrackListDialog sets it false + clears any stuck persisted detached mode. A TRUE detached «Список треков» would need a remote-control redesign — the child renders from a snapshot pushed by the parent and emits EVERY action over the bridge to the parent's authoritative gtracks (no child-side gtracks/persistence) — owner 2026-07-14: approved, registered as PW5.7."
     }
   ],
   "steps": [
@@ -352,7 +352,7 @@
       "verify": "owner checkpoint: typecheck+build; manual: 'Separate window' opens the list; decide required detached fidelity",
       "startedAt": null,
       "finishedAt": null,
-      "blockedReason": "Detached is unsound for this shared-state live panel (PW-D11): the child window is a separate app instance with no loaded file + its own gtracks clobbering the same localStorage. Hidden via PanelWindow allowDetach=false (MindWaveCore b7813f6, GnauralCore fa716a7). A true detached «Список треков» needs a remote-control redesign — deferred pending owner decision.",
+      "blockedReason": "Detached is unsound for this shared-state live panel (PW-D11): the child window is a separate app instance (same process, own JS realm) with no loaded file + its own gtracks clobbering the same localStorage. Hidden via PanelWindow allowDetach=false (MindWaveCore b7813f6, GnauralCore fa716a7). SUPERSEDED by PW5.7 (remote-control redesign, owner-approved 2026-07-14) — this step stays closed.",
       "evidence": [
         "owner 2026-07-14: 'Отдельное окно' opened a child window showing 'Неизвестная панель: track-list' (panel not registered in module.ts) -> root-caused to the deeper unsoundness (PW-D11); detach hidden for this panel via allowDetach"
       ]
@@ -423,6 +423,28 @@
         "GnauralCore commit f70bb1b (new gtrack-voice-color.ts + TrackListPanel.vue + TrackListDialog.vue; AudioPage hosts it in the dock-wrap beside FileOpenDialog; TracksPanel reverted to no in-tab dock)",
         "owner manual verification pending: header button opens «Список треков»; dock left/right spans FULL editor height like «Открыть файл»; switch tabs -> panel stays; mute/mode/visibility/in-mix reflect in the tracks; mute with unsaved curve edits saves first"
       ]
+    },
+    {
+      "id": "PW5.7",
+      "phase": 5,
+      "title": "True detached «Список треков» via remote-control: the child renders a parent-pushed snapshot and bridges every action back (no child-side gtracks/persistence); re-enable detach for the panel",
+      "status": "not-started",
+      "dependsOn": [
+        "PW5.4"
+      ],
+      "artifacts": [
+        "@panel/use-panel-bridge.ts: new parent->child 'panel-state' message (parent.sendState(payload) on child-ready + on change, child.onState) alongside hello/heartbeat — the snapshot channel; file-open unaffected (never sends state)",
+        "TrackListPanel split into a pure view + two adapters: TrackListView.vue (dumb: props = serializable snapshot {voices:[{id,label,type,preparse,mode,visible,muted,inMix}], allLanesHidden, pointDragMode, overallRows}, one emit per action) + in-window adapter (binds useSharedGtrackLanes directly — current behaviour) + child adapter TrackListRemote.vue (renders ONLY the bridged snapshot; every action -> bridge panel-event; NO gtracks, NO mindwave-gtrack-* localStorage writes; fix-preparse confirm dialog runs child-side, the confirmed action bridges)",
+        "parent side (TrackListDialog): watch shared gtracks + audio.gnauralSchedule -> debounced snapshot push; @panel-event maps each action onto the authoritative gtracks (mute via AudioPage applyScheduleVoiceStatePatches with the PW5.6b save-first guard)",
+        "GnauralCore module.ts panels[]: register {id:'track-list', titleKey:'audio.tracksListPanel', icon:'queue_music', component: TrackListRemote, events:[voice-mode, voice-visible, voice-mute, voice-inmix, merge-all, spread-all, all-modes, hide-all, all-in-mode, drag-mode, fix-preparse, overall-row toggles]}",
+        "TrackListDialog: drop :allow-detach=\"false\" + the stuck-detached-mode reset (PW-D11 unsoundness resolved by design: the child holds no state)",
+        "dependsOn PW5.4 because the snapshot schema includes the overall wave/spectrum rows added there (avoid a schema break right after shipping)"
+      ],
+      "verify": "typecheck+build+tests; manual: detach opens the OS window with the LIVE list; child edits reflect in the main tracks instantly and vice versa; close child -> panel returns to prevMode; parent F5 -> child re-adopts and re-receives the snapshot; devtools: zero mindwave-gtrack-* writes from the child window",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
     }
   ]
 }
