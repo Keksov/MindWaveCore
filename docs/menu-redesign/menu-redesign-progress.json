@@ -5,7 +5,7 @@
   "title": "menu-redesign: single «Меню» dropdown (vertical, sideways submenus, MRU of last-5 commands) replacing the Файл/Правка menubar in AudioPage; Export moves from the toolbar into Файл→Экспорт with a type+filename dialog",
   "status": "in-progress",
   "createdAt": "2026-07-14T00:00:00Z",
-  "updatedAt": "2026-07-14T00:00:00Z",
+  "updatedAt": "2026-07-15T01:15:00Z",
   "decisions": [
     {
       "id": "MR-D1",
@@ -63,7 +63,7 @@
       "id": "MR1.1",
       "phase": 1,
       "title": "Single «Меню» dropdown with data-driven model + sideways submenus: Файл→Открыть, Настройки, Выход; remove the Файл/Правка dropdowns; i18n menuRoot/menuExit, drop editMenu",
-      "status": "pending",
+      "status": "done",
       "dependsOn": [
         "MR0.1"
       ],
@@ -87,7 +87,7 @@
       "id": "MR2.1",
       "phase": 2,
       "title": "Export moves from the toolbar into Файл→Экспорт + a type/filename dialog (owner req. 7)",
-      "status": "pending",
+      "status": "done",
       "dependsOn": [
         "MR1.1"
       ],
@@ -114,7 +114,7 @@
       "id": "MR3.1",
       "phase": 3,
       "title": "MRU of the last 5 menu commands under a separator after «Выход» (composable + record on invoke + re-invoke on click)",
-      "status": "pending",
+      "status": "done",
       "dependsOn": [
         "MR2.1"
       ],
