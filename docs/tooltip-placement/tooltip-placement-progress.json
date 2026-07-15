@@ -282,6 +282,29 @@
       ]
     },
     {
+      "id": "TT2.7",
+      "phase": 2,
+      "title": "Оформление тултипа по референсу владельца: тёмная плашка + читаемый шрифт (owner 2026-07-15)",
+      "status": "done",
+      "dependsOn": ["TT2.6"],
+      "artifacts": [
+        "MindWaveCore/ui/src/components/tooltip/AppTooltip.vue",
+        "GnauralCore/ui/components/GTrackView.vue"
+      ],
+      "verify": "vue-tsc + build; правило в бандле и перебивает .q-tooltip--style; manual: тултипы тёмные, шрифт читаемый, лейблы отличаются от значений",
+      "startedAt": "2026-07-15",
+      "finishedAt": "2026-07-15",
+      "blockedReason": null,
+      "evidence": [
+        "Owner supplied a reference screenshot (dark plate, light text, comfortable font) and asked to apply it. It is effectively the app's OWN pre-existing tooltip design: the canvas tooltips looked like this (rgba(15,23,42,.92) + #e2e8f0 + slate border) before TT2.3/TT2.4 unified them onto Quasar's grey $grey-7 default. Same slate palette as the rest of the chrome. Applied in ONE place (AppTooltip), which is what the component exists for -- both modes inherit it. Commits c93e27e (host) + 2eefeec (gnaural).",
+        "Style: background #1e293b, border rgba(148,163,184,.3), radius 4px, shadow, colour #e2e8f0, font-size 10px -> 12px (Quasar's default read as fine print next to the reference), padding 5px 9px.",
+        "Selector is `.q-tooltip.app-tooltip` (0,2,0), not `.app-tooltip` (0,1,0): verified in the build output that the two rules land in DIFFERENT css chunks (AppTooltip-CJYIdJoR.css vs index-ClAmETAu.css), so load order is not guaranteed and specificity must win it outright. Non-scoped by necessity -- both modes render the box outside the component's subtree (QTooltip's portal / Teleport to <body>), so no scope attribute ever lands on it.",
+        "The plate change RETIRES a constraint rather than just repainting: on grey $grey-7 there was only ~6:1 of luminance in total and legibility needed nearly all of it, so the label/value hierarchy could not be expressed in colour and was carried by font-weight (the TT2.3 workaround). On the dark plate dimmed labels are 6.61:1 and values 11.87:1 -- both comfortably readable AND plainly distinct -- so the weight crutch was removed; leaving it would have left dead complexity behind a comment that had become false.",
+        "Applied this tooltip's OWN earlier lesson before it could bite a third time: changing the plate silently re-bases every colour inside it, so the tree was re-audited for colours living in tooltip slot content. The two gtrack rules were the only ones; SpectrogramView's global block carries only tabular-nums + nowrap (no colour) and needed nothing.",
+        "vue-tsc 0; quasar build ok; rule confirmed present in the emitted CSS."
+      ]
+    },
+    {
       "id": "TT3.1",
       "phase": 3,
       "title": "ECharts: 5 графиков BodyMonitorCore — СНЯТО (req 4: «в ECharts пусть остаётся свой механизм, его не трогаем»)",
