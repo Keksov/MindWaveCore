@@ -94,7 +94,7 @@
       "id": "TT1.3",
       "phase": 1,
       "title": "PAUSE: owner-проверка компонента и API ДО массовой миграции (~90 мест)",
-      "status": "pending",
+      "status": "active",
       "dependsOn": ["TT1.2"],
       "artifacts": [],
       "verify": "owner manual check",
@@ -102,11 +102,13 @@
       "finishedAt": null,
       "blockedReason": null,
       "evidence": [
-        "Q1: имя и API компонента (<app-tooltip>, режимы элемент/курсор — TT-D7/D8) устраивают?",
-        "Q2: TT-D6 для ECharts — вариант (а) tooltip.show:false + <app-tooltip> (риск потерять axisPointer/форматтеры 5 графиков) или (б, рекомендуется) рендер за ECharts + общий position-колбэк на tooltip-place.ts + согласование CSS?",
-        "Q3: бывший нативный title в новом стиле (TT-D5) — стиль и задержка меняются (ОС ~500ms -> 0ms), нормально?",
-        "Q4 (R1): проверить тултипы у самой верхней кромки окна (MainLayout.vue:6,9) — Quasar может флипнуть их обратно вниз",
+        "AWAITING OWNER 2026-07-15. Что можно посмотреть прямо сейчас (element mode, 4 тултипа): шапка MainLayout — иконки статуса bun/exe (специально взяты как случай R1, у самой кромки окна); транспорт GnauralCore — кнопки старт/стоп и пауза/продолжить.",
+        "Q1: имя и API компонента (<app-tooltip>, режимы элемент/курсор — TT-D7/D8) устраивают? Менять дешевле сейчас, чем после ~90 замен.",
+        "Q2 (R1): тултипы шапки MainLayout — встают НАД иконкой или Quasar флипнул их обратно вниз (места сверху может не хватить)? Это единственное место, где правило может не удержаться.",
+        "Q3 (TT-D5): переводить ли нативные title (~17) — стиль и задержка изменятся (ОС ~500ms -> 0ms). Показать вживую пока нечего: конвертация — это TT2.2.",
         "Инфо: буквальное «поверх курсора» по z-order невыполнимо (курсор рисует ОС); «выше» удовлетворяет обе формулировки req 1 — см. план §1.1 и R6",
+        "Инфо: cursor mode пока НЕ задействован ни одним вызовом — тултип узла GTrackView и readout спектрограммы (вероятная суть req 2) переезжают в TT2.3/TT2.4, каждый по одному файлу.",
+        "Вопрос про ECharts снят — req 4 (не трогаем).",
         "Массовую миграцию (фаза 2) не начинаем до ответа — она трогает ~90 мест в 3 репозиториях"
       ]
     },
@@ -261,6 +263,10 @@
     {
       "at": "2026-07-15",
       "text": "Owner follow-up (2026-07-15, req 3): ALL tooltips in the project must go through ONE shared component, and all future tooltips must use it. This REPLACES TT-D2 (the boot-file QTooltip.props mutation is cancelled) and CLOSES R2 with it -- no more dependence on Quasar's private prop shape; the component is now the single place anchor/self/offset live. Knock-on changes: TT-D5 (native title -> component) is promoted from 'proposed/droppable' to MANDATORY; family B (canvas tooltips) must also route through the component, so TT-D8 gives it two modes (element / cursor) rather than being element-only; new TT-D7 (component location + '@tooltip' alias) and TT-D9 (enforcement guard) added. Scope grew from 'one boot file' to ~90 call sites in 3 repos -> steps re-cut by family and a PAUSE (TT1.3) inserted BEFORE the mass migration so the API is approved on 2-3 sites first (R5)."
+    },
+    {
+      "at": "2026-07-15",
+      "text": "Phase 1 done, parked at the TT1.3 PAUSE. TT1.1 (efb81a7): tooltip-place.ts + 18 tests. TT1.2 (MindWaveCore a9f0e82 + GnauralCore fc02753): AppTooltip.vue + the '@tooltip' alias, 4 tooltips converted across 2 repos as the demo set. vue-tsc 0 errors, quasar build ok. Two things were verified against Quasar's source rather than assumed: (1) wrapping QTooltip in a component does NOT break its anchor -- use-portal.js:132-137 returns undefined while hidden so QTooltip leaves an inline comment node, and use-anchor.js:156-164 reads proxy.$el.parentNode of the QTooltip instance itself, so the anchor stays the host element; (2) QTooltip.sass splits .q-tooltip (positioning) from .q-tooltip--style (appearance), so cursor mode inherits the look via Quasar's own classes instead of copying colour values that could drift. The rules file (root repo 352bfc0) now carries the decision, imported into Claude Code via a new CLAUDE.md since Claude Code never reads AGENTS.md. Mass migration (~90 sites) deliberately NOT started -- that is what the PAUSE is for."
     },
     {
       "at": "2026-07-15",
