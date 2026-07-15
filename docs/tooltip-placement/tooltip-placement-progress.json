@@ -1,0 +1,266 @@
+{
+  "schemaVersion": 1,
+  "plan": "tooltip-placement",
+  "planDoc": "docs/tooltip-placement/tooltip-placement-plan.md",
+  "title": "one shared tooltip component for the whole project + placement that never hides under the mouse cursor",
+  "status": "in-progress",
+  "createdAt": "2026-07-15",
+  "updatedAt": "2026-07-15",
+  "decisions": [
+    {
+      "id": "TT-D1",
+      "text": "Single placement rule: a tooltip goes ABOVE the cursor/element (owner req. 1). Rationale (geometry): the standard arrow cursor's hotspot is at its tip (top-left) and the glyph extends DOWN-RIGHT (~20x20 CSS px at 100%), so anything drawn below-right of the hotspot is covered by the cursor while anything ABOVE it never is. Cursors with a centred hotspot (crosshair on canvases, text I-beam, ns-/ew-resize) do extend upward ~10-16px, hence a single constant CURSOR_CLEARANCE_PX = 24 that clears both. Primary direction = up; fallback (no room above) = down but with a gap >= CURSOR_CLEARANCE_PX so the arrow glyph cannot cover the text. NOTE: 'above' satisfies BOTH readings of req 1 at once -- it neither overlaps the cursor nor sits under it -- so no owner clarification is needed; see R6 on the literal z-order reading."
+    },
+    {
+      "id": "TT-D2",
+      "text": "CANCELLED (owner 2026-07-15, req 3). Was: flip the q-tooltip default globally by mutating QTooltip.props.anchor/self.default from a boot file, so all 71 bare call sites move at once without touching them. The owner chose a single shared component instead -- that component is now the one place anchor/self/offset are set, so the boot hack is unnecessary. This also CLOSES R2 (the hack depended on the private shape of QTooltip.props and would silently stop applying on a Quasar upgrade). The component is strictly better: the rule is visible in code rather than hidden in a boot file."
+    },
+    {
+      "id": "TT-D7",
+      "text": "Where the shared component lives: MindWaveCore + a '@tooltip' alias, modelled on the existing PW-D8 precedent (owner req. 3). New MindWaveCore/ui/src/components/tooltip/ (AppTooltip.vue + tooltip-place.ts); Vite alias '@tooltip' in quasar.config.ts:27-31 next to '@panel'; tsconfig.json paths \"@tooltip/*\": [\"./src/components/tooltip/*\"]. Any repo then imports it as `import AppTooltip from '@tooltip/AppTooltip.vue'` -- exactly how GnauralCore already imports '@panel/PanelWindow.vue' (FileOpenDialog.vue:26). This is a proven mechanism, not a new invention: quasar.config.ts:29 literally carries the comment 'PW1.1 (PW-D8): the universal panel control, importable from module repos'. Module repos need no paths of their own because vue-tsc runs from MindWaveCore/ui and pulls their files in through the import graph. Component name (AppTooltip / <app-tooltip>) to be confirmed by the owner at TT1.3."
+    },
+    {
+      "id": "TT-D8",
+      "text": "Component API: two binding modes so the canvas tooltips also fall under req 3. One component, one look, one placement rule (TT-D1), two ways to bind: (1) ELEMENT mode (default) -- renders <q-tooltip anchor='top middle' self='bottom middle'> internally; covers families A (71 q-tooltips) and C (~17 native titles). offset stays [14,14]: with anchor:'top' the tooltip's bottom edge lands 14px above the element's top edge, and since the cursor is INSIDE the element with the arrow extending down-right, there is no overlap. (2) CURSOR mode -- a prop like :at=\"{x, y}\" (viewport coords), Teleport to <body> + position:fixed, positioned by placeCursorTooltip (TT-D3); covers family B (2 canvas tooltips). Why one component for both: otherwise the canvas tooltips stay outside req 3 and drift apart again in style and rule -- which is exactly what has already happened (they currently disagree on coord space, offset, z-index and edge handling)."
+    },
+    {
+      "id": "TT-D3",
+      "text": "Pure placement module tooltip-place.ts + bun tests -- the single source of truth for the rule. placeCursorTooltip({x, y, w, h, bounds, clearance}) -> {left, top}: above by default (top = y - h - clearance); flip below with the same clearance when there is no room above (top = y + clearance); horizontal left = x + 14 with a left-flip near the right edge and a final clamp into bounds (pad = 8). Pure TS, no Vue, so `bun test` covers it. Lives next to the component (@tooltip/tooltip-place.ts). Precedent: time-format.ts (SB-D4)."
+    },
+    {
+      "id": "TT-D4",
+      "text": "Family B moves onto the component (cursor mode). GTrackView.positionTooltip() (GTrackView.vue:270-290 -- the whole +14/+14 arithmetic, flip and clamp) and SpectrogramView (SpectrogramView.vue:813, +12/+12, no clamp at all) are deleted; both render <app-tooltip :at=\"hoverPos\">. SpectrogramView thereby also gains the clamping it lacks and moves to viewport coords (clientX/Y) -- that is a requirement of cursor mode, not a separate option (R4)."
+    },
+    {
+      "id": "TT-D5",
+      "text": "Family C: native title=\"\" -> the component (req 3; NO LONGER optional). Previously 'proposed, droppable whole'; req 3 makes conversion MANDATORY -- a native tooltip's position cannot be controlled from code, so conversion is the only way to satisfy req 1 AND req 3 for these ~17. Side effect: style and delay change (OS ~500ms -> Quasar 0ms), a visible change, so show it to the owner at TT1.3. aria-label preserved. EXCLUDED: TrackListDialog.vue:10 and FileOpenDialog.vue:8, where `title` is a PanelWindow prop, not a DOM attribute."
+    },
+    {
+      "id": "TT-D6",
+      "text": "Family D (5 ECharts charts, BodyMonitorCore): OUT OF SCOPE ENTIRELY (req 4; LOCKED owner 2026-07-15). Owner: 'let ECharts keep its own mechanism, we don't touch it'. BOTH previously proposed options are rejected -- (a) tooltip.show:false + <app-tooltip>, and (b) the shared position callback onto tooltip-place.ts. The 5 BodyMonitorCore charts are not touched at all. Consequences to remember: (1) req 3 now carries a DOCUMENTED EXCEPTION -- 'all tooltips via the component' means families A/B/C; (2) ECharts tooltips may still land under the cursor (req 1 does not apply to them) -- this is a deliberate exception, not an unfinished job, recorded so a later session does not 'fix' it by mistake; (3) phase 3 is dropped and R7 is closed; (4) the TT-D9 guard MUST NOT flag ECharts."
+    },
+    {
+      "id": "TT-D9",
+      "text": "Enforcement: a guard test instead of a lint rule (req 3, 'all subsequent tooltips'). There is NO ESLint in the project at all (no config, no script; MindWaveCore/ui has only dev/build/typecheck), so 'must use the component' cannot be expressed as a lint rule -- it needs its own guard: a bun test that scans the three repos' sources and fails on a raw <q-tooltip outside AppTooltip.vue, on title=\"/:title=\" on DOM elements, and on hand-rolled tooltip divs. An ALLOWLIST is mandatory or it false-positives (R8): AppTooltip.vue (the only legal q-tooltip), `title`-as-a-prop on PanelWindow (TrackListDialog.vue:10, FileOpenDialog.vue:8), and the 5 BodyMonitorCore ECharts charts (req 4 -- out of scope, must not be flagged). Without this step req 3 is documentation, not a rule."
+    }
+  ],
+  "steps": [
+    {
+      "id": "TT1.1",
+      "phase": 1,
+      "title": "Модуль tooltip-place.ts: placeCursorTooltip + CURSOR_CLEARANCE_PX + bun-тесты",
+      "status": "pending",
+      "dependsOn": [],
+      "artifacts": [
+        "MindWaveCore/ui/src/components/tooltip/tooltip-place.ts",
+        "MindWaveCore/ui/src/components/tooltip/tooltip-place.test.ts"
+      ],
+      "verify": "bun test (выше по умолчанию; флип вниз с зазором >= clearance при нехватке места сверху; флип влево у правого края; кламп в углах; вырожденные bounds)",
+      "startedAt": "2026-07-15",
+      "finishedAt": "2026-07-15",
+      "blockedReason": null,
+      "evidence": [
+        "tooltip-place.ts: CURSOR_CLEARANCE_PX=24 / CURSOR_OFFSET_X_PX=14 / EDGE_PAD_PX=8 + placeCursorTooltip(). Vertical is above-first and flips DOWN only when the box would leave the top edge -- the inverse of the old hand-rolled logic, which started below and flipped up only on overflow. Horizontal keeps the existing +14 right-of-hotspot with a left-flip near the right edge. clampRange() degrades to `min wins` on an inverted range so a box bigger than the viewport clamps to the pad instead of going negative.",
+        "tooltip-place.test.ts: 18 tests / 24 expect() pass (bun test ui/src/components/tooltip). Covers: above by default; whole box proven above the hotspot (top+h <= y-clearance, i.e. the arrow cannot reach it); fallback below keeps >= clearance; the exact flip boundary (y = pad+h+clearance flips at y-1, not before); all four corners; custom clearance (R3 escape hatch); degenerate bounds (taller/wider than viewport, zero-size -> no NaN/Infinity).",
+        "Rule is Vue-free and lives in one module, so AppTooltip's cursor mode (TT1.2) and any future caller share it."
+      ]
+    },
+    {
+      "id": "TT1.2",
+      "phase": 1,
+      "title": "AppTooltip.vue + алиас @tooltip (quasar.config + tsconfig) + 2-3 показательных места (req 3)",
+      "status": "pending",
+      "dependsOn": ["TT1.1"],
+      "artifacts": [
+        "MindWaveCore/ui/src/components/tooltip/AppTooltip.vue",
+        "MindWaveCore/ui/quasar.config.ts",
+        "MindWaveCore/ui/tsconfig.json"
+      ],
+      "verify": "vue-tsc + quasar build; manual: тултип появляется НАД элементом, курсор его не накрывает; импорт '@tooltip/AppTooltip.vue' резолвится из GnauralCore",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "TT1.3",
+      "phase": 1,
+      "title": "PAUSE: owner-проверка компонента и API ДО массовой миграции (~90 мест)",
+      "status": "pending",
+      "dependsOn": ["TT1.2"],
+      "artifacts": [],
+      "verify": "owner manual check",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": [
+        "Q1: имя и API компонента (<app-tooltip>, режимы элемент/курсор — TT-D7/D8) устраивают?",
+        "Q2: TT-D6 для ECharts — вариант (а) tooltip.show:false + <app-tooltip> (риск потерять axisPointer/форматтеры 5 графиков) или (б, рекомендуется) рендер за ECharts + общий position-колбэк на tooltip-place.ts + согласование CSS?",
+        "Q3: бывший нативный title в новом стиле (TT-D5) — стиль и задержка меняются (ОС ~500ms -> 0ms), нормально?",
+        "Q4 (R1): проверить тултипы у самой верхней кромки окна (MainLayout.vue:6,9) — Quasar может флипнуть их обратно вниз",
+        "Инфо: буквальное «поверх курсора» по z-order невыполнимо (курсор рисует ОС); «выше» удовлетворяет обе формулировки req 1 — см. план §1.1 и R6",
+        "Массовую миграцию (фаза 2) не начинаем до ответа — она трогает ~90 мест в 3 репозиториях"
+      ]
+    },
+    {
+      "id": "TT2.1",
+      "phase": 2,
+      "title": "Семейство A: 71 q-tooltip -> app-tooltip (17 файлов, 3 репо)",
+      "status": "pending",
+      "dependsOn": ["TT1.3"],
+      "artifacts": [
+        "MindWaveCore/ui/layouts/MainLayout.vue",
+        "MindWaveCore/ui/components/ArchiveReplayView.vue",
+        "MindWaveCore/ui/src/components/panel/PanelWindow.vue",
+        "GnauralCore/ui/components/TracksPanel.vue",
+        "GnauralCore/ui/components/FsEntryList.vue",
+        "GnauralCore/ui/components/TrackListView.vue",
+        "GnauralCore/ui/components/GTrackView.vue",
+        "GnauralCore/ui/components/SpectrogramPresetManager.vue",
+        "GnauralCore/ui/components/SpectrogramView.vue",
+        "GnauralCore/ui/components/WaveformView.vue",
+        "GnauralCore/ui/components/GnauralTransportControls.vue",
+        "GnauralCore/ui/components/FileOpenPanel.vue",
+        "GnauralCore/ui/components/TrackStatusBar.vue",
+        "BodyMonitorCore/ui/components/EegChartSettingsBar.vue",
+        "BodyMonitorCore/ui/pages/MonitoringPage.vue",
+        "BodyMonitorCore/ui/components/DeviceScanBlock.vue",
+        "BodyMonitorCore/ui/components/EegConnectionStatusBadge.vue"
+      ],
+      "verify": "vue-tsc + build; manual: обход по вкладкам — тултипы над элементами, ничего не обрезано. Коммиты по репозиториям раздельно",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "TT2.2",
+      "phase": 2,
+      "title": "Семейство C: ~17 нативных title=\"\" -> app-tooltip (req 3)",
+      "status": "pending",
+      "dependsOn": ["TT1.3"],
+      "artifacts": [
+        "MindWaveCore/ui/components/ArchiveReplayView.vue",
+        "MindWaveCore/ui/pages/LogArchivePage.vue",
+        "GnauralCore/ui/pages/AudioPage.vue",
+        "GnauralCore/ui/components/GnauralScheduleView.vue",
+        "BodyMonitorCore/ui/components/DeviceList.vue",
+        "BodyMonitorCore/ui/components/EegDiagnosticsPanel.vue",
+        "BodyMonitorCore/ui/components/EegChartSidePanelLayout.vue",
+        "BodyMonitorCore/ui/components/EegSignalStyleListPanel.vue"
+      ],
+      "verify": "vue-tsc + build; manual: подсказки над элементом в едином стиле, a11y (aria-label) не потеряна; title-как-проп PanelWindow не тронут",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "TT2.3",
+      "phase": 2,
+      "title": "Семейство B: GTrackView -> режим курсора общего компонента (req 1/2/3)",
+      "status": "pending",
+      "dependsOn": ["TT1.3"],
+      "artifacts": [
+        "GnauralCore/ui/components/GTrackView.vue"
+      ],
+      "verify": "vue-tsc + build; manual: hover по узлу — тултип НАД курсором, текст не закрыт; у кромок окна виден целиком (не регрессируем GT3.17); скрыт во время drag (GT3.13)",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "TT2.4",
+      "phase": 2,
+      "title": "Семейство B: SpectrogramView -> режим курсора + viewport-координаты (req 1/2/3)",
+      "status": "pending",
+      "dependsOn": ["TT1.3"],
+      "artifacts": [
+        "GnauralCore/ui/components/SpectrogramView.vue"
+      ],
+      "verify": "vue-tsc + build; manual: readout над курсором; у правого/нижнего края графика не обрезан (сейчас клампа нет вообще)",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "TT2.5",
+      "phase": 2,
+      "title": "Guard: запрет тултипов мимо компонента + allowlist (req 3, «все последующие»)",
+      "status": "pending",
+      "dependsOn": ["TT2.1", "TT2.2", "TT2.3", "TT2.4"],
+      "artifacts": [
+        "MindWaveCore/ui/src/components/tooltip/tooltip-usage.test.ts"
+      ],
+      "verify": "bun test: зелёный на текущем дереве; краснеет на подсаженном сыром <q-tooltip> и на title=\"\" на DOM-элементе; не ловит title-как-проп PanelWindow (R8)",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "TT2.6",
+      "phase": 2,
+      "title": "PAUSE: owner-проверка всего перевода на единый компонент",
+      "status": "pending",
+      "dependsOn": ["TT2.5"],
+      "artifacts": [],
+      "verify": "owner manual check: все тултипы в едином стиле и над курсором; тултип узла и readout спектрограммы читаются; ничего не пропало",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "TT3.1",
+      "phase": 3,
+      "title": "ECharts: 5 графиков BodyMonitorCore — СНЯТО (req 4: «в ECharts пусть остаётся свой механизм, его не трогаем»)",
+      "status": "deferred",
+      "dependsOn": [],
+      "artifacts": [
+        "BodyMonitorCore/ui/components/DeviceDataChart.vue",
+        "BodyMonitorCore/ui/components/EegBandBarChart.vue",
+        "BodyMonitorCore/ui/components/EegCurrentReadingsChart.vue",
+        "BodyMonitorCore/ui/components/EegLineTimelineChart.vue",
+        "BodyMonitorCore/ui/components/EegRadarChart.vue"
+      ],
+      "verify": "n/a — шаг снят владельцем",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": "Owner 2026-07-15 (req 4): ECharts keeps its own mechanism, untouched. Not a backlog item -- a closed decision (TT-D6). Family D therefore stays outside req 1 and req 3 by design; do not 'fix' it later without a new owner request.",
+      "evidence": []
+    }
+  ],
+  "log": [
+    {
+      "at": "2026-07-15",
+      "text": "Plan + ledger created for tooltip placement (owner req. 2026-07-15): tooltips must not be covered by the mouse cursor -- today they render below/under it and the cursor blocks the text. Root cause is geometric: the arrow cursor's hotspot is its top-left tip and the glyph extends DOWN-RIGHT, which is exactly where every tooltip family currently places itself. Decisions TT-D1..D6 proposed; owner review at the PAUSE."
+    },
+    {
+      "at": "2026-07-15",
+      "text": "Inventory (verified, full workspace sweep): FOUR tooltip families, not one. (A) 71 <q-tooltip> across 17 files -- every one bare, so all inherit Quasar 2.19.3 defaults anchor:'bottom middle' / self:'top middle' / offset:[14,14] (QTooltip.js:69-83) = always below the element. No global config (quasar.config.ts:94-100 framework.config = {dark:true}) and no wrapper component exist. (B) 2 hand-rolled cursor-following divs: GTrackView.vue:270-290 (+14/+14 from clientX/Y, teleported+fixed, flips only on right/bottom overflow) and SpectrogramView.vue:813 (+12/+12 from offsetX/Y, absolute, no clamp/flip at all). (C) ~17 native title=\"\" (OS-drawn, position not controllable). (D) 5 ECharts charts with no position callback. Density: TracksPanel.vue alone has 20 q-tooltips. Total ~90 call sites across 3 repos."
+    },
+    {
+      "at": "2026-07-15",
+      "text": "Two findings that shaped the plan. (1) R1, verified in position-engine.js:303-343 (applyBoundaries): flipping to anchor:'top'/self:'bottom' does NOT hold near the top of the viewport -- when props.top < 0 and the anchor is in the upper half, Quasar re-flips the tooltip BELOW the element (props.top = Math.max(0, anchorProps.bottom)), i.e. back under the cursor. Affects the MainLayout.vue:6,9 header tooltips; the Tracks toolbar sits below the app header so its 20 tooltips have room above. (2) The auto-import map (quasar/dist/transforms/import-map.json) rewrites <q-tooltip> to `import { QTooltip } from 'quasar'` -> a single shared module instance. That was what made the one-file boot override viable -- and equally what makes app.component('QTooltip', ...) NOT work, since auto-import shadows global registration."
+    },
+    {
+      "at": "2026-07-15",
+      "text": "Scope note: the owner's req 2 wording ('тултип отображается ниже и под курсором') most precisely matches family B -- +12..14px down-right of the hotspot is directly under the ~20px arrow glyph, covering the tooltip's top-left corner where the first line of text starts. Telling detail: SpectrogramView.vue:812 already carries the comment 'offset a little so it doesn't sit under the pointer' -- the intent was right, the direction of the offset was wrong."
+    },
+    {
+      "at": "2026-07-15",
+      "text": "Owner follow-up (2026-07-15, req 3): ALL tooltips in the project must go through ONE shared component, and all future tooltips must use it. This REPLACES TT-D2 (the boot-file QTooltip.props mutation is cancelled) and CLOSES R2 with it -- no more dependence on Quasar's private prop shape; the component is now the single place anchor/self/offset live. Knock-on changes: TT-D5 (native title -> component) is promoted from 'proposed/droppable' to MANDATORY; family B (canvas tooltips) must also route through the component, so TT-D8 gives it two modes (element / cursor) rather than being element-only; new TT-D7 (component location + '@tooltip' alias) and TT-D9 (enforcement guard) added. Scope grew from 'one boot file' to ~90 call sites in 3 repos -> steps re-cut by family and a PAUSE (TT1.3) inserted BEFORE the mass migration so the API is approved on 2-3 sites first (R5)."
+    },
+    {
+      "at": "2026-07-15",
+      "text": "Owner decision (2026-07-15, req 4): 'in ECharts let its own mechanism stay, we don't touch it'. Family D is out of scope ENTIRELY -- both option (a) and the recommended option (b) are rejected, so not even a position callback. TT-D6 locked, step TT3.1 -> deferred (a closed decision, not backlog), phase 3 dropped, R7 closed, TT-D9's allowlist gains the 5 chart files. Net effect: req 3 ('all tooltips via one component') now has a documented exception -- it means families A/B/C -- and ECharts tooltips may still sit under the cursor by design. Recorded explicitly so a later session does not read it as an unfinished job. Scope drops from ~95 to ~90 call sites."
+    },
+    {
+      "at": "2026-07-15",
+      "text": "Precedent found for req 3, so the shared component needs no new mechanism: PW1.1/PW-D8 already does exactly this for the panel control. quasar.config.ts:27-31 carries `'@panel': resolve(currentDir, 'src', 'components', 'panel')` with the comment 'the universal panel control, importable from module repos'; tsconfig.json mirrors it as \"@panel/*\": [\"./src/components/panel/*\"]; and GnauralCore consumes it at FileOpenDialog.vue:26 via `import PanelWindow from '@panel/PanelWindow.vue'`. TT-D7 clones that shape for '@tooltip'. Also established: there is NO ESLint anywhere in the project (MindWaveCore/ui has only dev/build/typecheck), so req 3's 'all subsequent tooltips' cannot be a lint rule -> TT-D9 guard test. Bun tests exist in GnauralCore (19 files, incl. ui/composables) and MindWaveCore (3, all under server/)."
+    }
+  ]
+}
