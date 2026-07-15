@@ -28,10 +28,11 @@
                 size="sm"
                 icon="close"
                 class="archive-page__tab-close"
-                :title="$t('archive.closeReplayTab')"
                 :aria-label="$t('archive.closeReplayTab')"
                 @click.stop="closeReplayTab(sessionTab.sessionId)"
-              />
+              >
+                <app-tooltip>{{ $t('archive.closeReplayTab') }}</app-tooltip>
+              </q-btn>
             </div>
           </q-tab>
         </q-tabs>
@@ -187,9 +188,9 @@
                   <div
                     v-else
                     class="archive-page__tags-display"
-                    :title="$t('archive.tagsEditHint')"
                     @click="startTagsEdit(props.row.id, props.row.tags)"
                   >
+                    <app-tooltip>{{ $t('archive.tagsEditHint') }}</app-tooltip>
                     <div v-if="props.row.tags.length > 0" class="archive-page__tags-inline">
                       <template v-for="(tag, index) in props.row.tags" :key="tag">
                         <span
@@ -355,6 +356,7 @@ import ArchiveReplayView from '../components/ArchiveReplayView.vue'
 import { capabilityMeta } from 'stores/device'
 import { useLogArchiveStore } from 'stores/log-archive'
 import { useReplayStore } from 'stores/replay'
+import AppTooltip from '@tooltip/AppTooltip.vue'
 
 const SESSIONS_TAB = 'sessions'
 const ARCHIVE_ACTIVE_TAB_STORAGE_KEY = 'archive-page-active-tab'

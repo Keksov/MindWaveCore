@@ -241,9 +241,10 @@
                       icon="settings"
                       class="archive-replay-view__timeline-settings-button"
                       :aria-label="$t('monitoring.eegLine.openPanel')"
-                      :title="$t('monitoring.eegLine.openPanel')"
                       @click="openActiveEegSidePanel"
-                    />
+                    >
+                      <app-tooltip>{{ $t('monitoring.eegLine.openPanel') }}</app-tooltip>
+                    </q-btn>
                   </div>
                 </div>
               </div>
@@ -427,9 +428,10 @@
                 icon="settings"
                 class="archive-replay-view__timeline-settings-button"
                 :aria-label="$t('monitoring.eegLine.openPanel')"
-                :title="$t('monitoring.eegLine.openPanel')"
                 @click="openActiveEegSidePanel"
-              />
+              >
+                <app-tooltip>{{ $t('monitoring.eegLine.openPanel') }}</app-tooltip>
+              </q-btn>
             </div>
           </div>
         </div>
