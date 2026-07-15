@@ -24,8 +24,9 @@ import { createLocalFsProvider } from "./fs-browser-local"
 import { startFsBrowserServer, isLoopbackAddress, ensureLoopbackNoProxy, type FsBrowserServer } from "./fs-browser-server"
 import { createLogArchiveStore } from "./log-db"
 import { createLogReplayManager } from "./log-replay"
+import { createProjectStore, defaultUserDataRoot, isProjectStoreError } from "./project-store"
 import { createPublishCallbacks } from "./publish"
-import type { AudioFileKind, AudioPresetsResponse, AudioServerEvent, AudioSettings, GnauralScheduleData, PresetTreeNode } from "./protocol"
+import type { AudioFileKind, AudioPresetsResponse, AudioServerEvent, AudioSettings, GnauralScheduleData, PresetTreeNode, ProjectListResponse, ProjectSectionResponse, ProjectUndoResponse } from "./protocol"
 import { isRecord, toJson } from "./protocol"
 import { handleUiClose, handleUiMessage, handleUiOpen, type UiSocketData } from "./ui-ws-handler"
 import { createScheduleWatcher } from "../../GnauralCore/server/schedule-watcher"
@@ -53,6 +54,14 @@ const { gnauralCwd, gnauralExePath } = resolveGnauralExecutablePath()
 const processManager: AppSession = createSession("bodymonitor", workspaceRoot)
 const archiveStore = createLogArchiveStore(runtimeDir)
 const gnauralEditorStore = createGnauralEditorStore(runtimeDir)
+// project-store PR1.4 (PR-D5/D6): per-file "Project" folders under the user-data root; the root is
+// re-resolved on every operation so a settings change needs no restart.
+const projectStore = createProjectStore({
+  resolveUserDataRoot: () => {
+    const configured = archiveStore.getProjectSettings().userDataRoot
+    return configured !== "" ? configured : defaultUserDataRoot()
+  },
+})
 let gnauralSession: GnauralSession
 
 const MAX_RESTART_ATTEMPTS = 5
@@ -691,6 +700,19 @@ const mapGnauralEditorError = (aError: unknown): Response => {
   return errorResponse(500, message)
 }
 
+const mapProjectStoreError = (aError: unknown): Response => {
+  if (isProjectStoreError(aError)) {
+    return errorResponse(aError.status, aError.message)
+  }
+
+  if (aError instanceof Error && aError.message === "Invalid JSON body") {
+    return errorResponse(400, aError.message)
+  }
+
+  const message = aError instanceof Error ? aError.message : "Project request failed"
+  return errorResponse(500, message)
+}
+
 const trimCommandOutput = (aValue: string): string => {
   const normalized = aValue.trim()
   if (normalized.length <= ADMIN_COMMAND_OUTPUT_LIMIT) {
@@ -1256,6 +1278,132 @@ const handleApiRequest = async (aRequest: Request): Promise<Response | null> => 
     } catch (error) {
       const message = error instanceof Error ? error.message : "Invalid audio settings payload"
       return errorResponse(400, message)
+    }
+  }
+
+  // project-store PR1.4 (PR-D5): the "Project" entity REST surface over projectStore.
+  if (segments.length === 2 && segments[1] === "projects") {
+    if (aRequest.method === "GET") {
+      try {
+        const payload: ProjectListResponse = { projects: await projectStore.listProjects() }
+        return jsonResponse(payload)
+      } catch (error) {
+        return mapProjectStoreError(error)
+      }
+    }
+
+    if (aRequest.method === "DELETE") {
+      try {
+        await projectStore.deleteProject(url.searchParams.get("id") ?? "")
+        return new Response(null, { status: 204 })
+      } catch (error) {
+        return mapProjectStoreError(error)
+      }
+    }
+
+    return errorResponse(405, "Method not allowed")
+  }
+
+  if (segments.length === 3 && segments[1] === "projects" && segments[2] === "open") {
+    if (aRequest.method !== "POST") {
+      return errorResponse(405, "Method not allowed")
+    }
+
+    try {
+      const body = await parseJsonBody(aRequest)
+      if (!isRecord(body) || typeof body.path !== "string") {
+        return errorResponse(400, "path must be provided as a string")
+      }
+
+      return jsonResponse(await projectStore.openProject(body.path))
+    } catch (error) {
+      return mapProjectStoreError(error)
+    }
+  }
+
+  if (segments.length === 3 && segments[1] === "projects" && segments[2] === "info") {
+    if (aRequest.method !== "GET") {
+      return errorResponse(405, "Method not allowed")
+    }
+
+    try {
+      const info = await projectStore.getProject(url.searchParams.get("id") ?? "")
+      return info === null ? errorResponse(404, "Project not found") : jsonResponse(info)
+    } catch (error) {
+      return mapProjectStoreError(error)
+    }
+  }
+
+  if (segments.length === 3 && segments[1] === "projects" && segments[2] === "section") {
+    if (aRequest.method === "GET") {
+      try {
+        const id = url.searchParams.get("id") ?? ""
+        const name = url.searchParams.get("name") ?? ""
+        const payload: ProjectSectionResponse = { id, name, value: await projectStore.getSection(id, name) }
+        return jsonResponse(payload)
+      } catch (error) {
+        return mapProjectStoreError(error)
+      }
+    }
+
+    if (aRequest.method === "POST") {
+      try {
+        const body = await parseJsonBody(aRequest)
+        if (!isRecord(body) || typeof body.id !== "string" || typeof body.name !== "string") {
+          return errorResponse(400, "id and name must be provided as strings")
+        }
+
+        return jsonResponse(await projectStore.putSection(body.id, body.name, body.value ?? null))
+      } catch (error) {
+        return mapProjectStoreError(error)
+      }
+    }
+
+    return errorResponse(405, "Method not allowed")
+  }
+
+  if (segments.length === 3 && segments[1] === "projects" && segments[2] === "undo") {
+    if (aRequest.method === "GET") {
+      try {
+        const id = url.searchParams.get("id") ?? ""
+        const payload: ProjectUndoResponse = { id, journal: await projectStore.getUndoJournal(id) }
+        return jsonResponse(payload)
+      } catch (error) {
+        return mapProjectStoreError(error)
+      }
+    }
+
+    if (aRequest.method === "POST") {
+      try {
+        const body = await parseJsonBody(aRequest)
+        if (!isRecord(body) || typeof body.id !== "string") {
+          return errorResponse(400, "id must be provided as a string")
+        }
+
+        await projectStore.putUndoJournal(body.id, body.journal ?? null)
+        return new Response(null, { status: 204 })
+      } catch (error) {
+        return mapProjectStoreError(error)
+      }
+    }
+
+    return errorResponse(405, "Method not allowed")
+  }
+
+  if (segments.length === 3 && segments[1] === "projects" && segments[2] === "relink") {
+    if (aRequest.method !== "POST") {
+      return errorResponse(405, "Method not allowed")
+    }
+
+    try {
+      const body = await parseJsonBody(aRequest)
+      if (!isRecord(body) || typeof body.id !== "string" || typeof body.path !== "string") {
+        return errorResponse(400, "id and path must be provided as strings")
+      }
+
+      return jsonResponse(await projectStore.relinkProject(body.id, body.path))
+    } catch (error) {
+      return mapProjectStoreError(error)
     }
   }
 
@@ -1932,7 +2080,7 @@ registerShutdownHandlers()
 console.log(`[server] listening on http://localhost:${server.port}`)
 console.log(`[server] file-browse (loopback-only): ${fsBrowserServer.url}`)
 console.log(`[server] static files: ${publicDir}`)
-console.log(`[server] endpoints: /ws/ui, /api/logs, /api/log-settings, /api/audio-settings, /api/audio/presets, /api/audio/file, /api/audio/schedule, /api/audio/schedule/voice-state, /api/audio/editor, /api/audio/editor/save, /api/audio/editor/autosave, /api/audio/editor/history`)
+console.log(`[server] endpoints: /ws/ui, /api/logs, /api/log-settings, /api/audio-settings, /api/audio/presets, /api/audio/file, /api/audio/schedule, /api/audio/schedule/voice-state, /api/audio/editor, /api/audio/editor/save, /api/audio/editor/autosave, /api/audio/editor/history, /api/projects, /api/projects/{open,info,section,undo,relink}`)
 if (isUiOnlyMode) {
   console.log("[server] UI-only mode: BodyMonitor.exe autostart disabled")
 }

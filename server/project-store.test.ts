@@ -12,6 +12,7 @@ import {
   UNDO_JOURNAL_MAX_BYTES,
   createProjectFileData,
   createProjectStore,
+  defaultUserDataRoot,
   isProjectStoreError,
   isSafeProjectId,
   normalizeSourcePath,
@@ -339,5 +340,21 @@ describe("ProjectStore core API (PR1.3 / PR-D5, PR-D8)", () => {
     const listed = await store.listProjects()
     expect(listed.map((aInfo) => aInfo.id)).toEqual([secondInfo.id, firstInfo.id])
     expect(await readFile(join(brokenDir, PROJECT_FILE_NAME), "utf8")).toBe("{ not json")
+  })
+})
+
+describe("defaultUserDataRoot (PR1.4 / PR-D6)", () => {
+  test("resolves to %LOCALAPPDATA%\\KKSoundCore when LOCALAPPDATA is set", () => {
+    const original = process.env.LOCALAPPDATA
+    process.env.LOCALAPPDATA = join(tmpdir(), "local-app-data")
+    try {
+      expect(defaultUserDataRoot()).toBe(join(tmpdir(), "local-app-data", "KKSoundCore"))
+    } finally {
+      if (original === undefined) {
+        delete process.env.LOCALAPPDATA
+      } else {
+        process.env.LOCALAPPDATA = original
+      }
+    }
   })
 })

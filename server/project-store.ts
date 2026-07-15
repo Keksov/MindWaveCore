@@ -10,7 +10,11 @@
 import { createHash, randomUUID } from "node:crypto"
 import type { Dirent } from "node:fs"
 import { mkdir, readFile, readdir, rename, rm, stat } from "node:fs/promises"
+import { homedir } from "node:os"
 import { basename, extname, join, resolve, sep } from "node:path"
+import type { ProjectInfo, ProjectSourceInfo } from "./protocol"
+
+export type { ProjectInfo, ProjectSourceInfo } from "./protocol"
 
 export const PROJECTS_DIR_NAME = "projects"
 export const PROJECT_FILE_NAME = "project.scp.json"
@@ -88,13 +92,20 @@ export const resolveProjectDir = (aUserDataRoot: string, aSourcePath: string): s
   return join(resolve(aUserDataRoot), PROJECTS_DIR_NAME, projectDirName(aSourcePath))
 }
 
+/** Default user-data root (PR-D6, owner req 8): %LOCALAPPDATA%\KKSoundCore on Windows; a dotted
+ *  home fallback keeps non-Windows dev environments working. */
+export const defaultUserDataRoot = (): string => {
+  const localAppData = Bun.env.LOCALAPPDATA
+  if (localAppData !== undefined && localAppData.trim() !== "") {
+    return join(localAppData, "KKSoundCore")
+  }
+
+  return join(homedir(), ".kksoundcore")
+}
+
 // --- project.scp.json storage (PR1.2, PR-D4/D7) ---------------------------------------------
 
-export interface ProjectSourceFingerprint {
-  readonly path: string
-  readonly sizeBytes: number | null
-  readonly modifiedAtMs: number | null
-}
+export type ProjectSourceFingerprint = ProjectSourceInfo
 
 /** Parsed project.scp.json. Sections are opaque, subsystem-owned JSON (PR-D4); unknown sections
  *  and unknown top-level fields written by a future version are preserved on rewrite. */
@@ -242,16 +253,6 @@ export class SerialQueues {
 }
 
 // --- ProjectStore service (PR1.3, PR-D5) ------------------------------------------------------
-
-export interface ProjectInfo {
-  readonly id: string
-  readonly dir: string
-  readonly source: ProjectSourceFingerprint
-  readonly sourceStatus: "ok" | "missing"
-  readonly createdAt: string
-  readonly updatedAt: string
-  readonly sections: readonly string[]
-}
 
 export interface ProjectStoreOptions {
   readonly resolveUserDataRoot: () => string | Promise<string>

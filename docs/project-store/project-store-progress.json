@@ -175,10 +175,16 @@
         "MindWaveCore/server/server.ts"
       ],
       "verify": "bun test + bun run typecheck (MindWaveCore/server); NB: server.ts contains a NUL byte -- edit via Read, never search it with Grep",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-15",
+      "finishedAt": "2026-07-15",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "protocol.ts (SharedPasCore 639a71a): ProjectSourceStatus/ProjectSourceInfo/ProjectInfo, ProjectOpenRequest, ProjectListResponse, ProjectSection{Response,PutRequest} (value null removes a section), ProjectUndo{Response,PutRequest} (journal null clears), ProjectRelinkRequest, ProjectSettings { userDataRoot }.",
+        "project-store.ts now imports ProjectInfo/ProjectSourceInfo from ./protocol (single source of truth, no drift) and adds defaultUserDataRoot(): %LOCALAPPDATA%\\KKSoundCore, fallback ~/.kksoundcore for non-Windows dev (owner req 8).",
+        "log-db.ts: public getProjectSettings() reading app_settings key user_data_root ('' = not configured -> server falls back to the default root).",
+        "server.ts: projectStore singleton next to gnauralEditorStore -- the root is re-resolved per operation so a settings change needs no restart; mapProjectStoreError mirrors mapGnauralEditorError; routes GET/DELETE /api/projects, POST /api/projects/open, GET /api/projects/info, GET+POST /api/projects/section, GET+POST /api/projects/undo (204 on write), POST /api/projects/relink; startup endpoints log line extended.",
+        "bun test project-store: 22 pass / 69 expect. tsc@5.7.3 --ignoreDeprecations 5.0: only the known pre-existing audio-cache-manifest.ts TS2540."
+      ]
     },
     {
       "id": "PR1.5",

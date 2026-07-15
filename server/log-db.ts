@@ -5,6 +5,7 @@ import { buildArchivedLogChartData } from "./log-chart"
 import type { ProcessStateSnapshot } from "./process-manager"
 import type {
   AudioSettings,
+  ProjectSettings,
   ArchivedLogChartData,
   ArchivedLogDetail,
   ArchivedLogEventRecord,
@@ -27,6 +28,9 @@ const DB_FILE_NAME = "mindwave-logs.sqlite"
 const DB_FILE_SIDE_SUFFIXES = ["", "-shm", "-wal"] as const
 const DEFAULT_RETENTION_DAYS = 30
 const DEFAULT_AUDIO_PRESETS_ROOT = ""
+// project-store PR-D6: empty string = "not configured" -> the server falls back to
+// defaultUserDataRoot() (%LOCALAPPDATA%\KKSoundCore on Windows).
+const DEFAULT_USER_DATA_ROOT = ""
 const DEFAULT_EVENT_PAGE_SIZE = 500
 const REAL_DEVICE_DATA_EVENT_NAMES = new Set([
   "hr",
@@ -750,6 +754,12 @@ export class LogArchiveStore {
     }
   }
 
+  public getProjectSettings(): ProjectSettings {
+    return {
+      userDataRoot: this.getUserDataRoot(),
+    }
+  }
+
   public updateSettings(input: Partial<LogSettings>): LogSettings {
     if (input.retentionDays !== undefined) {
       const nextValue = normalizeDayCount(input.retentionDays)
@@ -891,6 +901,11 @@ export class LogArchiveStore {
   private getAudioPresetsRoot(): string {
     const parsed = this.getAppSettingValue<string>("audio_presets_root", DEFAULT_AUDIO_PRESETS_ROOT)
     return typeof parsed === "string" ? parsed.trim() : DEFAULT_AUDIO_PRESETS_ROOT
+  }
+
+  private getUserDataRoot(): string {
+    const parsed = this.getAppSettingValue<string>("user_data_root", DEFAULT_USER_DATA_ROOT)
+    return typeof parsed === "string" ? parsed.trim() : DEFAULT_USER_DATA_ROOT
   }
 
   private upsertAppSetting(key: string, value: unknown): void {

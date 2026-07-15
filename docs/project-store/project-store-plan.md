@@ -222,7 +222,7 @@ in-memory кеша расписаний (`GnauralCore/ui/stores/audio.ts:133`), 
   `get/putSection`, `get/putUndoJournal` (лимиты), `deleteProject`, `relinkProject` (+ поиск проекта
   по сохранённому `source.path`, когда hash-папка не совпала); тесты. Verify:
   `bun test project-store`.
-- [ ] **PR1.4 — Протокол + REST + wiring (PR-D5/D6).** Типы `Project*` в
+- [x] **PR1.4 — Протокол + REST + wiring (PR-D5/D6).** Типы `Project*` в
   `SharedPasCore/ts/protocol.ts`; маршруты `/api/projects*` в `server.ts`
   (`jsonResponse`/`errorResponse` + `mapProjectStoreError`); синглтон `createProjectStore` рядом с
   `gnauralEditorStore`; чтение ключа `user_data_root` с дефолтом `%LOCALAPPDATA%\KKSoundCore`
