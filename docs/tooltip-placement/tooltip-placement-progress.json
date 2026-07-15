@@ -45,7 +45,7 @@
     },
     {
       "id": "TT-D9",
-      "text": "Enforcement: a guard test instead of a lint rule (req 3, 'all subsequent tooltips'). There is NO ESLint in the project at all (no config, no script; MindWaveCore/ui has only dev/build/typecheck), so 'must use the component' cannot be expressed as a lint rule -- it needs its own guard: a bun test that scans the three repos' sources and fails on a raw <q-tooltip outside AppTooltip.vue, on title=\"/:title=\" on DOM elements, and on hand-rolled tooltip divs. An ALLOWLIST is mandatory or it false-positives (R8): AppTooltip.vue (the only legal q-tooltip), `title`-as-a-prop on PanelWindow (TrackListDialog.vue:10, FileOpenDialog.vue:8), the 5 BodyMonitorCore ECharts charts (req 4), and the two TT-D5 exceptions that MUST stay native -- disabled-control hints (ArchiveReplayView.vue:174,361; LogArchivePage.vue:263) and ellipsis overflow reveals (ArchiveReplayView.vue:5; GnauralScheduleView.vue:225; AudioPage.vue:25). Without this step req 3 is documentation, not a rule; without the allowlist the guard would push people to 'fix' decisions the owner made."
+      "text": "REVISED 2026-07-15 (owner agreed): NO guard test -- req 3's 'all subsequent tooltips' is enforced by AGENTS.md, not by code. The original plan below was written on an unchecked assumption ('bun tests exist'), without asking WHO runs them and FROM WHERE. Checked afterwards: no `test` script exists in any of the 5 package.json files, there is no CI (.github holds instructions only), and all 62 commits that ever touched a *.test.ts carry the Claude co-author trailer -- every test here was written in a Claude session and is only ever run ad-hoc inside a step's verify. The documented routine is `typecheck`+`build` from MindWaveCore/ui (NO tests) and `bun test ui server` from GnauralCore. So a guard living in MindWaveCore/ui would never run under any routine, and a session editing GnauralCore -- which holds 62 of the 75 tooltips -- would never see it. It would have been theatre. What actually enforces the rule is AGENTS.md, auto-loaded into every session via CLAUDE.md: the developer adding tooltips to this project IS a Claude session, so a rule it reads at startup is the executable part. If a mechanical ban is wanted later, the honest answer is ESLint (absent by default here), as its own decision. ORIGINAL PLAN, for the record: a bun test that scans the three repos' sources and fails on a raw <q-tooltip outside AppTooltip.vue, on title=\"/:title=\" on DOM elements, and on hand-rolled tooltip divs. An ALLOWLIST is mandatory or it false-positives (R8): AppTooltip.vue (the only legal q-tooltip), `title`-as-a-prop on PanelWindow (TrackListDialog.vue:10, FileOpenDialog.vue:8), the 5 BodyMonitorCore ECharts charts (req 4), and the two TT-D5 exceptions that MUST stay native -- disabled-control hints (ArchiveReplayView.vue:174,361; LogArchivePage.vue:263) and ellipsis overflow reveals (ArchiveReplayView.vue:5; GnauralScheduleView.vue:225; AudioPage.vue:25). Without this step req 3 is documentation, not a rule; without the allowlist the guard would push people to 'fix' decisions the owner made."
     }
   ],
   "steps": [
@@ -253,30 +253,32 @@
     {
       "id": "TT2.5",
       "phase": 2,
-      "title": "Guard: запрет тултипов мимо компонента + allowlist (req 3, «все последующие»)",
-      "status": "pending",
-      "dependsOn": ["TT2.1", "TT2.2", "TT2.3", "TT2.4"],
-      "artifacts": [
-        "MindWaveCore/ui/src/components/tooltip/tooltip-usage.test.ts"
-      ],
-      "verify": "bun test: зелёный на текущем дереве; краснеет на подсаженном сыром <q-tooltip> и на title=\"\" на DOM-элементе; не ловит title-как-проп PanelWindow (R8)",
+      "title": "Guard: запрет тултипов мимо компонента — СНЯТ (owner 2026-07-15: правило обеспечено AGENTS.md)",
+      "status": "deferred",
+      "dependsOn": [],
+      "artifacts": [],
+      "verify": "n/a — шаг снят",
       "startedAt": null,
       "finishedAt": null,
-      "blockedReason": null,
+      "blockedReason": "Owner agreed 2026-07-15 after the facts were checked: no `test` script in any package.json, no CI, and all 62 test-touching commits are Claude-authored -- bun test is run ad-hoc inside a step's verify, and MindWaveCore's routine has no test step at all. A guard in MindWaveCore/ui would therefore never run, least of all for GnauralCore where 62 of the 75 tooltips live. Enforcement is AGENTS.md (auto-loaded every session via CLAUDE.md) -- see TT-D9. A mechanical ban would mean introducing ESLint, which is a separate decision, not this plan's.",
       "evidence": []
     },
     {
       "id": "TT2.6",
       "phase": 2,
       "title": "PAUSE: owner-проверка всего перевода на единый компонент",
-      "status": "pending",
-      "dependsOn": ["TT2.5"],
+      "status": "active",
+      "dependsOn": ["TT2.1", "TT2.2", "TT2.3", "TT2.4"],
       "artifacts": [],
       "verify": "owner manual check: все тултипы в едином стиле и над курсором; тултип узла и readout спектрограммы читаются; ничего не пропало",
-      "startedAt": null,
+      "startedAt": "2026-07-15",
       "finishedAt": null,
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "AWAITING OWNER 2026-07-15. Всё, кроме этого шага, закрыто; TT2.5 снят, TT3.1 (ECharts) снят по req 4.",
+        "Что проверить: (1) кнопочные тултипы по всем вкладкам — над элементом, курсор не накрывает, ничего не обрезано; (2) тултип узла на графике и readout спектрограммы — над курсором, читаются, у кромок окна видны целиком; (3) тултип иконки шапки — без скролла (TT1.4); (4) бывшие нативные title (группа A, 11 шт.) — появились в общем стиле, задержка теперь 0 вместо ~500ms ОС.",
+        "Осознанно НЕ изменилось (не баги): тултипы ECharts в BodyMonitorCore (req 4); подсказки, объясняющие ПОЧЕМУ элемент заблокирован (ArchiveReplayView play, LogArchivePage delete) — тултип на disabled-элементе не показывается в принципе; раскрытие обрезанного текста по наведению (имя сессии, имя трека, путь файла) — нативный title показывает его только когда текст реально не влез."
+      ]
     },
     {
       "id": "TT3.1",
