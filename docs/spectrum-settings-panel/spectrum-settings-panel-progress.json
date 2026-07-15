@@ -1,0 +1,184 @@
+{
+  "schemaVersion": 1,
+  "plan": "spectrum-settings-panel",
+  "planDoc": "docs/spectrum-settings-panel/spectrum-settings-panel-plan.md",
+  "title": "spectrum-settings-panel: the spectrogram «Параметры» panel moves onto the universal @panel control (dockable + detachable, like «Открытие файлов» / «Список треков»), and its parameter groups become blocks laid out as TILES when two fit side by side, or as a single-column ACCORDION when they do not",
+  "status": "in-progress",
+  "createdAt": "2026-07-16",
+  "updatedAt": "2026-07-16",
+  "decisions": [
+    {
+      "id": "SS-D1",
+      "text": "THIRD consumer of the @panel control; host = AudioPage's shared dock-wrap; the `tune` toolbar button stays in TracksPanel. New stores/spectrum-settings-panel.ts -> usePanelWindowState('spectrum-settings', {defaultMode:'floating', defaultDockSize:320}) with the DEFAULT mindwave-panel-spectrum-settings-* keys — no legacy mapping is needed (unlike file-open, which had to keep mindwave-fs-browser-*), because today's visibility is not persisted at all: it is a plain local ref (TracksPanel.vue:2649). New SpectrumSettingsDialog.vue (PanelWindow wrapper) is hosted in audio-page__dock-wrap next to FileOpenDialog + TrackListDialog (AudioPage.vue:133-151) behind the same <Teleport to=\"body\" :disabled=\"!floating\">. WHY AudioPage and not TracksPanel: PW-D9 was FORCED to host «Список треков» inside TracksPanel because gtracks = useGtrackLanes(...) is a per-call factory and a second host would spawn a second divergent instance — that constraint does NOT apply here, since the spectrogram settings live in a GLOBAL Pinia singleton store (stores/spectrogram.ts:95) that every host shares by construction. What DOES apply is PW-D10: q-tab-panels have no keep-alive, so TracksPanel is destroyed on every tab switch and a panel hosted from there cannot survive one. AudioPage hosting therefore reproduces exactly the behaviour of the two panels the owner named as the model (req 1: «по аналогии»). The `tune` button stays where the owner put it (SF-D5) and toggles panel.open of the shared state: usePanelWindowState is a module-level Map singleton (use-panel-window.ts:119), NOT Pinia, so TracksPanel's toolbar and AudioPage's host reach the same object with zero prop plumbing."
+    },
+    {
+      "id": "SS-D2",
+      "text": "Split into View + two adapters (the PW5.7 «пульт» shape), and the file name SpectrogramSettingsPanel.vue is PRESERVED. (a) SpectrogramSettingsView.vue — pure view: props = a snapshot (settings, presets, activePresetId, isModified) + layout, emits ONE serializable `action`; ALL block/tile/accordion markup lives here. (b) SpectrogramSettingsPanel.vue — in-window adapter over the store (same path, same name). (c) SpectrogramSettingsRemote.vue — child adapter: renders the parent's snapshot, emits `action` over the bridge, owns NO store and NO persistence. (d) applySpectrumSettingsAction(store, action) — one function applying an action on both sides, so the parent's store stays the single source of truth. WHY THE NAME IS LOAD-BEARING: AudioPage.vue:508 still imports SpectrogramSettingsPanel.vue from the dead GT2.4 island (verified: AudioPage's template ends at :426 and never renders the tag, so it is inert — but the IMPORT is live to the bundler/vue-tsc). Renaming the file would break typecheck and drag WS2.1 — a cleanup the OWNER DEFERRED («Мы вернёмся к этому позже») — into this feature. So the new file is the …View, not the …Panel."
+    },
+    {
+      "id": "SS-D3",
+      "text": "Detach MUST be a «пульт» (PW5.7); the naive per-child-store variant is VERIFIED BROKEN, and it fails WORSE here than it did for «Список треков». Verified 2026-07-16 by grep over GnauralCore/ui stores+composables+components: there is NO 'storage' event listener ANYWHERE, and stores/spectrogram.ts:121-123 persists three keys (mindwave-spectrogram-settings / -user-presets / -active-preset) via deep watches. Consequences for a detached child running its own Pinia (every window is its own JS realm — PW-D11): (a) SILENT NO-OP — the child edits ITS store, so the parent's renderOptions/analysisParams never change and the main window's spectrogram is never repainted, i.e. the panel's entire purpose fails; (b) CLOBBERING — both windows' deep watches write the same 3 keys, last-writer-wins. The asymmetry vs PW-D11 matters and is against us: the naive detached track list showed an EMPTY list — visibly broken, impossible to ship by accident. Here the child would look FULLY functional (the snapshot seeds from localStorage, every control moves) and simply affect nothing. A silent failure is the one that ships. Therefore allowDetach is enabled ONLY together with the remote (phase 3); until then :allow-detach=\"false\" is passed EXPLICITLY (never omitted — see SS-R5 / PW5.7c: an absent type-only Boolean prop casts to false, which is how the mode silently vanished for both existing panels)."
+    },
+    {
+      "id": "SS-D4",
+      "text": "The tiles<->accordion switch is driven by CONTENT WIDTH via ResizeObserver, not by CSS. It cannot be pure CSS (@container/media) because the switch is STRUCTURAL: accordion blocks collapse, tiles do not. ResizeObserver on the panel body, guarded by `typeof ResizeObserver !== 'undefined'` — the convention of all 6 existing call sites (FsEntryList.vue:315-320 — which is itself inside the file-open panel — GTrackView, SpectrogramView, WaveformView, GnauralScheduleView, SpectrogramMinimap). Rule: TILES when contentWidth >= 2*MIN_BLOCK + gap, else ACCORDION (owner req 3/4). Starting MIN_BLOCK = 280px (today's panel is a fixed 300px column and the controls fit it — TracksPanel.vue:3269-3284); the exact value is MEASURED against the real controls in SS2.1 and recorded here. gap = 8px -> threshold ~568px. The tile grid itself is grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)), so 2 columns at the threshold and 3-4 when wider come for free: req 3 states the CONDITION («два блока»), not a cap (confirm via Q4). Both modes are reachable by construction: minFloatW=460 and defaultDockSize=320 (left/right dock) are below the threshold -> accordion; a top/bottom dock spans the editor width -> tiles."
+    },
+    {
+      "id": "SS-D5",
+      "text": "Accordion = q-expansion-item, modelled on GTrackSpectrumSettings.vue:7,40 — the ONLY file in the entire workspace that uses that control, and conveniently a per-lane editor of the very same SpectrogramSettings type. Expansion semantics are OPEN QUESTION Q2 (plan §7); PROPOSAL (not accepted until the owner confirms): multiple blocks may be open at once, the open set persists (mindwave-panel-spectrum-settings-groups), the first group is open by default."
+    },
+    {
+      "id": "SS-D6",
+      "text": "PROPOSAL (open question Q1, plan §7) — the preset bar and «Сброс» are NOT parameter groups and so are not blocks. The preset bar (SpectrogramSettingsPanel.vue:3-34) applies to ALL groups at once, so it stays a strip ABOVE the blocks in both layouts; «Сброс» (:105-107) moves into PanelWindow's `footer` slot (PanelWindow.vue:46-47). Only the four groups of §2.1 become blocks — which is literally what req 2 says («каждая группа параметров»). If the owner wants presets as a fifth block, they become a tile in the tiled layout — that is Q1."
+    },
+    {
+      "id": "SS-D7",
+      "text": "i18n: no new title key needed. The PanelWindow title and the manifest titleKey both reuse the EXISTING audio.spectrogramSettingsTitle («Параметры» / \"Parameters\", SF-D4) — it is already exactly this panel's caption; icon `tune`, the same as the toolbar button. Dock/detach menu labels are already generic and translated (panel.dockMenu/dockFloat/dockLeft/dockRight/dockTop/dockBottom/detach/close in MindWaveCore/ui/src/i18n/locales/{ru,en}.json). New keys only if Q1/Q2 introduce new captions."
+    },
+    {
+      "id": "SS-D8",
+      "text": "Preset manager inside the detached window — OPEN QUESTION Q3 (plan §7). The problem: «Сохранить как…» ($q.dialog prompt, SpectrogramSettingsPanel.vue:147-158) and SpectrogramPresetManager.vue (rename/delete/duplicate/export/import) are all STORE MUTATIONS, and per SS-D3 the child has no store. It decomposes cleanly — INPUT (the prompt, the file picker) is child-local UI, the MUTATION is one bridged `action`; export can be built from the snapshot, import is parsed child-side and travels as an action payload — but doing it for the full manager is the BULK of phase 3. Hence the question: full manager in the child, or apply + save-as only, with «Управление…» main-window-only?"
+    }
+  ],
+  "steps": [
+    {
+      "id": "SS0.1",
+      "phase": 0,
+      "title": "План + леджер (этот файл + spectrum-settings-panel-plan.md); инвентаризация кода и прецедентов — PAUSE: владелец отвечает на Q1-Q4 (§7) и подтверждает SS-D1 (хост) + SS-D3 («пульт» — единственный рабочий detach)",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [
+        "docs/spectrum-settings-panel/spectrum-settings-panel-plan.md (owner reqs verbatim, inventory §2, decisions SS-D1..SS-D8, phases, risks, open questions §7)",
+        "docs/spectrum-settings-panel/spectrum-settings-panel-progress.json (this ledger)"
+      ],
+      "verify": "owner reads the plan; the open questions §7 (Q1 presets/reset placement, Q2 accordion semantics, Q3 detached preset manager scope, Q4 tile threshold) are answered, and SS-D1 (host = AudioPage) + SS-D3 (detach only as a remote) match the owner's intent",
+      "startedAt": "2026-07-16",
+      "finishedAt": "2026-07-16",
+      "blockedReason": null,
+      "evidence": [
+        "Every claim in the plan was verified by reading the code, not inferred from shape — this repo has already punished shape-based reasoning twice in the wave-settings ledger (a localStorage key claimed shared that was not, and a watch claimed dangerous that could not fire).",
+        "THE FIND THAT SHAPES THE WHOLE FEATURE (SS-D3): grep for a 'storage' event listener across GnauralCore/ui stores+composables+components returns NOTHING. So a naive detached child with its own Pinia would edit its own store, never repaint the parent's spectrogram, and — via the deep watches at stores/spectrogram.ts:121-123 — race the parent on the same 3 localStorage keys. Crucially the failure is INVISIBLE (the child seeds from localStorage and looks fully alive), unlike PW-D11's empty track list, which advertised its own brokenness. That is why detach is phased behind the PW5.7 remote instead of shipped naively.",
+        "THE FIND THAT SHAPES THE FILE LAYOUT (SS-D2/R6): AudioPage.vue:508 still imports SpectrogramSettingsPanel.vue although its template (ending at :426) never renders it — the dead GT2.4 island of WS2.1, which the owner explicitly DEFERRED. Inert at runtime, but live to vue-tsc: renaming the file would break typecheck and force this feature to touch a cleanup the owner postponed. Hence the new file is …View.vue and the old name keeps its path.",
+        "THE FIND THAT MAKES req 2 CHEAP: the panel is data-driven, not markup-driven — the groups are a computed<Group[]> (SpectrogramSettingsPanel.vue:229-280) rendered by ONE v-for (:37). 'Every group becomes a block' is therefore a change to one v-for plus CSS, not a rewrite of 17 fields. The four groups (Масштаб 3 / Цвет 7 / FFT-фильтр 5 / Резкость 4 fields) are SF-D35 + SF-D51 and are exactly what the owner calls «группы параметров».",
+        "PLACEMENT is not a coin flip (SS-D1): PW-D9 hosted «Список треков» inside TracksPanel only because gtracks is a per-call factory; our state is a global Pinia singleton, so that constraint is absent, while PW-D10 (no keep-alive on q-tab-panels -> TracksPanel dies on tab switch) still applies. AudioPage hosting is what makes 'по аналогии с Открытием файлов и Списком треков' literally true.",
+        "PRECEDENT FOUND FOR THE CLEANUP SS1.1 MUST DO: TracksPanel.vue:2921-2922 records that when «Список треков» became a PanelWindow it stopped using the --tp-* scroll-frame pinning, because PanelWindow owns its positioning. Our panel must leave anyOverlayOpen (:2923) for the same reason — the precedent already walked this path.",
+        "Also confirmed first-hand: PanelWindow's props/emits/slots (PanelWindow.vue:68-89, footer slot at :46-47, minFloatW=460), the panel registry being a module manifest and not an enum/switch (GnauralCore/ui/module.ts:20-38 -> modules/index.ts:40 -> PanelHostPage.vue:33), the panel-state singleton being a module-level Map rather than Pinia (use-panel-window.ts:119), q-expansion-item existing in exactly one file (GTrackSpectrumSettings.vue), and all 6 ResizeObserver sites guarding on `typeof ResizeObserver !== 'undefined'`.",
+        "Step ids use the SS prefix: AP/FB/BK/GT/R/MR/PW/PR/SF/SB/TT/RF/WS are taken by the 11 existing ledgers (SF = spectrogram-fixes, which owns this panel's history and stays untouched).",
+        "NOT decided by me, deliberately: Q1-Q4 (§7). Each proposal is marked as a proposal in both documents rather than presented as settled — R2/R3 in the plan flag that blocks of very unequal height (3 vs 7 fields) and the loss of the backdrop/Escape modality are visual calls that only the owner can make at a PAUSE, since no browser driver exists in this workspace (verified in WS1.1)."
+      ]
+    },
+    {
+      "id": "SS1.1",
+      "phase": 1,
+      "title": "Панель переезжает на @panel: stores/spectrum-settings-panel.ts + SpectrumSettingsDialog.vue (PanelWindow, :allow-detach=\"false\") + хост в audio-page__dock-wrap (AudioPage); кнопка tune переключает panel.open; старый fixed-флайаут из TracksPanel снесён (aside+backdrop+CSS+ref+Escape+anyOverlayOpen). Содержимое панели НЕ меняется",
+      "status": "pending",
+      "dependsOn": ["SS0.1"],
+      "artifacts": [
+        "GnauralCore/ui/stores/spectrum-settings-panel.ts (new; mirrors stores/track-list-panel.ts)",
+        "GnauralCore/ui/components/SpectrumSettingsDialog.vue (new; PanelWindow wrapper, «Сброс» in the footer slot per SS-D6)",
+        "GnauralCore/ui/pages/AudioPage.vue (host in the shared dock-wrap + Teleport)",
+        "GnauralCore/ui/components/TracksPanel.vue (remove aside/backdrop/transition :1134-1164, CSS :3269-3284, local ref+toggle/close :2649-2655, Escape branch :2828-2830, drop from anyOverlayOpen :2923; the tune button now toggles panel.open)"
+      ],
+      "verify": "bun run typecheck + bun run build (MindWaveCore/ui); bun test ui server (GnauralCore) green; manual: the tune button opens the panel; all 5 dock modes + floating work, drag/resize work, geometry+open state survive F5 (mindwave-panel-spectrum-settings-*), the panel survives a tab switch (PW-D10); editing any field still repaints the spectrogram immediately; presets and «Сброс» still work; the «Отдельное окно» menu item is ABSENT (SS-D3/R5 — check live, not just typecheck); the remaining fixed flyouts (diagnostics, inspector) still pin correctly after the anyOverlayOpen change",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "SS1.2",
+      "phase": 1,
+      "title": "PAUSE — owner-проверка формы (req 1): док слева/справа/сверху/снизу, floating, drag, ресайз, персист, переключение вкладок; заодно подтвердить R3 (панель больше не модальная: бэкдропа нет, как у двух других)",
+      "status": "pending",
+      "dependsOn": ["SS1.1"],
+      "artifacts": [],
+      "verify": "owner drives the real app and confirms the form behaves «по аналогии» with «Открытие файлов» / «Список треков»",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "SS2.1",
+      "phase": 2,
+      "title": "Блоки + адаптивная раскладка (req 2-4): каждая группа — блок; ResizeObserver + порог (SS-D4); плитки = grid auto-fill/minmax; аккордеон = q-expansion-item (SS-D5). Измерить реальный MIN_BLOCK на группе «Цвет» (7 полей) и записать сюда",
+      "status": "pending",
+      "dependsOn": ["SS1.2"],
+      "artifacts": [
+        "GnauralCore/ui/components/SpectrogramSettingsPanel.vue (the single groups v-for :36-103 + CSS; ResizeObserver guarded by `typeof ResizeObserver !== 'undefined'`)"
+      ],
+      "verify": "bun run typecheck + bun run build; bun test ui server green; manual: two blocks side by side -> tiles (req 3); narrow/vertical -> single-column accordion (req 4); SLOW resize across the threshold does not flap (R1 — the scrollbar feedback loop); blocks of unequal height (3 vs 7 fields) look acceptable in tiles (R2); the measured MIN_BLOCK is recorded in this step's evidence",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "SS2.2",
+      "phase": 2,
+      "title": "PAUSE — owner-проверка вида: плитки/аккордеон, порог переключения, поведение на границе, вид блоков разной высоты",
+      "status": "pending",
+      "dependsOn": ["SS2.1"],
+      "artifacts": [],
+      "verify": "owner drives the real app; the tile/accordion rule matches req 2-4 and the threshold feels right (Q4)",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "SS3.1",
+      "phase": 3,
+      "title": "Расщепление SS-D2: SpectrogramSettingsView.vue (вся разметка фазы 2 переезжает целиком) + SpectrogramSettingsPanel.vue как in-window адаптер + applySpectrumSettingsAction (+ bun-тест на него). Поведение в главном окне 1:1, detach ещё выключен",
+      "status": "pending",
+      "dependsOn": ["SS2.2"],
+      "artifacts": [
+        "GnauralCore/ui/components/SpectrogramSettingsView.vue (new; pure view: snapshot props + one serializable `action` emit)",
+        "GnauralCore/ui/components/SpectrogramSettingsPanel.vue (becomes the in-window adapter; NAME/PATH UNCHANGED — SS-D2/R6)",
+        "GnauralCore/ui/composables/spectrum-settings-action.ts (new; applySpectrumSettingsAction, shared by both sides)",
+        "GnauralCore/ui/tests (new unit test for applySpectrumSettingsAction, mirroring SF18.1's action-semantics tests)"
+      ],
+      "verify": "bun run typecheck + bun run build; bun test ui server green INCLUDING the new applySpectrumSettingsAction suite; manual: the main window behaves exactly as after SS2.2 (pure refactor — every field, preset action and «Сброс» still works and still repaints live)",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "SS3.2",
+      "phase": 3,
+      "title": "Detached «пульт»: SpectrogramSettingsRemote.vue + запись в panels[] манифеста (id 'spectrum-settings', events ['action'], titleKey audio.spectrogramSettingsTitle) + :bridge-state=\"snapshot\" + снятие allow-detach=false. Объём пресет-менеджера — по ответу на Q3 (SS-D8)",
+      "status": "pending",
+      "dependsOn": ["SS3.1"],
+      "artifacts": [
+        "GnauralCore/ui/components/SpectrogramSettingsRemote.vue (new; no store, no persistence — snapshot in, action out)",
+        "GnauralCore/ui/module.ts (panels[] entry)",
+        "GnauralCore/ui/components/SpectrumSettingsDialog.vue (bridge-state snapshot + panel-event -> applySpectrumSettingsAction; allow-detach enabled)"
+      ],
+      "verify": "bun run typecheck + bun run build; bun test ui server green; manual: «Отдельное окно» appears and opens (no «Неизвестная панель» — the PW5.7c symptom of a missing manifest entry); EDITING IN THE CHILD REPAINTS THE PARENT'S SPECTROGRAM (the whole point — SS-D3); the child holds no state of its own (parent F5 -> child re-adopts or self-closes per PW-D2); closing the main window closes the child; detached geometry persists",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "SS3.3",
+      "phase": 3,
+      "title": "PAUSE — owner-проверка detached-окна, В ТОМ ЧИСЛЕ в AppCore (AppMain.exe), а не только в браузере: правка в отдельном окне перерисовывает спектрограмму в главном; закрытие главного закрывает ребёнка; геометрия переживает переоткрытие",
+      "status": "pending",
+      "dependsOn": ["SS3.2"],
+      "artifacts": [],
+      "verify": "owner drives the real app in AppCore (per PW-D1 the child is a default WebView2 popup there, which is the production path — the browser is dev only)",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    }
+  ],
+  "log": [
+    {
+      "at": "2026-07-16",
+      "text": "Plan + ledger created (owner req 2026-07-16): the spectrogram settings panel moves onto the dockable/detachable @panel control «по аналогии» with «Открытие файлов» / «Список треков», and its parameter groups become blocks — tiles when two fit side by side, a single-column accordion when they do not.\n\nThe inventory turned three facts into the plan's spine, each verified by reading code rather than inferred:\n\n1. DETACH CANNOT BE NAIVE, AND FAILS SILENTLY IF IT IS (SS-D3). There is no 'storage' event listener anywhere in GnauralCore/ui, and stores/spectrogram.ts:121-123 deep-watches three localStorage keys. A detached child with its own Pinia (every window is its own JS realm — PW-D11) would edit its own store, never repaint the PARENT's spectrogram, and race the parent on the same keys. The asymmetry vs PW-D11 is what matters: the naive detached track list showed an EMPTY list and advertised its brokenness; this panel would look perfectly alive and simply do nothing. Silent failures are the ones that ship, so detach is phased behind the PW5.7 remote («пульт»), with :allow-detach=\"false\" passed EXPLICITLY until then (absent type-only Boolean casts to false — the PW5.7c trap that already hid the mode from both existing panels).\n\n2. THE FILE MAY NOT BE RENAMED (SS-D2/R6). AudioPage.vue:508 still imports SpectrogramSettingsPanel.vue from the dead GT2.4 island; the template (ends :426) never renders it, so it is inert at runtime but live to vue-tsc. Renaming would break typecheck and drag WS2.1 — a cleanup the OWNER DEFERRED — into this feature. So the new file is …View.vue; the old name keeps its path and becomes the in-window adapter.\n\n3. req 2 IS CHEAP, BECAUSE THE PANEL IS DATA-DRIVEN. The groups are a computed<Group[]> (:229-280) rendered by ONE v-for (:37) — 'every group becomes a block' is one v-for + CSS, not 17 fields rewritten.\n\nHosting is likewise not a coin flip: PW-D9 kept «Список треков» inside TracksPanel only because gtracks is a per-call factory; our store is a global Pinia singleton, so that constraint is gone, while PW-D10 (no keep-alive -> TracksPanel dies on tab switch) still applies -> host in AudioPage's shared dock-wrap, which is what makes «по аналогии» literally true. And TracksPanel.vue:2921-2922 already records the cleanup SS1.1 owes: a PanelWindow owns its positioning, so the panel must leave anyOverlayOpen/--tp-*, exactly as PW5.2 did.\n\nThe tiles<->accordion switch needs JS (ResizeObserver, guarded like all 6 existing sites), because it is STRUCTURAL — accordion blocks collapse, tiles do not — so CSS @container cannot express it. Its real risk is not the threshold but FLAPPING at it: collapsed accordion -> no scrollbar -> wider -> tiles -> taller -> scrollbar -> narrower -> accordion (R1); mitigated by measuring a container whose width does not depend on content, scrollbar-gutter: stable, and hysteresis if needed.\n\nFour questions are left OPEN for the owner rather than silently decided (§7): Q1 presets/«Сброс» — strip+footer or a fifth block; Q2 accordion — multi-open+persisted or exactly one; Q3 detached preset manager — full or apply+save-as only (this one materially sizes SS3.2); Q4 the tile threshold and 3-4 columns on a wide dock. Implementation not started — owner review of the plan, then SS1.1."
+    }
+  ]
+}
