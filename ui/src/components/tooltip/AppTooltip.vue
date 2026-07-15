@@ -32,13 +32,16 @@
        Quasar's own classes so it is identical to element mode by construction rather than by copied
        CSS values: .q-tooltip = fixed positioning + z-index + padding, .q-tooltip--style = the look. -->
   <Teleport v-else to="body">
+    <!-- role sits BEFORE v-bind so a caller can override it: placement is ours to enforce, but the
+         semantics of the content are the caller's to know. A live numeric readout, for instance,
+         wants role="status" + aria-live, not role="tooltip". -->
     <div
       v-if="at"
       ref="boxEl"
+      role="tooltip"
       v-bind="$attrs"
       class="q-tooltip q-tooltip--style no-pointer-events"
       :style="boxStyle"
-      role="tooltip"
     >
       <slot />
     </div>

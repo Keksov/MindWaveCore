@@ -219,16 +219,23 @@
       "id": "TT2.4",
       "phase": 2,
       "title": "Семейство B: SpectrogramView -> режим курсора + viewport-координаты (req 1/2/3)",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["TT1.3"],
       "artifacts": [
         "GnauralCore/ui/components/SpectrogramView.vue"
       ],
       "verify": "vue-tsc + build; manual: readout над курсором; у правого/нижнего края графика не обрезан (сейчас клампа нет вообще)",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-15",
+      "finishedAt": "2026-07-15",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "CLOSES FAMILY B: grep confirms no hand-rolled, mouse-positioned tooltip div remains anywhere in the workspace (0 hits for manual left/top-from-pointer styling). Both former offenders now render <app-tooltip :at>.",
+        "The readout sat at +12/+12 from the pointer under the comment 'offset a little so it doesn't sit under the pointer' (SpectrogramView.vue:812) -- intent right, direction wrong: down-right is exactly where the arrow glyph is. It also had NO clamp or flip at all (unlike GTrackView's), so it could run off the right/bottom edge of the view; AppTooltip clamps it now.",
+        "R4 (coord-space change) resolved rather than merely survived: offsetX/Y -> clientX/Y, required because cursor mode is position:fixed. offsetX/Y are measured from the EVENT TARGET, which is not necessarily the box the tooltip was absolutely positioned inside, so the old pair could disagree -- the switch to viewport coords retires that latent bug instead of porting it.",
+        "a11y preserved deliberately: the old div was role='status' + aria-live='polite' (a LIVE readout that should be announced), not a plain tooltip. AppTooltip's cursor mode therefore now renders role='tooltip' BEFORE v-bind=$attrs so a caller can override the semantics — placement stays ours to enforce, content semantics belong to the caller.",
+        "tabular-nums + white-space:nowrap survive the move (properties of the readout, not of the plate: digits must not jitter as they change under the cursor, and the reading must stay on one line rather than wrapping at Quasar's max-width). Both had to move to a NON-scoped block for the same reason as GTrackView's width cap — the box is teleported to <body> and carries no scope attribute.",
+        "vue-tsc --noEmit: 0 errors. quasar build: succeeded. GnauralCore bun test ui: 212 pass / 0 fail. Remaining after this step: family A = 66 raw <q-tooltip> (TracksPanel 17, TrackListView 9, FsEntryList 9, GTrackView 7, SpectrogramPresetManager 5, ...; the 2 inside AppTooltip.vue itself are the only legal ones), family C = ~20 title/:title hits incl. the PanelWindow title-as-prop false positives to exclude."
+      ]
     },
     {
       "id": "TT2.5",
