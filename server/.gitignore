@@ -7,8 +7,12 @@ bunx.txt
 AppMain.exe
 libwebview.dll
 
-# Runtime log database
-var/mindwave-logs.sqlite*
+# AppCore per-machine window state: kiosk rects keyed by monitor GUID. Purely local — sharing it
+# would push one machine's monitor layout onto every other. (AppCore.ico/.ini ARE tracked: branding.)
+AppCore.window
+
+# Runtime state — logs + the log database (nothing here is tracked)
+var/
 
 # Generated frontend build output
 public/
