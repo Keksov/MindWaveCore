@@ -45,7 +45,7 @@
       "id": "WS1.1",
       "phase": 1,
       "title": "Новый двухпанельный диалог настроек волны (вкладки «Оба канала»/«Левый»/«Правый» + тоггл «Применить к обоим каналам») на месте SF27-диалога + i18n; открывается пока из старых гиров (гир канала → вкладка канала, при link=ON → «Оба канала»)",
-      "status": "pending",
+      "status": "done",
       "dependsOn": [],
       "artifacts": [
         "GnauralCore/ui/components/TracksPanel.vue",
@@ -53,39 +53,59 @@
         "GnauralCore/ui/i18n/en.json"
       ],
       "verify": "bun run typecheck + bun run build (MindWaveCore/ui); bun test ui server (GnauralCore) зелёные; manual (стерео): тоггл ON — «Левый»/«Правый» недоступны (req 6), правка на «Оба канала» меняет ОБА канала; тоггл OFF — Л/П доступны и правят только свой канал, контролы формы «Оба канала» выключены; флип тоггла сам по себе значений не меняет; гир канала при ON открывает «Оба канала», при OFF — свою вкладку (WS-D5); overlay — слайдер прозрачности виден только там; mono — один пункт «Моно», тоггла нет; закрыть/открыть — значения И состояние тоггла персистятся (localStorage +link, WS-D7)",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-15",
+      "finishedAt": "2026-07-15",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Commit 0aaf88a (GnauralCore). Owner approved the WS-D3 default (toggle ON) 2026-07-15 -> implemented as specified; the whole scope model landed in one step because the tab list, the toggle and the wfDlg* accessors are one mechanism (a half-migrated dialog would have been a worse checkpoint than none).",
+        "A REAL BUG caught by reading Quasar's source instead of trusting :disable — and it would have broken req 6 outright. QItem.js does NOT set inheritAttrs:false, so a fallthrough @click lands on the root element and Vue runs it ALONGSIDE QItem's own handler; QItem's internal onClick no-ops when disabled (QItem.js:98-99 guards on isClickable), but mine would still have fired. Quasar's `.disabled` rule (css/core/visibility.sass:30-36) only sets outline/cursor/opacity — NOT pointer-events — so the click does reach the element. Net effect without a guard: a LOCKED «Левый»/«Правый» tab still opens on click, i.e. exactly what req 6 forbids, while looking disabled. Fixed with our own guard (selectWaveformSettingsTab returns early). Lesson for this codebase: a Quasar `:disable` dims and drops the component's OWN handling; it does not neutralise a listener you attached.",
+        "Mono is not just a label change (WS-D4): 'both' there writes ONLY channel 0. Writing ch 1 as well would have silently overwritten the stored R preference (the arrays are always length 2 and persist), so editing colour on a MONO file would have changed R for the next STEREO file opened — a cross-file data effect with no UI to reveal it. wfDlgTargets() encodes 'every channel that EXISTS', not 'both slots'.",
+        "R4 guard implemented as a watch on [isSpectrogramStereo, waveformLinkChannels]: a scope of 0/1 is coerced back to 'both' if the file turns mono under an open dialog, or if the tab it points at gets locked. Keeps the invariant 'a locked/nonexistent tab is never the active one' true by construction rather than by UI convention.",
+        "Verify run: vue-tsc --noEmit 0 errors; quasar build ok; GnauralCore bun test ui server 252 pass / 0 fail (850 expect()).",
+        "Checked what the BUILD cannot catch (a missing i18n key renders as the key string at runtime, silently): a script resolved every t('audio.*') key used by the dialog against BOTH locales — all 6 new keys present in ru+en, and the whole-file sweep found 0 broken keys across 84. Bundle audit: all 5 tracks-panel__wf-settings* rules present in assets/TracksPanel-Cq8da1pU.css, «Применить к обоим каналам» present in the emitted JS.",
+        "NOT verified by me: the visual/interaction pass — no browser driver exists anywhere in the workspace (checked), and installing Playwright + Chromium into the owner's actively-running dev environment for one dialog was not proportionate. That check is WS1.3, which is an owner PAUSE by design. What IS confirmed live: the owner's dev server (Mode=dev, quasar dev on 9000 per server/app.cfg) serves the updated module — 9 new-code markers incl. selectWaveformSettingsTab/waveformLinkChannels — so the running app has the change via HMR."
+      ]
     },
     {
       "id": "WS1.2",
       "phase": 1,
       "title": "Перенос шестерёнки в тайтл-бар «Общая волна»: кнопка в fold-хедере (открывает «Оба канала») + prop showSettingsGear в WaveformView (false в overall-стеке)",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["WS1.1"],
       "artifacts": [
         "GnauralCore/ui/components/TracksPanel.vue",
         "GnauralCore/ui/components/WaveformView.vue"
       ],
       "verify": "typecheck + build; bun test ui server; manual: в области графики дорожек общей волны шестерёнок НЕТ, в тайтл-баре ЕСТЬ (открывает вкладку «Оба канала»); гиры лейнов gtrack на месте и открывают per-lane настройки; overlay-гир спектрограммы открывает новый диалог (при link=ON — на «Оба канала», WS-D5); fold/eye/Ctrl-click хедера не сломаны",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-15",
+      "finishedAt": "2026-07-15",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Commit 58f551f (GnauralCore). The header needed NO CSS surgery, as surveyed: the title's flex:1 (tracks-panel__gtrack-header-title) pushes a trailing button to the right edge; the new class only joins the existing `flex: 0 0 auto` rule beside the fold/eye buttons, which are already size=xs in the same 22px bar (R3 closed — nothing clipped, and the tooltip teleports so the header's overflow:hidden cannot cut it).",
+        "The gear could not be DELETED from WaveformView (the constraint the plan found before writing code): the gtrack solo sub-lanes reuse the component and their gear opens per-lane settings. Hence WS-D6's prop with withDefaults default true — a bare type-only boolean would cast the absent prop to false and silently strip the lanes' gear (the known Vue pitfall).",
+        "Wiring audited by grep rather than assumed, since a stale listener typechecks fine: the overall waveform-view now carries :show-settings-gear=false and its @open-settings listener is GONE (it had become unreachable — the gear was the only emitter). Remaining open-settings listeners are exactly the intended four: 3 gtrack lane ones (GTrackView + solo wave + solo spectrum -> gtrackSettingsId) and the overall SPECTROGRAM's openWaveformSettings(channel), which is the overlay entry point (WS-D5).",
+        "@click without .stop matches the neighbouring fold/eye buttons: the header div itself has no click handler — PW5.8's Ctrl-click hide lives on the per-track EYE (onOverallChannelHide via @hide), not on the bar — so there is nothing to stop.",
+        "Verify run: vue-tsc --noEmit 0 errors; quasar build ok; GnauralCore bun test ui server 252 pass / 0 fail. Bundle: the tracks-panel__gtrack-header-gear rule is present in the emitted CSS.",
+        "Note for the reviewer: WaveformView.vue moved under me mid-step — commit 1016af4 (TT2.10, the readout tooltip) landed during this session. Diff re-read before staging: it touches the readout, not the gear; my working diff contains only my lines."
+      ]
     },
     {
       "id": "WS1.3",
       "phase": 1,
       "title": "PAUSE: owner-проверка переноса и диалога",
-      "status": "pending",
+      "status": "active",
       "dependsOn": ["WS1.1", "WS1.2"],
       "artifacts": [],
-      "verify": "owner manual check; открытые вопросы: (1) дефолт тоггла «Применить к обоим каналам» — предлагается ON (иначе вкладка по умолчанию «Оба канала» открывается с выключенными контролами); при ON первая правка цвета схлопывает L-cyan/R-amber в один цвет, undo нет — см. R1; (2) чистить ли мёртвый дубликат waveform-state в AudioPage (WS2.1). ЗАКРЫТЫ ответами владельца 2026-07-15: индикация расхождения L/R -> заменена тогглом (req 6); mono -> один пункт «Моно» (req 7); формулировка «Оба канала» -> подтверждена (req 8)",
-      "startedAt": null,
+      "verify": "owner manual check (визуально-интерактивная проверка — единственное, что не проверено автоматикой: драйвера браузера в воркспейсе нет)",
+      "startedAt": "2026-07-15",
       "finishedAt": null,
-      "blockedReason": null,
-      "evidence": []
+      "blockedReason": "PAUSE: ждём проверки владельцем. Приложение у владельца в Mode=dev — правки уже живые через HMR, перезапуск не нужен.",
+      "evidence": [
+        "ЧТО ПРОВЕРИТЬ: (1) req 1 — в области графики дорожек «Общей волны» шестерёнок больше НЕТ, одна в тайтл-баре справа; (2) req 2-4 — диалог: узкий список слева, широкая панель настроек по центру; (3) req 5-6 — тоггл «Применить к обоим каналам» ON (дефолт): «Левый»/«Правый» недоступны, правка цвета/шкалы меняет ОБА канала; выключить тоггл: Л/П становятся доступны и правят только свой канал, а контролы формы «Оба канала» гаснут (у неё больше нет своей области действия); (4) сам флип тоггла значений не меняет — только запирает/отпирает вкладки; (5) req 7 — моно-файл: один пункт «Моно», тоггла нет; (6) не сломано: гиры лейнов gtrack открывают per-lane настройки, режим overlay — гир на спектрограмме открывает этот диалог (при ON — на «Оба канала»), fold/eye/Ctrl-click хедера работают; (7) закрыть/открыть — значения и состояние тоггла сохраняются.",
+        "ОСОЗНАННОЕ СЛЕДСТВИЕ ДЕФОЛТА ON (R1), стоит увидеть вживую: цвета каналов по умолчанию расходятся намеренно (SF27: L cyan / R amber). При тоггле ON первая же правка цвета сделает оба канала одноцветными, и различение L/R на глаз пропадёт; вернуть можно, выключив тоггл и задав цвета по вкладкам. Если это мешает — дефолт OFF меняется одной строкой (ценой: вкладка по умолчанию открывается с выключенными контролами).",
+        "ОТКРЫТЫЙ ВОПРОС: чистить ли мёртвый дубликат waveform-state в AudioPage (WS2.1, side-find §2.6) — сегодня безвреден, но пишет в тот же ключ localStorage.",
+        "ЗАКРЫТО ответами владельца 2026-07-15: индикация расхождения L/R -> заменена тогглом (req 6); mono -> «Моно» (req 7); «Оба канала» (req 8); дефолт тоггла ON -> подтверждён владельцем перед реализацией."
+      ]
     },
     {
       "id": "WS2.1",
@@ -104,6 +124,10 @@
     }
   ],
   "log": [
+    {
+      "at": "2026-07-15",
+      "text": "Phase 1 code done, parked at the WS1.3 PAUSE. WS1.1 (0aaf88a): the two-pane dialog + the link toggle + i18n. WS1.2 (58f551f): the gear moved to the title bar + showSettingsGear. Owner approved the toggle default (ON) before implementation, so nothing was guessed. vue-tsc 0, quasar build ok, GnauralCore bun test ui server 252/252.\n\nThe one defect found was found by reading Quasar's source, not by running anything — and it would have defeated the owner's requirement while LOOKING right: QItem does not set inheritAttrs:false, so my @click fell through onto the root element and Vue ran it beside QItem's own guarded handler, while Quasar's `.disabled` rule sets no pointer-events. A 'disabled' «Левый» tab would have opened on click. Guard is now ours. Generalisable for this codebase: Quasar's :disable dims the control and drops the component's OWN handling — it does not neutralise a listener you attached to it.\n\nTwo things the requirement did not mention but the data did: (1) mono's 'both' writes ONLY channel 0 — writing the second slot too would have let a mono-file edit silently rewrite the R preference that the next STEREO file loads (the arrays are length 2 and persist); (2) an R4 watch coerces the scope off a channel tab that stops existing (stereo->mono) or gets locked, so 'a locked/absent tab is never active' holds by construction.\n\nVerification honesty: the visual/interaction pass is NOT done — no browser driver exists in the workspace and installing Playwright+Chromium into the owner's live dev environment for one dialog was not proportionate; that pass is WS1.3, an owner checkpoint by design. What automation CAN cover was covered, including the failure the build cannot see: a missing i18n key renders as the key string at runtime, so every t('audio.*') key was resolved against BOTH locales (6 new ones present; 0 broken across 84). Confirmed the change is live for the owner: their dev server (Mode=dev, quasar dev on 9000) already serves the updated module via HMR."
+    },
     {
       "at": "2026-07-15",
       "text": "Owner answered all three plan questions (reqs 6-8), BEFORE any code was written — the plan changed, not a shipped UI. (1) req 6: «Оба канала» gets a toggle «Применить к обоим каналам»; when ON the «Левый»/«Правый» items go unavailable. This REPLACES my question about indicating L/R divergence: the owner's answer is not an indicator but a MODE. (2) req 7: mono -> a single «Моно» item (my WS-D4 proposed reusing the «Оба канала» label; the owner picked the alternative I had offered). (3) req 8: «Оба канала» confirmed -> R6 closed.\n\nWhat the toggle forced me to settle, since the owner specified only its ON effect (tabs disabled): (a) what the «Оба канала» form does when the toggle is OFF -> its CONTROLS are disabled (only the toggle stays live), because a form that writes both channels while 'apply to both' is off would contradict its own label; the cost is that the default tab opens 'dead' when the toggle is OFF, which is precisely why the toggle's default is proposed ON. (b) Whether flipping the toggle LEVELS the channels -> no: the flip only locks/unlocks tabs, values move only on a real edit. Levelling-on-flip would make an accidental click destroy R's colour with no undo, and it is not needed for the label to stay truthful ('apply to both' is a promise about edits, not a claim that the channels are already identical). (c) A knock-on the requirement did not mention (WS-D5): with the toggle ON, a per-channel entry point (the overlay spectrogram gear) would land on a DISABLED tab -> one rule, openWaveformSettings(ch) -> tab = link ? 'both' : ch.\n\nThe one judgement left for the PAUSE is the toggle's DEFAULT. Proposed ON, but it is not free: the per-channel defaults diverge BY DESIGN (SF27's L cyan #67e8f9 / R amber #fbbf24), so with ON the first colour edit collapses the L/R visual distinction — see R1. Default OFF preserves today's behaviour exactly, at the price of the dead default form. Cheap to flip either way — one line."
