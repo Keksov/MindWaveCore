@@ -17,15 +17,15 @@
     },
     {
       "id": "WS-D3",
-      "text": "Tab model: waveformSettingsOpen: boolean + waveformSettingsTab: 'both' | 0 | 1 (replaces the channel|null open-flag trick at TracksPanel.vue:1850-1860). wfDlg* computeds: get -> tab 'both' reads channel 0, set -> 'both' writes BOTH channels, 0/1 writes only its own. Consequence: with diverged L/R the «Оба канала» tab shows the LEFT channel's value and the first edit levels both; divergence is visible and editable per channel on the «Левый»/«Правый» tabs. No 'values differ' indicator built (native input type=color has no mixed state; unrequested complexity) — owner question at the WS1.3 PAUSE."
+      "text": "REVISED 2026-07-15 (owner req 6: «На форме \"Оба канала\" нужен тоггл - Применить к обоим каналам. Если он включен, то пункты слева \"Левый\" и \"Правый\" становятся недоступны»). State: waveformSettingsOpen: boolean + waveformSettingsTab: 'both' | 0 | 1 (replaces the channel|null open-flag trick at TracksPanel.vue:1850-1860) + waveformLinkChannels: boolean, persisted (WS-D7), default ON. The toggle lives ON the «Оба канала» form, above the settings. Semantics: (a) ON (default) -> the «Оба канала» controls are live and wfDlg* set writes BOTH channels; the «Левый»/«Правый» items are :disable (req 6 verbatim). (b) OFF -> «Левый»/«Правый» are enabled and edit their own channel; the «Оба канала» CONTROLS are disabled (only the toggle stays live) — otherwise the form would contradict its own label, writing to both while 'apply to both' is off. (c) Flipping the toggle NEVER changes values — it only locks/unlocks the tabs; levelling happens solely when the user edits a control on the «Оба канала» form, so a stray toggle click is not destructive (this dialog has no undo for any setting). (d) get on «Оба канала» reads channel 0: with diverged channels (the defaults diverge BY DESIGN — L cyan / R amber, §2.4) the form shows the left channel's value until the first edit levels both; native input type=color has no mixed state, so no 'values differ' indicator is built. The toggle's DEFAULT (ON) is the one open owner question at the WS1.3 PAUSE — see R1. REPLACED: the earlier 'both shows left, no indicator' question, which the owner answered with this toggle instead."
     },
     {
       "id": "WS-D4",
-      "text": "Mono file (isSpectrogramStereo === false, one physical channel): the left list collapses to the single item «Оба канала» (edits channel 0); «Левый»/«Правый» are hidden — dummy tabs for a channel that does not exist would only mislead. Alternative (label the item «Моно») offered at the PAUSE."
+      "text": "REVISED 2026-07-15 (owner req 7: «Моно-файл - один пукт \"Моно\"»). Mono (isSpectrogramStereo === false, one physical channel): the left list collapses to a SINGLE item labelled «Моно» — the internal tab id stays 'both' (it means the single/all-channels scope; only the label changes), «Левый»/«Правый» are hidden, and the WS-D3 toggle is HIDDEN too ('apply to both channels' is meaningless with one channel). The form edits channel 0."
     },
     {
       "id": "WS-D5",
-      "text": "Overlay mode and gtrack lanes DO NOT move. In overlay the overall-wave stack (and thus its title bar) is not rendered at all — the waveform is drawn over the spectrogram, and SpectrogramView's own gear (visible when waveformOverlay, SpectrogramView.vue:86-92) opens the waveform settings for its channel (TracksPanel.vue:494). That gear stays in place and now opens the NEW dialog preselected on its channel's tab (openWaveformSettings(ch) -> tab = ch). Gtrack lane gears (per-lane GTrackSpectrumSettings via gtrackSettingsId, TracksPanel.vue:298/254) are untouched."
+      "text": "Overlay mode and gtrack lanes DO NOT move. In overlay the overall-wave stack (and thus its title bar) is not rendered at all — the waveform is drawn over the spectrogram, and SpectrogramView's own gear (visible when waveformOverlay, SpectrogramView.vue:86-92) opens the waveform settings for its channel (TracksPanel.vue:494). That gear stays in place and now opens the NEW dialog preselected on its channel's tab. REVISED 2026-07-15 (req 6): when waveformLinkChannels is ON the per-channel tab is LOCKED, so every per-channel entry point must fall back to «Оба канала» rather than land on a disabled tab — one rule: openWaveformSettings(ch) -> tab = link ? 'both' : ch (applies to the spectrogram overlay gear and, until WS1.2 removes them, the per-track gears too). Gtrack lane gears (per-lane GTrackSpectrumSettings via gtrackSettingsId, TracksPanel.vue:298/254) are untouched."
     },
     {
       "id": "WS-D6",
@@ -33,18 +33,18 @@
     },
     {
       "id": "WS-D7",
-      "text": "The settings SET and persistence are unchanged: colour / amplitude scale lin-dB / overlay opacity (the latter, as today, visible only when viewMode === 'overlay'); localStorage key 'mindwave-tracks-waveform' and its format stay as-is (TracksPanel.vue:1794,1820-1849,2215-2226). The dialog is a new shell around the same wfDlg* accessors — no migration."
+      "text": "The settings SET is unchanged: colour / amplitude scale lin-dB / overlay opacity (the latter, as today, visible only when viewMode === 'overlay'). Persistence keeps the same localStorage key 'mindwave-tracks-waveform' (TracksPanel.vue:1794,1820-1849,2215-2226) and gains exactly ONE new field — link: boolean (WS-D3) — which is backward compatible: absent -> default. The dialog is a new shell around the same wfDlg* accessors; no value migration."
     },
     {
       "id": "WS-D8",
-      "text": "i18n (ru+en): new key audio.waveformSettingsTitle («Настройки отображения волны» / \"Waveform display settings\") for the dialog title and the new header button's tooltip/aria; tab keys audio.waveformChannelsBoth/Left/Right («Оба канала» / «Левый» / «Правый», en \"Both channels\" / \"Left\" / \"Right\"). The owner wrote «Обе канала» — implemented as the grammatical «Оба канала», to be confirmed at the PAUSE (R6). Existing audio.waveformStyle stays — the lane gears in WaveformView still use it."
+      "text": "i18n (ru+en): new key audio.waveformSettingsTitle («Настройки отображения волны» / \"Waveform display settings\") for the dialog title and the new header button's tooltip/aria; tab keys audio.waveformChannelsBoth/Left/Right («Оба канала» / «Левый» / «Правый», en \"Both channels\" / \"Left\" / \"Right\"); audio.waveformChannelMono («Моно» / \"Mono\", req 7); audio.waveformApplyBoth («Применить к обоим каналам» / \"Apply to both channels\", req 6). The owner wrote «Обе канала» and CONFIRMED «Оба канала» 2026-07-15 (req 8) -> R6 closed. Existing audio.waveformStyle stays — the lane gears in WaveformView still use it."
     }
   ],
   "steps": [
     {
       "id": "WS1.1",
       "phase": 1,
-      "title": "Новый двухпанельный диалог настроек волны (вкладки «Оба канала»/«Левый»/«Правый») на месте SF27-диалога + i18n; открывается пока из старых гиров (гир канала → вкладка канала)",
+      "title": "Новый двухпанельный диалог настроек волны (вкладки «Оба канала»/«Левый»/«Правый» + тоггл «Применить к обоим каналам») на месте SF27-диалога + i18n; открывается пока из старых гиров (гир канала → вкладка канала, при link=ON → «Оба канала»)",
       "status": "pending",
       "dependsOn": [],
       "artifacts": [
@@ -52,7 +52,7 @@
         "GnauralCore/ui/i18n/ru.json",
         "GnauralCore/ui/i18n/en.json"
       ],
-      "verify": "bun run typecheck + bun run build (MindWaveCore/ui); bun test ui server (GnauralCore) зелёные; manual: стерео — гир L открывает вкладку «Левый», правки идут только в свой канал, «Оба канала» пишет в оба и показывает значение левого; overlay — слайдер прозрачности виден только там; mono — один пункт в списке; значения персистятся через закрытие/переоткрытие",
+      "verify": "bun run typecheck + bun run build (MindWaveCore/ui); bun test ui server (GnauralCore) зелёные; manual (стерео): тоггл ON — «Левый»/«Правый» недоступны (req 6), правка на «Оба канала» меняет ОБА канала; тоггл OFF — Л/П доступны и правят только свой канал, контролы формы «Оба канала» выключены; флип тоггла сам по себе значений не меняет; гир канала при ON открывает «Оба канала», при OFF — свою вкладку (WS-D5); overlay — слайдер прозрачности виден только там; mono — один пункт «Моно», тоггла нет; закрыть/открыть — значения И состояние тоггла персистятся (localStorage +link, WS-D7)",
       "startedAt": null,
       "finishedAt": null,
       "blockedReason": null,
@@ -68,7 +68,7 @@
         "GnauralCore/ui/components/TracksPanel.vue",
         "GnauralCore/ui/components/WaveformView.vue"
       ],
-      "verify": "typecheck + build; bun test ui server; manual: в области графики дорожек общей волны шестерёнок НЕТ, в тайтл-баре ЕСТЬ (открывает вкладку «Оба канала»); гиры лейнов gtrack на месте и открывают per-lane настройки; overlay-гир спектрограммы открывает новый диалог с вкладкой своего канала; fold/eye/Ctrl-click хедера не сломаны",
+      "verify": "typecheck + build; bun test ui server; manual: в области графики дорожек общей волны шестерёнок НЕТ, в тайтл-баре ЕСТЬ (открывает вкладку «Оба канала»); гиры лейнов gtrack на месте и открывают per-lane настройки; overlay-гир спектрограммы открывает новый диалог (при link=ON — на «Оба канала», WS-D5); fold/eye/Ctrl-click хедера не сломаны",
       "startedAt": null,
       "finishedAt": null,
       "blockedReason": null,
@@ -81,7 +81,7 @@
       "status": "pending",
       "dependsOn": ["WS1.1", "WS1.2"],
       "artifacts": [],
-      "verify": "owner manual check; вопросы: (1) нужна ли индикация расхождения L/R на «Оба канала» (сейчас показываем значение левого, первое изменение выравнивает); (2) mono: один пункт «Оба канала» — ок, или «Моно»; (3) подтверждение формулировки «Оба канала» (в запросе было «Обе канала»); (4) чистить ли мёртвый дубликат waveform-state в AudioPage (WS2.1)",
+      "verify": "owner manual check; открытые вопросы: (1) дефолт тоггла «Применить к обоим каналам» — предлагается ON (иначе вкладка по умолчанию «Оба канала» открывается с выключенными контролами); при ON первая правка цвета схлопывает L-cyan/R-amber в один цвет, undo нет — см. R1; (2) чистить ли мёртвый дубликат waveform-state в AudioPage (WS2.1). ЗАКРЫТЫ ответами владельца 2026-07-15: индикация расхождения L/R -> заменена тогглом (req 6); mono -> один пункт «Моно» (req 7); формулировка «Оба канала» -> подтверждена (req 8)",
       "startedAt": null,
       "finishedAt": null,
       "blockedReason": null,
@@ -104,6 +104,10 @@
     }
   ],
   "log": [
+    {
+      "at": "2026-07-15",
+      "text": "Owner answered all three plan questions (reqs 6-8), BEFORE any code was written — the plan changed, not a shipped UI. (1) req 6: «Оба канала» gets a toggle «Применить к обоим каналам»; when ON the «Левый»/«Правый» items go unavailable. This REPLACES my question about indicating L/R divergence: the owner's answer is not an indicator but a MODE. (2) req 7: mono -> a single «Моно» item (my WS-D4 proposed reusing the «Оба канала» label; the owner picked the alternative I had offered). (3) req 8: «Оба канала» confirmed -> R6 closed.\n\nWhat the toggle forced me to settle, since the owner specified only its ON effect (tabs disabled): (a) what the «Оба канала» form does when the toggle is OFF -> its CONTROLS are disabled (only the toggle stays live), because a form that writes both channels while 'apply to both' is off would contradict its own label; the cost is that the default tab opens 'dead' when the toggle is OFF, which is precisely why the toggle's default is proposed ON. (b) Whether flipping the toggle LEVELS the channels -> no: the flip only locks/unlocks tabs, values move only on a real edit. Levelling-on-flip would make an accidental click destroy R's colour with no undo, and it is not needed for the label to stay truthful ('apply to both' is a promise about edits, not a claim that the channels are already identical). (c) A knock-on the requirement did not mention (WS-D5): with the toggle ON, a per-channel entry point (the overlay spectrogram gear) would land on a DISABLED tab -> one rule, openWaveformSettings(ch) -> tab = link ? 'both' : ch.\n\nThe one judgement left for the PAUSE is the toggle's DEFAULT. Proposed ON, but it is not free: the per-channel defaults diverge BY DESIGN (SF27's L cyan #67e8f9 / R amber #fbbf24), so with ON the first colour edit collapses the L/R visual distinction — see R1. Default OFF preserves today's behaviour exactly, at the price of the dead default form. Cheap to flip either way — one line."
+    },
     {
       "at": "2026-07-15",
       "text": "Plan + ledger created (owner req 2026-07-15): move the overall-wave gear from the track graphics area into the group's title bar; it opens a NEW two-pane dialog — narrow tab list left («Оба канала»/«Левый»/«Правый»), wide settings pane centre, settings apply per the active tab. Inventory (verified): today SF27 renders a per-track gear inside each overall-wave track (WaveformView.vue:35-45), one per channel, each opening the small single-column SF27 dialog (TracksPanel.vue:702-733) for ITS channel; the destination title bar is the GT11.10 fold header (TracksPanel.vue:348-380, title flex:1 so a right-edge button needs no CSS surgery); the exact two-pane dialog shape already exists as the GT10.29 settings dialog (AudioPage.vue:49-86) and is reused. Constraints found: the gear cannot be DELETED from WaveformView (gtrack lane sublanes reuse it for per-lane settings -> prop showSettingsGear, default true, WS-D6); in overlay mode the wave stack/title bar does not exist and the spectrogram's own gear is the only entry point -> it stays and opens the new dialog on its channel's tab (WS-D5). Side-find: AudioPage.vue:1006-1263 still carries a dead pre-extraction DUPLICATE of the whole waveform-prefs state writing the same localStorage key — harmless today (nothing mutates it), proposed as optional cleanup WS2.1. Decisions WS-D1..D8 proposed; implementation not started — owner review of the plan, then WS1.1."
