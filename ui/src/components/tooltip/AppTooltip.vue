@@ -137,6 +137,15 @@ watch(
      dimmed labels ~5.7:1 — both readable, plainly distinct. -->
 <style>
 .q-tooltip.app-tooltip {
+  /* Secondary text inside a tooltip dims with THIS, never with `opacity` (owner 2026-07-15: the
+     labels "blurred, as if semibold"). An opacity < 1 promotes the text to its own composited layer,
+     which drops Windows' subpixel antialiasing (ClearType) down to greyscale — the glyphs go soft and
+     read heavier, next to un-dimmed text that stayed crisp. An opaque colour keeps subpixel AA.
+     It lives here, next to the background it is computed against, so it cannot drift from the plate
+     the way a hex copied into a consumer did. Deliberately no fallback: the variable is guaranteed by
+     the component that renders the box, and a duplicated hex would reintroduce exactly that drift. */
+  --app-tooltip-fg-dim: #94a3b8;
+
   background: #1e293b;
   border: 1px solid rgba(148, 163, 184, 0.3);
   border-radius: 4px;
