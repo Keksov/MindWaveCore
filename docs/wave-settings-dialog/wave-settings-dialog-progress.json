@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 1,
+  "plan": "wave-settings-dialog",
+  "planDoc": "docs/wave-settings-dialog/wave-settings-dialog-plan.md",
+  "title": "wave-settings-dialog: the overall-wave gear moves from the track graphics area into the group's title bar (GT11.10 fold header); it opens a NEW two-pane dialog — narrow tab list left («Оба канала» / «Левый» / «Правый»), wide settings pane centre — settings apply per the active tab",
+  "status": "in-progress",
+  "createdAt": "2026-07-15",
+  "updatedAt": "2026-07-15",
+  "decisions": [
+    {
+      "id": "WS-D1",
+      "text": "ONE gear per group, in the title bar (owner req 1). Today SF27 puts a per-track gear inside EACH overall-wave track's graphics area (WaveformView.vue:35-45), so stereo shows two gears each opening its channel's dialog (TracksPanel.vue:402). Replaced by a single settings button at the right edge of the GT11.10 fold header «Общая волна» (TracksPanel.vue:348-380) — the title's flex:1 pushes it right; @click.stop so the header's fold/Ctrl-click behaviour is untouched. Opens the dialog on the «Оба канала» tab; per-channel access is via the tabs (req 5)."
+    },
+    {
+      "id": "WS-D2",
+      "text": "Dialog shape mirrors the GT10.29 precedent (AudioPage.vue:49-86): q-card -> row no-wrap -> narrow q-list (~160px, clickable items + active-class) + q-separator vertical + wide content pane; own CSS classes tracks-panel__wf-settings-*. Stays INLINE in TracksPanel like every other TracksPanel dialog (SF26 minimap, gtrack settings, the old SF27 one): the per-channel state and its localStorage persistence live there, and extracting a component for three controls would only add props/emits plumbing."
+    },
+    {
+      "id": "WS-D3",
+      "text": "Tab model: waveformSettingsOpen: boolean + waveformSettingsTab: 'both' | 0 | 1 (replaces the channel|null open-flag trick at TracksPanel.vue:1850-1860). wfDlg* computeds: get -> tab 'both' reads channel 0, set -> 'both' writes BOTH channels, 0/1 writes only its own. Consequence: with diverged L/R the «Оба канала» tab shows the LEFT channel's value and the first edit levels both; divergence is visible and editable per channel on the «Левый»/«Правый» tabs. No 'values differ' indicator built (native input type=color has no mixed state; unrequested complexity) — owner question at the WS1.3 PAUSE."
+    },
+    {
+      "id": "WS-D4",
+      "text": "Mono file (isSpectrogramStereo === false, one physical channel): the left list collapses to the single item «Оба канала» (edits channel 0); «Левый»/«Правый» are hidden — dummy tabs for a channel that does not exist would only mislead. Alternative (label the item «Моно») offered at the PAUSE."
+    },
+    {
+      "id": "WS-D5",
+      "text": "Overlay mode and gtrack lanes DO NOT move. In overlay the overall-wave stack (and thus its title bar) is not rendered at all — the waveform is drawn over the spectrogram, and SpectrogramView's own gear (visible when waveformOverlay, SpectrogramView.vue:86-92) opens the waveform settings for its channel (TracksPanel.vue:494). That gear stays in place and now opens the NEW dialog preselected on its channel's tab (openWaveformSettings(ch) -> tab = ch). Gtrack lane gears (per-lane GTrackSpectrumSettings via gtrackSettingsId, TracksPanel.vue:298/254) are untouched."
+    },
+    {
+      "id": "WS-D6",
+      "text": "WaveformView gains prop showSettingsGear with withDefaults default TRUE — NOT a bare type-only boolean (an absent boolean prop casts to false, the known Vue pitfall): lanes pass nothing and keep their gear (it opens per-lane settings), the overall stack passes :show-settings-gear=\"false\". The open-settings emit stays. Mirrors the GT10.3 precedent (SpectrogramView.showSettingsGear:213-214), same prop name, inverted default."
+    },
+    {
+      "id": "WS-D7",
+      "text": "The settings SET and persistence are unchanged: colour / amplitude scale lin-dB / overlay opacity (the latter, as today, visible only when viewMode === 'overlay'); localStorage key 'mindwave-tracks-waveform' and its format stay as-is (TracksPanel.vue:1794,1820-1849,2215-2226). The dialog is a new shell around the same wfDlg* accessors — no migration."
+    },
+    {
+      "id": "WS-D8",
+      "text": "i18n (ru+en): new key audio.waveformSettingsTitle («Настройки отображения волны» / \"Waveform display settings\") for the dialog title and the new header button's tooltip/aria; tab keys audio.waveformChannelsBoth/Left/Right («Оба канала» / «Левый» / «Правый», en \"Both channels\" / \"Left\" / \"Right\"). The owner wrote «Обе канала» — implemented as the grammatical «Оба канала», to be confirmed at the PAUSE (R6). Existing audio.waveformStyle stays — the lane gears in WaveformView still use it."
+    }
+  ],
+  "steps": [
+    {
+      "id": "WS1.1",
+      "phase": 1,
+      "title": "Новый двухпанельный диалог настроек волны (вкладки «Оба канала»/«Левый»/«Правый») на месте SF27-диалога + i18n; открывается пока из старых гиров (гир канала → вкладка канала)",
+      "status": "pending",
+      "dependsOn": [],
+      "artifacts": [
+        "GnauralCore/ui/components/TracksPanel.vue",
+        "GnauralCore/ui/i18n/ru.json",
+        "GnauralCore/ui/i18n/en.json"
+      ],
+      "verify": "bun run typecheck + bun run build (MindWaveCore/ui); bun test ui server (GnauralCore) зелёные; manual: стерео — гир L открывает вкладку «Левый», правки идут только в свой канал, «Оба канала» пишет в оба и показывает значение левого; overlay — слайдер прозрачности виден только там; mono — один пункт в списке; значения персистятся через закрытие/переоткрытие",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "WS1.2",
+      "phase": 1,
+      "title": "Перенос шестерёнки в тайтл-бар «Общая волна»: кнопка в fold-хедере (открывает «Оба канала») + prop showSettingsGear в WaveformView (false в overall-стеке)",
+      "status": "pending",
+      "dependsOn": ["WS1.1"],
+      "artifacts": [
+        "GnauralCore/ui/components/TracksPanel.vue",
+        "GnauralCore/ui/components/WaveformView.vue"
+      ],
+      "verify": "typecheck + build; bun test ui server; manual: в области графики дорожек общей волны шестерёнок НЕТ, в тайтл-баре ЕСТЬ (открывает вкладку «Оба канала»); гиры лейнов gtrack на месте и открывают per-lane настройки; overlay-гир спектрограммы открывает новый диалог с вкладкой своего канала; fold/eye/Ctrl-click хедера не сломаны",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "WS1.3",
+      "phase": 1,
+      "title": "PAUSE: owner-проверка переноса и диалога",
+      "status": "pending",
+      "dependsOn": ["WS1.1", "WS1.2"],
+      "artifacts": [],
+      "verify": "owner manual check; вопросы: (1) нужна ли индикация расхождения L/R на «Оба канала» (сейчас показываем значение левого, первое изменение выравнивает); (2) mono: один пункт «Оба канала» — ок, или «Моно»; (3) подтверждение формулировки «Оба канала» (в запросе было «Обе канала»); (4) чистить ли мёртвый дубликат waveform-state в AudioPage (WS2.1)",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "WS2.1",
+      "phase": 2,
+      "title": "Чистка мёртвого дубликата waveform-state в AudioPage (side-find §2.6) — по решению владельца на PAUSE",
+      "status": "pending",
+      "dependsOn": ["WS1.3"],
+      "artifacts": [
+        "GnauralCore/ui/pages/AudioPage.vue"
+      ],
+      "verify": "typecheck + build (подтверждают, что на удалённые символы никто не завязан); manual smoke: вкладка Треки работает, prefs не сбрасываются",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    }
+  ],
+  "log": [
+    {
+      "at": "2026-07-15",
+      "text": "Plan + ledger created (owner req 2026-07-15): move the overall-wave gear from the track graphics area into the group's title bar; it opens a NEW two-pane dialog — narrow tab list left («Оба канала»/«Левый»/«Правый»), wide settings pane centre, settings apply per the active tab. Inventory (verified): today SF27 renders a per-track gear inside each overall-wave track (WaveformView.vue:35-45), one per channel, each opening the small single-column SF27 dialog (TracksPanel.vue:702-733) for ITS channel; the destination title bar is the GT11.10 fold header (TracksPanel.vue:348-380, title flex:1 so a right-edge button needs no CSS surgery); the exact two-pane dialog shape already exists as the GT10.29 settings dialog (AudioPage.vue:49-86) and is reused. Constraints found: the gear cannot be DELETED from WaveformView (gtrack lane sublanes reuse it for per-lane settings -> prop showSettingsGear, default true, WS-D6); in overlay mode the wave stack/title bar does not exist and the spectrogram's own gear is the only entry point -> it stays and opens the new dialog on its channel's tab (WS-D5). Side-find: AudioPage.vue:1006-1263 still carries a dead pre-extraction DUPLICATE of the whole waveform-prefs state writing the same localStorage key — harmless today (nothing mutates it), proposed as optional cleanup WS2.1. Decisions WS-D1..D8 proposed; implementation not started — owner review of the plan, then WS1.1."
+    }
+  ]
+}

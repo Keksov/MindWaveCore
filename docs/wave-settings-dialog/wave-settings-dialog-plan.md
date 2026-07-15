@@ -1,0 +1,218 @@
+# wave-settings-dialog — шестерёнка в тайтл-бар «Общей волны» + двухпанельный диалог настроек
+
+**Owner request (2026-07-15):** «Перенос иконки-шестерёнки из области графики дорожек общей волны в
+тайтл бар этого графика. В новом диалоге, который будет открываться при клике на эту кнопку должно
+быть две панели: узкая слева и широкая по центру. В левой панели отображается список из трёх
+элементов-закладок "Обе канала", "Левый", "Правый". В центральной части находятся настройки для
+отображения волны. Настройки применябтся в зависимости от текущей активной вкладки слева.»
+*(цитата дословная, с опечатками исходника: «Обе канала», «применябтся»)*
+
+Ledger (authoritative): [wave-settings-dialog-progress.json](wave-settings-dialog-progress.json).
+Методология Plan+Ledger — как в [tooltip-placement](../tooltip-placement/tooltip-placement-plan.md) /
+[menu-redesign](../menu-redesign/menu-redesign-plan.md): atomic per-step commits (префикс id шага),
+`verify` перед `done`, пауза на owner-чекпоинтах. Правка целиком в **GnauralCore** (докам — коммиты
+в MindWaveCore); коммитим по репозиториям раздельно, стейджим только свои файлы.
+
+## 1. Требования владельца (дословно → нумерованно)
+
+1. Иконка-шестерёнка **переносится из области графики** дорожек общей волны **в тайтл-бар** этого
+   графика.
+2. Клик по этой кнопке открывает **новый диалог** из **двух панелей**: **узкая слева**, **широкая
+   по центру**.
+3. В левой панели — **список из трёх элементов-закладок**: «Обе канала» *(грамматически — «Оба
+   канала», см. R6)*, «Левый», «Правый».
+4. В центральной части — **настройки для отображения волны**.
+5. Настройки **применяются в зависимости от текущей активной вкладки** слева.
+
+## 2. Что уже есть (verified 2026-07-15)
+
+### 2.1. Шестерёнка сегодня — per-track, внутри области графика (SF27)
+
+[WaveformView.vue:35-45](../../../GnauralCore/ui/components/WaveformView.vue#L35-L45) — кнопка
+`icon="settings"` в правом-верхнем углу **каждой** волновой дорожки (комментарий «SF27: per-track
+colour/scale gear»), CSS [:569-577](../../../GnauralCore/ui/components/WaveformView.vue#L569-L577).
+Она только эмитит `open-settings`
+([:121](../../../GnauralCore/ui/components/WaveformView.vue#L121)); хост решает, что открыть.
+
+В overall-стеке «Общая волна» ([TracksPanel.vue:382-405](../../../GnauralCore/ui/components/TracksPanel.vue#L382-L405))
+на каждый канал L/R приходится своя дорожка `waveform-view`, и её гир открывает диалог **своего**
+канала: `@open-settings="openWaveformSettings(wtrack.channel)"`
+([:402](../../../GnauralCore/ui/components/TracksPanel.vue#L402)). Т.е. сегодня — **две** шестерёнки
+(по числу каналов) в области графики; req 1 заменяет их **одной** в тайтл-баре.
+
+### 2.2. Тайтл-бар «Общая волна» (GT11.10) — куда переезжаем
+
+[TracksPanel.vue:348-380](../../../GnauralCore/ui/components/TracksPanel.vue#L348-L380) — fold-хедер
+overall-стека волны: цветовая полоска (`wfColor(0)`), кнопка сворачивания, глаз скрытых графиков
+(GT11.11, условный), заголовок `t('audio.tracksOverallWave')` («Общая волна»). Заголовок имеет
+`flex: 1 1 auto` (CSS [:2942-2950](../../../GnauralCore/ui/components/TracksPanel.vue#L2942-L2950)) —
+кнопка, добавленная **после** него, автоматически прижмётся к правому краю. Высота хедера 22px,
+кнопки `size="xs"` там уже живут (fold, eye) — гир того же размера влезает без правок высоты.
+
+Хедер рендерится только при `showWaveform && hasSpectrogramData && overallMixActive &&
+!overallWaveHidden` ([:347](../../../GnauralCore/ui/components/TracksPanel.vue#L347)) — т.е. в
+режимах `waveform`/`both`; в `overlay` его нет (см. 2.6).
+
+### 2.3. Текущий диалог SF27 — что заменяем
+
+[TracksPanel.vue:702-733](../../../GnauralCore/ui/components/TracksPanel.vue#L702-L733) — маленький
+одностолбцовый `q-dialog`: заголовок `t('audio.waveformStyle')` + метка канала «L/R», и три
+настройки:
+
+| Настройка | Контрол | Область действия |
+|---|---|---|
+| Цвет | `<input type="color">` | канал |
+| Шкала амплитуды | `q-btn-toggle` lin / dB | канал |
+| Прозрачность наложения | `q-slider` 0.1–1 | канал; виден **только** при `viewMode === 'overlay'` |
+
+Состояние: `waveformSettingsChannel: number | null` (null = закрыт)
+[:1850-1860](../../../GnauralCore/ui/components/TracksPanel.vue#L1850-L1860); `wfDlgScale/Color/Opacity`
+— computed get/set по каналу [:1861-1888](../../../GnauralCore/ui/components/TracksPanel.vue#L1861-L1888).
+
+### 2.4. Значения per-channel + персистентность — НЕ меняются
+
+[:1820-1849](../../../GnauralCore/ui/components/TracksPanel.vue#L1820-L1849) — массивы
+`waveformScales/Colors/Opacities` (индекс = канал; дефолты L cyan `#67e8f9`, R amber `#fbbf24`),
+сидируются из localStorage `mindwave-tracks-waveform`
+([:1794](../../../GnauralCore/ui/components/TracksPanel.vue#L1794)) и пишутся обратно watch'ем
+[:2215-2226](../../../GnauralCore/ui/components/TracksPanel.vue#L2215-L2226). Применяются к дорожкам
+через props `:scale/:color` ([:391-392](../../../GnauralCore/ui/components/TracksPanel.vue#L391-L392))
+и к overlay-отрисовке на спектрограмме `:waveform-*`
+([:478-482](../../../GnauralCore/ui/components/TracksPanel.vue#L478-L482)). Стерео-признак —
+`isSpectrogramStereo` ([:1787](../../../GnauralCore/ui/components/TracksPanel.vue#L1787)); дорожек
+в стеке 1 (моно) или 2 ([:2240-2248](../../../GnauralCore/ui/components/TracksPanel.vue#L2240-L2248)).
+
+### 2.5. Прецедент двухпанельного диалога — GT10.29 (образец для req 2/3)
+
+[AudioPage.vue:49-86](../../../GnauralCore/ui/pages/AudioPage.vue#L49-L86) — диалог настроек
+приложения ровно требуемой формы: `q-card` → `row no-wrap` → **узкий `q-list` слева** (200px,
+`clickable` пункты с `active-class`) + `q-separator vertical` + **широкий контент справа**. CSS
+[:1948-1975](../../../GnauralCore/ui/pages/AudioPage.vue#L1948-L1975). Новый диалог строим по этому
+образцу (свои классы `tracks-panel__wf-settings-*`, левая колонка уже — ~160px: пункты короткие).
+
+### 2.6. Смежные точки, которые НЕ переезжают (+ side-find)
+
+- **Overlay-режим**: у `SpectrogramView` есть свой гир, видимый при `waveformOverlay ||
+  showSettingsGear` ([SpectrogramView.vue:86-92](../../../GnauralCore/ui/components/SpectrogramView.vue#L86-L92),
+  проп GT10.3 [:213-214](../../../GnauralCore/ui/components/SpectrogramView.vue#L213-L214)); в
+  overall-стеке спектра он открывает настройки **волны** своего канала
+  ([TracksPanel.vue:494](../../../GnauralCore/ui/components/TracksPanel.vue#L494)) — потому что в
+  overlay волна рисуется поверх спектрограммы, а стек «Общая волна» (и его тайтл-бар) не рендерится
+  вовсе. Этот гир остаётся на месте и открывает **новый** диалог с вкладкой своего канала (WS-D5).
+- **Лейны gtrack**: `waveform-view` в соло-подполосе
+  ([:286-300](../../../GnauralCore/ui/components/TracksPanel.vue#L286-L300)) — его гир открывает
+  **per-lane** настройки (`gtrackSettingsId`, GTrackSpectrumSettings), не трогаем; inline-underlay
+  ([:204-217](../../../GnauralCore/ui/components/TracksPanel.vue#L204-L217)) слушателя не имеет
+  вовсе (гир перекрыт GTrackView). Значит гир из WaveformView **удалять нельзя** — только прятать
+  пропом в overall-стеке (WS-D6).
+- **Side-find (вне объёма, вопрос на PAUSE)**: в
+  [AudioPage.vue:1006-1263](../../../GnauralCore/ui/pages/AudioPage.vue#L1006-L1263) остался
+  **дубликат** всей state-механики волны до выделения TracksPanel (viewMode, массивы
+  scales/colors/opacities, `wfDlg*`, `openWaveformSettings`, watch с записью в **тот же** ключ
+  localStorage [:1205-1214](../../../GnauralCore/ui/pages/AudioPage.vue#L1205-L1214)). В шаблоне
+  AudioPage ни один из символов не используется (проверено grep). Пока watch никогда не срабатывает
+  (рефы никто не мутирует) — вреда нет, но это мина: любое будущее использование начнёт
+  перезаписывать prefs пользователя устаревшими значениями. Предлагается чистка (WS2.1).
+
+### 2.7. Инфраструктура проверок
+
+CI и ESLint отсутствуют; рутина — `bun run typecheck` + `bun run build` из `MindWaveCore/ui`,
+`bun test ui server` из GnauralCore. Существующие тесты диалог SF27 не покрывают (grep по
+`waveformSettings|wfDlg|mindwave-tracks-waveform` в `*.test.ts` — пусто), чистой вычислимой логики в
+фиче нет (маппинг вкладка→каналы тривиален) — новые bun-тесты не заводим, главная проверка — прогон
+реального приложения.
+
+## 3. Решения
+
+- **WS-D1 — одна шестерёнка на группу, в тайтл-баре.** Вместо двух per-канальных гиров в области
+  графики (SF27) — одна кнопка `settings` в правом краю fold-хедера «Общая волна» (после заголовка;
+  `flex:1` заголовка сам прижмёт её вправо), `@click.stop` (не задевать Ctrl-click/фолд поведение
+  хедера). Открывает диалог на вкладке «Оба канала». Быстрый доступ к каналу — вкладками (req 5).
+- **WS-D2 — форма диалога по образцу GT10.29, inline в TracksPanel.** `q-card` → `row no-wrap` →
+  узкий `q-list` (~160px, `clickable` + `active-class`) + `q-separator vertical` + широкая панель
+  контента; свои классы `tracks-panel__wf-settings-*`. В отдельный компонент не выделяем: состояние
+  и персистентность живут в TracksPanel, контролов три, и все диалоги TracksPanel (SF26 minimap,
+  gtrack, SF27) — inline; выделение добавило бы только props/emits-обвязку.
+- **WS-D3 — модель вкладок.** `waveformSettingsOpen: boolean` + `waveformSettingsTab: 'both' | 0 | 1`
+  (вместо сегодняшнего трюка «channel|null»). `wfDlg*` get: `'both'` → значение канала 0; set:
+  `'both'` → запись в **оба** канала, `0/1` → только в свой. Следствие: при расхождении L/R вкладка
+  «Оба канала» показывает значение левого, первое изменение выравнивает оба; расхождение видно и
+  правится на вкладках «Левый»/«Правый». Индикацию «значения различаются» сознательно не строим
+  (у `<input type="color">` смешанного состояния нет; усложнение без запроса) — вопрос на PAUSE.
+- **WS-D4 — моно-файл.** `isSpectrogramStereo === false` → в списке один пункт «Оба канала»
+  (правит канал 0), «Левый»/«Правый» скрыты: канал физически один, вкладки-пустышки только путают.
+  Альтернатива (ярлык «Моно») — вопрос на PAUSE.
+- **WS-D5 — overlay и лейны не переезжают.** Гир на спектрограмме в overlay-режиме остаётся (стек
+  волны и его тайтл-бар в overlay не существуют — переносить некуда) и открывает новый диалог с
+  вкладкой своего канала: `openWaveformSettings(ch)` → `tab = ch`. Гиры лейнов gtrack (per-lane
+  настройки) — без изменений.
+- **WS-D6 — WaveformView: проп `showSettingsGear`, default `true`.** Через `withDefaults` (не
+  «голый» type-only boolean — absent-проп кастуется в `false`, см. правило про Vue boolean): лейны
+  ничего не передают и не меняются, overall-стек передаёт `:show-settings-gear="false"`. Эмит
+  `open-settings` остаётся. Симметрично прецеденту GT10.3 в SpectrogramView (там же имя пропа),
+  только с обратным дефолтом.
+- **WS-D7 — набор настроек и персистентность не меняются.** Цвет / шкала lin-dB / прозрачность
+  наложения (последняя, как сейчас, видна только при `viewMode === 'overlay'`); ключ и формат
+  localStorage прежние. Диалог — только новая оболочка вокруг тех же `wfDlg*`-аккессоров.
+- **WS-D8 — тексты (i18n ru+en).** Новый ключ `audio.waveformSettingsTitle` («Настройки отображения
+  волны» / "Waveform display settings") — заголовок диалога и тултип/aria новой кнопки; ключи
+  вкладок `audio.waveformChannelsBoth/Left/Right` («Оба канала» / «Левый» / «Правый», en: "Both
+  channels" / "Left" / "Right"). Существующий `audio.waveformStyle` остаётся — его используют гиры
+  лейнов в WaveformView.
+
+## 4. Шаги
+
+### Phase 1 — диалог и перенос
+
+- **WS1.1** — новый двухпанельный диалог на месте SF27-диалога: вкладки + семантика «Оба канала»
+  (WS-D3), моно (WS-D4), i18n (WS-D8). Открывается пока из **старых** гиров: per-канальный гир →
+  диалог с вкладкой своего канала. Приложение в рабочем состоянии на каждом шаге.
+- **WS1.2** — перенос шестерёнки (WS-D1, WS-D6): кнопка в fold-хедере «Общая волна» (открывает
+  вкладку «Оба канала»), `showSettingsGear` в WaveformView + `false` в overall-стеке; комментарии
+  SF27 обновить (гир больше не per-track в overall-стеке). Overlay-гир спектрограммы уже открывает
+  новый диалог (после WS1.1) — проверить, не сломан.
+- **WS1.3** — **PAUSE**: owner-проверка. Вопросы: (1) индикация расхождения L/R на «Оба канала»
+  нужна? (2) моно: один пункт «Оба канала» ок, или переименовать в «Моно»? (3) «Оба канала» вместо
+  «Обе канала» — верно понял? (4) чистить ли мёртвый дубликат в AudioPage (WS2.1)?
+
+### Phase 2 — по решению владельца на PAUSE
+
+- **WS2.1** *(опционально)* — удалить мёртвый дубликат waveform-state из AudioPage (§2.6 side-find):
+  viewMode/массивы/`wfDlg*`/watch-персистер [:1006-1263], проверив typecheck'ом, что на них никто
+  не завязан.
+
+## 5. Риски
+
+| # | Риск | Смягчение |
+|---|---|---|
+| R1 | Семантика «Оба канала» при расхождении L/R (показываем значение левого) может не совпасть с ожиданием владельца | WS-D3 + вопрос на PAUSE; вкладки Л/П всегда показывают правду по-канально |
+| R2 | Убираем быстрый путь «гир прямо на дорожке» — теперь 2 клика (гир → вкладка) | Осознанно по req 1; вкладка запоминается только в рамках открытого диалога, дефолт «Оба канала» предсказуем |
+| R3 | Высота хедера 22px, `overflow: hidden` — новая кнопка может не влезть/обрезаться | Кнопки `size="xs"` (fold/eye) там уже живут; тултип телепортируется (`AppTooltip`), overflow его не режет |
+| R4 | Диалог открыт, а файл сменился stereo→mono: активная вкладка `0/1` теряет смысл | При открытии всегда сбрасываем вкладку (`both`), при смене файла диалог обычно закрыт; guard: mono прячет Л/П и приводит вкладку к `both` |
+| R5 | Дубликат state в AudioPage однажды начнёт перезаписывать prefs тем же ключом localStorage | Вне объёма фичи; предложена чистка WS2.1 (вопрос на PAUSE) |
+| R6 | «Обе канала» — опечатка владельца; реализуем «Оба канала» | Подтвердить на PAUSE (WS1.3), правка — одна строка i18n |
+
+## 6. Верификация (каждый шаг)
+
+- `bun run typecheck` + `bun run build` из `MindWaveCore/ui` (vue-tsc тянет GnauralCore по графу
+  импортов; **не** `bunx vue-tsc` — мисматч TS).
+- `bun test ui server` из GnauralCore — существующие сьюты остаются зелёными (новых тестов нет:
+  фича — Vue-разметка без чистой логики).
+- Ручной прогон реального приложения (главная проверка): стерео-файл — вкладки «Левый»/«Правый»
+  правят только свой канал, «Оба канала» пишет в оба; закрыть/открыть — значения персистятся;
+  режим overlay — гир на спектрограмме открывает диалог с вкладкой своего канала, слайдер
+  прозрачности виден только тут; лейны gtrack — их гир по-прежнему открывает per-lane настройки;
+  моно-файл — в списке один пункт; fold/eye/Ctrl-click хедера не сломаны.
+
+## 7. Ссылки
+
+- Требования: этот файл §1 (цитата дословно).
+- Леджер: [wave-settings-dialog-progress.json](wave-settings-dialog-progress.json).
+- Код: [WaveformView.vue](../../../GnauralCore/ui/components/WaveformView.vue),
+  [TracksPanel.vue](../../../GnauralCore/ui/components/TracksPanel.vue),
+  [SpectrogramView.vue](../../../GnauralCore/ui/components/SpectrogramView.vue),
+  [AudioPage.vue](../../../GnauralCore/ui/pages/AudioPage.vue) (образец GT10.29 + side-find),
+  i18n [ru.json](../../../GnauralCore/ui/i18n/ru.json) / [en.json](../../../GnauralCore/ui/i18n/en.json).
+- Прецеденты: GT10.29 (двухпанельный диалог настроек), GT10.3 (`showSettingsGear` в
+  SpectrogramView), GT11.10/GT11.11 (fold-хедер overall-групп), SF27 (per-track настройки волны —
+  заменяется этим планом).
