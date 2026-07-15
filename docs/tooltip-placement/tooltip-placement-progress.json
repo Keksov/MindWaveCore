@@ -74,7 +74,9 @@
       "phase": 1,
       "title": "AppTooltip.vue + алиас @tooltip (quasar.config + tsconfig) + 2-3 показательных места (req 3)",
       "status": "done",
-      "dependsOn": ["TT1.1"],
+      "dependsOn": [
+        "TT1.1"
+      ],
       "artifacts": [
         "MindWaveCore/ui/src/components/tooltip/AppTooltip.vue",
         "MindWaveCore/ui/quasar.config.ts",
@@ -99,7 +101,9 @@
       "phase": 1,
       "title": "PAUSE: owner-проверка компонента и API ДО массовой миграции (~90 мест)",
       "status": "done",
-      "dependsOn": ["TT1.2"],
+      "dependsOn": [
+        "TT1.2"
+      ],
       "artifacts": [],
       "verify": "owner manual check",
       "startedAt": "2026-07-15",
@@ -122,7 +126,9 @@
       "phase": 1,
       "title": "Доработки по проверке TT1.3 (owner feedback #1): скролл в тултипе иконки шапки",
       "status": "done",
-      "dependsOn": ["TT1.2"],
+      "dependsOn": [
+        "TT1.2"
+      ],
       "artifacts": [
         "MindWaveCore/ui/src/components/tooltip/tooltip-place.ts",
         "MindWaveCore/ui/src/components/tooltip/tooltip-place.test.ts",
@@ -144,7 +150,9 @@
       "phase": 2,
       "title": "Семейство A: 64 q-tooltip -> app-tooltip (15 файлов, 3 репо)",
       "status": "done",
-      "dependsOn": ["TT1.3"],
+      "dependsOn": [
+        "TT1.3"
+      ],
       "artifacts": [
         "MindWaveCore/ui/layouts/MainLayout.vue",
         "MindWaveCore/ui/components/ArchiveReplayView.vue",
@@ -181,7 +189,9 @@
       "phase": 2,
       "title": "Семейство C: нативные title -> app-tooltip — ТОЛЬКО группа A (11 шт.); B и C остаются нативными (owner 2026-07-15)",
       "status": "done",
-      "dependsOn": ["TT1.3"],
+      "dependsOn": [
+        "TT1.3"
+      ],
       "artifacts": [
         "MindWaveCore/ui/components/ArchiveReplayView.vue",
         "MindWaveCore/ui/pages/LogArchivePage.vue",
@@ -210,7 +220,9 @@
       "phase": 2,
       "title": "Семейство B: GTrackView -> режим курсора общего компонента (req 1/2/3)",
       "status": "done",
-      "dependsOn": ["TT1.3"],
+      "dependsOn": [
+        "TT1.3"
+      ],
       "artifacts": [
         "GnauralCore/ui/components/GTrackView.vue"
       ],
@@ -233,7 +245,9 @@
       "phase": 2,
       "title": "Семейство B: SpectrogramView -> режим курсора + viewport-координаты (req 1/2/3)",
       "status": "done",
-      "dependsOn": ["TT1.3"],
+      "dependsOn": [
+        "TT1.3"
+      ],
       "artifacts": [
         "GnauralCore/ui/components/SpectrogramView.vue"
       ],
@@ -242,7 +256,7 @@
       "finishedAt": "2026-07-15",
       "blockedReason": null,
       "evidence": [
-        "CLOSES FAMILY B: grep confirms no hand-rolled, mouse-positioned tooltip div remains anywhere in the workspace (0 hits for manual left/top-from-pointer styling). Both former offenders now render <app-tooltip :at>.",
+        "CORRECTED 2026-07-15 (see TT2.10) — this step claimed 'CLOSES FAMILY B: grep confirms no hand-rolled, mouse-positioned tooltip div remains anywhere'. That was FALSE. WaveformView.vue had a third one and kept its old box until TT2.10. Two failures stacked: the seeding inventory missed the file, and my confirming grep filtered LINE-WISE — it wanted a tooltip class and a :style on the same line, but there the class is on one line and the :style binding on the next, so the match was thrown away. Nothing contradicted the inventory, so a bad grep got recorded as verified fact. Family B was 3, not 2; it closed at TT2.10, re-verified with a multiline-aware sweep.",
         "The readout sat at +12/+12 from the pointer under the comment 'offset a little so it doesn't sit under the pointer' (SpectrogramView.vue:812) -- intent right, direction wrong: down-right is exactly where the arrow glyph is. It also had NO clamp or flip at all (unlike GTrackView's), so it could run off the right/bottom edge of the view; AppTooltip clamps it now.",
         "R4 (coord-space change) resolved rather than merely survived: offsetX/Y -> clientX/Y, required because cursor mode is position:fixed. offsetX/Y are measured from the EVENT TARGET, which is not necessarily the box the tooltip was absolutely positioned inside, so the old pair could disagree -- the switch to viewport coords retires that latent bug instead of porting it.",
         "a11y preserved deliberately: the old div was role='status' + aria-live='polite' (a LIVE readout that should be announced), not a plain tooltip. AppTooltip's cursor mode therefore now renders role='tooltip' BEFORE v-bind=$attrs so a caller can override the semantics — placement stays ours to enforce, content semantics belong to the caller.",
@@ -268,7 +282,12 @@
       "phase": 2,
       "title": "PAUSE: owner-проверка всего перевода на единый компонент",
       "status": "done",
-      "dependsOn": ["TT2.1", "TT2.2", "TT2.3", "TT2.4"],
+      "dependsOn": [
+        "TT2.1",
+        "TT2.2",
+        "TT2.3",
+        "TT2.4"
+      ],
       "artifacts": [],
       "verify": "owner manual check: все тултипы в едином стиле и над курсором; тултип узла и readout спектрограммы читаются; ничего не пропало",
       "startedAt": "2026-07-15",
@@ -286,7 +305,9 @@
       "phase": 2,
       "title": "Оформление тултипа по референсу владельца: тёмная плашка + читаемый шрифт (owner 2026-07-15)",
       "status": "done",
-      "dependsOn": ["TT2.6"],
+      "dependsOn": [
+        "TT2.6"
+      ],
       "artifacts": [
         "MindWaveCore/ui/src/components/tooltip/AppTooltip.vue",
         "GnauralCore/ui/components/GTrackView.vue"
@@ -309,7 +330,9 @@
       "phase": 2,
       "title": "Приглушение вторичного текста — цветом, а не opacity (owner 2026-07-15: лейблы «расплываются»)",
       "status": "done",
-      "dependsOn": ["TT2.7"],
+      "dependsOn": [
+        "TT2.7"
+      ],
       "artifacts": [
         "MindWaveCore/ui/src/components/tooltip/AppTooltip.vue",
         "GnauralCore/ui/components/GTrackView.vue"
@@ -325,6 +348,30 @@
         "Fix: AppTooltip publishes --app-tooltip-fg-dim (#94a3b8) next to the background it is computed against; GTrackView's label uses color: var(--app-tooltip-fg-dim). That is the only option that is NEITHER opacity (blurs) NOR a hex copied into the consumer (drifts when the plate moves — exactly what rotted in TT2.3 when the plate went grey). No fallback on purpose: the variable is guaranteed by the component that renders the box, and a duplicate hex would reintroduce the drift.",
         "Full circle: #94a3b8 was the ORIGINAL label colour and was correct for a dark plate all along. It only ever broke because I moved the plate out from under it. Labels 5.71:1, values 11.87:1.",
         "vue-tsc 0; build ok; verified in the emitted CSS: '--app-tooltip-fg-dim: #94a3b8' and 'color:var(--app-tooltip-fg-dim)'. grep confirms no `opacity` on text inside any tooltip anywhere."
+      ]
+    },
+    {
+      "id": "TT2.10",
+      "phase": 2,
+      "title": "Семейство B: WaveformView — пропущенный третий рукописный тултип (owner 2026-07-15)",
+      "status": "done",
+      "dependsOn": [
+        "TT2.4"
+      ],
+      "artifacts": [
+        "GnauralCore/ui/components/WaveformView.vue"
+      ],
+      "verify": "vue-tsc + build; multiline-aware sweep: рукописных боксов не осталось; manual: readout волны над курсором, у краёв не обрезан",
+      "startedAt": "2026-07-15",
+      "finishedAt": "2026-07-15",
+      "blockedReason": null,
+      "evidence": [
+        "Owner: «на графике волна используется старый тултип (на графике спектра новый, а на волне старый)». Correct. Family B was THREE hand-rolled cursor tooltips, not two — the plan was wrong from its inventory onward. Commit 1016af4.",
+        "TWO failures stacked, which is why it survived to the end: (1) the seeding inventory simply missed WaveformView.vue; (2) my TT2.4 confirming grep filtered LINE-WISE — it required a tooltip class and a :style on the same line, but here `class=\"waveform-view__tooltip\"` is on one line and `:style=\"{ left: ... }\"` on the next, so the match was discarded. With nothing to contradict the inventory, a bad grep got recorded in this ledger as verified fact. A verification that can only confirm what you already believe is not a verification.",
+        "It was the same bug as the other two: +12/+12 from the pointer (down-right, under the arrow glyph) and — like the spectrogram readout — no clamping at all.",
+        "Fix identical to TT2.4: AppTooltip owns box + placement; offsetX/Y -> clientX/Y (cursor mode is position:fixed, and offsetX/Y are measured from the event TARGET rather than the box it was positioned in); role='status' kept (live readout, not a hint); nowrap moved to a global block (the box is teleported out of scope) and tabular-nums added to match the spectrogram readout — the numbers change under the cursor, so the column must not jitter.",
+        "Re-verified multiline-aware this time (grep -Pz across line breaks): no hand-rolled tooltip box remains anywhere, and all three surviving *__tooltip classes hold readout-only properties (gtrack: max-width; spectrogram + waveform: tabular-nums + nowrap). The one remaining `:style=\"{ left:` in the tree is EegSignalStyleListPanel's invisible q-menu anchor, not a tooltip.",
+        "vue-tsc 0; quasar build ok; bun test ui 214/214. File is LF-only and stayed LF-only (edits made with the Edit tool, not a script)."
       ]
     },
     {
@@ -348,6 +395,10 @@
     }
   ],
   "log": [
+    {
+      "at": "2026-07-15",
+      "text": "REOPENED then re-closed: the plan claimed family B was finished at TT2.4 and it was not. WaveformView.vue held a THIRD hand-rolled cursor tooltip (+12/+12 under the arrow glyph, no clamping) and kept it through to the owner spotting it — «на графике волна используется старый тултип». Fixed in TT2.10. Worth keeping because of HOW it survived: the seeding inventory missed the file, and the grep I used to confirm TT2.4 filtered LINE-WISE — it demanded a tooltip class and a :style on the same line, while there the class sits on one line and the :style on the next. Nothing contradicted the inventory, so a bad grep was recorded in this ledger as verified fact and the false claim outlived the owner PAUSE at TT2.6. The lesson is not \"grep harder\": a check that can only ever confirm what you already believe is not a check. Both the TT2.4 evidence and this log now say so."
+    },
     {
       "at": "2026-07-15",
       "text": "CLOSED — owner confirmed «done» at TT2.6. Delivered: one shared component (@tooltip/AppTooltip.vue, alias-delivered to all three repos like @panel/PW-D8) with two modes (element / cursor) and one placement rule (above), plus 75 call sites migrated -- 64 q-tooltip, 11 native title, 2 hand-rolled cursor tooltips. Final state: 0 raw q-tooltip outside the component, 0 hand-rolled cursor tooltips, 81 <app-tooltip>, 8 native title remaining (all deliberate). The rule lives in AGENTS.md with its three standing exceptions, auto-loaded every session via a new CLAUDE.md.\n\nWhat this cost that the plan did not foresee, kept for the next planner: (1) the fix that mattered was geometric, not cosmetic -- the arrow cursor's hotspot is its top-left tip and the glyph grows down-right, which is why every tooltip family had drifted into the one quadrant the cursor covers, and why 'above' satisfies both readings of req 1 at once. (2) Three owner-visible regressions came from MY changes, each found by the owner and each with a real root cause rather than a tweak: the header scrollbar (Quasar's applyBoundaries pins max-height to a ROUNDED offsetHeight -> sub-pixel overflow -> scrollbar; fixed by choosing the side ourselves so boundaries never fire), and twice on label contrast (a hex tuned for the old near-black plate; then the discovery that on $grey-7 a label/value hierarchy cannot be paid for in luminance at all -- only ~6:1 exists and legibility needs it, so weight carries the distinction). (3) Scope shrank twice on contact with the code: ECharts out entirely (req 4), and native titles cut to group A once reading every call site showed the 17 were three different things -- plain hints, disabled-control hints (a tooltip cannot show there at all), and ellipsis reveals (a tooltip would show unconditionally). (4) TT2.5's guard was dropped because it would never have run -- see TT-D9; 'the tests exist' was true and useless."
