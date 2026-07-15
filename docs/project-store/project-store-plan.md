@@ -120,7 +120,8 @@ in-memory кеша расписаний (`GnauralCore/ui/stores/audio.ts:133`), 
   `composables/use-project.ts` (рядом с потребителями, по образцу `audio-api.ts`).
 - **PR-D2 — Идентичность проекта: нормализованный абсолютный путь исходника → детерминированное имя
   папки `<slug>-<hash8>`.** slug — имя файла без расширения, санитизированное под Windows
-  (запрещённые символы → `_`, обрезка ~40); hash8 — первые 8 hex sha1 от
+  (запрещённые символы → `_`, обрезка ~40, нижний регистр — имя папки не должно зависеть от
+  регистра, с которым пришёл путь); hash8 — первые 8 hex sha1 от
   `resolve(path).toLowerCase()` (та же нормализация, что у `withFileLock`). В `project.scp.json`
   хранится `source.path` + отпечаток (size, mtime) — для проверки статуса, показа и re-link.
   Глобального индекса нет: список проектов = скан `projects/*/project.scp.json`.
@@ -211,7 +212,7 @@ in-memory кеша расписаний (`GnauralCore/ui/stores/audio.ts:133`), 
 
 ### Phase 1 — ядро ProjectStore: сервисный класс + API (req 7 — приоритет)
 
-- [ ] **PR1.1 — Идентичность и раскладка (PR-D2/D3).** `MindWaveCore/server/project-store.ts`:
+- [x] **PR1.1 — Идентичность и раскладка (PR-D2/D3).** `MindWaveCore/server/project-store.ts`:
   нормализация пути, slug+hash8, resolve папки проекта, `ProjectStoreError`; тесты (Windows-пути,
   регистр, кириллица/запрещённые символы, длинные имена). Verify: `bun test project-store`.
 - [ ] **PR1.2 — Хранилище scp.json (PR-D4/D7).** Атомарные load/save `project.scp.json`

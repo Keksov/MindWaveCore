@@ -104,17 +104,22 @@
       "id": "PR1.1",
       "phase": 1,
       "title": "Идентичность и раскладка: slug+hash8, resolve папки, ProjectStoreError",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["PR0.2"],
       "artifacts": [
         "MindWaveCore/server/project-store.ts",
         "MindWaveCore/server/project-store.test.ts"
       ],
       "verify": "bun test project-store (Windows paths, case-insensitivity, cyrillic/forbidden chars, long names)",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-15",
+      "finishedAt": "2026-07-15",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "project-store.ts: normalizeSourcePath (400 on empty), projectIdentityKey = resolve().toLowerCase() (same normalization as the editor-store write locks), sha1 hash8, projectSlug, projectDirName = <slug>-<hash8>, resolveProjectDir = <root>/projects/<dirName>; layout constants PROJECT_FILE_NAME / UNDO_FILE_NAME / PROJECTS_DIR_NAME / PROJECT_KIND.",
+        "Slug is lowercased like the identity key: the first test run caught that a case-preserving slug made the folder name depend on the casing a path arrived with (hash matched, name did not -- two dirs for one file on POSIX).",
+        "Sanitization checks char codes instead of an escape-range regex: a u0000-u001f regex literal embedded real control bytes into the file and re-created the server.ts NUL trap (caught and rewritten during this step; verified 0 control bytes in the final file).",
+        "bun test project-store: 7 pass / 13 expect (case-insensitive identity; same basename in different dirs differs; cyrillic kept; forbidden chars replaced; 40-char cap; degenerate names fall back; 400 on empty path)."
+      ]
     },
     {
       "id": "PR1.2",
