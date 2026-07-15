@@ -20,6 +20,7 @@
     v-if="!isCursorMode"
     ref="qtRef"
     v-bind="$attrs"
+    class="app-tooltip"
     :anchor="below ? 'bottom middle' : 'top middle'"
     :self="below ? 'top middle' : 'bottom middle'"
     :offset="below ? belowOffset : undefined"
@@ -40,7 +41,7 @@
       ref="boxEl"
       role="tooltip"
       v-bind="$attrs"
-      class="q-tooltip q-tooltip--style no-pointer-events"
+      class="q-tooltip q-tooltip--style no-pointer-events app-tooltip"
       :style="boxStyle"
     >
       <slot />
@@ -120,3 +121,29 @@ watch(
   { immediate: true, deep: true },
 )
 </script>
+
+<!-- The look of EVERY tooltip in the project, in one place (owner 2026-07-15, from a reference
+     screenshot). NOT scoped, and it cannot be: both modes render the box outside this component's
+     subtree — element mode through QTooltip's portal, cursor mode through a Teleport to <body> — so
+     no scope attribute ever lands on it.
+
+     `.q-tooltip.app-tooltip` (0,2,0) rather than `.app-tooltip` (0,1,0): it must outrank Quasar's own
+     `.q-tooltip--style` deterministically instead of relying on which stylesheet happens to load last.
+
+     This restores the dark plate the app already used for its canvas tooltips before they were
+     unified onto Quasar's grey default — same slate palette as the rest of the chrome. It also
+     retires a real constraint: on the grey $grey-7 there was only ~6:1 of luminance range in total,
+     so a label/value hierarchy could not be expressed in colour at all. Here values land ~11.9:1 and
+     dimmed labels ~5.7:1 — both readable, plainly distinct. -->
+<style>
+.q-tooltip.app-tooltip {
+  background: #1e293b;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  color: #e2e8f0;
+  /* Quasar's default is 10px, which reads as fine print next to the reference. */
+  font-size: 12px;
+  padding: 5px 9px;
+}
+</style>
