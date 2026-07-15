@@ -2367,7 +2367,8 @@
         "Same readout deliberately: the owner asked for «информация о точке», and an edge IS that point rendered at base ± beat/2 — the time/base/beat/volume rows are exactly what is relevant there. No edge-specific row invented.",
         "Vertex-wins order preserved (nextEdge is only computed when the vertex hit-test misses), so overlapping vertex+edge behaves as before.",
         "GT3.13 preserved: an active beat-edge drag still nulls hoverPos, so no tooltip follows the drag.",
-        "vue-tsc 0; quasar build ok; GnauralCore bun test ui 214/214."
+        "vue-tsc 0; quasar build ok; GnauralCore bun test ui 214/214.",
+        "Owner confirmed «Fixed» (2026-07-15) — beat-band edges show the point tooltip."
       ]
     }
   ],
