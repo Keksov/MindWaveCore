@@ -2274,6 +2274,38 @@
         "Commit 097bc55 (GnauralCore): extracted hiddenChannelEntries(kind) (now shared by the global hidden-tracks dropdown) + hiddenWaveList/hiddenSpectrumList computeds; an eye q-btn+q-menu on the overall wave + overall spectrum headers, shown only when that group has hidden channel graphs (L/R), each item calls showTrack. vue-tsc 0, 159 UI tests, quasar build OK. Awaiting owner verification.",
         "SCOPE (flag to owner): only the overall wave/spectrum groups can have hidden graphs today (their L/R channels). A gtrack lane has no per-graph hide within it yet — that is GT11.8 (individual wave/spectrum sub-lane hide, currently broken); once GT11.8 lands, extend the same header eye to lane headers."
       ]
+    },
+    {
+      "id": "GT11.12",
+      "phase": 11,
+      "title": "BUG (owner 2026-07-15): в режиме редактирования точек невозможно двигать вершины (в обычном режиме Ctrl-drag работает)",
+      "status": "in-progress",
+      "dependsOn": [
+        "GT11.4"
+      ],
+      "artifacts": [],
+      "verify": "owner: in point-edit mode a plain drag of a vertex moves it again; normal-mode Ctrl-drag still works; the GT11.4 beat-band edge drag still works",
+      "startedAt": "2026-07-15",
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": [
+        "Owner 2026-07-15 (new plan item #1): 'В режиме редактирования точек стало невозможным двигать вершины на графике. В обычном режиме это работает.' Regression suspected from GT11.4 (it added beat-edge branches to onPointerDown/Move/Up), but re-reading the handlers shows the point-mode vertex path unchanged (hit !== null -> beginVertexDrag, and the beat branches only run when beatDragRef is set / the vertex hit-test misses). NOTE: the owner also has uncommitted WIP in TracksPanel.vue (toolbar -> icons), GnauralTransportControls.vue, stores/audio.ts, server/gnaural-session.ts — either source is possible. Per the PW-D12 lesson (instrument the runtime instead of theorising), temporary [GT-DEBUG] logging was added to onPointerDown (pointMode/pointTool/hit/modifier/stuck-drag state) and to the vertex-drag move branch; awaiting the owner's console output."
+      ]
+    },
+    {
+      "id": "GT11.13",
+      "phase": 11,
+      "title": "Alt+колесо мыши меняет диапазон по оси Y (масштаб значений графика)",
+      "status": "not-started",
+      "dependsOn": [],
+      "artifacts": [],
+      "verify": "owner",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": [
+        "Owner 2026-07-15 (new plan item #2): 'Добавь новую комбинацию Alt+mouse whill меняет диапазон по оси Y'. Today GTrackView.onWheel zooms the TIME axis; Alt+wheel should instead zoom the VALUE (Y) axis range. To settle at implementation: anchor at the cursor's value or the axis centre; whether the manual Y range is per-lane and persisted; and how it composes with gtrackAxis's auto-fit — the point-mode/drag headroom and the GT11.3 beat-band widening both currently drive the axis, so a manual range needs an explicit override + a way back to auto."
+      ]
     }
   ],
   "log": [
