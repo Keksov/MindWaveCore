@@ -198,20 +198,26 @@
         "GnauralCore/ui/stores/audio.ts"
       ],
       "verify": "bun run typecheck + bun run build (MindWaveCore/ui); bun test ui server (GnauralCore); manual: opening a .gnaural creates the project folder with project.scp.json",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-15",
+      "finishedAt": "2026-07-15",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "project-api.ts: requestJson wrapper mirrored from audio-api.ts; openProject/fetchProjects/fetchProject/fetchSection/putSection/fetchUndoJournal/putUndoJournal/relinkProject/deleteProject; putSection and putUndoJournal use keepalive:true so the unload-time flush still lands.",
+        "composables/use-project.ts: module-singleton currentProject; openProjectForFile flushes the previous file's pending writes first and never throws (a project failure must not break file opening -- error kept in projectOpenError); readProjectSection short-circuits to a pending debounced value; writeProjectSection debounces 500ms per section (last-write-wins, PR-D7); beforeunload flush.",
+        "stores/audio.ts: selectPath and selectExternalPath call openProjectForFile (deselect -> closeCurrentProject) -- every opened file, wav/flac/gnaural alike, gets its project.",
+        "Verify: vue-tsc clean; quasar build ok; GnauralCore bun test ui server 252 pass / 850 expect.",
+        "Live smoke against the real server (bun run server.ts --ui-only --port=3417, LOCALAPPDATA redirected to a scratch dir): POST /api/projects/open for 'Smoke Тест.gnaural' -> id smoke_тест-9afabf60, sourceStatus ok; project.scp.json provisioned under <LOCALAPPDATA>/KKSoundCore/projects/<id>/; section round-trip zoom=2.5; list count=1. UI click-through remains for the owner at the PR1.6 PAUSE."
+      ]
     },
     {
       "id": "PR1.6",
       "phase": 1,
       "title": "PAUSE: owner смотрит ядро (папка, scp.json, интерфейс) до интеграций",
-      "status": "pending",
+      "status": "active",
       "dependsOn": ["PR1.5"],
       "artifacts": [],
       "verify": "owner approves naming/layout/sections; Phase 2+ does not start before the answer",
-      "startedAt": null,
+      "startedAt": "2026-07-15",
       "finishedAt": null,
       "blockedReason": null,
       "evidence": []
@@ -435,6 +441,10 @@
     }
   ],
   "log": [
+    {
+      "at": "2026-07-15",
+      "text": "Phase 1 (the priority: service class + API) complete in one session -- PR1.1..PR1.5 done, each with its own commit and green verify (project-store bun tests 22, GnauralCore ui+server 252, vue-tsc, quasar build, tsc@5.7.3 server typecheck). End-to-end smoke on the real server: opening a file provisions <LOCALAPPDATA>/KKSoundCore/projects/<slug>-<hash8>/project.scp.json and sections round-trip over REST. Stopped at the PR1.6 PAUSE for the owner to click through the live app and approve naming/layout/sections before Phase 2 integrations."
+    },
     {
       "at": "2026-07-15",
       "text": "PR0.2 PAUSE passed -- owner answered Q1-Q5: (1) userDataRoot default = %LOCALAPPDATA%\\KKSoundCore; (2) move everything out of the .gnaural file -- voice colour/hidden/muted become the voiceState project section, new step PR2.4, the old PAUSE renumbered to PR2.5; (3) text export bundle approved; (4) caches stay CENTRAL (UI must always see them) -- cache API removed from the core, PR6.1 retargeted to the central manifest, PR6.2 dropped; (5) waveform settings become project-owned overrides on top of editor defaults -- new decision PR-D13. Plan reqs 8-12 added; decisions PR-D3/D5/D6/D9/D10/D11 revised. Phase 1 (service class + API) starts."

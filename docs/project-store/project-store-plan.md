@@ -228,7 +228,7 @@ in-memory кеша расписаний (`GnauralCore/ui/stores/audio.ts:133`), 
   `gnauralEditorStore`; чтение ключа `user_data_root` с дефолтом `%LOCALAPPDATA%\KKSoundCore`
   (req 8). ⚠ `server.ts` не искать Grep'ом (NUL-байт). Verify: `bun test` + `bun run typecheck`
   (server).
-- [ ] **PR1.5 — UI-клиент и composable (PR-D5).** `GnauralCore/ui/project-api.ts` +
+- [x] **PR1.5 — UI-клиент и composable (PR-D5).** `GnauralCore/ui/project-api.ts` +
   `composables/use-project.ts` (загрузка секции при открытии, дебаунс put, flush при смене файла);
   вызов `openProject` из потока выбора файла (`selectPath`/`selectExternalPath`,
   `stores/audio.ts:845,877`). Verify: `bun run typecheck` + `bun run build` (MindWaveCore/ui);
