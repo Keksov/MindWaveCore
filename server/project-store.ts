@@ -8,8 +8,9 @@
 // renames/moves of the source are handled via source.path + relink (PR1.3/PR4.1).
 
 import { createHash, randomUUID } from "node:crypto"
-import { mkdir, readFile, rename, rm } from "node:fs/promises"
-import { basename, extname, join, resolve } from "node:path"
+import type { Dirent } from "node:fs"
+import { mkdir, readFile, readdir, rename, rm, stat } from "node:fs/promises"
+import { basename, extname, join, resolve, sep } from "node:path"
 
 export const PROJECTS_DIR_NAME = "projects"
 export const PROJECT_FILE_NAME = "project.scp.json"
@@ -148,11 +149,13 @@ export const createProjectFileData = (aSource: ProjectSourceFingerprint): Projec
   }
 }
 
-/** Tolerant read (PR-D4): missing file -> null; unreadable/foreign content is moved aside to
- *  project.scp.json.broken-<ts> (never silently destroyed) and null is returned so the caller
- *  restarts with a fresh file. */
-export const readProjectFile = async (aProjectDir: string): Promise<ProjectFileData | null> => {
-  const filePath = join(aProjectDir, PROJECT_FILE_NAME)
+const readJsonFileTolerant = async (
+  aDir: string,
+  aFileName: string,
+  aIsValid: (aValue: unknown) => boolean,
+  aRecoverBroken: boolean,
+): Promise<unknown | null> => {
+  const filePath = join(aDir, aFileName)
   let text: string
 
   try {
@@ -163,33 +166,55 @@ export const readProjectFile = async (aProjectDir: string): Promise<ProjectFileD
 
   try {
     const parsed = JSON.parse(text) as unknown
-    if (isProjectFileData(parsed)) {
-      return { ...parsed, sections: { ...parsed.sections } }
+    if (aIsValid(parsed)) {
+      return parsed
     }
   } catch {
     // fall through to the broken-file recovery below
   }
 
+  if (!aRecoverBroken) {
+    return null
+  }
+
   const brokenPath = `${filePath}.broken-${formatFileTimestamp(new Date())}`
   await rename(filePath, brokenPath).catch(() => undefined)
-  console.error(`[project-store] Corrupt ${PROJECT_FILE_NAME} moved aside: ${brokenPath}`)
+  console.error(`[project-store] Corrupt ${aFileName} moved aside: ${brokenPath}`)
   return null
 }
 
-/** Atomic write (PR-D4): pretty JSON into a dot-temp file in the same dir, then rename over. */
-export const writeProjectFile = async (aProjectDir: string, aData: ProjectFileData): Promise<void> => {
-  await mkdir(aProjectDir, { recursive: true })
-  const filePath = join(aProjectDir, PROJECT_FILE_NAME)
-  const tempFilePath = join(aProjectDir, `.${PROJECT_FILE_NAME}.tmp-${randomUUID()}`)
+const writeJsonFileAtomic = async (aDir: string, aFileName: string, aValue: unknown): Promise<void> => {
+  await mkdir(aDir, { recursive: true })
+  const filePath = join(aDir, aFileName)
+  const tempFilePath = join(aDir, `.${aFileName}.tmp-${randomUUID()}`)
 
   try {
-    await Bun.write(tempFilePath, `${JSON.stringify(aData, null, 2)}\n`)
+    await Bun.write(tempFilePath, `${JSON.stringify(aValue, null, 2)}\n`)
     await rename(tempFilePath, filePath)
   } finally {
     await rm(tempFilePath, { force: true }).catch(() => {
       // Ignore temp cleanup failures.
     })
   }
+}
+
+/** Tolerant read (PR-D4): missing file -> null; unreadable/foreign content is moved aside to
+ *  project.scp.json.broken-<ts> (never silently destroyed) and null is returned so the caller
+ *  restarts with a fresh file. Pass aRecoverBroken=false for read-only flows (listing) that must
+ *  not touch other projects' files. */
+export const readProjectFile = async (aProjectDir: string, aRecoverBroken = true): Promise<ProjectFileData | null> => {
+  const parsed = await readJsonFileTolerant(aProjectDir, PROJECT_FILE_NAME, isProjectFileData, aRecoverBroken)
+  if (parsed === null) {
+    return null
+  }
+
+  const data = parsed as ProjectFileData
+  return { ...data, sections: { ...data.sections } }
+}
+
+/** Atomic write (PR-D4): pretty JSON into a dot-temp file in the same dir, then rename over. */
+export const writeProjectFile = async (aProjectDir: string, aData: ProjectFileData): Promise<void> => {
+  await writeJsonFileAtomic(aProjectDir, PROJECT_FILE_NAME, aData)
 }
 
 /** Per-key sequential task queues (PR-D7) — the editor-store withFileLock pattern, keyed by
@@ -214,4 +239,349 @@ export class SerialQueues {
       }
     }
   }
+}
+
+// --- ProjectStore service (PR1.3, PR-D5) ------------------------------------------------------
+
+export interface ProjectInfo {
+  readonly id: string
+  readonly dir: string
+  readonly source: ProjectSourceFingerprint
+  readonly sourceStatus: "ok" | "missing"
+  readonly createdAt: string
+  readonly updatedAt: string
+  readonly sections: readonly string[]
+}
+
+export interface ProjectStoreOptions {
+  readonly resolveUserDataRoot: () => string | Promise<string>
+}
+
+export interface ProjectStore {
+  openProject(aSourcePath: string): Promise<ProjectInfo>
+  getProject(aProjectId: string): Promise<ProjectInfo | null>
+  listProjects(): Promise<readonly ProjectInfo[]>
+  getSection(aProjectId: string, aSectionName: string): Promise<unknown>
+  putSection(aProjectId: string, aSectionName: string, aValue: unknown): Promise<ProjectInfo>
+  getUndoJournal(aProjectId: string): Promise<unknown>
+  putUndoJournal(aProjectId: string, aJournal: unknown): Promise<void>
+  deleteProject(aProjectId: string): Promise<void>
+  relinkProject(aProjectId: string, aNewSourcePath: string): Promise<ProjectInfo>
+}
+
+export const UNDO_JOURNAL_MAX_BYTES = 5 * 1024 * 1024
+
+const SECTION_NAME_PATTERN = /^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/
+const PROJECT_ID_HASH_SUFFIX = /-[0-9a-f]{8}$/
+
+interface UndoFileData {
+  readonly schemaVersion: number
+  readonly updatedAt: string
+  readonly journal: unknown
+}
+
+const isUndoFileData = (aValue: unknown): aValue is UndoFileData => {
+  return isRecordValue(aValue) && aValue.schemaVersion === PROJECT_SCHEMA_VERSION && "journal" in aValue
+}
+
+const isInsideDir = (aBaseDir: string, aTarget: string): boolean => {
+  const base = resolve(aBaseDir)
+  const target = resolve(aTarget)
+  return target === base || target.startsWith(base + sep)
+}
+
+const assertValidSectionName = (aSectionName: string): void => {
+  if (!SECTION_NAME_PATTERN.test(aSectionName)) {
+    throw new ProjectStoreError(400, "Invalid section name")
+  }
+}
+
+/** A project id is a folder name we generated: no separators, ends with the 8-hex hash. */
+export const isSafeProjectId = (aProjectId: string): boolean => {
+  return (
+    aProjectId.length > 0 &&
+    aProjectId.length <= 128 &&
+    !aProjectId.includes("/") &&
+    !aProjectId.includes("\\") &&
+    !aProjectId.includes("..") &&
+    basename(aProjectId) === aProjectId &&
+    PROJECT_ID_HASH_SUFFIX.test(aProjectId)
+  )
+}
+
+const assertSafeProjectId = (aProjectId: string): void => {
+  if (!isSafeProjectId(aProjectId)) {
+    throw new ProjectStoreError(400, "Invalid project id")
+  }
+}
+
+const fingerprintSource = async (aNormalizedPath: string): Promise<ProjectSourceFingerprint> => {
+  try {
+    const sourceStat = await stat(aNormalizedPath)
+    if (!sourceStat.isFile()) {
+      throw new ProjectStoreError(400, "Source path is not a file")
+    }
+
+    return {
+      path: aNormalizedPath,
+      sizeBytes: sourceStat.size,
+      modifiedAtMs: Math.trunc(sourceStat.mtimeMs),
+    }
+  } catch (error) {
+    if (isProjectStoreError(error)) {
+      throw error
+    }
+
+    throw new ProjectStoreError(404, "Source file not found")
+  }
+}
+
+class ProjectStoreImpl implements ProjectStore {
+  private readonly queues = new SerialQueues()
+
+  public constructor(private readonly options: ProjectStoreOptions) {}
+
+  public async openProject(aSourcePath: string): Promise<ProjectInfo> {
+    const normalizedPath = normalizeSourcePath(aSourcePath)
+    const fingerprint = await fingerprintSource(normalizedPath)
+    const projectsRoot = await this.projectsRoot()
+    const located = await this.locateProject(projectsRoot, normalizedPath)
+
+    return this.queues.run(located.id, async () => {
+      const existing = await readProjectFile(located.dir)
+
+      if (existing === null) {
+        const created = createProjectFileData(fingerprint)
+        await writeProjectFile(located.dir, created)
+        return this.buildInfo(located.id, located.dir, created)
+      }
+
+      const fingerprintChanged =
+        existing.source.path !== fingerprint.path ||
+        existing.source.sizeBytes !== fingerprint.sizeBytes ||
+        existing.source.modifiedAtMs !== fingerprint.modifiedAtMs
+      // A case-only path variation must not rewrite the stored (pretty) path on every open.
+      const identityEqual = projectIdentityKey(existing.source.path) === projectIdentityKey(fingerprint.path)
+      const nextSourcePath = identityEqual ? existing.source.path : fingerprint.path
+
+      if (!fingerprintChanged) {
+        return this.buildInfo(located.id, located.dir, existing)
+      }
+
+      const updated: ProjectFileData = {
+        ...existing,
+        source: { ...fingerprint, path: nextSourcePath },
+        updatedAt: new Date().toISOString(),
+      }
+      await writeProjectFile(located.dir, updated)
+      return this.buildInfo(located.id, located.dir, updated)
+    })
+  }
+
+  public async getProject(aProjectId: string): Promise<ProjectInfo | null> {
+    assertSafeProjectId(aProjectId)
+    const projectsRoot = await this.projectsRoot()
+    const dir = join(projectsRoot, aProjectId)
+    const data = await readProjectFile(dir)
+
+    return data === null ? null : this.buildInfo(aProjectId, dir, data)
+  }
+
+  public async listProjects(): Promise<readonly ProjectInfo[]> {
+    const projectsRoot = await this.projectsRoot()
+    let entries: Dirent[]
+
+    try {
+      entries = await readdir(projectsRoot, { withFileTypes: true })
+    } catch {
+      return []
+    }
+
+    const infos: ProjectInfo[] = []
+    for (const entry of entries) {
+      if (!entry.isDirectory()) {
+        continue
+      }
+
+      const dir = join(projectsRoot, entry.name)
+      const data = await readProjectFile(dir, false)
+      if (data === null) {
+        continue
+      }
+
+      infos.push(await this.buildInfo(entry.name, dir, data))
+    }
+
+    return infos.sort((aLeft, aRight) => aRight.updatedAt.localeCompare(aLeft.updatedAt))
+  }
+
+  public async getSection(aProjectId: string, aSectionName: string): Promise<unknown> {
+    assertValidSectionName(aSectionName)
+    const data = await this.requireProjectData(aProjectId)
+    return data.data.sections[aSectionName] ?? null
+  }
+
+  public async putSection(aProjectId: string, aSectionName: string, aValue: unknown): Promise<ProjectInfo> {
+    assertSafeProjectId(aProjectId)
+    assertValidSectionName(aSectionName)
+
+    return this.queues.run(aProjectId, async () => {
+      const { dir, data } = await this.requireProjectData(aProjectId)
+      const sections = { ...data.sections }
+
+      if (aValue === null || aValue === undefined) {
+        delete sections[aSectionName]
+      } else {
+        sections[aSectionName] = aValue
+      }
+
+      const updated: ProjectFileData = { ...data, sections, updatedAt: new Date().toISOString() }
+      await writeProjectFile(dir, updated)
+      return this.buildInfo(aProjectId, dir, updated)
+    })
+  }
+
+  public async getUndoJournal(aProjectId: string): Promise<unknown> {
+    assertSafeProjectId(aProjectId)
+    const projectsRoot = await this.projectsRoot()
+    const dir = join(projectsRoot, aProjectId)
+    const parsed = await readJsonFileTolerant(dir, UNDO_FILE_NAME, isUndoFileData, true)
+
+    return parsed === null ? null : (parsed as UndoFileData).journal
+  }
+
+  public async putUndoJournal(aProjectId: string, aJournal: unknown): Promise<void> {
+    assertSafeProjectId(aProjectId)
+
+    await this.queues.run(aProjectId, async () => {
+      const { dir } = await this.requireProjectData(aProjectId)
+
+      if (aJournal === null || aJournal === undefined) {
+        await rm(join(dir, UNDO_FILE_NAME), { force: true }).catch(() => undefined)
+        return
+      }
+
+      const payload: UndoFileData = {
+        schemaVersion: PROJECT_SCHEMA_VERSION,
+        updatedAt: new Date().toISOString(),
+        journal: aJournal,
+      }
+      const encoded = JSON.stringify(payload, null, 2)
+      if (Buffer.byteLength(encoded, "utf8") > UNDO_JOURNAL_MAX_BYTES) {
+        throw new ProjectStoreError(413, "Undo journal exceeds the size limit; trim it client-side before persisting")
+      }
+
+      await writeJsonFileAtomic(dir, UNDO_FILE_NAME, payload)
+    })
+  }
+
+  public async deleteProject(aProjectId: string): Promise<void> {
+    assertSafeProjectId(aProjectId)
+    const projectsRoot = await this.projectsRoot()
+    const dir = join(projectsRoot, aProjectId)
+
+    if (!isInsideDir(projectsRoot, dir)) {
+      throw new ProjectStoreError(403, "Project folder is outside the projects root")
+    }
+
+    await this.queues.run(aProjectId, async () => {
+      if (await readProjectFile(dir, false) === null) {
+        throw new ProjectStoreError(404, "Project not found")
+      }
+
+      await rm(dir, { recursive: true, force: true })
+    })
+  }
+
+  public async relinkProject(aProjectId: string, aNewSourcePath: string): Promise<ProjectInfo> {
+    assertSafeProjectId(aProjectId)
+    const normalizedPath = normalizeSourcePath(aNewSourcePath)
+    const fingerprint = await fingerprintSource(normalizedPath)
+
+    return this.queues.run(aProjectId, async () => {
+      const { dir, data } = await this.requireProjectData(aProjectId)
+      const updated: ProjectFileData = {
+        ...data,
+        source: fingerprint,
+        updatedAt: new Date().toISOString(),
+      }
+      await writeProjectFile(dir, updated)
+      return this.buildInfo(aProjectId, dir, updated)
+    })
+  }
+
+  private async projectsRoot(): Promise<string> {
+    const userDataRoot = await this.options.resolveUserDataRoot()
+    return join(resolve(userDataRoot), PROJECTS_DIR_NAME)
+  }
+
+  /** Primary lookup by the deterministic hash dir; falls back to scanning stored source paths so a
+   *  relinked project (folder named after the OLD path) is still found when its file is reopened. */
+  private async locateProject(
+    aProjectsRoot: string,
+    aNormalizedPath: string,
+  ): Promise<{ readonly id: string; readonly dir: string }> {
+    const id = projectDirName(aNormalizedPath)
+    const dir = join(aProjectsRoot, id)
+
+    if (await readProjectFile(dir, false) !== null) {
+      return { id, dir }
+    }
+
+    const identityKey = projectIdentityKey(aNormalizedPath)
+    let entries: Dirent[]
+
+    try {
+      entries = await readdir(aProjectsRoot, { withFileTypes: true })
+    } catch {
+      return { id, dir }
+    }
+
+    for (const entry of entries) {
+      if (!entry.isDirectory()) {
+        continue
+      }
+
+      const candidateDir = join(aProjectsRoot, entry.name)
+      const data = await readProjectFile(candidateDir, false)
+      if (data !== null && projectIdentityKey(data.source.path) === identityKey) {
+        return { id: entry.name, dir: candidateDir }
+      }
+    }
+
+    return { id, dir }
+  }
+
+  private async requireProjectData(aProjectId: string): Promise<{ readonly dir: string; readonly data: ProjectFileData }> {
+    assertSafeProjectId(aProjectId)
+    const projectsRoot = await this.projectsRoot()
+    const dir = join(projectsRoot, aProjectId)
+    const data = await readProjectFile(dir)
+
+    if (data === null) {
+      throw new ProjectStoreError(404, "Project not found")
+    }
+
+    return { dir, data }
+  }
+
+  private async buildInfo(aProjectId: string, aDir: string, aData: ProjectFileData): Promise<ProjectInfo> {
+    const sourceExists = await Bun.file(aData.source.path)
+      .exists()
+      .catch(() => false)
+
+    return {
+      id: aProjectId,
+      dir: aDir,
+      source: aData.source,
+      sourceStatus: sourceExists ? "ok" : "missing",
+      createdAt: aData.createdAt,
+      updatedAt: aData.updatedAt,
+      sections: Object.keys(aData.sections),
+    }
+  }
+}
+
+export const createProjectStore = (aOptions: ProjectStoreOptions): ProjectStore => {
+  return new ProjectStoreImpl(aOptions)
 }

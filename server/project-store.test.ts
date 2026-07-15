@@ -8,8 +8,12 @@ import {
   PROJECT_FILE_NAME,
   PROJECTS_DIR_NAME,
   SerialQueues,
+  UNDO_FILE_NAME,
+  UNDO_JOURNAL_MAX_BYTES,
   createProjectFileData,
+  createProjectStore,
   isProjectStoreError,
+  isSafeProjectId,
   normalizeSourcePath,
   projectDirName,
   projectSlug,
@@ -17,6 +21,17 @@ import {
   resolveProjectDir,
   writeProjectFile,
 } from "./project-store"
+
+const expectStoreError = async (aPromise: Promise<unknown>, aStatus: number): Promise<void> => {
+  let caught: unknown = null
+  try {
+    await aPromise
+  } catch (error) {
+    caught = error
+  }
+  expect(isProjectStoreError(caught)).toBe(true)
+  expect(isProjectStoreError(caught) ? caught.status : 0).toBe(aStatus)
+}
 
 const fixtureRoots: string[] = []
 const makeFixtureDir = async (): Promise<string> => {
@@ -188,5 +203,141 @@ describe("project.scp.json storage (PR1.2 / PR-D4, PR-D7)", () => {
       order.push("a3")
     })
     expect(order).toEqual(["b1", "a1", "a2", "a3"])
+  })
+})
+
+describe("ProjectStore core API (PR1.3 / PR-D5, PR-D8)", () => {
+  const makeStoreFixture = async (): Promise<{ root: string; sourceDir: string; store: ReturnType<typeof createProjectStore> }> => {
+    const root = await makeFixtureDir()
+    const sourceDir = await makeFixtureDir()
+    const store = createProjectStore({ resolveUserDataRoot: () => root })
+    return { root, sourceDir, store }
+  }
+
+  const makeSourceFile = async (aDir: string, aName: string, aContent = "<gnaural/>"): Promise<string> => {
+    const path = join(aDir, aName)
+    await writeFile(path, aContent)
+    return path
+  }
+
+  test("openProject provisions the folder + scp.json; reopening (any path case) finds the same project", async () => {
+    const { root, sourceDir, store } = await makeStoreFixture()
+    const source = await makeSourceFile(sourceDir, "Alpha.gnaural")
+
+    const first = await store.openProject(source)
+    expect(first.sourceStatus).toBe("ok")
+    expect(existsSync(join(root, PROJECTS_DIR_NAME, first.id, PROJECT_FILE_NAME))).toBe(true)
+
+    const second = await store.openProject(source.toUpperCase())
+    expect(second.id).toBe(first.id)
+    expect(second.source.path).toBe(first.source.path)
+
+    const dirs = await readdir(join(root, PROJECTS_DIR_NAME))
+    expect(dirs).toEqual([first.id])
+  })
+
+  test("openProject refreshes the source fingerprint after the file changes", async () => {
+    const { sourceDir, store } = await makeStoreFixture()
+    const source = await makeSourceFile(sourceDir, "grow.gnaural", "12345")
+
+    const first = await store.openProject(source)
+    expect(first.source.sizeBytes).toBe(5)
+
+    await writeFile(source, "1234567890")
+    const second = await store.openProject(source)
+    expect(second.source.sizeBytes).toBe(10)
+  })
+
+  test("openProject on a missing source file fails with 404", async () => {
+    const { sourceDir, store } = await makeStoreFixture()
+    await expectStoreError(store.openProject(join(sourceDir, "nope.gnaural")), 404)
+  })
+
+  test("sections: put/get round-trip, null deletes, unknown project 404, bad name 400", async () => {
+    const { sourceDir, store } = await makeStoreFixture()
+    const source = await makeSourceFile(sourceDir, "sec.gnaural")
+    const info = await store.openProject(source)
+
+    await store.putSection(info.id, "gtrackLanes", { order: [2, 1] })
+    expect(await store.getSection(info.id, "gtrackLanes")).toEqual({ order: [2, 1] })
+    expect(await store.getSection(info.id, "absent")).toBeNull()
+
+    const afterDelete = await store.putSection(info.id, "gtrackLanes", null)
+    expect(afterDelete.sections).toEqual([])
+
+    await expectStoreError(store.putSection("ghost-00000000", "view", {}), 404)
+    await expectStoreError(store.getSection(info.id, "bad name!"), 400)
+  })
+
+  test("undo journal: round-trip, null clears, oversized rejected with 413", async () => {
+    const { root, sourceDir, store } = await makeStoreFixture()
+    const source = await makeSourceFile(sourceDir, "undo.gnaural")
+    const info = await store.openProject(source)
+
+    expect(await store.getUndoJournal(info.id)).toBeNull()
+
+    await store.putUndoJournal(info.id, { entries: ["one", "two"] })
+    expect(await store.getUndoJournal(info.id)).toEqual({ entries: ["one", "two"] })
+    expect(existsSync(join(root, PROJECTS_DIR_NAME, info.id, UNDO_FILE_NAME))).toBe(true)
+
+    await store.putUndoJournal(info.id, null)
+    expect(existsSync(join(root, PROJECTS_DIR_NAME, info.id, UNDO_FILE_NAME))).toBe(false)
+
+    const huge = { blob: "x".repeat(UNDO_JOURNAL_MAX_BYTES) }
+    await expectStoreError(store.putUndoJournal(info.id, huge), 413)
+  })
+
+  test("deleteProject removes only a real project folder; evil ids are rejected", async () => {
+    const { root, sourceDir, store } = await makeStoreFixture()
+    const source = await makeSourceFile(sourceDir, "del.gnaural")
+    const info = await store.openProject(source)
+
+    expect(isSafeProjectId("../escape-00000000")).toBe(false)
+    await expectStoreError(store.deleteProject("../escape-00000000"), 400)
+    await expectStoreError(store.deleteProject("ghost-00000000"), 404)
+
+    await store.deleteProject(info.id)
+    expect(existsSync(join(root, PROJECTS_DIR_NAME, info.id))).toBe(false)
+  })
+
+  test("relink keeps the id and folder; reopening by the new path finds the project via the scan fallback", async () => {
+    const { sourceDir, store } = await makeStoreFixture()
+    const oldSource = await makeSourceFile(sourceDir, "old-name.gnaural")
+    const newSource = await makeSourceFile(sourceDir, "new-name.gnaural")
+
+    const info = await store.openProject(oldSource)
+    await store.putSection(info.id, "view", { zoom: 3 })
+
+    const relinked = await store.relinkProject(info.id, newSource)
+    expect(relinked.id).toBe(info.id)
+    expect(relinked.source.path).toBe(normalizeSourcePath(newSource))
+
+    const reopened = await store.openProject(newSource)
+    expect(reopened.id).toBe(info.id)
+    expect(await store.getSection(reopened.id, "view")).toEqual({ zoom: 3 })
+  })
+
+  test("getProject reports a deleted source as missing; listProjects sorts by updatedAt and skips broken dirs without touching them", async () => {
+    const { root, sourceDir, store } = await makeStoreFixture()
+    const first = await makeSourceFile(sourceDir, "first.gnaural")
+    const second = await makeSourceFile(sourceDir, "second.gnaural")
+
+    const firstInfo = await store.openProject(first)
+    await new Promise((aResolve) => setTimeout(aResolve, 5))
+    const secondInfo = await store.openProject(second)
+
+    const { rm: rmFile } = await import("node:fs/promises")
+    await rmFile(first, { force: true })
+    const refreshed = await store.getProject(firstInfo.id)
+    expect(refreshed?.sourceStatus).toBe("missing")
+
+    const brokenDir = join(root, PROJECTS_DIR_NAME, "broken-deadbeef")
+    const { mkdir: mkdirP } = await import("node:fs/promises")
+    await mkdirP(brokenDir, { recursive: true })
+    await writeFile(join(brokenDir, PROJECT_FILE_NAME), "{ not json")
+
+    const listed = await store.listProjects()
+    expect(listed.map((aInfo) => aInfo.id)).toEqual([secondInfo.id, firstInfo.id])
+    expect(await readFile(join(brokenDir, PROJECT_FILE_NAME), "utf8")).toBe("{ not json")
   })
 })

@@ -218,7 +218,7 @@ in-memory кеша расписаний (`GnauralCore/ui/stores/audio.ts:133`), 
 - [x] **PR1.2 — Хранилище scp.json (PR-D4/D7).** Атомарные load/save `project.scp.json`
   (tmp+rename), толерантное чтение + `.broken-<ts>`, сохранение неизвестных секций, per-project
   очередь записи; тесты. Verify: `bun test project-store`.
-- [ ] **PR1.3 — Полный API ядра (PR-D5/D8).** `openProject`/`listProjects`/`getProject`,
+- [x] **PR1.3 — Полный API ядра (PR-D5/D8).** `openProject`/`listProjects`/`getProject`,
   `get/putSection`, `get/putUndoJournal` (лимиты), `deleteProject`, `relinkProject` (+ поиск проекта
   по сохранённому `source.path`, когда hash-папка не совпала); тесты. Verify:
   `bun test project-store`.

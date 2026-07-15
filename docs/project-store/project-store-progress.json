@@ -146,17 +146,23 @@
       "id": "PR1.3",
       "phase": 1,
       "title": "Полный API ядра: open/list/get, секции, undo-транспорт, delete, relink",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["PR1.2"],
       "artifacts": [
         "MindWaveCore/server/project-store.ts",
         "MindWaveCore/server/project-store.test.ts"
       ],
       "verify": "bun test project-store (find-or-create; source.path scan fallback when the hash dir does not match; section round-trip; undo limits; delete guarded to projects/; relink updates source + folder stays)",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-15",
+      "finishedAt": "2026-07-15",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "interface ProjectStore + ProjectStoreImpl + createProjectStore({resolveUserDataRoot}) -- root resolved per operation (a runtime settings change needs no restart); store is stateless between calls (every op reads scp.json inside the per-project SerialQueues lane), so there is no cache to go stale.",
+        "openProject: fingerprint (404 when the source is missing/not a file) -> locateProject (hash dir first, then a source.path identity scan so a relinked project whose folder is named after the OLD path is still found) -> queued find-or-create; a case-only path variation neither duplicates the project nor rewrites the stored pretty path; fingerprint refresh writes only when size/mtime/path actually changed.",
+        "Sections: get/putSection with name validation (400), null value deletes the section; undo: get/putUndoJournal in a wrapped {schemaVersion, updatedAt, journal} undo.json, null clears, >5MB -> 413 (UNDO_JOURNAL_MAX_BYTES); deleteProject: isSafeProjectId (400) + inside-projects guard (403) + 404 when absent; relinkProject keeps id/folder and swaps the source fingerprint.",
+        "listProjects reads with recover=false so listing never renames other projects' broken files (asserted: bytes untouched), sorts by updatedAt desc; getProject reports sourceStatus ok|missing.",
+        "bun test project-store: 21 pass / 68 expect. Server typecheck via bun x tsc@5.7.3 --ignoreDeprecations 5.0 (bunx pitfall from [[verify-typecheck-workflow]]): only the known pre-existing audio-cache-manifest.ts TS2540."
+      ]
     },
     {
       "id": "PR1.4",
