@@ -51,7 +51,7 @@
               :color="replayEegMode === opt.value ? 'secondary' : undefined"
               @click="replayEegMode = opt.value"
             >
-              <q-tooltip>{{ opt.tooltip }}</q-tooltip>
+              <app-tooltip>{{ opt.tooltip }}</app-tooltip>
             </q-btn>
           </q-btn-group>
 
@@ -448,6 +448,7 @@ import { usePreferencesStore } from '../../../BodyMonitorCore/ui/stores/preferen
 import { hasLogChartData } from '../../../SharedPasCore/ts/log-chart'
 import { wsService } from 'src/services/ws'
 import { useReplayStore } from 'stores/replay'
+import AppTooltip from '@tooltip/AppTooltip.vue'
 
 const DeviceDataChart = defineAsyncComponent(() => import('../../../BodyMonitorCore/ui/components/DeviceDataChart.vue'))
 const EegRadarChart = defineAsyncComponent(() => import('../../../BodyMonitorCore/ui/components/EegRadarChart.vue'))

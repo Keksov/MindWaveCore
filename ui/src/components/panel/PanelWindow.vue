@@ -22,7 +22,7 @@
 
       <!-- FB4.3-refine 1: all window modes collapsed under one icon + menu to cut visual noise. -->
       <q-btn flat dense round size="sm" :icon="modeIcon" class="panel-window__dock-menu-btn">
-        <q-tooltip>{{ t('panel.dockMenu') }}</q-tooltip>
+        <app-tooltip>{{ t('panel.dockMenu') }}</app-tooltip>
         <q-menu auto-close>
           <q-list dense style="min-width: 160px">
             <q-item
@@ -63,6 +63,7 @@ import { useI18n } from 'vue-i18n'
 import { useQuasar } from 'quasar'
 import { detachedRectKey, readPanelScreenRect, type PanelMode, type PanelWindowState } from './use-panel-window'
 import { createPanelBridgeParent, type PanelBridgeParent, type PanelEventPayload } from './use-panel-bridge'
+import AppTooltip from '@tooltip/AppTooltip.vue'
 
 const props = withDefaults(defineProps<{
   readonly state: PanelWindowState
