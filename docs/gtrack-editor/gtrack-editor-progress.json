@@ -2299,15 +2299,22 @@
       "id": "GT11.13",
       "phase": 11,
       "title": "Alt+колесо мыши меняет диапазон по оси Y (масштаб значений графика)",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": [],
-      "artifacts": [],
+      "artifacts": [
+        "gtrack-render.ts: zoomAxisRange(axis, factor, focusUnit) — zooms a value-axis range keeping the value under the cursor PINNED; a log axis (base freq) zooms multiplicatively in log10 space so the gesture feels identical at 20 Hz and 2 kHz, linear axes zoom linearly. axisWithRange(axis, min, max) — the same axis with an explicit range overriding the auto-fit, labels re-derived (geometric midpoint on log, arithmetic otherwise)",
+        "gtrack-render.test.ts: +7 tests, incl. the key property — the focused value never moves, at any focusUnit, on both scales, zooming in and out",
+        "GTrackView.vue: gtrackAxis result split into autoAxis + a manual `yZoom` ref ({min,max} | null); `axis` = auto when yZoom is null, else axisWithRange(auto, ...). onWheel gained an altKey branch: zooms via zoomAxisRange anchored on yToValueUnit(cursor); a log axis is floored at 1 Hz to match gtrackAxis",
+        "RESET (design decision, no new UI): zooming back OUT to/past the auto-fit range sets yZoom = null -> back to auto. Alt+wheel out is the way back.",
+        "SCOPE decision: yZoom is per-lane and IN-MEMORY (a view control), so it resets when the lane unmounts (e.g. leaving the Треки tab). Unlike the time window it is not shared/persisted — flag to owner if it should survive."
+      ],
       "verify": "owner",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-15",
+      "finishedAt": "2026-07-15",
       "blockedReason": null,
       "evidence": [
-        "Owner 2026-07-15 (new plan item #2): 'Добавь новую комбинацию Alt+mouse whill меняет диапазон по оси Y'. Today GTrackView.onWheel zooms the TIME axis; Alt+wheel should instead zoom the VALUE (Y) axis range. To settle at implementation: anchor at the cursor's value or the axis centre; whether the manual Y range is per-lane and persisted; and how it composes with gtrackAxis's auto-fit — the point-mode/drag headroom and the GT11.3 beat-band widening both currently drive the axis, so a manual range needs an explicit override + a way back to auto."
+        "Owner 2026-07-15 (new plan item #2): 'Добавь новую комбинацию Alt+mouse whill меняет диапазон по оси Y'. Today GTrackView.onWheel zooms the TIME axis; Alt+wheel should instead zoom the VALUE (Y) axis range. To settle at implementation: anchor at the cursor's value or the axis centre; whether the manual Y range is per-lane and persisted; and how it composes with gtrackAxis's auto-fit — the point-mode/drag headroom and the GT11.3 beat-band widening both currently drive the axis, so a manual range needs an explicit override + a way back to auto.",
+        "DONE (2026-07-15): all three open questions settled — anchor = the value under the cursor (matches the time zoom, which anchors on xFraction); reset = zoom back out past the auto range (no new control); the manual range is an explicit override of gtrackAxis's auto-fit, so the point-mode/drag headroom and the GT11.3 beat-band widening only apply while yZoom is null. vue-tsc 0, quasar build 0, 212/212 UI tests (+7). GnauralCore commit add2abe (pure helpers + tests); NOTE the GTrackView wiring landed earlier inside the owner's parallel TT2.3 commit c16bedc — both of us had that file open, so `git add` swept it. Nothing lost, but that commit carries GT11.13 code despite its message."
       ]
     },
     {
