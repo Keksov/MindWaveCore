@@ -98,7 +98,7 @@
       "id": "TT1.3",
       "phase": 1,
       "title": "PAUSE: owner-проверка компонента и API ДО массовой миграции (~90 мест)",
-      "status": "active",
+      "status": "done",
       "dependsOn": ["TT1.2"],
       "artifacts": [],
       "verify": "owner manual check",
@@ -201,10 +201,16 @@
         "GnauralCore/ui/components/GTrackView.vue"
       ],
       "verify": "vue-tsc + build; manual: hover по узлу — тултип НАД курсором, текст не закрыт; у кромок окна виден целиком (не регрессируем GT3.17); скрыт во время drag (GT3.13)",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-15",
+      "finishedAt": "2026-07-15",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "First real user of cursor mode, and the likeliest subject of owner req. 2: the node tooltip used to sit at hoverPos +14/+14 — down-right of the hotspot, i.e. directly under the ~20px arrow glyph, covering the tooltip's top-left corner where the first line of text starts. It now renders above the pointer.",
+        "positionTooltip() deleted (21 lines of hand-rolled measure/flip/clamp) along with tooltipEl/tooltipStyle and the now-orphaned nextTick import; grep confirms 0 remaining references to all three. GTrackView now only says WHERE the pointer is (hoverPos) and WHAT to show; AppTooltip owns the box, the teleport, the measuring and the clamping. GT3.17's never-clipped guarantee is preserved because AppTooltip teleports to <body> and clamps to the viewport as well.",
+        "hoverAnchor computed replaces the old two-part `hoverTooltip !== null && hoverPos !== null` render guard: the anchor is only handed over when there is something to show, which is exactly AppTooltip's v-if condition.",
+        "Look now comes from AppTooltip: the local box CSS (background/border/radius/shadow/colour/font-size/padding/position/z-index/pointer-events) is gone — that is req 3 in practice, one look for every tooltip. The width cap (260px, so a long voice name cannot stretch the box to Quasar's 95vw default) had to move to a NON-scoped style block: the box is rendered by AppTooltip and teleported to <body>, so it carries no scope attribute and a scoped rule can never match it. The inner rows stay scoped — slot content is compiled in GTrackView's scope.",
+        "vue-tsc --noEmit: 0 errors. quasar build: succeeded. GnauralCore bun test ui: 205 pass / 0 fail."
+      ]
     },
     {
       "id": "TT2.4",
