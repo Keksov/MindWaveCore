@@ -2279,17 +2279,20 @@
       "id": "GT11.12",
       "phase": 11,
       "title": "BUG (owner 2026-07-15): в режиме редактирования точек невозможно двигать вершины (в обычном режиме Ctrl-drag работает)",
-      "status": "in-progress",
+      "status": "done",
       "dependsOn": [
         "GT11.4"
       ],
       "artifacts": [],
-      "verify": "owner: in point-edit mode a plain drag of a vertex moves it again; normal-mode Ctrl-drag still works; the GT11.4 beat-band edge drag still works",
+      "verify": "owner: switching the point tool to Select restores vertex dragging (no code change was needed)",
       "startedAt": "2026-07-15",
-      "finishedAt": null,
+      "finishedAt": "2026-07-15",
       "blockedReason": null,
       "evidence": [
-        "Owner 2026-07-15 (new plan item #1): 'В режиме редактирования точек стало невозможным двигать вершины на графике. В обычном режиме это работает.' Regression suspected from GT11.4 (it added beat-edge branches to onPointerDown/Move/Up), but re-reading the handlers shows the point-mode vertex path unchanged (hit !== null -> beginVertexDrag, and the beat branches only run when beatDragRef is set / the vertex hit-test misses). NOTE: the owner also has uncommitted WIP in TracksPanel.vue (toolbar -> icons), GnauralTransportControls.vue, stores/audio.ts, server/gnaural-session.ts — either source is possible. Per the PW-D12 lesson (instrument the runtime instead of theorising), temporary [GT-DEBUG] logging was added to onPointerDown (pointMode/pointTool/hit/modifier/stuck-drag state) and to the vertex-drag move branch; awaiting the owner's console output."
+        "Owner 2026-07-15 (new plan item #1): 'В режиме редактирования точек стало невозможным двигать вершины на графике. В обычном режиме это работает.' Regression suspected from GT11.4 (it added beat-edge branches to onPointerDown/Move/Up), but re-reading the handlers showed the point-mode vertex path unchanged. Per the PW-D12 lesson (instrument the runtime instead of theorising), temporary [GT-DEBUG] logging was added to onPointerDown.",
+        "DIAGNOSED — NOT a code bug, and NOT a GT11.4 regression. Owner console: {\"pointMode\":true,\"pointTool\":\"add\",\"hasData\":true,\"button\":0,\"ctrl\":false,\"mode\":\"base\"}. The point tool was on ADD, so onPointerDown takes the GT3.14 add branch (click a curve -> emit add-point) and returns BEFORE any vertex drag — by design. Normal mode was unaffected because its Ctrl+drag branch never consults the tool. Immediate fix: press the Select (near_me) tool. Root trap: pointTool persists across restarts (localStorage 'mindwave-gtrack-point-tool'), so the state survived and the editor silently stopped dragging — which is why it read as 'suddenly broken'.",
+        "NOTE (instrumentation lesson, round 2): the first [GT-DEBUG] log was placed AFTER the pointMode/pointTool early-returns, so it printed nothing and looked like 'the handler never fires'. Log at the FIRST line of a handler when the question is 'which early return am I hitting'.",
+        "Debug logging fully removed (GTrackView.vue byte-identical to commit 6c88935); no code committed for this step. Owner's chosen follow-up: remove the tool buttons entirely -> GT11.14 (supersedes any reset/persistence tweak)."
       ]
     },
     {
@@ -2305,6 +2308,25 @@
       "blockedReason": null,
       "evidence": [
         "Owner 2026-07-15 (new plan item #2): 'Добавь новую комбинацию Alt+mouse whill меняет диапазон по оси Y'. Today GTrackView.onWheel zooms the TIME axis; Alt+wheel should instead zoom the VALUE (Y) axis range. To settle at implementation: anchor at the cursor's value or the axis centre; whether the manual Y range is per-lane and persisted; and how it composes with gtrackAxis's auto-fit — the point-mode/drag headroom and the GT11.3 beat-band widening both currently drive the axis, so a manual range needs an explicit override + a way back to auto."
+      ]
+    },
+    {
+      "id": "GT11.14",
+      "phase": 11,
+      "title": "Удалить кнопки инструментов точек (Select/Add/Delete) — дублируют клавиатуру+мышь",
+      "status": "not-started",
+      "dependsOn": [],
+      "artifacts": [],
+      "verify": "owner: the three tool buttons are gone; a plain drag always moves a vertex in point mode; adding and deleting points still work via their keyboard/mouse gestures",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": [
+        "Owner 2026-07-15 (decided while closing GT11.12): 'удалить кнопки инструментов Select, Add, Delete. Они не нужны, т.к. они дублируют функционал, доступный через клавиатуру и мышь'.",
+        "VERIFIED the duplication in code before registering: Select = the default behaviour (a plain drag moves a vertex — no tool needed); Add = Ctrl+click on a curve (GT10.10, GTrackView.onPointerDown normal-mode branch -> emit add-point); Delete = the Delete/Backspace hotkey on the selection (TracksPanel :2726 -> removeSelectedPoint, or removeMultiSelection in table mode; GT3.6/GT3.16).",
+        "SCOPE: drop the 3 q-btns from the TracksPanel header (:108-137) + i18n gtrackToolSelect/gtrackToolAdd/gtrackToolDelete; drop pointTool/setPointTool + the 'mindwave-gtrack-point-tool' localStorage key from use-gtrack-lanes; drop the point-tool prop, the add/delete branches in GTrackView.onPointerDown and the --add/--delete cursor classes. Point mode then always behaves as Select. Note GT3.14 (owner req. 24) introduced these tools — this step deliberately reverses that.",
+        "FLAG (owner decision at implementation): Ctrl+click-to-add works ONLY in NORMAL mode today — in point mode Ctrl+click on a vertex is multi-select (GT3.15) and on a curve is currently a no-op. So once the Add tool is gone, adding a point while IN point mode requires either leaving point mode or extending Ctrl+click-add to point mode's curve case. Recommend extending it, otherwise the removal loses a workflow.",
+        "Also permanently removes the GT11.12 trap (a persisted tool silently disabling vertex drag)."
       ]
     }
   ],
