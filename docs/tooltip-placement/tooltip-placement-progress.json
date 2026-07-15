@@ -305,6 +305,29 @@
       ]
     },
     {
+      "id": "TT2.8",
+      "phase": 2,
+      "title": "Приглушение вторичного текста — цветом, а не opacity (owner 2026-07-15: лейблы «расплываются»)",
+      "status": "done",
+      "dependsOn": ["TT2.7"],
+      "artifacts": [
+        "MindWaveCore/ui/src/components/tooltip/AppTooltip.vue",
+        "GnauralCore/ui/components/GTrackView.vue"
+      ],
+      "verify": "vue-tsc + build; переменная и color:var(...) в бандле; ни одного opacity на тексте внутри тултипов; manual: лейблы такие же чёткие, как значения",
+      "startedAt": "2026-07-15",
+      "finishedAt": "2026-07-15",
+      "blockedReason": null,
+      "evidence": [
+        "Owner: the font looks thinner on their reference than in the app, and the labels blur 'as if bold or semibold' while the numbers beside them read perfectly. That split IS the diagnosis: the numbers had no opacity, the labels had opacity .7 (added in TT2.7).",
+        "Cause: an opacity < 1 promotes text into its own composited layer, which drops Windows' subpixel antialiasing (ClearType) to greyscale — glyphs soften and read heavier, and only the dimmed ones do. An opaque colour keeps subpixel AA. Commits 49c66de (host) + 0873187 (gnaural).",
+        "The other suspects were checked and cleared BEFORE touching anything: quasar.config extras = ['material-icons'] only, so Roboto is never loaded and the stack already resolves to Segoe UI — the same font as the owner's reference; .q-tooltip--style sets font-weight: normal; there is no global font-smoothing or font-family override in src/. Neither family nor weight was ever wrong.",
+        "Fix: AppTooltip publishes --app-tooltip-fg-dim (#94a3b8) next to the background it is computed against; GTrackView's label uses color: var(--app-tooltip-fg-dim). That is the only option that is NEITHER opacity (blurs) NOR a hex copied into the consumer (drifts when the plate moves — exactly what rotted in TT2.3 when the plate went grey). No fallback on purpose: the variable is guaranteed by the component that renders the box, and a duplicate hex would reintroduce the drift.",
+        "Full circle: #94a3b8 was the ORIGINAL label colour and was correct for a dark plate all along. It only ever broke because I moved the plate out from under it. Labels 5.71:1, values 11.87:1.",
+        "vue-tsc 0; build ok; verified in the emitted CSS: '--app-tooltip-fg-dim: #94a3b8' and 'color:var(--app-tooltip-fg-dim)'. grep confirms no `opacity` on text inside any tooltip anywhere."
+      ]
+    },
+    {
       "id": "TT3.1",
       "phase": 3,
       "title": "ECharts: 5 графиков BodyMonitorCore — СНЯТО (req 4: «в ECharts пусть остаётся свой механизм, его не трогаем»)",
