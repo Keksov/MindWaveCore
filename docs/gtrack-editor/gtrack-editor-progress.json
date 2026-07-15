@@ -2314,19 +2314,26 @@
       "id": "GT11.14",
       "phase": 11,
       "title": "Удалить кнопки инструментов точек (Select/Add/Delete) — дублируют клавиатуру+мышь",
-      "status": "not-started",
+      "status": "done",
       "dependsOn": [],
-      "artifacts": [],
+      "artifacts": [
+        "TracksPanel.vue: the 3 tool q-btns removed from the header; :point-tool and @delete-point-at bindings dropped",
+        "use-gtrack-lanes.ts: pointTool/setPointTool + the persisted 'mindwave-gtrack-point-tool' key + the GTrackPointTool type removed. deletePointAt KEPT (the point dialog path TracksPanel:1567 still uses it)",
+        "GTrackView.vue: point-tool prop, the add/delete onPointerDown branches, the delete-point-at emit and the --add/--delete cursor classes removed; --point/--beat-edge cursor conditions no longer consult the tool. Point mode always behaves as Select",
+        "GT11.14 extension (owner-approved): Ctrl+click on a CURVE now emits add-point in POINT mode too (previously normal-mode only, GT10.10) — closes the workflow gap flagged when registering this step",
+        "i18n ru/en: gtrackToolSelect/gtrackToolAdd/gtrackToolDelete removed"
+      ],
       "verify": "owner: the three tool buttons are gone; a plain drag always moves a vertex in point mode; adding and deleting points still work via their keyboard/mouse gestures",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-15",
+      "finishedAt": "2026-07-15",
       "blockedReason": null,
       "evidence": [
         "Owner 2026-07-15 (decided while closing GT11.12): 'удалить кнопки инструментов Select, Add, Delete. Они не нужны, т.к. они дублируют функционал, доступный через клавиатуру и мышь'.",
         "VERIFIED the duplication in code before registering: Select = the default behaviour (a plain drag moves a vertex — no tool needed); Add = Ctrl+click on a curve (GT10.10, GTrackView.onPointerDown normal-mode branch -> emit add-point); Delete = the Delete/Backspace hotkey on the selection (TracksPanel :2726 -> removeSelectedPoint, or removeMultiSelection in table mode; GT3.6/GT3.16).",
         "SCOPE: drop the 3 q-btns from the TracksPanel header (:108-137) + i18n gtrackToolSelect/gtrackToolAdd/gtrackToolDelete; drop pointTool/setPointTool + the 'mindwave-gtrack-point-tool' localStorage key from use-gtrack-lanes; drop the point-tool prop, the add/delete branches in GTrackView.onPointerDown and the --add/--delete cursor classes. Point mode then always behaves as Select. Note GT3.14 (owner req. 24) introduced these tools — this step deliberately reverses that.",
         "FLAG (owner decision at implementation): Ctrl+click-to-add works ONLY in NORMAL mode today — in point mode Ctrl+click on a vertex is multi-select (GT3.15) and on a curve is currently a no-op. So once the Add tool is gone, adding a point while IN point mode requires either leaving point mode or extending Ctrl+click-add to point mode's curve case. Recommend extending it, otherwise the removal loses a workflow.",
-        "Also permanently removes the GT11.12 trap (a persisted tool silently disabling vertex drag)."
+        "Also permanently removes the GT11.12 trap (a persisted tool silently disabling vertex drag).",
+        "DONE (2026-07-15): implemented as scoped, incl. the approved Ctrl+click-add extension to point mode, so no add/delete workflow was lost (Delete/Backspace already covered deletion). Net -98/+20 lines. vue-tsc 0, quasar build 0, 205/205 UI tests. GnauralCore commit af95a81 — NOTE it sits on branch feat/audio-toolbar-and-render-cleanup (both repos are on it; main is still at 6c88935/GT11.4, which is an ancestor), alongside the owner's toolbar/render commits."
       ]
     }
   ],
