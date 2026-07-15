@@ -1337,7 +1337,6 @@ const handleApiRequest = async (aRequest: Request): Promise<Response | null> => 
     const resolvedFile = resolveAllowedAudioFilePath(
       requestedPath,
       archiveStore.getAudioSettings(),
-      gnauralSession.getServableRoots(),
     )
     if (resolvedFile === null) {
       return errorResponse(403, "Requested audio file is outside the configured presets root or has an unsupported type")
@@ -1395,7 +1394,6 @@ const handleApiRequest = async (aRequest: Request): Promise<Response | null> => 
     const resolvedFile = resolveAllowedAudioFilePath(
       requestedPath,
       archiveStore.getAudioSettings(),
-      gnauralSession.getServableRoots(),
     )
     if (resolvedFile === null) {
       return errorResponse(403, "Requested audio file is outside the configured presets root or has an unsupported type")

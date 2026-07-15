@@ -41,12 +41,6 @@ export function ensureDefaultWsHandlersRegistered(): void {
       case 'audio_exit':
         audio.handleExit(event)
         return true
-      case 'audio_render_progress':
-        audio.handleRenderProgress(event)
-        return true
-      case 'audio_render_done':
-        audio.handleRenderDone(event)
-        return true
       case 'audio_schedule_loaded':
         audio.handleScheduleLoaded(event)
         return true
