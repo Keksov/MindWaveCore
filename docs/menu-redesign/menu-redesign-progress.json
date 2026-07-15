@@ -17,7 +17,7 @@
     },
     {
       "id": "MR-D3",
-      "text": "Leaf actions. Открыть -> openFileDialog() (opens the file panel). Экспорт -> openExportDialog() (MR-D7). Настройки -> goToSettings() (the two-pane settings dialog; the existing Ctrl+P handler in handlePlayerKeyDown stays unchanged). Выход -> exitApp(): calls window.__appcoreExit() when present (AppCore binds it, AppMain.pas:730, to terminate its run loop), else falls back to window.close() for the dev browser. CORRECTION (owner 2026-07-15): window.close() alone does NOT quit AppCore — WebView2's window.close() only raises WindowCloseRequested, which the AppCore webview library ignores; the native __appcoreExit binding is the real quit path. Every leaf runs through ONE wrapper invokeMenuCommand(node) that (a) calls node.run() and (b) records node.id into the MRU (MR-D4), so a single code path feeds both the click and the MRU. A disabled?() leaf neither runs nor records."
+      "text": "Leaf actions. Открыть -> openFileDialog() (opens the file panel). Экспорт -> openExportDialog() (MR-D7). Настройки -> goToSettings() (the two-pane settings dialog; the existing Ctrl+P handler in handlePlayerKeyDown stays unchanged). Выход -> exitApp(): calls window.__appcoreExit() when present (AppCore binds it, AppMain.pas:730, to terminate its run loop), else falls back to window.close() for the dev browser. CORRECTION (owner 2026-07-15): window.close() alone does NOT quit AppCore — WebView2's window.close() only raises WindowCloseRequested, which the AppCore webview library ignores; the native __appcoreExit binding is the real quit path. Every leaf runs through ONE wrapper invokeMenuCommand(node) that (a) calls node.run() and (b) records node.id into the MRU (MR-D4), so a single code path feeds both the click and the MRU. A disabled?() leaf neither runs nor records. CORRECTION 2 (owner 2026-07-15, MR4.1): the Ctrl+P binding is GONE, so the clause above about 'the existing Ctrl+P handler stays unchanged' no longer holds — GT10.45 had bound Ctrl/Cmd+P with preventDefault and thereby stole the browser's Print shortcut. Both the menu hint and the handlePlayerKeyDown handler were removed; Настройки opens from Меню (or its MRU entry) only."
     },
     {
       "id": "MR-D4",
@@ -163,20 +163,25 @@
       "id": "MR4.1",
       "phase": 4,
       "title": "Polish to match the screenshot (chevron + hover-open sideways submenu, spacing/dividers) + AppCore manual check; OWNER CHECKPOINT",
-      "status": "pending",
+      "status": "done",
       "dependsOn": [
         "MR3.1"
       ],
       "artifacts": [
-        "AudioPage.vue menu styles: chevron_right on submenu parents, item padding/hover, separator styling to read like the reference screenshot",
-        "NOTE: hover-to-open of side submenus (owner req. 8) already landed in the MR2.1 pass (AppMenuList, 120ms) — remaining here is only visual polish + the AppCore check",
-        "manual run of AppMain.exe: «Выход» closes the AppCore window"
+        "NOTE: hover-to-open of side submenus (owner req. 8) already landed in the MR2.1 pass (AppMenuList, 120ms); the chevron landed in MR1.1 — remaining here was the AppCore check + the owner's polish notes",
+        "manual run of AppMain.exe: «Выход» closes the AppCore window — owner-confirmed 2026-07-15",
+        "AppMenuList.vue: menu icons 24px -> 18px (the size used across this UI), chevron -> 16px, and the Quasar avatar slot tightened (min-width 24px / padding-right 12px) so a smaller icon does not float in a gutter sized for 24px",
+        "AudioPage.vue: the Ctrl+P -> Настройки binding REMOVED — both the menu item's shortcut hint and the handlePlayerKeyDown handler. This reverses GT10.45, which bound Ctrl/Cmd+P with preventDefault and so silently stole the browser's Print shortcut; Ctrl+P now reaches the print dialog and Настройки opens from Меню / its MRU entry. Stale GT10.45 + Edit-menu comment on the page-level settings dialog updated",
+        "MenuNode.shortcut and its rendering in AppMenuList are KEPT (no node sets one now) — a designed extension point of the MR-D2 model, not dead weight"
       ],
       "verify": "owner checkpoint: typecheck+build+tests; look-and-feel matches the screenshot; «Выход» closes the app window in AppCore",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-15",
+      "finishedAt": "2026-07-15",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Owner 2026-07-15: «Выход работает» (the AppCore half of this step's verify is satisfied), plus two polish notes — drop Ctrl+P from the settings menu item because that combination is the print dialog, and make the menu icons smaller.",
+        "DONE (2026-07-15): both applied. vue-tsc 0, quasar build 0, 214/214 UI tests. GnauralCore commit d1beb0c. Owner to eyeball the icon size / spacing against the reference screenshot."
+      ]
     },
     {
       "id": "MR5.1",
