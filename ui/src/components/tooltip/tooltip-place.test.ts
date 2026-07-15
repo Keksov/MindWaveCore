@@ -4,6 +4,8 @@ import {
   CURSOR_CLEARANCE_PX,
   CURSOR_OFFSET_X_PX,
   EDGE_PAD_PX,
+  hasRoomAbove,
+  MIN_ROOM_ABOVE_PX,
   placeCursorTooltip,
   type PlaceCursorTooltipInput,
 } from './tooltip-place'
@@ -104,6 +106,38 @@ describe('placeCursorTooltip — corners', () => {
     const { left, top } = place({ x: 0, y })
     expect(top).toBe(y - H - CURSOR_CLEARANCE_PX)
     expect(left).toBe(CURSOR_OFFSET_X_PX)
+  })
+})
+
+describe('hasRoomAbove — element mode side choice', () => {
+  test('a header icon at the very top of the window has no room above', () => {
+    // The reported bug: MainLayout's status icons sit ~15px down, so QTooltip flipped them itself
+    // and pinned max-height -> scrollbar over one line of text.
+    expect(hasRoomAbove(15)).toBe(false)
+  })
+
+  test('a main-toolbar button well below the header keeps its tooltip above', () => {
+    // Must NOT catch the toolbars — the owner confirmed the transport tooltips read correctly above.
+    expect(hasRoomAbove(60)).toBe(true)
+    expect(hasRoomAbove(120)).toBe(true)
+  })
+
+  test('the boundary is inclusive', () => {
+    expect(hasRoomAbove(MIN_ROOM_ABOVE_PX)).toBe(true)
+    expect(hasRoomAbove(MIN_ROOM_ABOVE_PX - 1)).toBe(false)
+  })
+
+  test('an element flush against the top edge has no room', () => {
+    expect(hasRoomAbove(0)).toBe(false)
+  })
+
+  test('the threshold leaves room for QTooltip\'s 14px offset plus a two-line tooltip', () => {
+    expect(MIN_ROOM_ABOVE_PX).toBeGreaterThanOrEqual(CURSOR_OFFSET_X_PX + 32)
+  })
+
+  test('honours a custom minimum', () => {
+    expect(hasRoomAbove(30, 20)).toBe(true)
+    expect(hasRoomAbove(10, 20)).toBe(false)
   })
 })
 

@@ -13,8 +13,18 @@
 -->
 <template>
   <!-- Element mode. anchor/self come AFTER v-bind so a caller cannot quietly opt out of the rule:
-       if a placement genuinely needs to differ, it changes here, which is the point of one component. -->
-  <q-tooltip v-if="!isCursorMode" v-bind="$attrs" anchor="top middle" self="bottom middle">
+       if a placement genuinely needs to differ, it changes here, which is the point of one component.
+       We pick the side ourselves rather than letting QTooltip's engine discover the overflow — see
+       onBeforeShow(). -->
+  <q-tooltip
+    v-if="!isCursorMode"
+    ref="qtRef"
+    v-bind="$attrs"
+    :anchor="below ? 'bottom middle' : 'top middle'"
+    :self="below ? 'top middle' : 'bottom middle'"
+    :offset="below ? belowOffset : undefined"
+    @before-show="onBeforeShow"
+  >
     <slot />
   </q-tooltip>
 
@@ -38,7 +48,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 
-import { placeCursorTooltip } from './tooltip-place'
+import { CURSOR_CLEARANCE_PX, CURSOR_OFFSET_X_PX, hasRoomAbove, placeCursorTooltip } from './tooltip-place'
 
 interface CursorAnchor {
   x: number
@@ -59,6 +69,25 @@ defineOptions({ inheritAttrs: false })
 // still means cursor mode rather than silently falling back to an element tooltip with no anchor.
 const isCursorMode = computed(() => props.at !== undefined)
 
+// --- element mode ---------------------------------------------------------------------------
+// Elements too close to the top of the window cannot host a tooltip above them. We decide that
+// HERE, before showing, instead of letting QTooltip's position engine notice the overflow and flip
+// the box itself: its flip also pins max-height to the tooltip's rounded offsetHeight, which turns a
+// sub-pixel content height into a scrollbar over a single line of text (owner report 2026-07-15 —
+// the header status icons), and its flip uses a flat 14px gap that the arrow cursor still covers.
+// Choosing the side ourselves keeps props.top > 0, so the engine never applies boundaries at all.
+const qtRef = ref<{ $el?: Node } | null>(null)
+const below = ref(false)
+const belowOffset: [number, number] = [CURSOR_OFFSET_X_PX, CURSOR_CLEARANCE_PX]
+
+function onBeforeShow(): void {
+  // QTooltip anchors to its own parent node (use-anchor.js pickAnchorEl), so that is what to measure.
+  const anchorEl = qtRef.value?.$el?.parentNode
+  below.value =
+    anchorEl instanceof Element ? !hasRoomAbove(anchorEl.getBoundingClientRect().top) : false
+}
+
+// --- cursor mode ----------------------------------------------------------------------------
 const boxEl = ref<HTMLElement | null>(null)
 const boxStyle = ref<Record<string, string>>({ left: '0px', top: '0px', visibility: 'hidden' })
 

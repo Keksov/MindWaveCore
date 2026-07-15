@@ -40,6 +40,10 @@
       "text": "Family D (5 ECharts charts, BodyMonitorCore): OUT OF SCOPE ENTIRELY (req 4; LOCKED owner 2026-07-15). Owner: 'let ECharts keep its own mechanism, we don't touch it'. BOTH previously proposed options are rejected -- (a) tooltip.show:false + <app-tooltip>, and (b) the shared position callback onto tooltip-place.ts. The 5 BodyMonitorCore charts are not touched at all. Consequences to remember: (1) req 3 now carries a DOCUMENTED EXCEPTION -- 'all tooltips via the component' means families A/B/C; (2) ECharts tooltips may still land under the cursor (req 1 does not apply to them) -- this is a deliberate exception, not an unfinished job, recorded so a later session does not 'fix' it by mistake; (3) phase 3 is dropped and R7 is closed; (4) the TT-D9 guard MUST NOT flag ECharts."
     },
     {
+      "id": "TT-D10",
+      "text": "AppTooltip picks the side ITSELF in element mode; QTooltip's own flip is never relied on (owner feedback 2026-07-15 at TT1.3, R1 realised). Found via the owner's report that the MainLayout status-icon tooltip rendered with a scrollbar over one word. Cause, read out of Quasar's source: with anchor:'top'/self:'bottom' an element near the top of the window makes props.top < 0, so applyBoundaries (position-engine.js:303-343) fires and does TWO things -- it flips the box below (props.top = anchorProps.bottom) AND pins props.maxHeight to the tooltip's own ROUNDED offsetHeight. A fractional content height (10px tooltip font) then exceeds that integer box by a sub-pixel and .q-tooltip's `overflow-y: auto` draws a scrollbar. The flip alone was also a silent regression of req 1: it uses a flat 14px gap, which the ~20px arrow glyph still covers. Fix: onBeforeShow measures the anchor (QTooltip anchors to its own parentNode) and, when hasRoomAbove() is false, we set anchor:'bottom'/self:'top' with offset [14, CURSOR_CLEARANCE_PX] ourselves. props.top then stays > 0, so the engine never applies boundaries, never sets max-height and never scrolls -- and the fallback clears the cursor. One threshold (MIN_ROOM_ABOVE_PX = 48) in the pure module, unit-tested, deliberately tight so it catches the header but not the toolbars."
+    },
+    {
       "id": "TT-D9",
       "text": "Enforcement: a guard test instead of a lint rule (req 3, 'all subsequent tooltips'). There is NO ESLint in the project at all (no config, no script; MindWaveCore/ui has only dev/build/typecheck), so 'must use the component' cannot be expressed as a lint rule -- it needs its own guard: a bun test that scans the three repos' sources and fails on a raw <q-tooltip outside AppTooltip.vue, on title=\"/:title=\" on DOM elements, and on hand-rolled tooltip divs. An ALLOWLIST is mandatory or it false-positives (R8): AppTooltip.vue (the only legal q-tooltip), `title`-as-a-prop on PanelWindow (TrackListDialog.vue:10, FileOpenDialog.vue:8), and the 5 BodyMonitorCore ECharts charts (req 4 -- out of scope, must not be flagged). Without this step req 3 is documentation, not a rule."
     }
@@ -102,7 +106,7 @@
       "finishedAt": null,
       "blockedReason": null,
       "evidence": [
-        "AWAITING OWNER 2026-07-15. Что можно посмотреть прямо сейчас (element mode, 4 тултипа): шапка MainLayout — иконки статуса bun/exe (специально взяты как случай R1, у самой кромки окна); транспорт GnauralCore — кнопки старт/стоп и пауза/продолжить.",
+        "OWNER ANSWERED 2026-07-15. Q1 -> «Имя и API устраивают» (ACCEPTED: <app-tooltip>, режимы элемент/курсор, TT-D7/D8 locked). Q2 -> транспорт ОК (над кнопкой); иконка bun — БАГ: тултип со скроллом (R1 сработал) -> исправлено в TT1.4/TT-D10. Q3 (нативные title) — ответа пока нет. Владелец: «Остальное давай проверять по шагам» -> фазу 2 ведём пошагово с проверкой после каждого шага.",
         "Q1: имя и API компонента (<app-tooltip>, режимы элемент/курсор — TT-D7/D8) устраивают? Менять дешевле сейчас, чем после ~90 замен.",
         "Q2 (R1): тултипы шапки MainLayout — встают НАД иконкой или Quasar флипнул их обратно вниз (места сверху может не хватить)? Это единственное место, где правило может не удержаться.",
         "Q3 (TT-D5): переводить ли нативные title (~17) — стиль и задержка изменятся (ОС ~500ms -> 0ms). Показать вживую пока нечего: конвертация — это TT2.2.",
@@ -110,6 +114,28 @@
         "Инфо: cursor mode пока НЕ задействован ни одним вызовом — тултип узла GTrackView и readout спектрограммы (вероятная суть req 2) переезжают в TT2.3/TT2.4, каждый по одному файлу.",
         "Вопрос про ECharts снят — req 4 (не трогаем).",
         "Массовую миграцию (фаза 2) не начинаем до ответа — она трогает ~90 мест в 3 репозиториях"
+      ]
+    },
+    {
+      "id": "TT1.4",
+      "phase": 1,
+      "title": "Доработки по проверке TT1.3 (owner feedback #1): скролл в тултипе иконки шапки",
+      "status": "done",
+      "dependsOn": ["TT1.2"],
+      "artifacts": [
+        "MindWaveCore/ui/src/components/tooltip/tooltip-place.ts",
+        "MindWaveCore/ui/src/components/tooltip/tooltip-place.test.ts",
+        "MindWaveCore/ui/src/components/tooltip/AppTooltip.vue"
+      ],
+      "verify": "bun test (24/24); vue-tsc 0; quasar build ok; manual: тултип иконки bun БЕЗ скролла и не под курсором; транспорт по-прежнему над кнопкой",
+      "startedAt": "2026-07-15",
+      "finishedAt": "2026-07-15",
+      "blockedReason": null,
+      "evidence": [
+        "Owner feedback #1 (TT1.3): «Тултип иконки bun стала отображатся со скролом» + screenshot -- a vertical scrollbar next to the single word 'Bun'. Feedback #2: transport tooltips OK. R1 materialised, and worse than predicted: not just a flip back down, but a spurious scrollbar.",
+        "Root cause traced in Quasar source (not guessed): applyBoundaries pins props.maxHeight to the tooltip's ROUNDED offsetHeight when it nudges the box inside the viewport; fractional content height at the 10px tooltip font then overflows that integer box by a sub-pixel, and .q-tooltip's overflow-y:auto turns that into a scrollbar. The same flip also re-broke req 1 silently (flat 14px gap < the ~20px arrow glyph) -- the owner only saw the scrollbar, but both were wrong.",
+        "Fix (TT-D10): stop relying on QTooltip's flip. AppTooltip.onBeforeShow measures the anchor (its own parentNode) and, when hasRoomAbove() is false, sets anchor:'bottom'/self:'top' + offset [14,24] itself -> props.top > 0 -> boundaries never fire -> no max-height, no scrollbar, and the fallback clears the cursor.",
+        "hasRoomAbove + MIN_ROOM_ABOVE_PX=48 added to the pure module: 6 new tests pin the actual geometry -- header icon at 15px -> below; toolbar at 60/120px -> above (must not catch the toolbars the owner confirmed good); inclusive boundary; threshold >= offset + two lines. bun test 24/24, 33 expect(); vue-tsc 0; quasar build succeeded."
       ]
     },
     {

@@ -30,6 +30,34 @@ export const CURSOR_OFFSET_X_PX = 14
 /** Minimum gap kept between the tooltip and the edge of `bounds`. */
 export const EDGE_PAD_PX = 8
 
+/**
+ * Room an element needs above it before a tooltip may be anchored there (element mode).
+ *
+ * = QTooltip's 14px offset + a one-or-two-line tooltip (~24-36px at the 10px tooltip font). Elements
+ * closer to the top of the window than this get the below-with-clearance fallback chosen by US,
+ * rather than letting QTooltip's position engine discover the overflow and flip them itself.
+ *
+ * That distinction is the whole point, and it is not cosmetic. When applyBoundaries() nudges a
+ * tooltip back inside the viewport it also pins max-height to the tooltip's own ROUNDED
+ * offsetHeight; a fractional content height then overflows that integer box by a sub-pixel and
+ * .q-tooltip's `overflow-y: auto` renders a scrollbar on a single line of text (owner report,
+ * 2026-07-15: the header status icons). Choosing the side ourselves keeps props.top > 0, so the
+ * engine never applies boundaries, never sets max-height, and never scrolls — and the fallback still
+ * clears the cursor, which QTooltip's own flip (a flat 14px) does not.
+ *
+ * Deliberately tight: it must NOT catch the main toolbars, whose tooltips read correctly above.
+ */
+export const MIN_ROOM_ABOVE_PX = 48
+
+/**
+ * Can a tooltip be anchored above an element whose top edge is `anchorTopPx` from the viewport top?
+ * Anything else goes below with `CURSOR_CLEARANCE_PX` — which still satisfies the rule, since the
+ * cursor sits inside the element and the arrow glyph only ever grows down-right.
+ */
+export function hasRoomAbove(anchorTopPx: number, minRoom: number = MIN_ROOM_ABOVE_PX): boolean {
+  return anchorTopPx >= minRoom
+}
+
 /** The box the tooltip must stay inside — normally the viewport (innerWidth/innerHeight). */
 export interface TooltipBounds {
   width: number
