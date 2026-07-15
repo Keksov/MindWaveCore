@@ -33,7 +33,7 @@
     },
     {
       "id": "TT-D5",
-      "text": "Family C: native title=\"\" -> the component (req 3; NO LONGER optional). Previously 'proposed, droppable whole'; req 3 makes conversion MANDATORY -- a native tooltip's position cannot be controlled from code, so conversion is the only way to satisfy req 1 AND req 3 for these ~17. Side effect: style and delay change (OS ~500ms -> Quasar 0ms), a visible change, so show it to the owner at TT1.3. aria-label preserved. EXCLUDED: TrackListDialog.vue:10 and FileOpenDialog.vue:8, where `title` is a PanelWindow prop, not a DOM attribute."
+      "text": "Family C: convert ONLY the plain button hints -- group A, 11 of them (owner 2026-07-15: «Делаем только А»). The 17 native titles are NOT one kind, which only became visible once each call site was read: (A) 11 plain action hints on buttons -> converted; (B) 3 hints that explain WHY a control is DISABLED -> stay native, because a tooltip cannot show there at all: use-btn.js:163-165 puts the native `disabled` attribute on the button and browsers suppress mouse events on it, so QTooltip's anchor listeners never fire. LogArchivePage.vue:263 already works around this by hanging the title on a wrapper div -- the codebase had hit this before. (C) 3 overflow reveals on ellipsised text (ArchiveReplayView:5 session title, GnauralScheduleView:225 track title, AudioPage:25 file path) -> stay native, because a native title reveals the full value ONLY when the text is actually truncated, whereas a tooltip would show unconditionally -- a regression, not a fix. So req 3 gains two standing exceptions beyond ECharts; they are recorded in AGENTS.md so the rule does not read as a lie, and the TT-D9 guard must allowlist them. Also EXCLUDED as non-tooltips: TrackListDialog.vue:10 and FileOpenDialog.vue:8, where `title` is a PanelWindow prop rather than a DOM attribute. Conversion side effects handled per site: two sites (EegDiagnosticsPanel refresh, EegSignalStyleListPanel colour swatch) had NO aria-label -- their title WAS the icon-only control's accessible name -- so an explicit aria-label was added rather than silently dropping it."
     },
     {
       "id": "TT-D6",
@@ -45,7 +45,7 @@
     },
     {
       "id": "TT-D9",
-      "text": "Enforcement: a guard test instead of a lint rule (req 3, 'all subsequent tooltips'). There is NO ESLint in the project at all (no config, no script; MindWaveCore/ui has only dev/build/typecheck), so 'must use the component' cannot be expressed as a lint rule -- it needs its own guard: a bun test that scans the three repos' sources and fails on a raw <q-tooltip outside AppTooltip.vue, on title=\"/:title=\" on DOM elements, and on hand-rolled tooltip divs. An ALLOWLIST is mandatory or it false-positives (R8): AppTooltip.vue (the only legal q-tooltip), `title`-as-a-prop on PanelWindow (TrackListDialog.vue:10, FileOpenDialog.vue:8), and the 5 BodyMonitorCore ECharts charts (req 4 -- out of scope, must not be flagged). Without this step req 3 is documentation, not a rule."
+      "text": "Enforcement: a guard test instead of a lint rule (req 3, 'all subsequent tooltips'). There is NO ESLint in the project at all (no config, no script; MindWaveCore/ui has only dev/build/typecheck), so 'must use the component' cannot be expressed as a lint rule -- it needs its own guard: a bun test that scans the three repos' sources and fails on a raw <q-tooltip outside AppTooltip.vue, on title=\"/:title=\" on DOM elements, and on hand-rolled tooltip divs. An ALLOWLIST is mandatory or it false-positives (R8): AppTooltip.vue (the only legal q-tooltip), `title`-as-a-prop on PanelWindow (TrackListDialog.vue:10, FileOpenDialog.vue:8), the 5 BodyMonitorCore ECharts charts (req 4), and the two TT-D5 exceptions that MUST stay native -- disabled-control hints (ArchiveReplayView.vue:174,361; LogArchivePage.vue:263) and ellipsis overflow reveals (ArchiveReplayView.vue:5; GnauralScheduleView.vue:225; AudioPage.vue:25). Without this step req 3 is documentation, not a rule; without the allowlist the guard would push people to 'fix' decisions the owner made."
     }
   ],
   "steps": [
@@ -173,8 +173,8 @@
     {
       "id": "TT2.2",
       "phase": 2,
-      "title": "Семейство C: ~17 нативных title=\"\" -> app-tooltip (req 3)",
-      "status": "pending",
+      "title": "Семейство C: нативные title -> app-tooltip — ТОЛЬКО группа A (11 шт.); B и C остаются нативными (owner 2026-07-15)",
+      "status": "done",
       "dependsOn": ["TT1.3"],
       "artifacts": [
         "MindWaveCore/ui/components/ArchiveReplayView.vue",
@@ -187,10 +187,17 @@
         "BodyMonitorCore/ui/components/EegSignalStyleListPanel.vue"
       ],
       "verify": "vue-tsc + build; manual: подсказки над элементом в едином стиле, a11y (aria-label) не потеряна; title-как-проп PanelWindow не тронут",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-15",
+      "finishedAt": "2026-07-15",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Scope cut by the owner to group A only (11 of 17) after reading every call site showed the 17 were three different things, not one -- see TT-D5. Commits: 7f7bf73 (host 4), 6d1bbfa (bodymonitor 6), 9d5890c (gnaural 1, alongside the TT2.1 tail).",
+        "Two sites were not the mechanical swap they looked like: EegDiagnosticsPanel's refresh button and EegSignalStyleListPanel's colour swatch (a native <button>) had NO aria-label, so the title was the icon-only control's ONLY accessible name. Both got an explicit aria-label rather than silently losing it. The other 9 already paired title with aria-label.",
+        "DeviceList's collapse button is :disable-gated, so its tooltip will not show while disabled (native title would have). Converted deliberately: the hint names the action rather than explaining the block, so nothing is lost when the action is unavailable. The hints that DO explain a block are group B and stayed native.",
+        "Accounting verified by grep: 8 title= hits remain across the three repos = 3 group B + 3 group C + 2 PanelWindow title-as-prop (not tooltips). All 11 group-A ones are gone.",
+        "vue-tsc --noEmit: 0 errors. quasar build: succeeded.",
+        "AGENTS.md updated in the same breath: the rule now spells out the three standing exceptions (ECharts, disabled-control hints, ellipsis reveals) plus the aria-label caveat. Without that the rule would read as a lie against the tree and a later session would 'fix' the owner's decisions."
+      ]
     },
     {
       "id": "TT2.3",
