@@ -49,7 +49,7 @@
       "id": "TT1.1",
       "phase": 1,
       "title": "Модуль tooltip-place.ts: placeCursorTooltip + CURSOR_CLEARANCE_PX + bun-тесты",
-      "status": "pending",
+      "status": "done",
       "dependsOn": [],
       "artifacts": [
         "MindWaveCore/ui/src/components/tooltip/tooltip-place.ts",
@@ -69,7 +69,7 @@
       "id": "TT1.2",
       "phase": 1,
       "title": "AppTooltip.vue + алиас @tooltip (quasar.config + tsconfig) + 2-3 показательных места (req 3)",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["TT1.1"],
       "artifacts": [
         "MindWaveCore/ui/src/components/tooltip/AppTooltip.vue",
