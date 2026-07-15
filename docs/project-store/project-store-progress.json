@@ -1,0 +1,394 @@
+{
+  "schemaVersion": 1,
+  "plan": "project-store",
+  "planDoc": "docs/project-store/project-store-plan.md",
+  "title": "Project entity: per-file editor data (curve colours, waves, undo journal) in a per-project folder (.scp.json) -- service class + API first",
+  "status": "in-progress",
+  "createdAt": "2026-07-15",
+  "updatedAt": "2026-07-15",
+  "decisions": [
+    {
+      "id": "PR-D1",
+      "text": "Core is a server-side service ProjectStore in MindWaveCore/server/project-store.ts (host-level infrastructure, not Gnaural-specific), following the GnauralEditorStore archetype: interface + Impl + createProjectStore factory, ProjectStoreError extends Error {status} + mapProjectStoreError, singleton wired in server.ts next to archiveStore/gnauralEditorStore. UI client lives with its consumers: GnauralCore/ui/project-api.ts + composables/use-project.ts, modelled on audio-api.ts."
+    },
+    {
+      "id": "PR-D2",
+      "text": "Project identity: normalized absolute source path -> deterministic folder name <slug>-<hash8>. slug = sanitized basename without extension (Windows-forbidden chars -> _, ~40 chars cap); hash8 = first 8 hex of sha1(resolve(path).toLowerCase()) -- same normalization as withFileLock. project.scp.json stores source.path + fingerprint (size, mtime) for status checks and re-link. No global index: listing = scan of projects/*/project.scp.json."
+    },
+    {
+      "id": "PR-D3",
+      "text": "Project folder layout: <userDataRoot>/projects/<slug>-<hash8>/ containing project.scp.json (the main file, text, pretty JSON, req 4), undo.json (text, separate file because it is large and written often), cache/ (the ONLY place where binary files are allowed; reqs 5-6). Main file name is fixed; human readability is carried by the folder name and source.path, which survives source renames."
+    },
+    {
+      "id": "PR-D4",
+      "text": "project.scp.json schema: { schemaVersion: 1, kind: 'SoundCoreProject', source, createdAt, updatedAt, sections: { <name>: opaque JSON } }. The core does not know section contents -- each section is owned by its subsystem (req 2); unknown sections are preserved on rewrite (forward compatibility). Writes are atomic (tmp+rename); reads are tolerant: a corrupt file is renamed to project.scp.json.broken-<ts>, store restarts empty, incident is logged -- never silently lost."
+    },
+    {
+      "id": "PR-D5",
+      "text": "API-first (req 7). Phase 1 delivers the full core interface: openProject (find-or-create + folder provisioning), getProject, listProjects (scan + source status ok|moved|missing), getSection/putSection (atomic, coalesced), getUndoJournal/putUndoJournal (limits), cacheFilePath/readCacheFile/writeCacheFile/clearCache (bin allowed), deleteProject, relinkProject, exportProject/importProject. On top: REST /api/projects* with the {error} envelope, Project* types in SharedPasCore/ts/protocol.ts, UI client project-api.ts, composable use-project.ts (reactive sections: debounce, flush on file switch). Server subsystems call ProjectStore directly (DI of the singleton)."
+    },
+    {
+      "id": "PR-D6",
+      "text": "User data folder: key user_data_root in the SQLite app_settings table, default <serverDir>/var/userdata (inside the already-gitignored var/); projects under <root>/projects/. Editable in editor settings (req 3), validated like presetsRoot (directory must exist); changing the folder migrates projects (PR3.2). Q1 for the owner: default var/userdata or Documents\\MindWave?"
+    },
+    {
+      "id": "PR-D7",
+      "text": "Write discipline: client debounces ~500ms per section + immediate flush on file switch/unload; server keeps a per-project sequential write queue (withFileLock analogue). No cross-tab conflict detection: last-write-wins per section (sections are small and independent -- risk R2, accepted)."
+    },
+    {
+      "id": "PR-D8",
+      "text": "Undo journal (req 1): GTrackSchedule snapshots are already JSON-serializable (signature() = JSON.stringify), so the journal persists to undo.json with limits (~50 entries and/or ~5 MB), deferred writes (on activity pause), restore on file open. The core ships only the get/put transport (PR1.3); GTrackModel integration is PR2.2."
+    },
+    {
+      "id": "PR-D9",
+      "text": "Project cache (reqs 5-6): new per-file caches go to the project's cache/ folder, binary allowed, invalidation by source fingerprint (size+mtime, as in the existing manifest keys). First real consumer: waveform peaks cache (PR6.1; today peaks are recomputed on every open). The existing central WAV render cache moves in a dedicated step PR6.2 AFTER the core, to keep req 7 the priority; ordering to be confirmed (Q4)."
+    },
+    {
+      "id": "PR-D10",
+      "text": "Import/export without zip dependencies (none exist in the workspace): export = a single text bundle <slug>.scpexport.json (schemaVersion + project.scp.json + undo.json; cache/ excluded by default, base64 when includeCache). One portable file, stays text (req 5). Import: schema validation, conflict with an existing project -> 409 + explicit choice, re-link to the local source path. Q3: this bundle vs zip."
+    },
+    {
+      "id": "PR-D11",
+      "text": "Migration of existing per-file localStorage keys (mindwave-gtrack-lanes, mindwave-gtrack-lane-spectrum, mindwave-gtrack-mix-excluded) into project sections, one-time on first open of the file; the localStorage copy is NOT deleted in this plan (transition safety net, risk R5). Data living inside .gnaural itself (voice colour/hidden/muted) is NOT duplicated by the project; moving it out is Q2 (recommendation: keep as is for now -- today changing a colour rewrites the source file, and changing that is a separate owner decision)."
+    },
+    {
+      "id": "PR-D12",
+      "text": "Tests and verification: project-store.test.ts co-located, bun:test, mkdtemp fixture (modelled on audio-cache-manifest.test.ts). There is no CI -- each step's verify is run by hand (plan section 6); prefer driving the real app over a green typecheck."
+    }
+  ],
+  "steps": [
+    {
+      "id": "PR0.1",
+      "phase": 0,
+      "title": "План + леджер",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [
+        "MindWaveCore/docs/project-store/project-store-plan.md",
+        "MindWaveCore/docs/project-store/project-store-progress.json"
+      ],
+      "verify": "ledger JSON parses; dependsOn DAG acyclic; plan + ledger committed",
+      "startedAt": "2026-07-15",
+      "finishedAt": "2026-07-15",
+      "blockedReason": null,
+      "evidence": [
+        "Plan written from a three-way codebase survey: docs/ledger conventions (9 existing feature pairs), per-file data inventory (GnauralCore/ui + MindWaveCore/ui), server architecture (service archetype GnauralEditorStore, app_settings, protocol.ts, cache manifest).",
+        "Requirements 1-7 numbered from the owner's verbatim request of 2026-07-15; decisions PR-D1..D12; 5 owner questions queued at the PR0.2 PAUSE."
+      ]
+    },
+    {
+      "id": "PR0.2",
+      "phase": 0,
+      "title": "PAUSE: owner утверждает PR-D1..D12 и отвечает на Q1-Q5",
+      "status": "pending",
+      "dependsOn": ["PR0.1"],
+      "artifacts": [],
+      "verify": "owner answers recorded in the plan (decision annotations) and in this ledger; contested decisions revised before Phase 1",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PR1.1",
+      "phase": 1,
+      "title": "Идентичность и раскладка: slug+hash8, resolve папки, ProjectStoreError",
+      "status": "pending",
+      "dependsOn": ["PR0.2"],
+      "artifacts": [
+        "MindWaveCore/server/project-store.ts",
+        "MindWaveCore/server/project-store.test.ts"
+      ],
+      "verify": "bun test project-store (Windows paths, case-insensitivity, cyrillic/forbidden chars, long names)",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PR1.2",
+      "phase": 1,
+      "title": "Хранилище project.scp.json: атомарная запись, толерантное чтение, unknown sections, очередь записи",
+      "status": "pending",
+      "dependsOn": ["PR1.1"],
+      "artifacts": [
+        "MindWaveCore/server/project-store.ts",
+        "MindWaveCore/server/project-store.test.ts"
+      ],
+      "verify": "bun test project-store (tmp+rename; corrupt file -> .broken-<ts> + empty restart; unknown sections survive rewrite; concurrent puts serialized)",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PR1.3",
+      "phase": 1,
+      "title": "Полный API ядра: open/list/get, секции, undo-транспорт, cache-API, delete, relink",
+      "status": "pending",
+      "dependsOn": ["PR1.2"],
+      "artifacts": [
+        "MindWaveCore/server/project-store.ts",
+        "MindWaveCore/server/project-store.test.ts"
+      ],
+      "verify": "bun test project-store (find-or-create; section round-trip; undo limits; bin only under cache/; delete; relink updates source + folder stays)",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PR1.4",
+      "phase": 1,
+      "title": "Протокол + REST /api/projects* + wiring синглтона + user_data_root",
+      "status": "pending",
+      "dependsOn": ["PR1.3"],
+      "artifacts": [
+        "SharedPasCore/ts/protocol.ts",
+        "MindWaveCore/server/server.ts"
+      ],
+      "verify": "bun test + bun run typecheck (MindWaveCore/server); NB: server.ts contains a NUL byte -- edit via Read, never search it with Grep",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PR1.5",
+      "phase": 1,
+      "title": "UI-клиент project-api.ts + composable use-project.ts + openProject из потока выбора файла",
+      "status": "pending",
+      "dependsOn": ["PR1.4"],
+      "artifacts": [
+        "GnauralCore/ui/project-api.ts",
+        "GnauralCore/ui/composables/use-project.ts",
+        "GnauralCore/ui/stores/audio.ts"
+      ],
+      "verify": "bun run typecheck + bun run build (MindWaveCore/ui); bun test ui server (GnauralCore); manual: opening a .gnaural creates the project folder with project.scp.json",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PR1.6",
+      "phase": 1,
+      "title": "PAUSE: owner смотрит ядро (папка, scp.json, интерфейс) до интеграций",
+      "status": "pending",
+      "dependsOn": ["PR1.5"],
+      "artifacts": [],
+      "verify": "owner approves naming/layout/sections; Phase 2+ does not start before the answer",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PR2.1",
+      "phase": 2,
+      "title": "Лейны в проект: gtrackLanes/laneSpectrum/mixExcluded + одноразовая миграция из localStorage",
+      "status": "pending",
+      "dependsOn": ["PR1.6"],
+      "artifacts": [
+        "GnauralCore/ui/composables/use-gtrack-lanes.ts"
+      ],
+      "verify": "bun test ui server (GnauralCore); manual: lane order/solo/heights survive an app restart; old localStorage values migrated once",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PR2.2",
+      "phase": 2,
+      "title": "Undo-журнал в undo.json: персист снапшотов GTrackModel, лимиты, восстановление",
+      "status": "pending",
+      "dependsOn": ["PR1.6"],
+      "artifacts": [
+        "GnauralCore/ui/composables/gtrack-model.ts",
+        "GnauralCore/ui/composables/use-gtrack-lanes.ts"
+      ],
+      "verify": "bun test ui server (GnauralCore); manual: undo history survives an app restart; journal size stays within limits",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PR2.3",
+      "phase": 2,
+      "title": "Per-file view: зум/вьюпорт спектрограммы (+ по Q5 канальные цвета/масштаб волновой формы)",
+      "status": "pending",
+      "dependsOn": ["PR1.6"],
+      "artifacts": [
+        "GnauralCore/ui/composables/spectrogram-viewport.ts",
+        "GnauralCore/ui/pages/AudioPage.vue"
+      ],
+      "verify": "bun run typecheck + bun run build (MindWaveCore/ui); manual: zoom/viewport restored per file after restart; selection intentionally not persisted",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PR2.4",
+      "phase": 2,
+      "title": "PAUSE: owner проверяет, что редактор всё вспоминает после перезапуска",
+      "status": "pending",
+      "dependsOn": ["PR2.1", "PR2.2", "PR2.3"],
+      "artifacts": [],
+      "verify": "owner confirms: lanes, undo, zoom restored for a real file",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PR3.1",
+      "phase": 3,
+      "title": "Настройка user_data_root: GET/PATCH /api/project-settings + поле в настройках редактора",
+      "status": "pending",
+      "dependsOn": ["PR1.6"],
+      "artifacts": [
+        "MindWaveCore/server/log-db.ts",
+        "MindWaveCore/server/server.ts",
+        "SharedPasCore/ts/protocol.ts"
+      ],
+      "verify": "bun test (server); manual: setting visible in editor settings, rejects a non-existing directory",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PR3.2",
+      "phase": 3,
+      "title": "Смена папки данных с переносом проектов (copy, отчёт, без авто-удаления старой)",
+      "status": "pending",
+      "dependsOn": ["PR3.1"],
+      "artifacts": [
+        "MindWaveCore/server/project-store.ts"
+      ],
+      "verify": "manual scenario: change the folder -> projects copied, editor keeps working against the new root; old folder left intact",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PR4.1",
+      "phase": 4,
+      "title": "Список проектов + статус источника (ok/moved/missing) + re-link",
+      "status": "pending",
+      "dependsOn": ["PR1.6"],
+      "artifacts": [
+        "MindWaveCore/server/project-store.ts",
+        "SharedPasCore/ts/protocol.ts"
+      ],
+      "verify": "bun test project-store; manual: rename the source file -> status moved -> re-link restores the connection",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PR4.2",
+      "phase": 4,
+      "title": "Удаление проекта, очистка кеша, ручной GC осиротевших",
+      "status": "pending",
+      "dependsOn": ["PR4.1"],
+      "artifacts": [
+        "MindWaveCore/server/project-store.ts"
+      ],
+      "verify": "bun test project-store; manual: delete removes the folder; clearCache empties only cache/",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PR4.3",
+      "phase": 4,
+      "title": "UI «Проекты»: список, статус, удалить/очистить кеш/re-link/открыть папку",
+      "status": "pending",
+      "dependsOn": ["PR4.1", "PR4.2"],
+      "artifacts": [
+        "GnauralCore/ui/settings/GnauralSettingsTab.vue"
+      ],
+      "verify": "bun run typecheck + bun run build (MindWaveCore/ui); manual walk-through of every action",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PR5.1",
+      "phase": 5,
+      "title": "Экспорт проекта: текстовый бандл .scpexport.json (cache по умолчанию исключён)",
+      "status": "pending",
+      "dependsOn": ["PR1.6"],
+      "artifacts": [
+        "MindWaveCore/server/project-store.ts",
+        "SharedPasCore/ts/protocol.ts"
+      ],
+      "verify": "bun test project-store; manual: exported bundle is valid JSON and readable",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PR5.2",
+      "phase": 5,
+      "title": "Импорт проекта: валидация, конфликты -> 409 + выбор, re-link на локальный источник",
+      "status": "pending",
+      "dependsOn": ["PR5.1"],
+      "artifacts": [
+        "MindWaveCore/server/project-store.ts"
+      ],
+      "verify": "bun test project-store; manual: export on one path -> import on another -> settings restored",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PR6.1",
+      "phase": 6,
+      "title": "Кеш пиков волновой формы в cache/ проекта (первый bin-потребитель)",
+      "status": "pending",
+      "dependsOn": ["PR1.6"],
+      "artifacts": [
+        "GnauralCore/ui/composables/audio-model.ts",
+        "MindWaveCore/server/project-store.ts"
+      ],
+      "verify": "bun test; manual: reopening a large file is visibly faster; cache invalidated after the source changes",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PR6.2",
+      "phase": 6,
+      "title": "Центральный рендер-кеш → cache/ проектов (по ответу владельца на Q4)",
+      "status": "pending",
+      "dependsOn": ["PR0.2", "PR1.6"],
+      "artifacts": [
+        "MindWaveCore/server/audio-cache-manifest.ts",
+        "GnauralCore/ui/settings/GnauralSettingsTab.vue"
+      ],
+      "verify": "bun test; manual: render/conversion still work, cached files land in the project folder; scope depends on the Q4 answer",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    }
+  ],
+  "log": [
+    {
+      "at": "2026-07-15",
+      "text": "Plan + ledger created for the Project entity (owner req. 2026-07-15): per-file editor data -- curve colours, waves, undo journal -- moves into a per-project folder under a configurable user-data root; main file project.scp.json, everything text except bin under cache/; cache data lives in the project folder too. Survey found today's state scattered: voice colours are written INTO the .gnaural, lanes/solo live in per-file localStorage keys, undo and zoom are memory-only and lost on reload, caches are central under server/tmp. Full function set planned (open/sections/undo/cache/list/relink/delete/import/export/settings), with the service class + API first (PR-D5, Phase 1). Decisions PR-D1..D12 proposed; five owner questions (default data folder, fate of in-file voice colours, export format, render-cache move, per-file waveform colours) queued at the PR0.2 PAUSE."
+    }
+  ]
+}
