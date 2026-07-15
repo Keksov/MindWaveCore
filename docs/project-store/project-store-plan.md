@@ -215,7 +215,7 @@ in-memory кеша расписаний (`GnauralCore/ui/stores/audio.ts:133`), 
 - [x] **PR1.1 — Идентичность и раскладка (PR-D2/D3).** `MindWaveCore/server/project-store.ts`:
   нормализация пути, slug+hash8, resolve папки проекта, `ProjectStoreError`; тесты (Windows-пути,
   регистр, кириллица/запрещённые символы, длинные имена). Verify: `bun test project-store`.
-- [ ] **PR1.2 — Хранилище scp.json (PR-D4/D7).** Атомарные load/save `project.scp.json`
+- [x] **PR1.2 — Хранилище scp.json (PR-D4/D7).** Атомарные load/save `project.scp.json`
   (tmp+rename), толерантное чтение + `.broken-<ts>`, сохранение неизвестных секций, per-project
   очередь записи; тесты. Verify: `bun test project-store`.
 - [ ] **PR1.3 — Полный API ядра (PR-D5/D8).** `openProject`/`listProjects`/`getProject`,

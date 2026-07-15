@@ -125,17 +125,22 @@
       "id": "PR1.2",
       "phase": 1,
       "title": "Хранилище project.scp.json: атомарная запись, толерантное чтение, unknown sections, очередь записи",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["PR1.1"],
       "artifacts": [
         "MindWaveCore/server/project-store.ts",
         "MindWaveCore/server/project-store.test.ts"
       ],
       "verify": "bun test project-store (tmp+rename; corrupt file -> .broken-<ts> + empty restart; unknown sections survive rewrite; concurrent puts serialized)",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-15",
+      "finishedAt": "2026-07-15",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "ProjectFileData { schemaVersion: 1, kind: 'SoundCoreProject', source fingerprint, createdAt/updatedAt, sections } with an index signature so unknown top-level fields AND unknown sections written by a future version survive a rewrite (tested: hand-crafted file with futureTopLevel + fromFutureSubsystem section round-trips intact).",
+        "writeProjectFile: mkdir -p, pretty JSON + trailing newline into .project.scp.json.tmp-<uuid>, rename over, temp cleaned in finally (tested: no .tmp- leftovers). readProjectFile: missing -> null with no side effects; corrupt JSON or foreign shape (e.g. schemaVersion 99) -> renamed to project.scp.json.broken-<ts> with original bytes preserved + console.error, then null.",
+        "SerialQueues: withFileLock pattern generalized by key -- same key strictly sequential, different keys interleave, a rejected action does not poison the queue (all three asserted in one test with explicit gates).",
+        "bun test project-store: 13 pass / 33 expect."
+      ]
     },
     {
       "id": "PR1.3",
