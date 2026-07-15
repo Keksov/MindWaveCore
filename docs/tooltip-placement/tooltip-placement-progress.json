@@ -142,8 +142,8 @@
     {
       "id": "TT2.1",
       "phase": 2,
-      "title": "Семейство A: 71 q-tooltip -> app-tooltip (17 файлов, 3 репо)",
-      "status": "pending",
+      "title": "Семейство A: 64 q-tooltip -> app-tooltip (15 файлов, 3 репо)",
+      "status": "done",
       "dependsOn": ["TT1.3"],
       "artifacts": [
         "MindWaveCore/ui/layouts/MainLayout.vue",
@@ -165,10 +165,16 @@
         "BodyMonitorCore/ui/components/EegConnectionStatusBadge.vue"
       ],
       "verify": "vue-tsc + build; manual: обход по вкладкам — тултипы над элементами, ничего не обрезано. Коммиты по репозиториям раздельно",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-15",
+      "finishedAt": "2026-07-15",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "64 swaps across 15 files (the 2 q-tooltips inside AppTooltip.vue are the only legal ones and were skipped). Commits: 341e8f3 (gnaural 54), a4c772d (bodymonitor 5), ac3124e (host 2), 9d5890c (gnaural tail: GTrackView 7 + SpectrogramView 3). Verified afterwards: 0 raw <q-tooltip> anywhere outside AppTooltip.vue, open/close tags balanced in every file, no duplicate imports.",
+        "Scripted safely only because a survey first proved every usage was one shape: 62 plain <q-tooltip> + 3 with v-if, no self-closing and no multi-line opening tags. The 3 v-if-gated ones keep their gating -- v-if passes through the wrapper untouched.",
+        "MY BUG, caught by vue-tsc not by me: the import-insertion anchored on /^import\\s/, which also matches the OPENING line of a multi-line `import {` block, so the new import landed INSIDE the braces in WaveformView.vue and TrackStatusBar.vue. Fixed, and then ALL 17 insertion points were audited rather than just the two that failed. The later TT2.2 insertions anchored on import-TERMINATING lines instead.",
+        "GTrackView.vue + SpectrogramView.vue were deliberately held back from 341e8f3: their diffs were mixed with the owner's in-flight yZoom -> unit-window refactor, which is not mine to commit. Held until the owner landed it (5d5c13c), then committed the tag swaps alone (9d5890c) after re-checking the diffs were tooltip-only.",
+        "vue-tsc --noEmit: 0 errors. quasar build: succeeded. GnauralCore bun test ui: 212/212. The 4 failures in MindWaveCore/server/fs-browser-server.test.ts are NOT from this work -- verified by running them on the commit before any tooltip change (same 4 fail); cause is environmental, HTTP_PROXY=http://127.0.0.1:2080 breaking Bun's fetch to localhost."
+      ]
     },
     {
       "id": "TT2.2",
