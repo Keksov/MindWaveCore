@@ -17,7 +17,7 @@
     },
     {
       "id": "PR-D3",
-      "text": "Project folder layout: <userDataRoot>/projects/<slug>-<hash8>/ containing project.scp.json (the main file, text, pretty JSON, req 4), undo.json (text, separate file because it is large and written often), cache/ (the ONLY place where binary files are allowed; reqs 5-6). Main file name is fixed; human readability is carried by the folder name and source.path, which survives source renames."
+      "text": "REVISED owner 2026-07-15 (req 11): Project folder layout: <userDataRoot>/projects/<slug>-<hash8>/ containing project.scp.json (the main file, text, pretty JSON, req 4) and undo.json (text, separate file because it is large and written often). NO cache/ subfolder -- caches stay central (Q4), so the project folder is text-only and req 5 holds trivially. Main file name is fixed; human readability is carried by the folder name and source.path, which survives source renames."
     },
     {
       "id": "PR-D4",
@@ -25,11 +25,11 @@
     },
     {
       "id": "PR-D5",
-      "text": "API-first (req 7). Phase 1 delivers the full core interface: openProject (find-or-create + folder provisioning), getProject, listProjects (scan + source status ok|moved|missing), getSection/putSection (atomic, coalesced), getUndoJournal/putUndoJournal (limits), cacheFilePath/readCacheFile/writeCacheFile/clearCache (bin allowed), deleteProject, relinkProject, exportProject/importProject. On top: REST /api/projects* with the {error} envelope, Project* types in SharedPasCore/ts/protocol.ts, UI client project-api.ts, composable use-project.ts (reactive sections: debounce, flush on file switch). Server subsystems call ProjectStore directly (DI of the singleton)."
+      "text": "API-first (req 7). Phase 1 delivers the full core interface: openProject (find-or-create + folder provisioning; falls back to a source.path scan when the hash dir does not match, e.g. after relink), getProject, listProjects (scan + source status), getSection/putSection (atomic, coalesced), getUndoJournal/putUndoJournal (limits), deleteProject, relinkProject; exportProject/importProject arrive in Phase 5. No cache API (PR-D9 revised). On top: REST /api/projects* with the {error} envelope, Project* types in SharedPasCore/ts/protocol.ts, UI client project-api.ts, composable use-project.ts (reactive sections: debounce, flush on file switch). Server subsystems call ProjectStore directly (DI of the singleton)."
     },
     {
       "id": "PR-D6",
-      "text": "User data folder: key user_data_root in the SQLite app_settings table, default <serverDir>/var/userdata (inside the already-gitignored var/); projects under <root>/projects/. Editable in editor settings (req 3), validated like presetsRoot (directory must exist); changing the folder migrates projects (PR3.2). Q1 for the owner: default var/userdata or Documents\\MindWave?"
+      "text": "LOCKED owner 2026-07-15 (req 8): User data folder: key user_data_root in the SQLite app_settings table, default on Windows %LOCALAPPDATA%\\KKSoundCore (fallback without LOCALAPPDATA: ~/.kksoundcore for non-Windows dev); projects under <root>/projects/. Editable in editor settings (req 3), validated like presetsRoot (directory must exist); changing the folder migrates projects (PR3.2)."
     },
     {
       "id": "PR-D7",
@@ -41,19 +41,23 @@
     },
     {
       "id": "PR-D9",
-      "text": "Project cache (reqs 5-6): new per-file caches go to the project's cache/ folder, binary allowed, invalidation by source fingerprint (size+mtime, as in the existing manifest keys). First real consumer: waveform peaks cache (PR6.1; today peaks are recomputed on every open). The existing central WAV render cache moves in a dedicated step PR6.2 AFTER the core, to keep req 7 the priority; ordering to be confirmed (Q4)."
+      "text": "REVISED owner 2026-07-15 (Q4/req 11): caches stay CENTRAL (tmp/ + manifest) -- otherwise the UI may not know about them when projects live in arbitrary places. The Project entity has NO cache API and no cache/ folder; per-file caches keep using the central manifest keyed by source fingerprint (sha1(path+size+mtime+kind)). Waveform peaks cache (PR6.1) also goes to the central cache; PR6.2 (moving the render cache into projects) is DROPPED."
     },
     {
       "id": "PR-D10",
-      "text": "Import/export without zip dependencies (none exist in the workspace): export = a single text bundle <slug>.scpexport.json (schemaVersion + project.scp.json + undo.json; cache/ excluded by default, base64 when includeCache). One portable file, stays text (req 5). Import: schema validation, conflict with an existing project -> 409 + explicit choice, re-link to the local source path. Q3: this bundle vs zip."
+      "text": "LOCKED owner 2026-07-15 (Q3/req 10): Import/export without zip dependencies (none exist in the workspace): export = a single text bundle <slug>.scpexport.json (schemaVersion + project.scp.json + undo.json). One portable file, stays text (req 5); caches are central and not exported. Import: schema validation, conflict with an existing project -> 409 + explicit choice, re-link to the local source path."
     },
     {
       "id": "PR-D11",
-      "text": "Migration of existing per-file localStorage keys (mindwave-gtrack-lanes, mindwave-gtrack-lane-spectrum, mindwave-gtrack-mix-excluded) into project sections, one-time on first open of the file; the localStorage copy is NOT deleted in this plan (transition safety net, risk R5). Data living inside .gnaural itself (voice colour/hidden/muted) is NOT duplicated by the project; moving it out is Q2 (recommendation: keep as is for now -- today changing a colour rewrites the source file, and changing that is a separate owner decision)."
+      "text": "REVISED owner 2026-07-15 (Q2/req 9): Migration of existing per-file localStorage keys (mindwave-gtrack-lanes, mindwave-gtrack-lane-spectrum, mindwave-gtrack-mix-excluded) into project sections, one-time on first open; the localStorage copy is NOT deleted in this plan (transition safety net, risk R5). Voice colour/hidden/muted MOVE OUT of the .gnaural file into the voiceState section (step PR2.4): values imported from the file once on first open, after which the editor stops writing them to the file (the voice-state endpoint is deprecated); mute/solo reach playback and render via the XML transform mechanism of gnaural-solo-render.ts. Stale attributes in existing .gnaural files are not scrubbed -- the project is the source of truth after migration (risk R9)."
     },
     {
       "id": "PR-D12",
       "text": "Tests and verification: project-store.test.ts co-located, bun:test, mkdtemp fixture (modelled on audio-cache-manifest.test.ts). There is no CI -- each step's verify is run by hand (plan section 6); prefer driving the real app over a green typecheck."
+    },
+    {
+      "id": "PR-D13",
+      "text": "Owner 2026-07-15 (Q5/req 12): editor defaults + project overrides pattern. The editor keeps global default settings; a project stores only its own values in its section and restores them on open; an absent section/key means the editor default applies. First consumer: waveform settings (section waveform, PR2.3); the pattern is mandatory for future per-file settings (req 2)."
     }
   ],
   "steps": [
@@ -79,15 +83,22 @@
     {
       "id": "PR0.2",
       "phase": 0,
-      "title": "PAUSE: owner утверждает PR-D1..D12 и отвечает на Q1-Q5",
-      "status": "pending",
+      "title": "PAUSE: owner утвердил план и ответил на Q1-Q5 (2026-07-15)",
+      "status": "done",
       "dependsOn": ["PR0.1"],
       "artifacts": [],
       "verify": "owner answers recorded in the plan (decision annotations) and in this ledger; contested decisions revised before Phase 1",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-15",
+      "finishedAt": "2026-07-15",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Q1: userDataRoot on Windows = %LOCALAPPDATA%\\KKSoundCore (PR-D6 locked).",
+        "Q2: move EVERYTHING out of the .gnaural file -- voice colour/hidden/muted go to the voiceState project section (PR-D11 revised, new step PR2.4).",
+        "Q3: text export bundle approved (PR-D10 locked).",
+        "Q4: caches stay central so the UI can always enumerate them; no cache in the project folder (PR-D9 revised; PR6.2 dropped; cache API removed from PR1.3).",
+        "Q5: waveform settings become project property: editor keeps defaults, each project restores its own on open (new PR-D13; PR2.3 reworded).",
+        "Answers folded into the plan as reqs 8-12."
+      ]
     },
     {
       "id": "PR1.1",
@@ -124,14 +135,14 @@
     {
       "id": "PR1.3",
       "phase": 1,
-      "title": "Полный API ядра: open/list/get, секции, undo-транспорт, cache-API, delete, relink",
+      "title": "Полный API ядра: open/list/get, секции, undo-транспорт, delete, relink",
       "status": "pending",
       "dependsOn": ["PR1.2"],
       "artifacts": [
         "MindWaveCore/server/project-store.ts",
         "MindWaveCore/server/project-store.test.ts"
       ],
-      "verify": "bun test project-store (find-or-create; section round-trip; undo limits; bin only under cache/; delete; relink updates source + folder stays)",
+      "verify": "bun test project-store (find-or-create; source.path scan fallback when the hash dir does not match; section round-trip; undo limits; delete guarded to projects/; relink updates source + folder stays)",
       "startedAt": null,
       "finishedAt": null,
       "blockedReason": null,
@@ -217,14 +228,14 @@
     {
       "id": "PR2.3",
       "phase": 2,
-      "title": "Per-file view: зум/вьюпорт спектрограммы (+ по Q5 канальные цвета/масштаб волновой формы)",
+      "title": "Per-file view: зум/вьюпорт + секция waveform (переопределения поверх дефолтов редактора, PR-D13)",
       "status": "pending",
       "dependsOn": ["PR1.6"],
       "artifacts": [
         "GnauralCore/ui/composables/spectrogram-viewport.ts",
         "GnauralCore/ui/pages/AudioPage.vue"
       ],
-      "verify": "bun run typecheck + bun run build (MindWaveCore/ui); manual: zoom/viewport restored per file after restart; selection intentionally not persisted",
+      "verify": "bun run typecheck + bun run build (MindWaveCore/ui); manual: zoom/viewport and waveform overrides restored per file after restart, editor defaults apply where the project has no value; selection intentionally not persisted",
       "startedAt": null,
       "finishedAt": null,
       "blockedReason": null,
@@ -233,11 +244,29 @@
     {
       "id": "PR2.4",
       "phase": 2,
+      "title": "Voice-state (цвет/hidden/muted) из .gnaural в секцию voiceState; файл больше не мутируем",
+      "status": "pending",
+      "dependsOn": ["PR1.6"],
+      "artifacts": [
+        "GnauralCore/ui/audio-api.ts",
+        "GnauralCore/ui/stores/audio.ts",
+        "GnauralCore/server/gnaural-solo-render.ts",
+        "GnauralCore/server/spectrogram-audio-source.ts"
+      ],
+      "verify": "bun test ui server (GnauralCore); manual: changing colour/mute does not touch the .gnaural mtime; mute is audible in playback and render via the XML transform; one-time import from file attributes on first open; everything restored after restart",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PR2.5",
+      "phase": 2,
       "title": "PAUSE: owner проверяет, что редактор всё вспоминает после перезапуска",
       "status": "pending",
-      "dependsOn": ["PR2.1", "PR2.2", "PR2.3"],
+      "dependsOn": ["PR2.1", "PR2.2", "PR2.3", "PR2.4"],
       "artifacts": [],
-      "verify": "owner confirms: lanes, undo, zoom restored for a real file",
+      "verify": "owner confirms: lanes, undo, zoom, voice-state restored for a real file; .gnaural no longer rewritten by view changes",
       "startedAt": null,
       "finishedAt": null,
       "blockedReason": null,
@@ -294,13 +323,13 @@
     {
       "id": "PR4.2",
       "phase": 4,
-      "title": "Удаление проекта, очистка кеша, ручной GC осиротевших",
+      "title": "Удаление проекта (с защитой projects/), ручной GC осиротевших",
       "status": "pending",
       "dependsOn": ["PR4.1"],
       "artifacts": [
         "MindWaveCore/server/project-store.ts"
       ],
-      "verify": "bun test project-store; manual: delete removes the folder; clearCache empties only cache/",
+      "verify": "bun test project-store; manual: delete removes only a folder inside projects/",
       "startedAt": null,
       "finishedAt": null,
       "blockedReason": null,
@@ -309,7 +338,7 @@
     {
       "id": "PR4.3",
       "phase": 4,
-      "title": "UI «Проекты»: список, статус, удалить/очистить кеш/re-link/открыть папку",
+      "title": "UI «Проекты»: список, статус, удалить/re-link/открыть папку",
       "status": "pending",
       "dependsOn": ["PR4.1", "PR4.2"],
       "artifacts": [
@@ -355,14 +384,15 @@
     {
       "id": "PR6.1",
       "phase": 6,
-      "title": "Кеш пиков волновой формы в cache/ проекта (первый bin-потребитель)",
+      "title": "Кеш пиков волновой формы в центральном кеше (tmp/ + манифест; req 11)",
       "status": "pending",
-      "dependsOn": ["PR1.6"],
+      "dependsOn": ["PR0.2"],
       "artifacts": [
         "GnauralCore/ui/composables/audio-model.ts",
-        "MindWaveCore/server/project-store.ts"
+        "MindWaveCore/server/audio-cache-manifest.ts",
+        "MindWaveCore/server/server.ts"
       ],
-      "verify": "bun test; manual: reopening a large file is visibly faster; cache invalidated after the source changes",
+      "verify": "bun test; manual: reopening a large file is visibly faster; cache invalidated after the source changes; peaks cache visible in the cache-management UI",
       "startedAt": null,
       "finishedAt": null,
       "blockedReason": null,
@@ -371,21 +401,22 @@
     {
       "id": "PR6.2",
       "phase": 6,
-      "title": "Центральный рендер-кеш → cache/ проектов (по ответу владельца на Q4)",
-      "status": "pending",
-      "dependsOn": ["PR0.2", "PR1.6"],
-      "artifacts": [
-        "MindWaveCore/server/audio-cache-manifest.ts",
-        "GnauralCore/ui/settings/GnauralSettingsTab.vue"
-      ],
-      "verify": "bun test; manual: render/conversion still work, cached files land in the project folder; scope depends on the Q4 answer",
+      "title": "Центральный рендер-кеш → проекты — СНЯТ (owner 2026-07-15, Q4: кеши остаются центральными)",
+      "status": "deferred",
+      "dependsOn": [],
+      "artifacts": [],
+      "verify": "n/a -- step dropped",
       "startedAt": null,
       "finishedAt": null,
-      "blockedReason": null,
+      "blockedReason": "Owner decided 2026-07-15 (Q4/req 11): caches stay central so the cache-management UI can always enumerate them regardless of where projects live; there is nothing to move.",
       "evidence": []
     }
   ],
   "log": [
+    {
+      "at": "2026-07-15",
+      "text": "PR0.2 PAUSE passed -- owner answered Q1-Q5: (1) userDataRoot default = %LOCALAPPDATA%\\KKSoundCore; (2) move everything out of the .gnaural file -- voice colour/hidden/muted become the voiceState project section, new step PR2.4, the old PAUSE renumbered to PR2.5; (3) text export bundle approved; (4) caches stay CENTRAL (UI must always see them) -- cache API removed from the core, PR6.1 retargeted to the central manifest, PR6.2 dropped; (5) waveform settings become project-owned overrides on top of editor defaults -- new decision PR-D13. Plan reqs 8-12 added; decisions PR-D3/D5/D6/D9/D10/D11 revised. Phase 1 (service class + API) starts."
+    },
     {
       "at": "2026-07-15",
       "text": "Plan + ledger created for the Project entity (owner req. 2026-07-15): per-file editor data -- curve colours, waves, undo journal -- moves into a per-project folder under a configurable user-data root; main file project.scp.json, everything text except bin under cache/; cache data lives in the project folder too. Survey found today's state scattered: voice colours are written INTO the .gnaural, lanes/solo live in per-file localStorage keys, undo and zoom are memory-only and lost on reload, caches are central under server/tmp. Full function set planned (open/sections/undo/cache/list/relink/delete/import/export/settings), with the service class + API first (PR-D5, Phase 1). Decisions PR-D1..D12 proposed; five owner questions (default data folder, fate of in-file voice colours, export format, render-cache move, per-file waveform colours) queued at the PR0.2 PAUSE."
