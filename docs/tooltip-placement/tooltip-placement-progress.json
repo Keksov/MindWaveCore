@@ -371,7 +371,8 @@
         "It was the same bug as the other two: +12/+12 from the pointer (down-right, under the arrow glyph) and — like the spectrogram readout — no clamping at all.",
         "Fix identical to TT2.4: AppTooltip owns box + placement; offsetX/Y -> clientX/Y (cursor mode is position:fixed, and offsetX/Y are measured from the event TARGET rather than the box it was positioned in); role='status' kept (live readout, not a hint); nowrap moved to a global block (the box is teleported out of scope) and tabular-nums added to match the spectrogram readout — the numbers change under the cursor, so the column must not jitter.",
         "Re-verified multiline-aware this time (grep -Pz across line breaks): no hand-rolled tooltip box remains anywhere, and all three surviving *__tooltip classes hold readout-only properties (gtrack: max-width; spectrogram + waveform: tabular-nums + nowrap). The one remaining `:style=\"{ left:` in the tree is EegSignalStyleListPanel's invisible q-menu anchor, not a tooltip.",
-        "vue-tsc 0; quasar build ok; bun test ui 214/214. File is LF-only and stayed LF-only (edits made with the Edit tool, not a script)."
+        "vue-tsc 0; quasar build ok; bun test ui 214/214. File is LF-only and stayed LF-only (edits made with the Edit tool, not a script).",
+        "Owner confirmed «Fixed» (2026-07-15). Family B is now genuinely closed — three tooltips, all on the component."
       ]
     },
     {
