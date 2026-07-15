@@ -5,7 +5,7 @@
   "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
   "status": "in-progress",
   "createdAt": "2026-07-08T02:30:00Z",
-  "updatedAt": "2026-07-15",
+  "updatedAt": "2026-07-16",
   "decisions": [
     {
       "id": "GT-D1",
@@ -90,6 +90,10 @@
     {
       "id": "GT-D20",
       "text": "Visually group a voice's lanes + 'show all modes per voice' (owner req. 38, 2026-07-10). A button in the voices panel: 'Show all modes for each voice' mass-spreads every parameter (base/beat/volume/balance) across lanes for each voice (generalizes the GT-D15 bulk spread / all-in-mode). Lanes belonging to one voice are grouped visually. Styling variants (proposed, owner picks): (a) LEFT COLOUR STRIPE on the lane in the voice colour (thin accent border at the left edge) - recommended: least noise, distinguishes multiple voices, reuses the existing per-voice colour; (b) shared background tint (voice colour, translucent) - more obvious but noisier on the canvas; (c) lane title in the voice colour - cheap but weak at small text; (d) a group bracket/badge on the left joining adjacent same-voice lanes - clearest but needs the voice's lanes to be contiguous. OWNER CHOICE (2026-07-10): (a) left stripe + (c) coloured title. (d) optional if lanes are sorted by voice after the spread. GT3.18 implements a+c."
+    },
+    {
+      "id": "GT-D21",
+      "text": "Base-frequency axis and the value 0 (owner 2026-07-15/16). A .gnaural may legitimately carry baseFreq 0 — it is how a noise voice is expressed, and a schedule can be hand-edited — but a log axis cannot place 0 (log10(0) = -Inf), so the old code dropped such points from the range and clamped them onto the axis minimum, making an edit-to-zero invisible. Options offered: (A) switch the base axis to LINEAR whenever any value <= 0 (simple, ~10 lines, but the axis type flips with the data and the classic log look is lost); (B) forbid 0 in the editor, minimum 1 Hz (rejected: 0 arrives from the file regardless, so rendering must cope); (C) SYMLOG — linear from 0 to a threshold, logarithmic above it (keeps the log character always AND places 0 exactly; costs a piecewise map plus its inverse for drag, labels and grid). OWNER CHOICE (2026-07-15): (C) symlog. Threshold 1 Hz, linear segment 12% of the axis height. A voice whose base is non-positive throughout stays EXCLUDED from the range (noise has no carrier to plot and would drag the axis off the real frequencies) — symlog engages only for a voice that mixes real frequencies with 0."
     }
   ],
   "steps": [
@@ -2369,6 +2373,52 @@
         "GT3.13 preserved: an active beat-edge drag still nulls hoverPos, so no tooltip follows the drag.",
         "vue-tsc 0; quasar build ok; GnauralCore bun test ui 214/214.",
         "Owner confirmed «Fixed» (2026-07-15) — beat-band edges show the point tooltip."
+      ]
+    },
+    {
+      "id": "GT11.16",
+      "phase": 11,
+      "title": "Живой отклик графика при наборе значения в инспекторе (owner 2026-07-15)",
+      "status": "pending",
+      "dependsOn": [
+        "GT3.12"
+      ],
+      "artifacts": [],
+      "verify": "owner: набор в поле двигает кривую сразу (без ухода фокуса); Ctrl+Z откатывает серию правок одного поля одной точки ОДНИМ шагом, а не по символу; правки разных полей/точек — отдельные записи undo",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": [
+        "Owner 2026-07-15: «В режиме автосохранения реальное изменение становится видимым только, если фокус покидает поле ввода».",
+        "GT3.12 намеренно выбрал blur/Enter как триггер автосохранения — комментарий в TracksPanel: «not every keystroke/drag pixel, to avoid one undo entry per character». Прямое «сохранять на каждое изменение» сделало бы Ctrl+Z бесполезным (набор «92» → записи «9» и «92»).",
+        "Решение (owner одобрил оба предложения): разделить ВИДИМОСТЬ и UNDO-ЕДИНИЦУ. Видимость — обновлять модель по @update:model-value. Undo — коммит на blur/Enter либо схлопывание серии правок одного поля одной точки в одну запись (debounce ~400 мс + слияние с предыдущей записью при совпадении поля и точки)."
+      ]
+    },
+    {
+      "id": "GT11.17",
+      "phase": 11,
+      "title": "Базовая частота 0 не отображается на графике (owner 2026-07-15)",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [
+        "gtrack-render.ts: GTrackAxis.scale gains 'symlog' + SYMLOG_THRESHOLD_HZ=1 and SYMLOG_LINEAR_FRACTION=0.12. symlogUnit/symlogValue implement the piecewise map (linear min..threshold over 12% of the height, log threshold..max above it) and are wired into valueToUnit/unitToValue.",
+        "gtrack-render.ts gtrackAxis(): non-positive base values are no longer skipped outright. A voice whose base is non-positive THROUGHOUT is still skipped (noise voice: no carrier to plot, and its 0 would drag the axis off the real frequencies); a voice that MIXES real frequencies with 0 keeps its zeros and switches the axis to symlog with min=0.",
+        "gtrack-render.ts axisWithRange(): symlog keeps its scale and reads the mid label back through unitToValue(0.5) — the midpoint is neither arithmetic nor geometric on a piecewise map.",
+        "gtrack-render.test.ts: 8 new tests (symlog base axis + noise-vs-tone)."
+      ],
+      "verify": "owner: точка с базовой частотой 0 видна на графике так же явно, как 0.1 (вариант A), либо ввод 0 невозможен и минимум = 1 Гц (вариант B)",
+      "startedAt": "2026-07-15",
+      "finishedAt": "2026-07-16",
+      "blockedReason": null,
+      "evidence": [
+        "Owner repro: baseFreq exactly 0 -> the graph does not change at all; 0.1 -> everything re-fits. File wakeup.gnaural.",
+        "Instrumentation cleared the whole input chain: '[zerodbg] applyPointEdit -> true | sent baseFreq=0 | model now baseFreq=0' — the model DOES accept 0. Read and found clean: the inspector patch (Math.max(0, Number(x) || 0) yields 0 for 0), setPointFields/replacePoint, the XML writer (formatXmlNumber(0) -> \"0\"), the Pascal parser (parseFloat(\"0\") -> 0.0). The bug was purely in rendering.",
+        "Cause: the base axis is logarithmic and log10(0) = -Inf. gtrackAxis skipped v <= 0 from the range and clamped min to >= 1; valueToUnit clamped 0 up to axis.min. On a flat ~100 Hz voice the axis stayed 100..125, so 0 drew exactly where every 100 Hz point already sat -> the edit looked like a no-op. With 0.1 the point counted, the axis min dropped to 1 and the re-fit was obvious — i.e. the axis was the whole story, not an innocent bystander.",
+        "Owner rejected forbidding 0 in the editor: a schedule can already contain 0 (hand-edited), so the graph must render it regardless. Owner chose symlog over 'linear when zeros present' and 'always linear'.",
+        "First implementation ('any zero -> symlog') broke two EXISTING tests and revealed the real contract: baseFreq 0 is how a NOISE voice is represented, and it was deliberately excluded so noise cannot drag the axis off the tone's range. Final rule distinguishes an all-zero voice (noise, skipped) from a voice mixing frequencies with 0 (a curve visiting zero, symlog).",
+        "Regression guard added: valueToUnit(0) is now strictly below valueToUnit(100) — they used to coincide, which WAS the bug. Plus monotonicity and a valueToUnit -> unitToValue round-trip (needed by vertex drag).",
+        "vue-tsc 0; GnauralCore bun test ui server 260/260 pass.",
+        "Owner confirmed «done» (2026-07-16)."
       ]
     }
   ],
