@@ -77,10 +77,18 @@
         "MindWaveCore/ui/tsconfig.json"
       ],
       "verify": "vue-tsc + quasar build; manual: тултип появляется НАД элементом, курсор его не накрывает; импорт '@tooltip/AppTooltip.vue' резолвится из GnauralCore",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-15",
+      "finishedAt": "2026-07-15",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "AppTooltip.vue: two modes, one look. Element mode wraps QTooltip with anchor='top middle' self='bottom middle' placed AFTER v-bind=$attrs so a caller cannot quietly opt out of the rule. Cursor mode (:at={x,y}) teleports to <body> and positions via placeCursorTooltip. Mode is chosen by whether `at` was PASSED (props.at !== undefined), so :at='null' (nothing hovered) still means cursor mode instead of degenerating into an unanchored element tooltip.",
+        "Look is inherited, not copied: the cursor-mode div reuses Quasar's own classes. QTooltip.sass splits .q-tooltip (position:fixed !important + z-index + padding + max-w/h) from .q-tooltip--style (font/colour/radius), so 'q-tooltip q-tooltip--style no-pointer-events' matches QTooltip.js:334's own class list exactly -- both modes are identical by construction, and there are no duplicated colour values to drift.",
+        "Two-pass measure uses visibility:hidden on the first pass rather than parking the box at a guessed position (which is what GTrackView does today): a guess would flash for one frame below-right of the pointer -- precisely the bug being fixed.",
+        "Alias wired like PW-D8: quasar.config.ts '@tooltip' next to '@panel' + tsconfig paths '@tooltip/*'. Verified cross-repo: GnauralTransportControls.vue (GnauralCore) imports '@tooltip/AppTooltip.vue' and the build emits AppTooltip.vue_vue_type_script_setup_true_lang-D-VeDw19.js, i.e. the alias resolved from a module repo, not just from the host.",
+        "Anchor resolution checked against Quasar source, not assumed: use-portal.js:132-137 renderPortal returns undefined while hidden, so QTooltip leaves an inline comment node; use-anchor.js:156-164 pickAnchorEl reads proxy.$el.parentNode of the QTooltip instance itself (not the wrapper), so wrapping it in AppTooltip leaves the anchor as the host element (<q-icon>) exactly as before.",
+        "Converted 4 tooltips across 2 repos as the demo set: MainLayout.vue:6,9 (deliberately the R1 top-of-viewport case) and GnauralTransportControls.vue:16,26. vue-tsc --noEmit: 0 errors. quasar build: ok; tooltip-place.test.ts not bundled.",
+        "NOT yet exercised: cursor mode has no caller until TT2.3/TT2.4 -- only element mode is visible at the TT1.3 PAUSE."
+      ]
     },
     {
       "id": "TT1.3",

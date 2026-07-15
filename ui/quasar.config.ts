@@ -27,7 +27,9 @@ export default function (/* ctx */) {
       alias: {
         '@protocol': resolve(currentDir, '..', '..', 'SharedPasCore', 'ts', 'protocol.ts'),
         // PW1.1 (PW-D8): the universal panel control, importable from module repos.
-        '@panel': resolve(currentDir, 'src', 'components', 'panel')
+        '@panel': resolve(currentDir, 'src', 'components', 'panel'),
+        // TT1.2 (TT-D7): the universal tooltip control — the ONLY way to add a tooltip anywhere.
+        '@tooltip': resolve(currentDir, 'src', 'components', 'tooltip')
       },
       extendViteConf(viteConf) {
         viteConf.resolve ??= {}

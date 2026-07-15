@@ -3,10 +3,10 @@
     <q-header elevated class="bg-dark">
       <q-toolbar>
         <q-icon name="check_circle" :color="bunStatusColor" size="20px" class="q-mr-xs cursor-pointer" @click.stop="handleBunStatusClick">
-          <q-tooltip>{{ bunStatusLabel }}</q-tooltip>
+          <app-tooltip>{{ bunStatusLabel }}</app-tooltip>
         </q-icon>
         <q-icon name="check_circle" :color="exeStatusColor" size="20px" class="q-mr-sm">
-          <q-tooltip>{{ exeStatusLabel }}</q-tooltip>
+          <app-tooltip>{{ exeStatusLabel }}</app-tooltip>
         </q-icon>
         <q-toolbar-title shrink>{{ $t('app.title') }}</q-toolbar-title>
         <q-tabs
@@ -131,6 +131,7 @@ import { computed, onBeforeUnmount, reactive, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import AppTooltip from '@tooltip/AppTooltip.vue'
 import { wsService } from 'src/services/ws'
 import { adminApi, type AdminBunActionStatusResponse } from '../services/admin-api'
 import { moduleRoutes } from '../src/modules'

@@ -16,6 +16,7 @@
       "stores/*": ["./src/stores/*"],
       "@protocol": ["../server/protocol.ts"],
       "@panel/*": ["./src/components/panel/*"],
+      "@tooltip/*": ["./src/components/tooltip/*"],
       "vue": ["./node_modules/vue"],
       "vue/*": ["./node_modules/vue/*"],
       "vue-router": ["./node_modules/vue-router"],
