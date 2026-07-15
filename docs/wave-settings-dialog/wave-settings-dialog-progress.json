@@ -5,7 +5,7 @@
   "title": "wave-settings-dialog: the overall-wave gear moves from the track graphics area into the group's title bar (GT11.10 fold header); it opens a NEW two-pane dialog — narrow tab list left («Оба канала» / «Левый» / «Правый»), wide settings pane centre — settings apply per the active tab",
   "status": "in-progress",
   "createdAt": "2026-07-15",
-  "updatedAt": "2026-07-15",
+  "updatedAt": "2026-07-16",
   "decisions": [
     {
       "id": "WS-D1",
@@ -79,7 +79,9 @@
       "phase": 1,
       "title": "Перенос шестерёнки в тайтл-бар «Общая волна»: кнопка в fold-хедере (открывает «Оба канала») + prop showSettingsGear в WaveformView (false в overall-стеке)",
       "status": "done",
-      "dependsOn": ["WS1.1"],
+      "dependsOn": [
+        "WS1.1"
+      ],
       "artifacts": [
         "GnauralCore/ui/components/TracksPanel.vue",
         "GnauralCore/ui/components/WaveformView.vue"
@@ -102,7 +104,10 @@
       "phase": 1,
       "title": "PAUSE: owner-проверка переноса и диалога",
       "status": "done",
-      "dependsOn": ["WS1.1", "WS1.2"],
+      "dependsOn": [
+        "WS1.1",
+        "WS1.2"
+      ],
       "artifacts": [],
       "verify": "owner manual check (визуально-интерактивная проверка — единственное, что не проверено автоматикой: драйвера браузера в воркспейсе нет)",
       "startedAt": "2026-07-15",
@@ -121,7 +126,9 @@
       "phase": 1,
       "title": "Доработки по проверке WS1.3 (owner feedback, req 9-12): отступ шестерёнки; свой колорпикер с X; мгновенное применение при link=ON + три независимые сущности",
       "status": "done",
-      "dependsOn": ["WS1.2"],
+      "dependsOn": [
+        "WS1.2"
+      ],
       "artifacts": [
         "GnauralCore/ui/components/TracksPanel.vue"
       ],
@@ -142,21 +149,26 @@
       "id": "WS2.1",
       "phase": 2,
       "title": "Чистка осиротевшего острова в AudioPage после выделения TracksPanel (GT2.4): ~301 недостижимая строка + инертный state, который их «держит» — обследование и порядок в плане §8",
-      "status": "deferred",
-      "dependsOn": ["WS1.3"],
-      "artifacts": [
-        "GnauralCore/ui/pages/AudioPage.vue"
+      "status": "done",
+      "dependsOn": [
+        "WS1.3"
       ],
-      "verify": "typecheck + build после КАЖДОГО из двух проходов (сначала недостижимое, потом ставший недостижимым state); manual smoke: вкладка Треки работает (её рисует TracksPanel), prefs не сбрасываются",
-      "startedAt": null,
-      "finishedAt": null,
-      "blockedReason": "ОТЛОЖЕНО владельцем 2026-07-15: «Добавь это в план. Мы вернёмся к этому позже». Это НЕ отмена (в отличие от deferred-шагов tooltip-placement, где decision был закрыт): работа согласована по сути, обследование выполнено, объём и порядок известны — план §8. Готово к запуску по команде владельца, ничего доисследовать не нужно. Пока не сделано — действует правило из R5: вкладку «Треки» правим в TracksPanel, AudioPage-копию не трогаем и по ней не ориентируемся.",
+      "artifacts": [
+        "AudioPage.vue: the pre-GT2.4 tracks island is gone — 525 lines, script 2478 -> 1959. Removed in §8.5 order: (1) the 62 unreachable declarations; (2) the island's inert roots — provide('spectrogramShared') and the persistence / length-sync / high-zoom watches — then the state they alone kept 'reachable', iterated to a fixpoint (54 more).",
+        "Orphaned localStorage keys went with it: mindwave-audio-waveform, -track-layout, -waveform-track-heights, plus -spectrogram-track-heights (a 4th, which §8.5's list missed). Only the live -expanded-paths / -files-panel-open remain.",
+        "Follow-up in the same sweep (separate commit): the client-side gnauralSpectrogramBuffer cluster in stores/audio.ts, whose last readers (isSpectrogramStereo, spectrogramDuration) were part of the island; plus the stale i18n noGnauralSpectrogram/noSpectrogram/gnauralSpectrogramLoading."
+      ],
+      "verify": "vue-tsc 0; quasar build ok; GnauralCore bun test ui server 260/260; owner smoke: the Треки tab is untouched (TracksPanel draws it) and prefs are not reset",
+      "startedAt": "2026-07-16",
+      "finishedAt": "2026-07-16",
+      "blockedReason": null,
       "evidence": [
-        "SURVEYED 2026-07-15 (owner asked for detail). Cause is recorded in the code itself: AudioPage.vue:364-366 says «the whole new track stack lives in TracksPanel.vue (its own zoom/selection state + storage keys)» (GT2.4/GT-D10) — the tab was moved out at :368 but the old inline implementation was never deleted. AudioPage's template ends at line 427; its script is 1515 lines, of which a scan of all 211 top-level declarations found 64 declarations / ~301 lines unreachable from BOTH the template and the side-effect blocks (onMounted/watch). Largest runs: :1030-1077 (wfScale/wfColor/wfOpacity + the whole wfDlg* dialog state), :1133-1204 (hide/show/reorder + hiddenTrackList + showWaveform/viewModeLabel), :1272-1327 and :1464-1537 (the waveform/spectrogram resize handlers), :1392-1419 (spectrogram zoom).",
-        "TWO OF MY OWN EARLIER CLAIMS WERE WRONG — corrected here and in the plan (§2.6, R5), because the owner would have decided on them: (1) 'writes the SAME localStorage key' is FALSE — AudioPage reads/writes 'mindwave-audio-waveform' (:983), TracksPanel uses 'mindwave-tracks-waveform'; the keys never meet. (2) 'a mine that will one day overwrite the user's prefs' is FALSE — the watch at :1205-1220 CANNOT fire: its deps are mutated only by the wfDlg* setters (:1059/1067/1075), which are themselves unreachable, and viewMode/minimapMode are never assigned anywhere. The island is inert. Lesson: I recorded a risk from the SHAPE of the code (a watch writing localStorage) without reading the key or asking who could trigger it.",
-        "The real cost is not data, it is misinformation: ~300 lines read as working code and have ALREADY diverged from the live copy — AudioPage still carries the pre-WS1.1 dialog model (waveformSettingsChannel: number|null) and the pre-GT11.7 split resize handlers (onWaveformDividerPointerDown), which TracksPanel replaced with the unified onOverallResize*. A future session editing 'the waveform settings' in AudioPage would change nothing at runtime.",
-        "Why nothing catches it: no ESLint anywhere, and <script setup> exposes every top-level binding to the template, so vue-tsc cannot report them as unused. Only an explicit reachability pass finds this.",
-        "Scope note for whoever does it: delete the unreachable part FIRST, then the state it holds up (prefs/order/hidden/waveformTracks/spectrogramTracks/heights + the inert watch), typecheck+build between the two passes. The orphaned storage keys ('mindwave-audio-waveform', 'mindwave-audio-track-layout', 'mindwave-audio-waveform-track-heights') are read only by this copy and written by nobody."
+        "§8.2's measurement reproduced independently with a rebuilt scan (§8.6 method): 62 declarations / ~324 lines unreachable — the survey said 64/~301, the drift is the script growing since 2026-07-15.",
+        "§8.6's discipline earned its keep: the scan was validated against a known-live control (TracksPanel — 267 declarations, 1 dead: closePointDialog, genuinely unreferenced). The control immediately exposed a kebab-case blind spot (templates address PascalCase components as <gnaural-editor-panel>), which had put live components in the dead list.",
+        "Three more scanner traps, each caught by typecheck, none by review: type/interface are declarations too (missing them swept TrackKind/WaveformTrack); so is destructuring (`const { t } = useI18n()` vanished); and effect statements must be BOUNDARIES as well — otherwise a dead declaration's span swallows the watch() following it, which NO typecheck would notice. §8.6 should gain these.",
+        "§8.3's inertness proof held: trackOrder/hiddenTracks/viewMode/minimapMode/waveformScales/... are assigned nowhere once the wfDlg* setters are gone, so their persistence watches can never fire. One correction: the length-sync watch at (old) :1129 carries `{ immediate: true }`, so it DID write mindwave-audio-waveform-track-heights on every mount — inert in effect, not in the strict sense.",
+        "provide('spectrogramShared') was safe to drop: the only injectors (GTrackView/SpectrogramView/WaveformView) render inside TracksPanel, which provides its OWN and shadows AudioPage's (GT-D10 isolation). Nothing outside TracksPanel injects it.",
+        "This also confirms cae7731 (removing ensureGnauralSpectrogram) broke no high-zoom: AudioPage's spectrogramDuration -> spectrogramZoomFactor -> applyHighZoom chain fed only the island's own analyses. TracksPanel derives its spectrogramDuration from the backend analysis."
       ]
     }
   ],
