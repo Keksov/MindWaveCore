@@ -3,7 +3,7 @@
   "plan": "tooltip-placement",
   "planDoc": "docs/tooltip-placement/tooltip-placement-plan.md",
   "title": "one shared tooltip component for the whole project + placement that never hides under the mouse cursor",
-  "status": "in-progress",
+  "status": "done",
   "createdAt": "2026-07-15",
   "updatedAt": "2026-07-15",
   "decisions": [
@@ -267,15 +267,16 @@
       "id": "TT2.6",
       "phase": 2,
       "title": "PAUSE: owner-проверка всего перевода на единый компонент",
-      "status": "active",
+      "status": "done",
       "dependsOn": ["TT2.1", "TT2.2", "TT2.3", "TT2.4"],
       "artifacts": [],
       "verify": "owner manual check: все тултипы в едином стиле и над курсором; тултип узла и readout спектрограммы читаются; ничего не пропало",
       "startedAt": "2026-07-15",
-      "finishedAt": null,
+      "finishedAt": "2026-07-15",
       "blockedReason": null,
       "evidence": [
-        "AWAITING OWNER 2026-07-15. Всё, кроме этого шага, закрыто; TT2.5 снят, TT3.1 (ECharts) снят по req 4.",
+        "PASSED: owner confirmed «done» (2026-07-15). Plan closed.",
+        "Final tree audit at hand-off: 0 raw <q-tooltip> outside AppTooltip.vue, 0 hand-rolled cursor tooltips, 81 <app-tooltip>, 8 native title left = 3 group B + 3 group C + 2 PanelWindow title-as-prop. vue-tsc 0; quasar build ok; GnauralCore bun test ui 214/214.",
         "Что проверить: (1) кнопочные тултипы по всем вкладкам — над элементом, курсор не накрывает, ничего не обрезано; (2) тултип узла на графике и readout спектрограммы — над курсором, читаются, у кромок окна видны целиком; (3) тултип иконки шапки — без скролла (TT1.4); (4) бывшие нативные title (группа A, 11 шт.) — появились в общем стиле, задержка теперь 0 вместо ~500ms ОС.",
         "Осознанно НЕ изменилось (не баги): тултипы ECharts в BodyMonitorCore (req 4); подсказки, объясняющие ПОЧЕМУ элемент заблокирован (ArchiveReplayView play, LogArchivePage delete) — тултип на disabled-элементе не показывается в принципе; раскрытие обрезанного текста по наведению (имя сессии, имя трека, путь файла) — нативный title показывает его только когда текст реально не влез."
       ]
@@ -301,6 +302,10 @@
     }
   ],
   "log": [
+    {
+      "at": "2026-07-15",
+      "text": "CLOSED — owner confirmed «done» at TT2.6. Delivered: one shared component (@tooltip/AppTooltip.vue, alias-delivered to all three repos like @panel/PW-D8) with two modes (element / cursor) and one placement rule (above), plus 75 call sites migrated -- 64 q-tooltip, 11 native title, 2 hand-rolled cursor tooltips. Final state: 0 raw q-tooltip outside the component, 0 hand-rolled cursor tooltips, 81 <app-tooltip>, 8 native title remaining (all deliberate). The rule lives in AGENTS.md with its three standing exceptions, auto-loaded every session via a new CLAUDE.md.\n\nWhat this cost that the plan did not foresee, kept for the next planner: (1) the fix that mattered was geometric, not cosmetic -- the arrow cursor's hotspot is its top-left tip and the glyph grows down-right, which is why every tooltip family had drifted into the one quadrant the cursor covers, and why 'above' satisfies both readings of req 1 at once. (2) Three owner-visible regressions came from MY changes, each found by the owner and each with a real root cause rather than a tweak: the header scrollbar (Quasar's applyBoundaries pins max-height to a ROUNDED offsetHeight -> sub-pixel overflow -> scrollbar; fixed by choosing the side ourselves so boundaries never fire), and twice on label contrast (a hex tuned for the old near-black plate; then the discovery that on $grey-7 a label/value hierarchy cannot be paid for in luminance at all -- only ~6:1 exists and legibility needs it, so weight carries the distinction). (3) Scope shrank twice on contact with the code: ECharts out entirely (req 4), and native titles cut to group A once reading every call site showed the 17 were three different things -- plain hints, disabled-control hints (a tooltip cannot show there at all), and ellipsis reveals (a tooltip would show unconditionally). (4) TT2.5's guard was dropped because it would never have run -- see TT-D9; 'the tests exist' was true and useless."
+    },
     {
       "at": "2026-07-15",
       "text": "Plan + ledger created for tooltip placement (owner req. 2026-07-15): tooltips must not be covered by the mouse cursor -- today they render below/under it and the cursor blocks the text. Root cause is geometric: the arrow cursor's hotspot is its top-left tip and the glyph extends DOWN-RIGHT, which is exactly where every tooltip family currently places itself. Decisions TT-D1..D6 proposed; owner review at the PAUSE."
