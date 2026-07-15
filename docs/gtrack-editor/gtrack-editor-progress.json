@@ -2345,6 +2345,30 @@
         "Also permanently removes the GT11.12 trap (a persisted tool silently disabling vertex drag).",
         "DONE (2026-07-15): implemented as scoped, incl. the approved Ctrl+click-add extension to point mode, so no add/delete workflow was lost (Delete/Backspace already covered deletion). Net -98/+20 lines. vue-tsc 0, quasar build 0, 205/205 UI tests. GnauralCore commit af95a81 — NOTE it sits on branch feat/audio-toolbar-and-render-cleanup (both repos are on it; main is still at 6c88935/GT11.4, which is an ancestor), alongside the owner's toolbar/render commits."
       ]
+    },
+    {
+      "id": "GT11.15",
+      "phase": 11,
+      "title": "Тултип точки и для узлов бит-графиков на графике Базовой частоты (owner 2026-07-15)",
+      "status": "done",
+      "dependsOn": [
+        "GT11.4"
+      ],
+      "artifacts": [
+        "GTrackView.vue: hoverTooltip now reads hoverPoint ?? hoverEdge — a beat-band edge is drawn at base ± beat/2 OF a point, so it describes the same point and gets the same readout. Vertex still wins when both are under the cursor, matching the hit-test order.",
+        "GTrackView.vue: hoverPos (the tooltip anchor) is now set for a vertex OR an edge, and MOVED below the beat-edge hit-test — it used to be decided from the vertex hit alone, a few lines before nextEdge was even computed, which is why the edges could never anchor a tooltip."
+      ],
+      "verify": "owner: hovering a beat-band edge on the Base graph shows the same point tooltip as a vertex does; vertex still wins where they overlap; no tooltip while dragging an edge (GT3.13)",
+      "startedAt": "2026-07-15",
+      "finishedAt": "2026-07-15",
+      "blockedReason": null,
+      "evidence": [
+        "Owner: on the Base graph the tooltip appeared only for the main curve's vertices, never for the beat-graph nodes. Cause: GT11.4 added edge hover for the resize cursor and highlight only — hoverTooltip was computed from hoverPoint alone, and hoverPos was set from the vertex hit-test several lines BEFORE the edge hit-test ran, so an edge could not anchor a tooltip even if the content had existed.",
+        "Same readout deliberately: the owner asked for «информация о точке», and an edge IS that point rendered at base ± beat/2 — the time/base/beat/volume rows are exactly what is relevant there. No edge-specific row invented.",
+        "Vertex-wins order preserved (nextEdge is only computed when the vertex hit-test misses), so overlapping vertex+edge behaves as before.",
+        "GT3.13 preserved: an active beat-edge drag still nulls hoverPos, so no tooltip follows the drag.",
+        "vue-tsc 0; quasar build ok; GnauralCore bun test ui 214/214."
+      ]
     }
   ],
   "log": [
@@ -2839,6 +2863,12 @@
       "step": "GT11.7",
       "event": "fix",
       "note": "Owner wanted ONE uniform resize model everywhere (supersedes the earlier overall Ctrl behavior). GnauralCore 0223dc8: every resize bar = plain (this graph) / Ctrl (its group: a voice / the overall wave / the overall spectrum) / Shift (ALL graphs). Overall wave/spectrum switched from mutual-divider + uniform-bottom-handle to per-channel resize via a unified onOverallResize*; the bottom bar no longer resizes all channels. setAllLanesGraphsHeight added for the Shift scope. vue-tsc 0, 159 UI tests, quasar build OK, net -94 lines. Awaiting owner verification. Remaining Phase 11: GT11.4, GT11.6."
+    },
+    {
+      "ts": "2026-07-15T09:00:00Z",
+      "step": "GT11.15",
+      "event": "done",
+      "note": "Beat-band edges on the Base graph now show the point tooltip (owner 2026-07-15). They were the one hoverable thing in the lane with no tooltip: GT11.4 gave them a hover state for the cursor/highlight, but hoverTooltip read hoverPoint only, and the anchor was decided from the vertex hit-test before the edge hit-test even ran. Both fixed; an edge shows the same point readout, since it is that point drawn at base ± beat/2. GnauralCore 725e715."
     }
   ]
 }
