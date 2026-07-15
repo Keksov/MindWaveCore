@@ -102,10 +102,11 @@
       "dependsOn": ["TT1.2"],
       "artifacts": [],
       "verify": "owner manual check",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-15",
+      "finishedAt": "2026-07-15",
       "blockedReason": null,
       "evidence": [
+        "PASSED: owner confirmed «Fixed» (2026-07-15) after TT1.4 — no scrollbar on the header icon tooltip; transport tooltips OK. API/name accepted, so TT-D7/D8 are locked and the mass migration is unblocked.",
         "OWNER ANSWERED 2026-07-15. Q1 -> «Имя и API устраивают» (ACCEPTED: <app-tooltip>, режимы элемент/курсор, TT-D7/D8 locked). Q2 -> транспорт ОК (над кнопкой); иконка bun — БАГ: тултип со скроллом (R1 сработал) -> исправлено в TT1.4/TT-D10. Q3 (нативные title) — ответа пока нет. Владелец: «Остальное давай проверять по шагам» -> фазу 2 ведём пошагово с проверкой после каждого шага.",
         "Q1: имя и API компонента (<app-tooltip>, режимы элемент/курсор — TT-D7/D8) устраивают? Менять дешевле сейчас, чем после ~90 замен.",
         "Q2 (R1): тултипы шапки MainLayout — встают НАД иконкой или Quasar флипнул их обратно вниз (места сверху может не хватить)? Это единственное место, где правило может не удержаться.",
@@ -195,7 +196,7 @@
       "id": "TT2.3",
       "phase": 2,
       "title": "Семейство B: GTrackView -> режим курсора общего компонента (req 1/2/3)",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["TT1.3"],
       "artifacts": [
         "GnauralCore/ui/components/GTrackView.vue"
