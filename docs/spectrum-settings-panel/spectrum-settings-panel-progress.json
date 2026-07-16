@@ -333,19 +333,26 @@
     {
       "id": "SS3.2",
       "phase": 3,
-      "title": "Detached «пульт»: SpectrogramSettingsRemote.vue + запись в panels[] манифеста (id 'spectrum-settings', events ['action'], titleKey audio.spectrogramSettingsTitle) + :bridge-state=\"snapshot\" + снятие allow-detach=false. Пресеты в ребёнке — «Применить» + «Сохранить как…»; «Управление…» скрыто пропом allowPresetManage=false (SS-D8 rev., req 7)",
-      "status": "pending",
+      "title": "Detached «пульт»: SpectrogramSettingsRemote.vue + запись в panels[] манифеста (id 'spectrum-settings', events ['action'], titleKey audio.spectrogramSettingsTitle) + :bridge-state=\"snapshot\" + @panel-event -> applySpectrumSettingsAction + detach включён (allow-detach снят). Пресеты в ребёнке — «Применить» + «Сохранить как…» (без «Управления…», SS-D8) в собственной панельке remote (у ребёнка нет тайтл-бара/футера). + буферизация ввода в Fields против дрожания через мост",
+      "status": "done",
       "dependsOn": ["SS3.1"],
       "artifacts": [
-        "GnauralCore/ui/components/SpectrogramSettingsRemote.vue (new; no store, no persistence — snapshot in, action out)",
-        "GnauralCore/ui/module.ts (panels[] entry)",
-        "GnauralCore/ui/components/SpectrumSettingsDialog.vue (bridge-state snapshot + panel-event -> applySpectrumSettingsAction; allow-detach enabled)"
+        "GnauralCore/ui/components/SpectrogramSettingsRemote.vue (new; child content: own bar with presets apply+save-as + reset + close, then the shared View; no store — snapshot in, action out)",
+        "GnauralCore/ui/module.ts (panels[] entry: id 'spectrum-settings', component SpectrogramSettingsRemote, events ['action'])",
+        "GnauralCore/ui/components/SpectrumSettingsDialog.vue (:bridge-state=snapshot + @panel-event -> applySpectrumSettingsAction(store); allow-detach removed -> defaults true)",
+        "GnauralCore/ui/components/SpectrogramSettingsFields.vue (local input buffer so controlled fields type smoothly even when the value arrives async over the bridge)"
       ],
-      "verify": "bun run typecheck + bun run build; bun test ui server green; manual: «Отдельное окно» appears and opens (no «Неизвестная панель» — the PW5.7c symptom of a missing manifest entry); EDITING IN THE CHILD REPAINTS THE PARENT'S SPECTROGRAM (the whole point — SS-D3); preset apply + «Сохранить как…» work from the child and land in the parent's store, while «Управление…» is absent there but STILL PRESENT in the main window (SS-D8 rev. — the withDefaults check, since a bare boolean prop would hide it in both); the child holds no state of its own (parent F5 -> child re-adopts or self-closes per PW-D2); closing the main window closes the child; detached geometry persists",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "DONE (build-level) — vue-tsc 0 errors; quasar build ok; bun test ui server 269 pass / 0 fail. Bundle: SpectrogramSettingsRemote is its own lazy chunk, 'spectrum-settings' is registered in the manifest (alongside track-list), and SpectrogramSettingsView is now a SHARED chunk (imported by both the in-window adapter and the remote). Dev server serves remote/dialog/module (HTTP 200). The full runtime loop (edit in child -> repaint in parent, parent/child liveness, geometry) is the SS3.3 owner PAUSE — it needs a real second window, which no driver here can exercise.",
+      "startedAt": "2026-07-16",
+      "finishedAt": "2026-07-16",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "The full detach loop is wired per the mapped PW5.7 flow: SpectrumSettingsDialog pushes `snapshot` via :bridge-state and applies the child's bridged actions in @panel-event; PanelHostPage resolves the manifest 'spectrum-settings' -> SpectrogramSettingsRemote, feeds it bridgeState, and turns its `action` emit into bridge.sendEvent('action',[action]) -> parent -> applySpectrumSettingsAction(store). So editing in the child mutates the ONE authoritative store and repaints the main window; only that store writes localStorage (no clobbering — the SS-D3 failure mode is avoided by construction).",
+        "The child has no title-bar/footer chrome (PanelHostPage renders the content full-window), so the presets access and reset — which live in the main window's title-bar icon and footer — are hosted IN-CONTENT by the remote's own bar: presets dropdown (apply + «Сохранить как…» only; manage/import/export omitted per SS-D8), «Сброс», and a close button (emits 'close' -> PanelHostPage's always-present onClose -> window.close()). Note this differs from the SS-D8 wording (an allowPresetManage prop on a shared dialog): since SS2.4 merged the manager into the modal and SS2.3 put presets behind a title-bar icon, reusing that modal in the child was the wrong shape — a small dedicated bar is cleaner and still honours 'apply + save-as only'.",
+        "PROACTIVE fix for a risk I cannot verify myself (no second-window driver here): controlled number fields would fight the user's typing when the authoritative value round-trips over the async bridge. Added a local mirror in Fields (update on input + emit; reconcile from the snapshot echo, no-op if equal). Synchronous in the main window, smooth in the child. If SS3.3 still shows lag it is a tuning issue, not a redesign.",
+        "Detach is enabled by REMOVING :allow-detach=\"false\" (defaults true). The panel id 'spectrum-settings' matches the @panel state store id, so the child route #/panel/spectrum-settings and the BroadcastChannel mw-panel:spectrum-settings line up. Title/icon in the manifest (audio.spectrogramSettingsTitle / tune) match what SpectrumSettingsDialog passes to PanelWindow.",
+        "Two snapshots exist in-window (the adapter's and the dialog's) — both cheap computeds over the same store; when detached the adapter is unmounted (PanelWindow hides content) and only the dialog's snapshot feeds the bridge. Line endings LF on new files, module.ts stays CRLF; owner's parallel files not staged."
+      ]
     },
     {
       "id": "SS3.3",
