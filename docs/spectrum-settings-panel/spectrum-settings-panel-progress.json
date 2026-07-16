@@ -36,6 +36,10 @@
       "text": "i18n: no new title key needed. The PanelWindow title and the manifest titleKey both reuse the EXISTING audio.spectrogramSettingsTitle («Параметры» / \"Parameters\", SF-D4) — it is already exactly this panel's caption; icon `tune`, the same as the toolbar button. Dock/detach menu labels are already generic and translated (panel.dockMenu/dockFloat/dockLeft/dockRight/dockTop/dockBottom/detach/close in MindWaveCore/ui/src/i18n/locales/{ru,en}.json). New keys only if Q1/Q2 introduce new captions."
     },
     {
+      "id": "SS-D12",
+      "text": "NEW (owner 2026-07-16, after SS2.3) — preset MANAGEMENT is folded into the presets form itself; the separate manager window and the «Управление…» button are gone. Owner: «Оформи подформу Управления пресетами как часть основной формы пресетов. Лишняя кнопка не нужна, раз уж у нас теперь есть самостоятельное окно». So SpectrogramPresetManager.vue's whole body (built-in + user preset lists with Apply + duplicate/update/rename/delete + import/export) moved DIRECTLY into SpectrogramPresetsDialog.vue; the manager file is DELETED, and both the «Управление…» button and the nested <spectrogram-preset-manager> are removed. «Сохранить как…» stays (footer, left). Three now-orphaned i18n keys (spectrogramPresetManage / spectrogramPresetManager / spectrogramPresetClose) removed from BOTH locales — verified 0 code refs workspace-wide first. The dialog remains ONE lazy chunk (7.2 KB now, was ~this + a manager chunk), still off the eager AudioPage path."
+    },
+    {
       "id": "SS-D11",
       "text": "NEW (owner 2026-07-16) — a `titlebar-actions` named slot added to the shared @panel control PanelWindow. The title bar is entirely PanelWindow's (drag zone + dock menu + close), with no slot for a consumer's own buttons, so «Параметры» could not host a presets icon there. Added <slot name=\"titlebar-actions\" /> LEFT of the dock-menu button. Backward-compatible: an unused named slot renders nothing, so «Открытие файлов»/«Список треков» are untouched. This is the feature's ONLY change under MindWaveCore/ui (the @panel control lives there) — cross-repo, committed separately from the GnauralCore code."
     },
@@ -172,11 +176,34 @@
       ]
     },
     {
+      "id": "SS2.4",
+      "phase": 2,
+      "title": "Управление пресетами свёрнуто в форму пресетов (owner 2026-07-16, SS-D12): содержимое SpectrogramPresetManager перенесено в SpectrogramPresetsDialog; менеджер и кнопка «Управление…» удалены; три мёртвых i18n-ключа убраны из обеих локалей",
+      "status": "done",
+      "dependsOn": ["SS2.3"],
+      "artifacts": [
+        "GnauralCore/ui/components/SpectrogramPresetsDialog.vue (merged: preset list + per-preset manage actions + import/export + Save as…, header close X)",
+        "GnauralCore/ui/components/SpectrogramPresetManager.vue (DELETED — body absorbed into the dialog)",
+        "GnauralCore/ui/i18n/ru.json + en.json (removed spectrogramPresetManage / spectrogramPresetManager / spectrogramPresetClose)"
+      ],
+      "verify": "DONE — vue-tsc 0 errors; quasar build ok; bun test ui server 265 pass / 0 fail. Checked beyond the build: the dialog is still ONE lazy chunk (SpectrogramPresetsDialog-*.js, 7.2 KB, carries content_copy/exportPresets/deleteConfirm), no separate manager chunk; the 3 removed keys have 0 code refs anywhere in GnauralCore+MindWaveCore; both locales still parse and have identical key sets (443/443, no drift); dev server serves the merged dialog (HTTP 200).",
+      "startedAt": "2026-07-16",
+      "finishedAt": "2026-07-16",
+      "blockedReason": null,
+      "evidence": [
+        "The management UI was moved VERBATIM (same list rows, same per-preset icons, same import/export handlers) rather than rewritten — the merge is a relocation, so behaviour is unchanged and there was nothing new to test; the existing store-action tests (SF18.1) still cover apply/save-as/rename/delete/duplicate/import/export.",
+        "Interaction note: rows use explicit [Apply] buttons (the manager's model), not whole-row-click, because each row now also carries manage icons — a click target that both applies and sits under action icons would be ambiguous. The active preset shows ✓ + text-primary.",
+        "Orphaned-i18n cleanup done properly: confirmed 0 code refs to the 3 keys across BOTH repos (not just the edited file) before deleting, and re-checked locale parity after (443==443, no only-in-ru / only-in-en). Leaving them would have been harmless data, but they name UI that no longer exists (a 'Manager'/'Manage…'), which is the kind of stale signal that misleads a later reader.",
+        "Laziness held: a static merge could have changed nothing about chunking (the dialog was already lazy), and the build confirms it stayed one lazy chunk with the manager code now inside it — the separate SpectrogramPresetManager-*.js chunk is gone.",
+        "Line endings LF on the merged dialog + both i18n files; GTrackView/SpectrogramView/WaveformView remain the owner's parallel work, not staged."
+      ]
+    },
+    {
       "id": "SS2.2",
       "phase": 2,
-      "title": "PAUSE — owner-проверка вида: плитки/аккордеон, порог переключения, поведение на границе, вид блоков разной высоты; теперь также иконка пресетов в тайтл-баре и модальный диалог пресетов (SS2.3)",
+      "title": "PAUSE — owner-проверка вида: плитки/аккордеон, порог переключения, поведение на границе, вид блоков разной высоты; теперь также иконка пресетов в тайтл-баре и единый диалог пресетов со встроенным управлением (SS2.3+SS2.4)",
       "status": "pending",
-      "dependsOn": ["SS2.1", "SS2.3"],
+      "dependsOn": ["SS2.1", "SS2.3", "SS2.4"],
       "artifacts": [],
       "verify": "owner drives the real app; the tile/accordion rule matches req 2-4 and the threshold feels right (Q4)",
       "startedAt": null,
@@ -234,6 +261,10 @@
     }
   ],
   "log": [
+    {
+      "at": "2026-07-16",
+      "text": "SS2.4 — owner: «Оформи подформу Управления пресетами как часть основной формы пресетов. Лишняя кнопка не нужна, раз уж у нас теперь есть самостоятельное окно». So the whole SpectrogramPresetManager body (built-in/user lists, per-preset manage icons, import/export) moved into SpectrogramPresetsDialog; the manager file and the «Управление…» button are deleted (SS-D12). The merge is a verbatim relocation, so behaviour is unchanged and the store-action tests still cover it. Also removed 3 now-orphaned i18n keys (Manage/Manager/Close) from both locales — 0 code refs workspace-wide, verified before deletion and locale parity re-checked after (443==443). Still one lazy chunk (7.2 KB), no separate manager chunk. verify: vue-tsc 0, quasar build ok, bun 265/0."
+    },
     {
       "at": "2026-07-16",
       "text": "SS2.3 — owner change after seeing SS2.1: «Блок пресетов нужно вынести за рамки этого диалога. В заголовке формы Параметры добавь иконку для вызова этого диалога», form = «Отдельный модальный диалог». So presets left the parameter-blocks area for a title-bar-invoked modal, and the panel is back to four blocks. This is SS-D6's SECOND revision; both earlier forms (block #1; and before that, presets-as-a-strip) are kept as history in the decision, so the trail is visible.\n\nThree things worth carrying: (1) SS-D11 — PanelWindow gained a `titlebar-actions` slot; it owns the whole title bar, so there was nowhere else to put the icon. Only MindWaveCore/ui change in the feature, backward-compatible, committed separately. (2) I caught a laziness regression in my own first cut: a static import of the presets dialog would have dragged it + the preset manager into AudioPage's EAGER chunk (they were lazy inside the panel before). Fixed with defineAsyncComponent + a v-if=\"presetsEverOpened\" mount guard (a plain v-model dialog renders on mount, defeating the async defer); build confirms a separate lazy chunk, so it is now lazier than before. (3) The default-open accordion block moved presets->scale. verify: vue-tsc 0, quasar build ok, bun 265/0."
