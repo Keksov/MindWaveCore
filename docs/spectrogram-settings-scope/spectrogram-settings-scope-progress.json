@@ -86,33 +86,41 @@
     {
       "id": "SG1.2",
       "phase": 1,
-      "title": "PAUSE — owner-проверка вкладки «Спектрограмма» в общем Settings: форма, tiles/masonry на широком табе, «Сброс», пресеты (применение/управление), правки применяются к спектрограмме",
-      "status": "active",
+      "title": "PAUSE — owner-проверка подсистемы «Спектрограмма» в диалоге Меню→Настройки Аудио-окна: форма, tiles/masonry, «Сброс», пресеты (применение/управление), правки применяются к спектрограмме",
+      "status": "done",
       "dependsOn": ["SG1.1"],
       "artifacts": [],
       "verify": "owner drives the real app",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-16",
+      "finishedAt": "2026-07-16",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Owner approved («ok», 2026-07-16) AFTER the surface correction — the spectrogram settings now live as the «Спектрограмма» subsystem of the Audio window's Меню→Настройки dialog (the correct window). Phase 1 accepted. Proceed to phase 2 (remove the redundant global `tune` opener; the program level is now covered by this dialog)."
+      ]
     },
     {
       "id": "SG2.1",
       "phase": 2,
-      "title": "Убрать ГЛОБАЛЬНЫЙ вход в панель (SG-D3 rev.): удалить tune-кнопку тулбара Audio (TracksPanel.vue:125-132) — глобальный уровень уходит в таб Settings. Панель @panel НЕ удаляется: она сохраняется как шаблон для пер-графикового редактора (фаза 3). Точный объём (перенацелить/распараметрить vs временно оставить без опенера) зависит от sequencing на SG0.1",
-      "status": "pending",
+      "title": "Убрать ГЛОБАЛЬНЫЙ вход в панель (SG-D3 rev.): удалена tune-кнопка тулбара TracksPanel (+ мёртвые import/const useSpectrumSettingsPanelState). Панель @panel НЕ удалена: AudioPage по-прежнему хостит SpectrumSettingsDialog + стор — шаблон пер-графикового редактора (фаза 3). Панель временно бездействует, пока фаза 3 не добавит вход из шапки графика",
+      "status": "done",
       "dependsOn": ["SG1.2"],
-      "artifacts": [],
-      "verify": "typecheck+build+tests green; the @panel machinery still builds (kept for phase 3); program-level settings reachable only via the Settings tab",
-      "startedAt": null,
-      "finishedAt": null,
+      "artifacts": [
+        "GnauralCore/ui/components/TracksPanel.vue (removed the `tune` toolbar button + its SS1.1 comment; removed the now-dead `import { useSpectrumSettingsPanelState }` and `const spectrumSettingsPanel = useSpectrumSettingsPanelState()` + its comment) [CRLF file — \\r\\n-preserving script]"
+      ],
+      "verify": "DONE — vue-tsc 0 errors; quasar build succeeded; bun test ui server 269 pass / 0 fail. 0 remaining `spectrumSettingsPanel` refs in TracksPanel; CR===LF (no mixed endings). The @panel machinery still builds (AudioPage keeps hosting SpectrumSettingsDialog + the store for phase 3).",
+      "startedAt": "2026-07-16",
+      "finishedAt": "2026-07-16",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "The `tune` button was the ONLY template user of spectrumSettingsPanel in TracksPanel (grep: lines 128-131), so removing it orphaned the import (:1168) and the const (:2616) — removed with their user (the <script setup> unused-binding blind spot means vue-tsc would not have flagged them). AudioPage remains the store's live consumer (it hosts SpectrumSettingsDialog + the floating teleport), so stores/spectrum-settings-panel.ts stays alive for phase 3 — nothing else broke.",
+        "TRANSIENT STATE, intended (SG-D3 rev.): with the global opener gone and phase 3 not yet wired, the floating «Параметры» panel is currently unreachable — but its program-level function is fully covered by the Меню→Настройки dialog subsystem (SG1.1). Default panel `open` is false, so it does not appear on load; phase 3 gives it a per-graph opener. This is why the panel machinery was NOT deleted (owner: it must look «в точности как сейчас»).",
+        "Line endings: TracksPanel.vue is CRLF; edited via a \\r\\n-preserving node script (each of the 3 removals asserted to match exactly once), CR===LF after."
+      ]
     },
     {
       "id": "SG2.2",
       "phase": 2,
-      "title": "PAUSE — owner подтверждает Audio-страницу без tune и общий Settings как единственную точку программных настроек",
+      "title": "PAUSE — owner подтверждает Audio-страницу без tune (программные настройки только в диалоге Меню→Настройки). Проверяется вместе с фазой 3, т.к. фаза 3 снова меняет Audio-страницу (кнопка в шапке графика)",
       "status": "pending",
       "dependsOn": ["SG2.1"],
       "artifacts": [],
@@ -161,6 +169,11 @@
       "at": "2026-07-16",
       "step": "SG1.1",
       "text": "WRONG SURFACE, corrected. Owner: «Настройки спектрограммы нужно было добавить в окно Настройки, которое открывается через Меню->Настройки в Аудио окне» — the target is the AUDIO window's Меню→Настройки dialog (AudioPage `settingsDialogOpen`, GT10.29), NOT the MainLayout /settings route I used. SG-D1 REVISED with the miss recorded (I corrected the premise on the first «Настройки» surface I found instead of enumerating all of them). Reverted the MainLayout tab (module.ts git-checked-out to its pre-SG1.1 blob → `settingsTabs: []`; settings.spectrogramTab removed from both locales) and re-implemented on the correct surface: a new {id:'spectrogram'} subsystem in AudioPage's settings dialog rendering the same SpectrogramSettingsTab.vue in the content pane, lazy (defineAsyncComponent), with i18n audio.settingsSubsystemSpectrogram. Re-verified green: vue-tsc 0, quasar build ok (tab its own 4.18 KB chunk), GnauralCore 269 pass/0 fail. Still at SG1.2 PAUSE — owner now verifies the CORRECT surface."
+    },
+    {
+      "at": "2026-07-16",
+      "step": "SG1.2 / SG2.1",
+      "text": "SG1.2 PASSED — owner approved («ok») the «Спектрограмма» subsystem in the Audio Меню→Настройки dialog. Phase 1 accepted. SG2.1 DONE — removed the global `tune` toolbar opener from TracksPanel (+ its dead import/const); the @panel machinery is kept (AudioPage still hosts SpectrumSettingsDialog + the store) as the phase-3 template. Verify green (vue-tsc 0, build ok, 269 pass/0 fail). The floating panel is now dormant (no opener) until phase 3 gives it a per-graph header button. Next: phase-3 DESIGN — the SG-D6 open forks (one retargeted panel vs per-graph instances; L/R scope mapping) go to the owner before any code."
     }
   ]
 }
