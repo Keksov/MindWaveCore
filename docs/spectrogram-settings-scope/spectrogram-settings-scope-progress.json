@@ -36,16 +36,16 @@
     {
       "id": "SG0.1",
       "phase": 0,
-      "title": "План + леджер (этот файл + spectrogram-settings-scope-plan.md) + инвентаризация (разведка механизма волны, архитектуры спектра/стора, точного списка сноса). PAUSE — владелец сверяет план и решает открытые вопросы §7 (scope фазы 3; UX таба; реверс GT10.17)",
-      "status": "active",
+      "title": "План + леджер (этот файл + spectrogram-settings-scope-plan.md) + инвентаризация (разведка механизма волны, архитектуры спектра/стора, точного списка сноса). PAUSE ПРОЙДЕНА 2026-07-16: scope = ВСЕ фазы 1-3 в этой задаче («Всё сразу»); панель сохраняется под пер-график (SG-D3 rev/SG-D6); UX таба — дефолты приняты без возражений",
+      "status": "done",
       "dependsOn": [],
       "artifacts": [
         "docs/spectrogram-settings-scope/spectrogram-settings-scope-plan.md (owner reqs verbatim, inventory §2 from two Explore passes, decisions SG-D1..SG-D5, phases, risks, open questions §7)",
         "docs/spectrogram-settings-scope/spectrogram-settings-scope-progress.json (this ledger)"
       ],
-      "verify": "PAUSE: the owner reviews the plan and answers §7 — (1) is phase 3 (per-graph L/R individual settings) in scope now, or land phases 1-2 first; (2) tab UX: label/icon + where «Сброс» and the presets trigger sit inside the tab; (3) confirm re-populating settingsTabs (a Gnaural tab returns to the general Settings) is intended (R5). No code until the owner responds.",
+      "verify": "PASSED — owner settled §7 across three messages: (1) «Оставить как вкладку» (SG-D1, premise corrected); (2) «Кнопка не нужна, её нужно убрать» + program-level applies to all unless per-graph individual set + end goal = per-graph header button for L/R mirroring the waveform; (3) «панель настроек должна выглядеть в точности как сейчас — докабл/детачбл окно» => panel preserved & repurposed (SG-D3 rev/SG-D6); (4) «Всё сразу» => all phases 1-3 are in THIS task. Tab-UX defaults (label «Спектрограмма», icon tune, Reset+presets in the tab header) proposed and drew no objection — final call at SG1.2.",
       "startedAt": "2026-07-16",
-      "finishedAt": null,
+      "finishedAt": "2026-07-16",
       "blockedReason": null,
       "evidence": [
         "THE LOAD-BEARING PREMISE WAS FALSE AND WAS RECONCILED BEFORE PLANNING (SG-D1): the task described the general Settings as shown «в отдельном окне», but /settings is a plain in-app route (MindWaveCore/ui/src/router/routes.ts:28), navigated by router.push in MainLayout.vue — no window.open, no dialog, no detached @panel. Verified by an Explore pass across MindWaveCore/ui (menu, routes, layouts, panel system). Rather than plan on the stated-but-wrong fact, it was surfaced to the owner (AskUserQuestion), who chose «Оставить как вкладку». This repo has punished shape/premise-based planning before — see [[verify-the-load-bearing-premise]].",
@@ -61,20 +61,31 @@
       "id": "SG1.1",
       "phase": 1,
       "title": "Программные настройки как вкладка общего Settings: новый SpectrogramSettingsTab.vue (форма SpectrogramSettingsPanel + «Сброс» + триггер пресетов) + регистрация settingsTab в gnauralModule (defineAsyncComponent) + i18n-лейбл settings.spectrogramTab в обеих локалях. Плавающая панель НЕ трогается",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["SG0.1"],
-      "artifacts": [],
-      "verify": "bun run typecheck + bun run build (MindWaveCore/ui); bun test ui server (GnauralCore); tab lazy per bundle; i18n label resolves in both locales; manual part is SG1.2",
-      "startedAt": null,
-      "finishedAt": null,
+      "artifacts": [
+        "GnauralCore/ui/components/SpectrogramSettingsTab.vue (new; toolbar with presets `bookmarks` + «Сброс» → store.reset(), body = <SpectrogramSettingsPanel/>, lazy SpectrogramPresetsDialog mounted on first open)",
+        "GnauralCore/ui/module.ts (settingsTabs re-populated: {name:'spectrogram', icon:'tune', labelKey:'settings.spectrogramTab', component: lazy SpectrogramSettingsTab}; GT10.17 comment updated)",
+        "GnauralCore/ui/i18n/en.json + ru.json (settings.spectrogramTab = «Spectrogram» / «Спектрограмма»)"
+      ],
+      "verify": "DONE — vue-tsc 0 errors; quasar build succeeded; bun test ui server 269 pass / 0 fail (unchanged — the tab composes already-tested pieces, no new logic). Runtime-visual is SG1.2 (owner PAUSE — no browser driver here).",
+      "startedAt": "2026-07-16",
+      "finishedAt": "2026-07-16",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "LAZINESS PROVEN by bundle, not asserted: the build emits SpectrogramSettingsTab-*.js as its OWN chunk (loads only when the Settings page shows the tab), SpectrogramPresetsDialog-*.js as a SEPARATE chunk (the preset manager loads only on first presets-open), and SpectrogramSettingsPanel-*.js separate. So re-homing the settings into a tab added no weight to the eager path.",
+        "THE i18n CLOBBER TRAP (a missing key renders as the key string, silently) was checked at the source, not just by adding the key: BodyMonitor and Gnaural BOTH define a top-level `settings` namespace, but MindWaveCore/ui/src/i18n/index.ts merges module messages with a DEEP recursive mergeMessageTrees (:11-22) — so settings.devicesTab (BodyMonitor) and settings.spectrogramTab/audioTab/cache* (Gnaural) coexist, no overwrite. Confirmed settings.spectrogramTab resolves in both locales.",
+        "REUSE, not rebuild (SG-D2): the tab renders <SpectrogramSettingsPanel/> — the ~23-line store-adapter that already talks to useSpectrogramStore and drives the whole 18-field form — and re-provides the two affordances that lived in the retired PanelWindow chrome, NOT in the form: «Сброс» (store.reset()) and presets (SpectrogramPresetsDialog, the same modal the panel's title-bar icon opened).",
+        "THE FLOATING PANEL IS UNTOUCHED (SG-D3 rev.): the Audio `tune` button + SpectrumSettingsDialog still work, editing the SAME global store as the tab — two surfaces, one source of truth, no conflict. Phase 2 removes the global opener; phase 3 re-homes the panel onto per-graph.",
+        "LINE ENDINGS, verified with the AUTHORITATIVE method (byte count via tr, after `grep -c \\r` gave FALSE CRLF positives on LF files — corrected mid-step): the new SpectrogramSettingsTab.vue is LF (matching its component siblings, all LF); i18n en/ru are LF (plain Edit); module.ts is CRLF and was edited via a \\r\\n-preserving node script (asserting each of the 3 replacements matched exactly once) — result 60 CR bytes, no mixed endings.",
+        "Staged only my files (SpectrogramSettingsTab.vue, module.ts, i18n/en.json, i18n/ru.json + the ledger); the owner's parallel work and runtime artifacts left alone."
+      ]
     },
     {
       "id": "SG1.2",
       "phase": 1,
       "title": "PAUSE — owner-проверка вкладки «Спектрограмма» в общем Settings: форма, tiles/masonry на широком табе, «Сброс», пресеты (применение/управление), правки применяются к спектрограмме",
-      "status": "pending",
+      "status": "active",
       "dependsOn": ["SG1.1"],
       "artifacts": [],
       "verify": "owner drives the real app",
@@ -119,7 +130,7 @@
       "verify": "TBD after SG0.1 scope decision",
       "startedAt": null,
       "finishedAt": null,
-      "blockedReason": "Awaiting owner scope decision at SG0.1 (§7 Q1): whether phase 3 is in this task now or a follow-up",
+      "blockedReason": null,
       "evidence": []
     }
   ],
@@ -132,7 +143,17 @@
     {
       "at": "2026-07-16",
       "step": "SG0.1",
-      "text": "Owner clarification at the SG0.1 PAUSE reshaped the retirement: «после того, как у спектра появится своя кнопка с индивидуальными настройками, панель настроек должна выглядеть в точности как сейчас — в виде докабл/детачбл окна». => The @panel/PanelWindow machinery is PRESERVED and repurposed for the per-graph individual editor (phase 3), NOT deleted. SG-D3 REVISED (superseded rev 1's file deletions; only the Audio-toolbar `tune` global opener still goes); SG-D6 ADDED (two surfaces: program-level = Settings tab; per-graph = dockable/detachable panel). SG2.1/SG3.0 re-scoped. STILL OPEN and re-asked: sequencing — is phase 3 in this task now (then phase 2 = repoint the panel to per-graph), or land phase 1 (tab) first and take the panel repurpose + per-graph as a later phase. No code until the owner picks sequencing."
+      "text": "Owner clarification at the SG0.1 PAUSE reshaped the retirement: «после того, как у спектра появится своя кнопка с индивидуальными настройками, панель настроек должна выглядеть в точности как сейчас — в виде докабл/детачбл окна». => The @panel/PanelWindow machinery is PRESERVED and repurposed for the per-graph individual editor (phase 3), NOT deleted. SG-D3 REVISED (superseded rev 1's file deletions; only the Audio-toolbar `tune` global opener still goes); SG-D6 ADDED (two surfaces: program-level = Settings tab; per-graph = dockable/detachable panel). SG2.1/SG3.0 re-scoped."
+    },
+    {
+      "at": "2026-07-16",
+      "step": "SG0.1",
+      "text": "Sequencing settled: owner picked «Всё сразу» => all phases (1 tab, 2 repoint the Audio-toolbar opener, 3 per-graph L/R via the dockable/detachable panel) are in THIS task. SG0.1 PAUSE PASSED and marked done. SG3.0 un-gated (still to be decomposed into SG3.x after phase 2, once the panel-state singleton and graph identity are examined closely — the SG-D6 design questions: one retargeted panel vs per-graph instances, and the L/R scope mapping). Starting SG1.1 (program-level Settings tab); the floating panel is left working over the global store until phase 2."
+    },
+    {
+      "at": "2026-07-16",
+      "step": "SG1.1",
+      "text": "SG1.1 DONE — the program-level spectrogram «Параметры» are now a tab («Спектрограмма») on the general Settings page. New SpectrogramSettingsTab.vue reuses SpectrogramSettingsPanel + re-provides Reset/presets; registered as a lazy settingsTab in gnauralModule; i18n settings.spectrogramTab added (both locales, deep-merge safe). Verify green: vue-tsc 0, quasar build ok, GnauralCore 269 pass/0 fail; laziness proven by separate chunks. The floating panel is untouched (still edits the same store). Now at SG1.2 PAUSE — owner drives the app to accept the tab before phase 2 (removing the Audio `tune` global opener)."
     }
   ]
 }
