@@ -20,6 +20,11 @@
         <span class="panel-window__title">{{ title }}</span>
       </div>
 
+      <!-- SS2.3: optional consumer-supplied title-bar action buttons, left of the dock menu. Unused
+           by file-open / track-list (an empty named slot renders nothing) — «Параметры» puts its
+           presets button here. -->
+      <slot name="titlebar-actions" />
+
       <!-- FB4.3-refine 1: all window modes collapsed under one icon + menu to cut visual noise. -->
       <q-btn flat dense round size="sm" :icon="modeIcon" class="panel-window__dock-menu-btn">
         <app-tooltip>{{ t('panel.dockMenu') }}</app-tooltip>
