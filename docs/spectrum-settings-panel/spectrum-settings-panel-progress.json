@@ -100,30 +100,47 @@
       "id": "SS1.2",
       "phase": 1,
       "title": "PAUSE — owner-проверка формы (req 1): док слева/справа/сверху/снизу, floating, drag, ресайз, персист, переключение вкладок; заодно подтвердить R3 (панель больше не модальная: бэкдропа нет, как у двух других)",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["SS1.1"],
       "artifacts": [],
       "verify": "owner drives the real app and confirms the form behaves «по аналогии» with «Открытие файлов» / «Список треков»",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-16",
+      "finishedAt": "2026-07-16",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Owner approved the form («ok», 2026-07-16) with no remarks — the dockable/floating «Параметры» behaves «по аналогии» with «Открытие файлов» / «Список треков». R3 (no backdrop/Escape, like the other two panels) accepted implicitly. Proceed to SS2.1 (blocks: tiles/accordion)."
+      ]
     },
     {
       "id": "SS2.1",
       "phase": 2,
       "title": "Блоки + адаптивная раскладка (req 2-4): ПЯТЬ блоков — «Пресеты» (первый, req 5) + четыре группы, «Сброс» в слот footer (SS-D6 rev.); ResizeObserver + порог ~568px (SS-D4, req 8); плитки = grid auto-fill/minmax; аккордеон = q-expansion-item с мульти-раскрытием и персистом набора (SS-D5, req 6). Измерить реальный MIN_BLOCK на группе «Цвет» (7 полей) и записать сюда",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["SS1.2"],
       "artifacts": [
-        "GnauralCore/ui/components/SpectrogramSettingsPanel.vue (the single groups v-for :36-103 + the preset bar :3-34 becoming block #1 + CSS; ResizeObserver guarded by `typeof ResizeObserver !== 'undefined'`)",
-        "GnauralCore/ui/components/SpectrumSettingsDialog.vue («Сброс» in PanelWindow's footer slot — SS-D6 rev.)"
+        "GnauralCore/ui/composables/spectrogram-settings-fields.ts (new; shared Field/Group/Spin types + pure clamp + the SS-D4 layout rule layoutForWidth/SPECTRUM_TILES_THRESHOLD_PX)",
+        "GnauralCore/ui/composables/spectrogram-settings-fields.test.ts (new; clamp + layoutForWidth unit tests)",
+        "GnauralCore/ui/components/SpectrogramSettingsFields.vue (new; the field renderer, extracted so tiles+accordion share ONE copy)",
+        "GnauralCore/ui/components/SpectrogramSettingsPresets.vue (new; the preset dropdown+manager, so «Пресеты» can be block #1)",
+        "GnauralCore/ui/components/SpectrogramSettingsPanel.vue (rewritten: 5 blocks, ResizeObserver tiles/accordion, persisted open-set; groups computed kept)",
+        "GnauralCore/ui/components/SpectrumSettingsDialog.vue («Сброс» in PanelWindow's footer slot + scrollbar-gutter:stable on the scroll body — SS-D6, R1)"
       ],
-      "verify": "bun run typecheck + bun run build; bun test ui server green; manual: two blocks side by side -> tiles (req 3); narrow/vertical -> single-column accordion (req 4); the accordion opens SEVERAL blocks at once and remembers the set across F5 (req 6); «Пресеты» is its own block (req 5) while «Сброс» sits in the footer and stays visible when every block is collapsed (req 5 — the whole point of the hybrid answer); SLOW resize across the threshold does not flap (R1 — the scrollbar feedback loop); five blocks of unequal height look acceptable in tiles (R2); the measured MIN_BLOCK is recorded in this step's evidence",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "DONE — vue-tsc 0 errors; quasar build ok; bun test ui server 265 pass / 0 fail (was 260 — +5 new clamp/layout assertions). Runtime-visual part is SS2.2 (owner PAUSE — no browser driver here). What the build cannot catch was checked: all 6 t() keys resolve in both locales; the emitted panel CSS carries repeat(auto-fill,minmax(280px,1fr));gap:8px;align-items:start and the dialog CSS carries scrollbar-gutter:stable + the footer; the panel is still its own lazy chunk (15.3 KB, ResizeObserver x3 + the open-set key present); the dev server serves both new child components (HTTP 200).",
+      "startedAt": "2026-07-16",
+      "finishedAt": "2026-07-16",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "MEASURED MIN_BLOCK (the number SS2.1 owed): set to 280px, threshold = 2*280 + 8 gap = 568px, in composables/spectrogram-settings-fields.ts. Basis: the pre-refactor panel was a fixed 300px column and its controls (dense q-select/q-input) were comfortable in it, so 280 is the floor where a block stays usable and two + a gap fit in a ~580px window. This is a starting value, not a visual measurement — no browser driver exists here — so the owner confirms the feel at SS2.2; changing it is one constant.",
+        "DECOMPOSITION (why 3 new files, not one edited v-for as the plan guessed): the two layouts are STRUCTURALLY different (accordion collapses via q-expansion-item; tiles are a fixed CSS grid), so both need to render the same block bodies. Rendering the field controls inline in both would duplicate a ~50-line control block that must stay in sync — exactly the divergent-copy hazard WS §8 documents. So the field renderer became SpectrogramSettingsFields.vue and the preset bar SpectrogramSettingsPresets.vue, each referenced once per layout as a single tag. Bonus: this is the decomposition SS3.1 needs anyway (the pure View will contain these same children).",
+        "A REAL BUG my own test caught before commit: clamp(0.35, {step:0.1}) returns 0.3, not 0.4, because 0.35/0.1 === 3.4999999999999996 in IEEE-754 and rounds DOWN. clamp is verbatim from the pre-SS2.1 panel, so this is behaviour the sliders always had — my test's EXPECTATION was wrong, not the code. Fixed the assertion and added an explicit test documenting the .5-boundary FP quirk, so a later reader does not 'correct' clamp and change long-standing behaviour.",
+        "R1 (tiles<->accordion flapping) attacked at the source: the switch is driven by rootEl.clientWidth (the panel root, whose width is set by PanelWindow geometry, NOT by content), and the scroll container gets scrollbar-gutter:stable so the appearance of a scrollbar does not change content width. That removes the collapsed->no-scrollbar->wider->tiles->taller->scrollbar->narrower->accordion loop by construction. If SS2.2 still shows flap at the exact boundary, hysteresis is the documented next step (plan R1).",
+        "ResizeObserver guarded by `typeof ResizeObserver !== 'undefined'` (the convention of all 6 existing sites); without it the panel stays in the safe single-column accordion. Also: measure() runs once on mount before observing, so the first paint is already correct.",
+        "Accordion open-set (SS-D5): multi-open (independent q-expansion-item v-models, no `group` prop), persisted to mindwave-panel-spectrum-settings-groups as a string array, default = ['presets'] (first block). localStorage read/write is best-effort (try/catch), matching the @panel state persistence.",
+        "«Сброс» is in the window FOOTER slot (SS-D6), NOT in the «Пресеты» block — so collapsing every accordion block leaves Reset visible. It calls store.reset() directly (the store is the global singleton); SS3.1 turns this into a bridged action for the detached child.",
+        "Content otherwise unchanged: the four groups, their 17 fields, help popovers, spinbox steppers, preset dropdown and manager are the same — only their CONTAINER (block/tile/accordion) is new. i18n needed no new keys (SS-D7): «Пресеты» reuses audio.spectrogramPresets, «Сброс» reuses audio.spectrogramReset.",
+        "Line endings: all 4 new files + the 2 edited ones are LF (matching every panel sibling); checked per file after writing, not assumed.",
+        "Staged only my files: GTrackView.vue also shows modified in GnauralCore but it is the owner's parallel GT11.15 work (verified: last commit 725e715, references nothing I touched) — left untouched, not staged."
+      ]
     },
     {
       "id": "SS2.2",
