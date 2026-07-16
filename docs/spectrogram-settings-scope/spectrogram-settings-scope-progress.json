@@ -152,21 +152,32 @@
     {
       "id": "SG3.1",
       "phase": 3,
-      "title": "Модель + резолверы (SG-D7): пер-канальные оверрайды [L,R] общего спектра (individual SpectrogramSettings или null=наследовать программный стор) + сеттеры (setChannel/clearChannel/setBoth) + персист + резолверы render/analysis (override ?? программный), заведённые в два SpectrogramView в TracksPanel. Юнит-тесты резолюции. UI пока нет",
-      "status": "pending",
+      "title": "Модель + резолверы (SG-D7): пер-канальные оверрайды [L,R] общего спектра (individual SpectrogramSettings или null=наследовать программный стор) + сеттеры (setChannel/clearChannel/setBoth) + персист + резолверы render/analysis (override ?? программный), заведённые в общий спектр-стек TracksPanel. Юнит-тесты резолюции. UI пока нет",
+      "status": "done",
       "dependsOn": ["SG3.0"],
-      "artifacts": [],
-      "verify": "bun test ui server (new resolution tests) + typecheck + build; the two overall SpectrogramView still render (override-else-global); default = both inherit (no override) so nothing changes visually yet",
-      "startedAt": null,
-      "finishedAt": null,
+      "artifacts": [
+        "GnauralCore/ui/composables/overall-spectrum-overrides.ts (new; PURE model: SpectrumOverrides {0,1} + channelOverride/isChannelIndividual/set/clear/ensure/setBoth/clearBoth/loadOverrides)",
+        "GnauralCore/ui/composables/overall-spectrum-overrides.test.ts (new; 8 tests — independence, clone, ensure-keeps-existing, setBoth/clearBoth, junk-tolerant load+merge)",
+        "GnauralCore/ui/stores/overall-spectrum-overrides.ts (new; Pinia wrapper: reactive ref + getChannel/isIndividual/set/ensure/clear/setBoth/clearBoth + localStorage persist mindwave-spectrogram-channel-overrides)",
+        "GnauralCore/ui/components/TracksPanel.vue (overallSpectrumAnalysis/overallSpectrumRender resolvers; overall spectrogram stack + status-bar minimap render/analysis now resolve per channel; kept SEPARATE from spectrogramAnalysisForChannel used by waveform/gtrack) [CRLF file — \\r\\n-preserving edits]"
+      ],
+      "verify": "DONE — vue-tsc 0 errors; quasar build succeeded; bun test ui server 277 pass / 0 fail (was 269, +8 model tests). Default = both channels inherit (no override), so the overall spectrogram is byte-for-byte unchanged until an override is set.",
+      "startedAt": "2026-07-16",
+      "finishedAt": "2026-07-16",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "MODEL IS PURE + TESTED (matching the repo's test style — pure fns, no Pinia/DOM): composables/overall-spectrum-overrides.ts holds the state transforms; the store is a thin reactive+persist wrapper. A test I wrote caught my OWN wrong expectation before commit: slot() maps any non-1 index to the L slot (defensive), not 'everything else = R' — corrected the assertion to the real semantics (channels 0/1 independent).",
+        "ISOLATION verified by reading usages (the lesson from the SG-D1 miss — don't assume): spectrogramLeftAnalysis/RightAnalysis + spectrogramAnalysisForChannel feed the WAVEFORM tracks (TracksPanel:393) and the gtrack lane fallback (:2176) too, so I did NOT make those override-aware. Instead a SEPARATE overallSpectrumAnalysis/overallSpectrumRender is used ONLY on the overall spectrogram stack (:481) and the status-bar minimap (:845). A spectrum override cannot leak into the waveform's analysis.",
+        "INERT BY DEFAULT: with no override, overallSpectrumRender returns spectrogramStore.renderOptions and overallSpectrumAnalysis returns spectrogramAnalysisForChannel(ch) — identical to before. The minimap's analysis already followed spectrogramTracks[0] (now override-aware for the primary channel); its render was updated to match (same channel) for consistency.",
+        "DETACH-AWARE BY DESIGN (SS-D3): the store is main-window-authoritative; SG3.2's detached panel will bridge actions to it rather than run its own copy (documented in the store header).",
+        "Line endings: 3 new files LF (composable siblings); TracksPanel.vue CRLF, edited via \\r\\n-preserving node scripts (additions) + single-line Edits (bindings) — CR===LF, no mixed. One Edit collided with a concurrent linter/rewrite and was reapplied via script."
+      ]
     },
     {
       "id": "SG3.2",
       "phase": 3,
       "title": "UI (SG-D7): шестерёнка в шапке группы общего спектра открывает докабл/детачбл @panel (переиспользуем сохранённый механизм); в контенте панели — селектор scope Оба/L/R + тумблер individual/inherit; форма (View/Fields) привязана к активному scope (оверрайд или программный), правки идут в оверрайд активного канала(ов). i18n новых подписей",
-      "status": "pending",
+      "status": "active",
       "dependsOn": ["SG3.1"],
       "artifacts": [],
       "verify": "typecheck + build + tests; the gear opens the panel; editing L/R writes the channel override and repaints only that channel; toggling «наследовать» clears the override; dock/float/detach still work",
@@ -219,6 +230,11 @@
       "at": "2026-07-16",
       "step": "SG1.2 / SG2.1",
       "text": "SG1.2 PASSED — owner approved («ok») the «Спектрограмма» subsystem in the Audio Меню→Настройки dialog. Phase 1 accepted. SG2.1 DONE — removed the global `tune` toolbar opener from TracksPanel (+ its dead import/const); the @panel machinery is kept (AudioPage still hosts SpectrumSettingsDialog + the store) as the phase-3 template. Verify green (vue-tsc 0, build ok, 269 pass/0 fail). The floating panel is now dormant (no opener) until phase 3 gives it a per-graph header button. Next: phase-3 DESIGN — the SG-D6 open forks (one retargeted panel vs per-graph instances; L/R scope mapping) go to the owner before any code."
+    },
+    {
+      "at": "2026-07-16",
+      "step": "SG3.0 / SG3.1",
+      "text": "Phase-3 DESIGN settled (SG-D7): owner picked Hybrid (scope Оба/L/R + per-scope individual/inherit toggle) + one gear in the overall spectrogram group header. Grounded in code before asking (post-SG-D1-miss discipline). SG3.1 DONE — pure per-channel override model (composables/overall-spectrum-overrides + 8 tests) + Pinia store + TracksPanel resolvers (overallSpectrumAnalysis/Render) on the overall stack + minimap, kept SEPARATE from the waveform/gtrack analysis so overrides don't leak. Inert by default (both inherit). Verify green (277 pass/0 fail). Now SG3.2 (active): the gear + the scope/inherit panel UI + rebinding the form to the active scope + detach-remote."
     }
   ]
 }
