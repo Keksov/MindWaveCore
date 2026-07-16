@@ -52,14 +52,21 @@
       "id": "VS1.1",
       "phase": 1,
       "title": "Гир + point-mode в шапку дорожки (tracks-panel__gtrack-header); удалить оверлей gtrack-view__actions из GTrackView.vue (+осиротевшие emit'ы/пропсы)",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["VS0.1"],
-      "artifacts": [],
-      "verify": "bun test ui server (GnauralCore); bun run typecheck + build (MindWaveCore/ui); реальное приложение: гир и point-mode в шапке (в т.ч. у свёрнутой дорожки) работают, в графике кнопок нет",
-      "startedAt": null,
-      "finishedAt": null,
+      "artifacts": [
+        "GnauralCore/ui/components/TracksPanel.vue (per-track header: point-mode btn + settings gear after the title; GTrackView wiring loses @open-settings/@toggle-point-mode) [CRLF]",
+        "GnauralCore/ui/components/GTrackView.vue (gtrack-view__actions overlay removed: template block, open-settings/toggle-point-mode emits, .gtrack-view__actions CSS; side-actions selectors simplified) [CRLF]"
+      ],
+      "verify": "DONE — vue-tsc 0 errors; quasar build succeeded; bun test ui server 277 pass / 0 fail. Runtime-visual (header buttons incl. on a folded track; no buttons on the canvas) is owner-verified at VS2.3 (no browser driver here).",
+      "startedAt": "2026-07-16",
+      "finishedAt": "2026-07-16",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "The header buttons wire STRAIGHT to the existing lane APIs (gtracks.isLanePointMode/toggleLanePointMode, gtrackSettingsId) — no new state; GTrackView keeps the pointMode PROP (the canvas still changes cursor/gestures with it), it only lost the toggle BUTTON.",
+        "The gear reuses the tracks-panel__gtrack-header-gear class (flex:0 0 auto + right 4px margin, WS1.4); the title's flex:1 pushes both buttons to the right edge, same as the wave/spectrum group headers.",
+        "The other two open-settings emitters (solo-wave WaveformView :290, solo-spectrum SpectrogramView :321) still open the track dialog — they are re-targeted in VS2.1/VS2.2, not dropped here."
+      ]
     },
     {
       "id": "VS2.1",
@@ -128,6 +135,11 @@
     }
   ],
   "log": [
+    {
+      "at": "2026-07-16",
+      "step": "VS1.1",
+      "text": "Point-mode + settings gear moved from the GTrackView canvas overlay into the per-track header bar (after the title, mirroring the WS1.2/SG3.2a group-header gears); overlay + both emits + CSS removed. Verify green: vue-tsc 0 errors, quasar build ok, bun test ui server 277/0."
+    },
     {
       "at": "2026-07-16",
       "step": "VS0.1",
