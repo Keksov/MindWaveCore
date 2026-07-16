@@ -291,14 +291,16 @@
       "id": "SS2.2",
       "phase": 2,
       "title": "PAUSE — owner-проверка вида: единый card-вид + заголовок с чертой без шеврона (SS2.8); masonry без пустот (SS2.7); flush + только стрелки в числовых полях (SS2.6); плитки/аккордеон, порог; иконка пресетов и единый диалог со встроенным управлением (SS2.3+SS2.4)",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["SS2.1", "SS2.3", "SS2.4", "SS2.5", "SS2.6", "SS2.7", "SS2.8"],
       "artifacts": [],
       "verify": "owner drives the real app; the tile/accordion rule matches req 2-4 and the threshold feels right (Q4)",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-16",
+      "finishedAt": "2026-07-16",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Owner approved Phase 2 («ok», 2026-07-16) after the iterative fixes SS2.3–SS2.8 (presets to a title-bar modal + merged manager; compact shared/then per-card borders; flush frame; arrows-only numeric fields; masonry; unified card look with a ruled header, no chevron in tiles). Phase 2 (blocks: tiles/accordion) is accepted. Next is Phase 3 (detach) — pending owner's go, since it is a large refactor and detach was flagged as needing the PW5.7 remote redesign."
+      ]
     },
     {
       "id": "SS3.1",
