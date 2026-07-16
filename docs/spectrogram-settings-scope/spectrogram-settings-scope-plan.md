@@ -1,0 +1,182 @@
+# spectrogram-settings-scope — план
+
+Настройки спектрограммы разносятся по **уровням**: программный уровень (глобальные настройки-по-умолчанию)
+переезжают в **общий диалог настроек** отдельной вкладкой; плавающая/detachable панель «Параметры» с Audio-страницы
+**убирается**; а как конечная цель — в заголовке каждого графика спектра появляется кнопка индивидуальной настройки
+левого/правого каналов, по образцу уже существующего механизма для волны.
+
+Префикс шагов: `SG`. Леджер (authoritative): `spectrogram-settings-scope-progress.json`.
+
+---
+
+## 1. Требования владельца (verbatim)
+
+> Новая задача для диалога настроек спектра — интеграция настроек в общий диалог настроек, который вызывается из
+> меню Настройки и отображается в отдельном окне.
+
+Уточнения на вопросы (2026-07-16):
+
+- **Q1 (окно).** «Общий диалог настроек (/settings) сейчас — внутренняя вкладка в главном окне, а НЕ отдельное окно.
+  Как реализовать "отображается в отдельном окне"?» → **«Оставить как вкладку».**
+- **Q2 (судьба панели «Параметры»).** → **«Кнопка не нужна, её нужно убрать. Настройки спектрограммы уровня
+  программы будут применяться ко всем спектрограммам, если для них не заданы индивидуальные параметры. Конечная цель
+  — сделать в каждом графике спектра кнопку в его заголовке для настройки индивидуальных параметров отображения левого
+  и правого каналов. Сейчас это реализовано только для отображения волны, такой же механизм надо повторить для спектра».**
+
+**Нагруженная премиса, снятая до планирования** ([[verify-the-load-bearing-premise]]): формулировка «отображается в
+отдельном окне» **не соответствует коду** — `/settings` это обычный маршрут внутри `MainLayout` (`routes.ts:28`,
+`router.push('/settings')`), без `window.open`/диалога/detached-панели. Единственный механизм «отдельных окон» —
+`@panel`/`PanelWindow`, и общий Settings его не использует. Владелец подтвердил: трактуем «отдельное окно» как «своя
+вкладка», @panel-переезд общего Settings **не делаем** (Q1).
+
+---
+
+## 2. Инвентаризация (проверено чтением кода двумя разведками)
+
+### 2.1. Общий диалог настроек — устройство
+- `MindWaveCore/ui/pages/SettingsPage.vue` — `q-page` с `q-tabs`+`q-tab-panels`, управляется `settingsTabs` из
+  `src/modules`. Каждый таб рендерится в `<q-tab-panel>` внутри `<Suspense>` (`SettingsPage.vue:24-39`).
+- Контракт: `CoreModuleSettingsTabContribution = { name, icon, labelKey, component }`
+  (`src/modules/index.ts:17-22`); агрегация `settingsTabs = registeredModules.flatMap(m => m.settingsTabs)` (`:39`).
+- Сегодня непустой таб ровно один — BodyMonitor «Devices» (`BodyMonitorCore/ui/module.ts:17-24`,
+  `component: defineAsyncComponent(() => import('./settings/BodyMonitorSettingsTab.vue'))`). Это образец для нашего таба.
+- У Gnaural `settingsTabs: []` с комментарием GT10.17: «аудионастройки переехали в Audio-вкладку (диалог); общий
+  Settings их больше не хостит» (`GnauralCore/ui/module.ts:14-16`). Наш таб **вновь наполняет** `settingsTabs` —
+  но GT10.17 вынес *аудио-девайс*-настройки; спектрограммная «Параметры» — другая сущность (см. SG-D2).
+
+### 2.2. Северный ориентир — пер-канальные настройки ВОЛНЫ (что повторяем для спектра, фаза 3)
+- Целиком локально в `TracksPanel.vue`, **без стора и без типа в protocol.ts**. Персист в один ключ localStorage
+  `mindwave-tracks-waveform` (`:1844`, load `:1845-1868`, save-watcher `:2348-2368`).
+- Модель: пер-канальные массивы `[L,R]` — `waveformScales/Colors/Opacities` (`:1880-1890`), **отдельная** группа
+  «Оба канала» `waveformBothScale/Color/Opacity` (`:1901-1907`) и тумблер `waveformLinkChannels` (`:1934`).
+- Шестерёнка — в **шапке группы** (`:387-395`, `icon="settings"`), открывает **двухпанельный `q-dialog`**
+  (`:721-809`): слева список scope (`'both' | 0 | 1`), справа контролы color/scale/opacity активного scope.
+- Резолверы «что рисует lane» — `wfScale/wfColor/wfOpacity(ch)` (`:1912-1925`): если `linked` → группа «Оба канала»,
+  иначе пер-канальный элемент. Семантика — **НЕ «override глобального дефолта»**: «Оба канала» это третья
+  независимая группа-пир (WS-D9, `:1893-1897`), при link/unlink ничего не копируется, меняется лишь читаемый источник.
+- Пер-канально в рамках единственного общего wave-стека; **не** ключуется по произвольному graph-id.
+
+### 2.3. Спектрограмма сегодня
+- Рендер — `SpectrogramView.vue` (тупой canvas-view, все параметры пропсами `:183-222`). Общий стек рисует L и R
+  **двумя** инстансами `SpectrogramView` (цикл `TracksPanel.vue:485-513`), различие только в индексе канала анализа.
+- Глобальный стор `stores/spectrogram.ts` — **ОДИН** объект `settings` (`:96`) на все спектрограммы; derived
+  `renderOptions`/`analysisParams` (`:100-101`). Оба общих вида читают `spectrogramStore.renderOptions` (`:492`) —
+  свои пер-канальные настройки отображения у спектра **отсутствуют**. Тип `SpectrogramSettings` (18 полей) +
+  `DEFAULT_SPECTROGRAM_SETTINGS` в `composables/spectrogram-settings.ts:20-81`. Ключи персиста
+  `mindwave-spectrogram-settings/-user-presets/-active-preset`; `reset()` `:125-128`.
+- **Прецедент «individual-else-global» для спектра уже есть** (но только для gtrack-lane, не для общего L/R-стека):
+  `laneSpectrum: Record<laneId, SpectrogramSettings>` в `use-gtrack-lanes.ts:246-296`; резолверы
+  `laneSpectrogramAnalysis/Render` (переопределение иначе глобал) `TracksPanel.vue:2186-2197`; тумблер+редактор
+  `toggleLaneSpectrumCustom` + `GTrackSpectrumSettings.vue` (`:670-686`). Это готовая модель для фазы 3.
+- Шапка группы общего спектра есть (`TracksPanel.vue:452-483`), но **без шестерёнки** — ровно место под будущую кнопку.
+
+### 2.4. Переиспользуемая форма настроек (готова из фичи spectrum-settings-panel)
+- `SpectrogramSettingsPanel.vue` — in-window адаптер (~23 строки): строит snapshot из стора, рендерит
+  `<SpectrogramSettingsView>`, применяет действия `applySpectrumSettingsAction(action, store)`. **Это и есть форма
+  для таба** — говорит со стором сама.
+- `SpectrogramSettingsView.vue` (чистый view, tiles/accordion по ширине через ResizeObserver),
+  `SpectrogramSettingsFields.vue` (рендер полей), `composables/spectrogram-settings-fields.ts`,
+  `spectrum-settings-model.ts`, `spectrum-settings-actions.ts`, `use-spectrum-settings-snapshot.ts`,
+  `SpectrogramPresetsDialog.vue` (модаль пресетов, говорит со стором) — **всё переиспользуется**.
+- `Сброс` и доступ к пресетам жили в chrome панели (`SpectrumSettingsDialog.vue`: footer «Сброс» → `store.reset()`;
+  тайтл-бар `bookmarks` → `SpectrogramPresetsDialog`), а НЕ в самой форме → таб должен их **пере-предоставить**.
+
+### 2.5. Что умирает при сносе плавающей панели «Параметры» (точный список, по grep)
+- `TracksPanel.vue:125-132` — тумблер тулбара `icon="tune"` (+ `useSpectrumSettingsPanelState` `:1168,2616`). **CRLF-файл.**
+- `AudioPage.vue:156` — хост `<SpectrumSettingsDialog v-if="spectrumSettingsPanel.open">` (+ импорт `:462`,
+  state `:461,626`). **CRLF-файл.**
+- Удалить `SpectrumSettingsDialog.vue`.
+- Удалить `SpectrogramSettingsRemote.vue` + запись панели `spectrum-settings` в manifest (`module.ts:38-47`). **CRLF-файл.**
+- Удалить `stores/spectrum-settings-panel.ts` (`useSpectrumSettingsPanelState`).
+- **ОСТАЁТСЯ живым** (переиспользуется табом): Panel/View/Fields, model/actions, snapshot, PresetsDialog.
+- Слот `titlebar-actions` в `PanelWindow.vue` (SS-D11) остаётся без потребителей → **оставляем как есть** (общий
+  @panel-контрол, backward-compatible; удалять фичу общего контрола ради удаления — лишний риск). Пометить: потребителей 0.
+- Осиротевшие ключи `mindwave-panel-spectrum-settings-*` — безвредны (чтение best-effort), не трогаем.
+
+---
+
+## 3. Решения (SG-Dn)
+
+- **SG-D1.** «Отдельное окно» = существующая внутренняя вкладка `/settings` (Q1). Интеграция = вклад `settingsTab` от
+  GnauralCore, НЕ перевод общего Settings на @panel. `SettingsPage.vue` остаётся маршрутом в `MainLayout`.
+  Основание: `/settings` — обычный route (`routes.ts:28`), а не окно; @panel Settings не использует. Премиса «в
+  отдельном окне» была ложной в коде и снята с владельцем.
+- **SG-D2.** Таб переиспользует готовую форму. Новый `SpectrogramSettingsTab.vue` (в `GnauralCore/ui/settings/`, по
+  образцу `BodyMonitorSettingsTab`) рендерит `<SpectrogramSettingsPanel/>` + пере-предоставляет «Сброс» (`store.reset()`)
+  и доступ к пресетам (`SpectrogramPresetsDialog`). Регистрация через `gnauralModule.settingsTabs` c
+  `defineAsyncComponent` (ленивость — R2). Это вновь наполняет `settingsTabs`, формально «отменяя» пустоту после
+  GT10.17 — но GT10.17 вынес *аудио-девайс*-настройки; спектрограммная «Параметры» — другая сущность, и её место по
+  запросу владельца именно в общем Settings. (Подтвердить формулировку/иконку/лейбл на PAUSE.)
+- **SG-D3.** Плавающую панель «Параметры» (@panel) убираем полностью (Q2 «кнопка не нужна»). Список сноса — §2.5.
+  Живые переиспользуемые части НЕ трогаем. Снос — отдельная фаза 2 ПОСЛЕ owner-приёмки таба (фаза 1), чтобы SG1.2 был
+  чистым чекпоинтом формы, а удаление — обратимым решением после «ok».
+- **SG-D4.** Программный уровень. Глобальный стор `spectrogram.ts` остаётся **настройками-по-умолчанию уровня
+  программы**; он уже применяется ко всем спектрограммам. Таб редактирует именно этот объект. Это и есть модель
+  владельца: «настройки уровня программы применяются ко всем спектрограммам, если для них не заданы индивидуальные».
+- **SG-D5 (фаза 3 — КОНЕЧНАЯ ЦЕЛЬ, gated).** Кнопка в шапке графика спектра → индивидуальные настройки L/R каналов,
+  по образцу волны (§2.2). Прецедент individual-else-global уже есть (`laneSpectrum`, §2.3). Повторить для общего
+  L/R-стека = пер-канальный `[L,R]` override `SpectrogramSettings` + понятие link/«Оба канала» + резолверы
+  (individual-else-global), питающие два `SpectrogramView`; шестерёнку добавить в шапку `TracksPanel.vue:452-483`.
+  Фаза объёмная и дизайн-ёмкая: детальная декомпозиция и owner-PAUSE — ПОСЛЕ подтверждения scope на SG0.1.
+  **Открытый вопрос:** входит ли фаза 3 в текущую задачу сейчас, или сначала сдаём фазы 1–2 (см. §7).
+
+---
+
+## 4. Фазы и шаги
+
+**Фаза 0 — план + инвентаризация**
+- **SG0.1** — этот план + леджер + разведка (сделано). **PAUSE:** владелец сверяет план, подтверждает (а) scope фазы 3,
+  (б) UX таба (лейбл/иконка, размещение «Сброс»/пресетов), (в) что повторное наполнение `settingsTabs` ок (R5).
+
+**Фаза 1 — программные настройки как вкладка общего Settings**
+- **SG1.1** — `SpectrogramSettingsTab.vue` (форма `SpectrogramSettingsPanel` + «Сброс» + триггер пресетов) +
+  регистрация `settingsTab` в `gnauralModule` (defineAsyncComponent) + i18n-лейбл `settings.spectrogramTab`
+  (обе локали). Плавающая панель пока НЕ трогается. Verify: typecheck+build (MindWaveCore/ui), `bun test ui server`
+  (GnauralCore); ленивость таба подтверждена по бандлу.
+- **SG1.2** — **PAUSE:** владелец гоняет реальное приложение — вкладка «Спектрограмма» в общем Settings: форма,
+  tiles/masonry на широком табе, «Сброс», пресеты (применение/управление), правки применяются к спектрограмме.
+
+**Фаза 2 — снос плавающей панели «Параметры»**
+- **SG2.1** — удалить tune-кнопку + state в TracksPanel; хост+импорт+state в AudioPage; файлы `SpectrumSettingsDialog`,
+  `SpectrogramSettingsRemote`, `stores/spectrum-settings-panel`; запись `spectrum-settings` в manifest (§2.5). CRLF
+  пофайлово (R1). Verify: typecheck+build+tests; grep 0 висячих ссылок; PanelHostPage больше не резолвит id.
+- **SG2.2** — **PAUSE:** владелец подтверждает Audio-страницу без tune и общий Settings как единственную точку
+  программных настроек.
+
+**Фаза 3 — индивидуальные L/R настройки графика спектра (SG-D5, gated; декомпозируется после SG0.1)**
+- SG3.x — по образцу §2.2/§2.3: пер-канальный override + link + резолверы + шестерёнка в шапке спектра + owner-PAUSE.
+
+---
+
+## 5. Риски
+
+- **R1 (CRLF).** `TracksPanel.vue`, `AudioPage.vue`, `module.ts` — **CRLF**; новые файлы-сиблинги в `ui/` — LF.
+  Проверять окончания пофайлово, не скриптовать сплошную перезапись ([[crlf-scripted-edits]]).
+- **R2 (ленивость).** Таб грузит `SpectrogramPresetsDialog` (+ менеджер) — держать компонент таба за
+  `defineAsyncComponent`, чтобы не раздуть eager-чанк; `SettingsPage` уже оборачивает таб в `<Suspense>`.
+- **R3 (снос manifest-панели).** Убедиться, что `PanelHostPage` больше не резолвит `spectrum-settings` и нет читателей
+  панель-стейта; осиротевшие `mindwave-panel-spectrum-settings-*` безвредны (best-effort), задокументировать.
+- **R4 (нет браузер-драйвера).** Визуально-интеракционная приёмка — только owner-PAUSE (SG1.2/SG2.2).
+- **R5 (реверс GT10.17).** Повторное наполнение `settingsTabs` возвращает Gnaural-таб в общий Settings — подтвердить
+  на SG0.1, что владелец этого и хочет.
+- **R6 (широкий таб).** tiles/accordion и open-set (`mindwave-panel-spectrum-settings-groups`) тюнились под узкую
+  панель; на широком табе форма пойдёт в tiles/masonry — сверить ощущение на SG1.2.
+
+---
+
+## 6. Verify (routine, без CI/ESLint/тест-скрипта)
+
+- `MindWaveCore/ui`: `bun run typecheck` (vue-tsc) + `bun run build` (quasar).
+- `GnauralCore`: `bun test ui server`.
+- Что билд не ловит — проверять руками: резолв i18n-ключей в обеих локалях; ленивость по бандлу; отсутствие висячих
+  ссылок по grep после сноса. Реальную интеракцию — владелец на PAUSE.
+
+---
+
+## 7. Открытые вопросы (на SG0.1 PAUSE)
+
+1. **Scope фазы 3.** Делаем индивидуальные L/R настройки графика спектра в этой же задаче, или сначала сдаём фазы 1–2
+   (программный таб + снос панели), а фазу 3 берём отдельно после?
+2. **UX таба.** Лейбл вкладки («Спектрограмма» / «Параметры спектра»), иконка (`tune` для преемственности?),
+   размещение «Сброс» и триггера пресетов внутри таба (шапка таба / футер / рядом с формой).
+3. **R5.** Возврат Gnaural-таба в общий Settings — ок?

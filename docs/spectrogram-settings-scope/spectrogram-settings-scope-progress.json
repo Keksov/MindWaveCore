@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 1,
+  "plan": "spectrogram-settings-scope",
+  "planDoc": "docs/spectrogram-settings-scope/spectrogram-settings-scope-plan.md",
+  "title": "spectrogram-settings-scope: the PROGRAM-LEVEL spectrogram «Параметры» move into the general Settings page as a tab; the floating/detachable «Параметры» @panel is retired from the Audio page; and (end goal) each spectrum graph gets a header button for per-graph LEFT/RIGHT channel settings, mirroring the waveform mechanism",
+  "status": "in-progress",
+  "createdAt": "2026-07-16",
+  "updatedAt": "2026-07-16",
+  "decisions": [
+    {
+      "id": "SG-D1",
+      "text": "«Отдельное окно» = the EXISTING in-app /settings tab (owner Q1: «Оставить как вкладку»). Integration is a GnauralCore settingsTab contribution, NOT an @panel conversion of the general Settings. LOAD-BEARING PREMISE CORRECTED before planning: the task said the general Settings «отображается в отдельном окне», but the code shows /settings is a plain vue-router route inside MainLayout (routes.ts:28, router.push('/settings')) — no window.open, no dialog, no detached @panel. The ONLY separate-window mechanism in the workspace is @panel/PanelWindow (window.open('#/panel/<id>')), and the general Settings does not use it. Surfaced to the owner, who confirmed we keep it as a tab. So SettingsPage.vue stays a route; we add a tab via CoreModuleSettingsTabContribution (src/modules/index.ts:17-22), the same seam BodyMonitor's «Devices» uses."
+    },
+    {
+      "id": "SG-D2",
+      "text": "The tab REUSES the finished form (from the spectrum-settings-panel feature), it does not rebuild it. New SpectrogramSettingsTab.vue (in GnauralCore/ui/settings/, modelled on BodyMonitorSettingsTab.vue) renders <SpectrogramSettingsPanel/> — the ~23-line in-window adapter that already talks to useSpectrogramStore and applies actions via applySpectrumSettingsAction — and RE-PROVIDES «Сброс» (store.reset()) and presets access (SpectrogramPresetsDialog), because those lived in the retired PanelWindow chrome (SpectrumSettingsDialog: footer Reset + title-bar bookmarks icon), NOT inside the form. Registered through gnauralModule.settingsTabs with defineAsyncComponent (laziness — R2; SettingsPage wraps each tab in <Suspense>). This re-populates settingsTabs, which GT10.17 had emptied — but GT10.17 moved AUDIO-DEVICE settings into the Audio tab; the spectrogram «Параметры» is a different concern whose owner-chosen home is the general Settings (confirm framing + label/icon + Reset/presets placement at the SG0.1 PAUSE)."
+    },
+    {
+      "id": "SG-D3",
+      "text": "The floating «Параметры» @panel is RETIRED entirely (owner Q2: «Кнопка не нужна, её нужно убрать»). Precise cleanup list, from grep over GnauralCore/ui: (a) TracksPanel.vue:125-132 tune toolbar toggle + useSpectrumSettingsPanelState (:1168,2616) [CRLF file]; (b) AudioPage.vue:156 host <SpectrumSettingsDialog v-if> + import (:462) + state (:461,626) [CRLF file]; (c) delete SpectrumSettingsDialog.vue; (d) delete SpectrogramSettingsRemote.vue + the 'spectrum-settings' panel entry in module.ts:38-47 [CRLF file]; (e) delete stores/spectrum-settings-panel.ts. STAYS ALIVE (reused by the tab): SpectrogramSettingsPanel/View/Fields, spectrum-settings-model/actions, use-spectrum-settings-snapshot, SpectrogramPresetsDialog, composables/spectrogram-settings-fields.ts. The SS-D11 titlebar-actions slot on the shared PanelWindow loses its only consumer but STAYS (a shared @panel-control feature; an unused named slot renders nothing and removing shared-control surface is more risk than reward) — noted as 0 consumers. Orphaned localStorage keys mindwave-panel-spectrum-settings-* are harmless (best-effort reads). Retirement is a SEPARATE phase (2) done AFTER the tab is owner-approved (phase 1), so SG1.2 judges the tab cleanly and the deletion is a reversible decision after «ok»."
+    },
+    {
+      "id": "SG-D4",
+      "text": "PROGRAM-LEVEL semantics. The global Pinia store stores/spectrogram.ts stays the PROGRAM-LEVEL default: a single settings object (spectrogram.ts:96) that already applies to every spectrogram (both overall L/R SpectrogramView instances read spectrogramStore.renderOptions, TracksPanel.vue:492). The Settings tab edits exactly this object. This matches the owner's model: program-level settings apply to all spectrograms UNLESS individual per-graph params are set. Individual per-graph override is SG-D5 (phase 3), not this."
+    },
+    {
+      "id": "SG-D5",
+      "text": "END GOAL (phase 3, GATED — decompose only after the SG0.1 scope PAUSE). A gear in each spectrum graph's HEADER opens per-graph individual LEFT/RIGHT channel settings, mirroring the waveform mechanism. North star (waveform, all in TracksPanel.vue, no store/protocol type): per-channel [L,R] arrays + a separate «Оба канала» group + a waveformLinkChannels toggle + resolvers wfScale/wfColor/wfOpacity(ch) (linked => the «both» group, else the per-channel entry) + a two-pane q-dialog opened from the group-header gear (:387-395). NOTE the waveform semantics are NOT «override a global default» — «Оба канала» is a peer group (WS-D9). A CLOSER precedent already exists for the spectrogram itself: the gtrack laneSpectrum override (use-gtrack-lanes.ts:246-296) with individual-else-global resolvers (TracksPanel.vue:2186-2197) and the GTrackSpectrumSettings.vue editor — but it is keyed per lane id and wired only for gtrack solo spectra, not the overall L/R stack. Mirroring for the overall stack = a per-channel [L,R] SpectrogramSettings override (falling back to the program-level global store, SG-D4) feeding the two SpectrogramView instances, plus a gear in the currently gear-less spectrogram group header (TracksPanel.vue:452-483). Substantial and design-heavy; its steps + an owner PAUSE precede any code."
+    }
+  ],
+  "steps": [
+    {
+      "id": "SG0.1",
+      "phase": 0,
+      "title": "План + леджер (этот файл + spectrogram-settings-scope-plan.md) + инвентаризация (разведка механизма волны, архитектуры спектра/стора, точного списка сноса). PAUSE — владелец сверяет план и решает открытые вопросы §7 (scope фазы 3; UX таба; реверс GT10.17)",
+      "status": "active",
+      "dependsOn": [],
+      "artifacts": [
+        "docs/spectrogram-settings-scope/spectrogram-settings-scope-plan.md (owner reqs verbatim, inventory §2 from two Explore passes, decisions SG-D1..SG-D5, phases, risks, open questions §7)",
+        "docs/spectrogram-settings-scope/spectrogram-settings-scope-progress.json (this ledger)"
+      ],
+      "verify": "PAUSE: the owner reviews the plan and answers §7 — (1) is phase 3 (per-graph L/R individual settings) in scope now, or land phases 1-2 first; (2) tab UX: label/icon + where «Сброс» and the presets trigger sit inside the tab; (3) confirm re-populating settingsTabs (a Gnaural tab returns to the general Settings) is intended (R5). No code until the owner responds.",
+      "startedAt": "2026-07-16",
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": [
+        "THE LOAD-BEARING PREMISE WAS FALSE AND WAS RECONCILED BEFORE PLANNING (SG-D1): the task described the general Settings as shown «в отдельном окне», but /settings is a plain in-app route (MindWaveCore/ui/src/router/routes.ts:28), navigated by router.push in MainLayout.vue — no window.open, no dialog, no detached @panel. Verified by an Explore pass across MindWaveCore/ui (menu, routes, layouts, panel system). Rather than plan on the stated-but-wrong fact, it was surfaced to the owner (AskUserQuestion), who chose «Оставить как вкладку». This repo has punished shape/premise-based planning before — see [[verify-the-load-bearing-premise]].",
+        "THE SEAM (SG-D2): the general Settings consumes CoreModuleSettingsTabContribution {name, icon, labelKey, component} (src/modules/index.ts:17-22) and renders each tab.component in a <Suspense> (SettingsPage.vue:24-39). BodyMonitor is the working model — one tab «Devices» via defineAsyncComponent (BodyMonitorCore/ui/module.ts:17-24). Gnaural's settingsTabs is [] (module.ts:14-16, emptied by GT10.17). So the integration is a manifest contribution, no routing/window work.",
+        "THE FORM IS ALREADY REUSABLE (SG-D2): the spectrum settings form is split View + store-adapter + store. SpectrogramSettingsPanel.vue (~23 lines) pulls useSpectrogramStore, builds the snapshot, and applies each emitted action via applySpectrumSettingsAction — it is the store-facing piece and drops straight into a tab. «Сброс»/presets are NOT in it (they were in the retired PanelWindow chrome), so the tab must re-provide them.",
+        "THE RETIREMENT LIST IS EXACT (SG-D3): grep pinned every consumer — tune toggle TracksPanel.vue:125-132 (+state :1168,2616), host AudioPage.vue:156 (+import :462, +state :461,626), and the detach-only files SpectrumSettingsDialog / SpectrogramSettingsRemote (+ manifest entry module.ts:38-47) / stores/spectrum-settings-panel. The reused pieces (Panel/View/Fields, model/actions, snapshot, PresetsDialog) were confirmed to survive because SpectrogramSettingsPanel keeps referencing them.",
+        "THE END GOAL HAS A PRECEDENT (SG-D5): the waveform per-channel mechanism (TracksPanel.vue: model :1872-1934, header gear :387-395, dialog :721-809, resolvers :1912-1925) is the north star; and the spectrogram already has an individual-else-global override for gtrack lanes (use-gtrack-lanes.ts:246-296 + TracksPanel.vue:2186-2197 + GTrackSpectrumSettings.vue). The overall spectrogram group header (TracksPanel.vue:452-483) exists but has no gear yet — the exact spot for the future button. So phase 3 is a mirror + extension, not a greenfield.",
+        "Step ids use the SG prefix — free after checking all existing ledgers (taken: AP/BK/FB/GT/MR/PR/PW/R/RF/SB/SF/SS/TP/TT/WS via grep over docs/*/*-progress.json).",
+        "NOT decided by me, deliberately: §7 (phase-3 scope, tab UX, GT10.17 reversal) is put to the owner at this PAUSE rather than settled by proposal — phase-3 scope changes the size of the whole task, and the GT10.17 reversal is a direction call."
+      ]
+    },
+    {
+      "id": "SG1.1",
+      "phase": 1,
+      "title": "Программные настройки как вкладка общего Settings: новый SpectrogramSettingsTab.vue (форма SpectrogramSettingsPanel + «Сброс» + триггер пресетов) + регистрация settingsTab в gnauralModule (defineAsyncComponent) + i18n-лейбл settings.spectrogramTab в обеих локалях. Плавающая панель НЕ трогается",
+      "status": "pending",
+      "dependsOn": ["SG0.1"],
+      "artifacts": [],
+      "verify": "bun run typecheck + bun run build (MindWaveCore/ui); bun test ui server (GnauralCore); tab lazy per bundle; i18n label resolves in both locales; manual part is SG1.2",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "SG1.2",
+      "phase": 1,
+      "title": "PAUSE — owner-проверка вкладки «Спектрограмма» в общем Settings: форма, tiles/masonry на широком табе, «Сброс», пресеты (применение/управление), правки применяются к спектрограмме",
+      "status": "pending",
+      "dependsOn": ["SG1.1"],
+      "artifacts": [],
+      "verify": "owner drives the real app",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "SG2.1",
+      "phase": 2,
+      "title": "Снос плавающей панели «Параметры» (SG-D3): tune-кнопка + state в TracksPanel; хост+импорт+state в AudioPage; удалить SpectrumSettingsDialog, SpectrogramSettingsRemote, stores/spectrum-settings-panel; убрать запись spectrum-settings из manifest. CRLF пофайлово",
+      "status": "pending",
+      "dependsOn": ["SG1.2"],
+      "artifacts": [],
+      "verify": "typecheck+build+tests green; grep 0 dangling refs to the removed symbols/files; PanelHostPage no longer resolves 'spectrum-settings'; the reused form pieces still build",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "SG2.2",
+      "phase": 2,
+      "title": "PAUSE — owner подтверждает Audio-страницу без tune и общий Settings как единственную точку программных настроек",
+      "status": "pending",
+      "dependsOn": ["SG2.1"],
+      "artifacts": [],
+      "verify": "owner drives the real app",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "SG3.0",
+      "phase": 3,
+      "title": "GATED (SG-D5) — индивидуальные L/R настройки графика спектра по образцу волны. Декомпозируется в SG3.x ПОСЛЕ подтверждения scope на SG0.1 PAUSE; включает пер-канальный override (individual-else-global поверх программного стора), шестерёнку в шапке спектра, редактор L/R и owner-PAUSE",
+      "status": "pending",
+      "dependsOn": ["SG0.1"],
+      "artifacts": [],
+      "verify": "TBD after SG0.1 scope decision",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": "Awaiting owner scope decision at SG0.1 (§7 Q1): whether phase 3 is in this task now or a follow-up",
+      "evidence": []
+    }
+  ],
+  "log": [
+    {
+      "at": "2026-07-16",
+      "step": "SG0.1",
+      "text": "Feature opened. Two Explore passes mapped: (1) the general Settings dialog — CONFIRMED it is a plain in-app /settings route, NOT a separate window (the stated premise was false), and the settingsTab seam; (2) the waveform per-channel north star + the spectrogram global-store architecture + the gtrack laneSpectrum individual-else-global precedent + the reusable form pieces. Plan + ledger written. Owner clarified via AskUserQuestion: keep the general Settings as an in-app tab (not @panel); remove the floating «Параметры» tune panel entirely; program-level spectrogram settings apply to all spectrograms unless per-graph individual params are set; end goal is a per-graph header button for individual L/R channel settings, mirroring the waveform. Decisions SG-D1..SG-D5 recorded. PAUSE at SG0.1 for the owner to settle §7 (phase-3 scope, tab UX, GT10.17 reversal) before any code."
+    }
+  ]
+}
