@@ -213,14 +213,16 @@
       "id": "PR1.6",
       "phase": 1,
       "title": "PAUSE: owner смотрит ядро (папка, scp.json, интерфейс) до интеграций",
-      "status": "active",
+      "status": "done",
       "dependsOn": ["PR1.5"],
       "artifacts": [],
       "verify": "owner approves naming/layout/sections; Phase 2+ does not start before the answer",
       "startedAt": "2026-07-15",
-      "finishedAt": null,
+      "finishedAt": "2026-07-16",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Owner 2026-07-16: «ok / go» -- core approved as shipped (folder naming, fixed project.scp.json name, schema, ProjectStore API, REST surface); Phase 2 integrations unblocked."
+      ]
     },
     {
       "id": "PR2.1",
@@ -232,10 +234,15 @@
         "GnauralCore/ui/composables/use-gtrack-lanes.ts"
       ],
       "verify": "bun test ui server (GnauralCore); manual: lane order/solo/heights survive an app restart; old localStorage values migrated once",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-16",
+      "finishedAt": "2026-07-16",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "use-project.ts grew path-addressed primitives: getProjectForPath (reuses the current project / in-flight open, else an idempotent openProject), readProjectSectionFor (short-circuits to a pending debounced value), writeProjectSectionFor; queueSectionWrite factored out of writeProjectSection.",
+        "use-gtrack-lanes.ts: persist()/persistSpectrum()/persistMix() now dual-write -- localStorage stays as the transition safety net (PR-D11), the project sections gtrackLanes/laneSpectrum/mixExcluded are the source of truth; restore is two-stage: synchronous localStorage paint (previous behaviour, no flash), then restoreFromProject applies the section over it, guarded by a request id against fast file switches.",
+        "One-time migration: a file whose project lacks a section gets it seeded from the localStorage value; an existing-but-EMPTY section is intentional state and is never reseeded.",
+        "Verify: GnauralCore bun test ui server 277 pass / 927 expect; vue-tsc clean. The live restart walk-through is the owner's PR2.5 PAUSE check."
+      ]
     },
     {
       "id": "PR2.2",
@@ -248,10 +255,15 @@
         "GnauralCore/ui/composables/use-gtrack-lanes.ts"
       ],
       "verify": "bun test ui server (GnauralCore); manual: undo history survives an app restart; journal size stays within limits",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-17",
+      "finishedAt": "2026-07-17",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "gtrack-model.ts: GTrackUndoJournal { currentSig, undo, redo } + exportUndoJournal(maxEntries) + adoptUndoJournal -- adoption is signature-gated: the journal only applies onto the EXACT state it was exported from, so a file changed outside the editor (or lost unsaved edits) silently keeps a clean history; isGTrackUndoJournal validates parsed JSON.",
+        "use-project.ts: read/writeProjectUndoJournalFor with a 1500ms debounce, a pending-write short-circuit on read, and inclusion in flushPendingProjectWrites (file switch + beforeunload, keepalive).",
+        "use-gtrack-lanes.ts: every user-edit path already funnels through refreshEditState(), which now doubles as the persist hook (rebuild/adopt paths pass false -- persisting there would overwrite the stored journal with an empty baseline before adoption); the journal is byte-budgeted (~4MB) by estimating one snapshot's size instead of stringifying the whole journal per edit; restoreFromProject adopts the stored journal after the model rebuild, incl. after saveEdits' reload (undo now survives Save).",
+        "Verify: GnauralCore bun test ui server 281 pass / 942 expect (4 new journal tests: round-trip restores undo/redo across models, different-state journal rejected, maxEntries bound, shape guard); vue-tsc clean. Live restart walk-through is the owner's PR2.5 PAUSE check."
+      ]
     },
     {
       "id": "PR2.3",

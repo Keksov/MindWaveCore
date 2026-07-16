@@ -240,10 +240,10 @@ in-memory кеша расписаний (`GnauralCore/ui/stores/audio.ts:133`), 
 
 ### Phase 2 — интеграция подсистем (req 1)
 
-- [ ] **PR2.1 — Лейны в проект (PR-D11).** Секции `gtrackLanes`/`laneSpectrum`/`mixExcluded` вместо
+- [x] **PR2.1 — Лейны в проект (PR-D11).** Секции `gtrackLanes`/`laneSpectrum`/`mixExcluded` вместо
   per-file ключей localStorage; одноразовая миграция, localStorage-копия остаётся. Verify:
   `bun test ui server` (GnauralCore) + вручную: настройки лейнов переживают перезапуск.
-- [ ] **PR2.2 — Undo-журнал в проект (PR-D8).** Персист снапшотов `GTrackModel` в `undo.json`
+- [x] **PR2.2 — Undo-журнал в проект (PR-D8).** Персист снапшотов `GTrackModel` в `undo.json`
   (лимиты), восстановление при открытии; undo переживает перезапуск. Verify: `bun test ui server`
   + вручную.
 - [ ] **PR2.3 — Per-file view-состояние (PR-D13, req 12).** Зум/вьюпорт спектрограммы в секцию
