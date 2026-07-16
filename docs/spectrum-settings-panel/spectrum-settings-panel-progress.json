@@ -305,20 +305,30 @@
     {
       "id": "SS3.1",
       "phase": 3,
-      "title": "Расщепление SS-D2: SpectrogramSettingsView.vue (вся разметка фазы 2 переезжает целиком) + SpectrogramSettingsPanel.vue как in-window адаптер + applySpectrumSettingsAction (+ bun-тест на него). Поведение в главном окне 1:1, detach ещё выключен",
-      "status": "pending",
+      "title": "Расщепление SS-D2 (PW5.7): pure SpectrogramSettingsView + Fields на prop/emit + SpectrogramSettingsPanel как in-window адаптер + модель (snapshot/action) + applySpectrumSettingsAction (+ юнит-тест). Главное окно 1:1, detach ещё выключен. Пресеты/футер-reset пока на прямом сторе (детач — SS3.2)",
+      "status": "done",
       "dependsOn": ["SS2.2"],
       "artifacts": [
-        "GnauralCore/ui/components/SpectrogramSettingsView.vue (new; pure view: snapshot props + one serializable `action` emit)",
-        "GnauralCore/ui/components/SpectrogramSettingsPanel.vue (becomes the in-window adapter; NAME/PATH UNCHANGED — SS-D2/R6)",
-        "GnauralCore/ui/composables/spectrum-settings-action.ts (new; applySpectrumSettingsAction, shared by both sides)",
-        "GnauralCore/ui/tests (new unit test for applySpectrumSettingsAction, mirroring SF18.1's action-semantics tests)"
+        "GnauralCore/ui/composables/spectrum-settings-model.ts (new; JSON-serializable SpectrumSettingsSnapshot + SpectrumSettingsAction union)",
+        "GnauralCore/ui/composables/spectrum-settings-actions.ts (new; applySpectrumSettingsAction + structurally-typed SpectrumSettingsActionContext — the store satisfies it as-is)",
+        "GnauralCore/ui/composables/spectrum-settings-actions.test.ts (new; 4 tests — set, string keys, per-action routing, JSON round-trip)",
+        "GnauralCore/ui/composables/use-spectrum-settings-snapshot.ts (new; reactive snapshot cloned from the store)",
+        "GnauralCore/ui/components/SpectrogramSettingsView.vue (new; the pure view — all of Phase 2's layout/cards moved here; props snapshot, emits action)",
+        "GnauralCore/ui/components/SpectrogramSettingsFields.vue (now prop/emit-driven: :values + emit set actions, no store)",
+        "GnauralCore/ui/components/SpectrogramSettingsPanel.vue (now the thin in-window adapter: useSpectrumSettingsSnapshot + applySpectrumSettingsAction(store))"
       ],
-      "verify": "bun run typecheck + bun run build; bun test ui server green INCLUDING the new applySpectrumSettingsAction suite; manual: the main window behaves exactly as after SS2.2 (pure refactor — every field, preset action and «Сброс» still works and still repaints live)",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "DONE — vue-tsc 0 errors; quasar build ok; bun test ui server 269 pass / 0 fail (was 265; +4 action tests). Main window is a pure refactor (behaviour 1:1): the panel still lazy-loads as its own chunk, dev server serves the adapter/fields. Detach still off (no manifest entry / allow-detach stays false). Full manual repaint check folded into SS3.3.",
+      "startedAt": "2026-07-16",
+      "finishedAt": "2026-07-16",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Followed the PW5.7 replication checklist exactly (mapped from TrackListView/Panel/Remote/actions/snapshot): model + actions + snapshot composable + pure View + in-window adapter. No shared @panel infra needed changing — it is already generic over bridgeState + events[].",
+        "The store satisfies SpectrumSettingsActionContext STRUCTURALLY with zero glue: it already exposes settings + reset/applyPresetById/saveAsPreset/updatePreset/renamePreset/deletePreset/duplicatePreset/importPresets with matching signatures, so the in-window adapter is `applySpectrumSettingsAction(action, store)`. The context is Vue/Pinia-free so the apply function is unit-tested with a fake.",
+        "Fields went from v-model-on-store to CONTROLLED (:model-value from the snapshot + emit set). In the main window the round-trip is synchronous (emit -> apply -> store mutate -> computed snapshot -> prop), so typing stays smooth. RISK for the detached child: the same round-trip crosses a BroadcastChannel, so a controlled number field could feel laggy while typing; to be judged at SS3.3, with local input buffering as the lever if needed.",
+        "Scope kept tight per the plan: ONLY the settings fields go through the View+action path in SS3.1. The presets dialog and the footer «Сброс» still call the store directly (they are in-window chrome). SS3.2 will action-ify presets/reset for the detached child (where the title-bar/footer chrome does not exist — the remote must host them in-content).",
+        "The action union already includes the preset ops (apply/save-as/update/rename/delete/duplicate/import) even though SS3.1 only emits `set` — the contract is complete so SS3.2 wires the child's emitters without touching the model. Export is deliberately NOT an action (a local read-only download).",
+        "Laziness preserved: the View is imported by the lazy Panel, so it rides the same chunk (SpectrogramSettingsPanel-*.js) — off the eager path. Line endings LF on all new files; owner's parallel files not staged."
+      ]
     },
     {
       "id": "SS3.2",
