@@ -36,6 +36,10 @@
       "text": "i18n: no new title key needed. The PanelWindow title and the manifest titleKey both reuse the EXISTING audio.spectrogramSettingsTitle («Параметры» / \"Parameters\", SF-D4) — it is already exactly this panel's caption; icon `tune`, the same as the toolbar button. Dock/detach menu labels are already generic and translated (panel.dockMenu/dockFloat/dockLeft/dockRight/dockTop/dockBottom/detach/close in MindWaveCore/ui/src/i18n/locales/{ru,en}.json). New keys only if Q1/Q2 introduce new captions."
     },
     {
+      "id": "SS-D13",
+      "text": "DEFERRED (owner 2026-07-16) — a frameless detached window (no OS-native title bar, so it looks exactly like the in-window panel) needs a NATIVE AppCore change, not achievable from web code. Owner: «Можно ли в режиме отдельного окна не показывать стандартный title bar окна, который зависит от ОС? Чтобы окно выглядело точно так же, как внутри основного окна?» Finding: the OS window frame is drawn by the OS/window manager, not the web content, and cannot be removed from a window.open child (PanelWindow.vue:167) by the page. In a browser (dev) it is impossible by design (anti-spoofing — same reason the address bar can't be hidden, panel-window req 6). In AppCore/WebView2 (prod) it needs 'plan B' from panel-window req 6: the AppCore host (FreePascal, OUTSIDE this workspace at c:\\projects\\Games\\AppCore) intercepts NewWindowRequested and creates its own frameless window, drawing the caption and handling drag/resize/min/max itself — a non-trivial native change in another repo. Document Picture-in-Picture (Chromium/WebView2) gives near-frameless chrome but is one-window-at-a-time (conflicts with multi-panel detach) and reworks the mechanism — rejected. A web-only middle option (draw our own titlebar inside the child) was rejected too: the OS frame stays on top -> two titlebars. Owner: «Добавь в план, пока отложим эту задачу.» -> SS3.4 deferred. This is generic to ALL @panel detaches, not just «Параметры»; when revisited it belongs at the panel-window/AppCore level, not in this feature."
+    },
+    {
       "id": "SS-D12",
       "text": "NEW (owner 2026-07-16, after SS2.3) — preset MANAGEMENT is folded into the presets form itself; the separate manager window and the «Управление…» button are gone. Owner: «Оформи подформу Управления пресетами как часть основной формы пресетов. Лишняя кнопка не нужна, раз уж у нас теперь есть самостоятельное окно». So SpectrogramPresetManager.vue's whole body (built-in + user preset lists with Apply + duplicate/update/rename/delete + import/export) moved DIRECTLY into SpectrogramPresetsDialog.vue; the manager file is DELETED, and both the «Управление…» button and the nested <spectrogram-preset-manager> are removed. «Сохранить как…» stays (footer, left). Three now-orphaned i18n keys (spectrogramPresetManage / spectrogramPresetManager / spectrogramPresetClose) removed from BOTH locales — verified 0 code refs workspace-wide first. The dialog remains ONE lazy chunk (7.2 KB now, was ~this + a manager chunk), still off the eager AudioPage path."
     },
@@ -362,13 +366,34 @@
       "dependsOn": ["SS3.2"],
       "artifacts": [],
       "verify": "owner drives the real app in AppCore (per PW-D1 the child is a default WebView2 popup there, which is the production path — the browser is dev only)",
-      "startedAt": null,
+      "startedAt": "2026-07-16",
       "finishedAt": null,
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "In review (owner testing). One fix already landed: the detached window's «Сброс» moved from the top bar to a bottom footer (see log). Remaining owner checks: edit-in-child repaints the parent, presets apply/save-as, smooth typing, parent-close closes child, geometry persists."
+      ]
+    },
+    {
+      "id": "SS3.4",
+      "phase": 3,
+      "title": "ОТЛОЖЕНО (owner 2026-07-16, SS-D13): убрать системный title bar у detached-окна, чтобы оно выглядело как встроенная панель. Из веб-кода недостижимо — нужна нативная доработка AppCore (frameless-окно через NewWindowRequested). Задача уровня panel-window/AppCore, вне этой фичи",
+      "status": "deferred",
+      "dependsOn": ["SS3.2"],
+      "artifacts": [],
+      "verify": "N/A while deferred. When picked up: an AppCore (FreePascal, c:\\projects\\Games\\AppCore) NewWindowRequested handler creates a frameless window; the web side would then draw its own titlebar (icon/title/close/drag) inside the child. Owner drives the real app in AppCore to confirm no OS caption + a working custom titlebar.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": "Requires a native AppCore change (frameless window via NewWindowRequested) in a repo OUTSIDE this workspace; impossible from web code (browser blocks OS-chrome removal by design). NOT cancelled — postponed by owner («Добавь в план, пока отложим эту задачу»).",
+      "evidence": [
+        "`deferred` here means POSTPONED, not dropped — the blockedReason spells out why (native AppCore work), and SS-D13 carries the full analysis so a future session can act without re-deriving it. Generic to every @panel detach, so it belongs at the panel-window/AppCore level, not this feature."
+      ]
     }
   ],
   "log": [
+    {
+      "at": "2026-07-16",
+      "text": "SS3.4 DEFERRED (owner 2026-07-16, SS-D13). Owner asked whether the detached window's OS-native title bar can be hidden so it looks exactly like the in-window panel. Answer: not from web code — the OS/window manager draws the frame and a window.open child cannot shed it; the browser blocks it by design (anti-spoofing, same as the address bar), and AppCore/WebView2 would need a native NewWindowRequested handler making a frameless window (plan B of panel-window req 6) — a non-trivial change in the AppCore repo outside this workspace. Document PiP was considered and rejected (one window at a time; reworks the mechanism). Owner: «Добавь в план, пока отложим эту задачу.» Recorded as SS-D13 + step SS3.4 (deferred, blockedReason = native AppCore work). Detach ships with the standard OS frame for now. The task is generic to all @panel detaches, so when revisited it belongs at panel-window/AppCore, not here."
+    },
     {
       "at": "2026-07-16",
       "text": "SS3.2 fix (owner during SS3.3 review): «В режиме отдельного окна футер с кнопкой Сброс оказался наверху, т.е. стал хедером». In the first remote cut I put presets + reset + close in ONE top bar, so «Сброс» sat at the top instead of the bottom like the main window's footer. Split the remote chrome: header (top) = presets + close; footer (bottom, right-aligned, border-top) = «Сброс» — mirroring SpectrumSettingsDialog's footer. verify: vue-tsc 0, quasar build ok, bun 269/0; bundle shows spectrum-remote__footer at the bottom. GnauralCore commit follows."
