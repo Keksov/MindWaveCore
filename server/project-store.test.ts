@@ -10,6 +10,7 @@ import {
   SerialQueues,
   UNDO_FILE_NAME,
   UNDO_JOURNAL_MAX_BYTES,
+  copyProjectsTree,
   createProjectFileData,
   createProjectStore,
   defaultUserDataRoot,
@@ -340,6 +341,37 @@ describe("ProjectStore core API (PR1.3 / PR-D5, PR-D8)", () => {
     const listed = await store.listProjects()
     expect(listed.map((aInfo) => aInfo.id)).toEqual([secondInfo.id, firstInfo.id])
     expect(await readFile(join(brokenDir, PROJECT_FILE_NAME), "utf8")).toBe("{ not json")
+  })
+})
+
+describe("copyProjectsTree (PR3.2 / PR-D6)", () => {
+  test("copies project folders recursively, skips existing destinations, leaves the source intact", async () => {
+    const fromRoot = await makeFixtureDir()
+    const toRoot = await makeFixtureDir()
+    const sourceDir = await makeFixtureDir()
+    const store = createProjectStore({ resolveUserDataRoot: () => fromRoot })
+
+    await writeFile(join(sourceDir, "one.gnaural"), "<gnaural/>")
+    await writeFile(join(sourceDir, "two.gnaural"), "<gnaural/>")
+    const first = await store.openProject(join(sourceDir, "one.gnaural"))
+    await store.putUndoJournal(first.id, { entries: [1] })
+    const second = await store.openProject(join(sourceDir, "two.gnaural"))
+
+    const summary = await copyProjectsTree(fromRoot, toRoot)
+    expect(summary).toEqual({ copied: 2, skipped: 0 })
+    expect(existsSync(join(toRoot, PROJECTS_DIR_NAME, first.id, PROJECT_FILE_NAME))).toBe(true)
+    expect(existsSync(join(toRoot, PROJECTS_DIR_NAME, first.id, UNDO_FILE_NAME))).toBe(true)
+    expect(existsSync(join(fromRoot, PROJECTS_DIR_NAME, second.id, PROJECT_FILE_NAME))).toBe(true)
+
+    const again = await copyProjectsTree(fromRoot, toRoot)
+    expect(again).toEqual({ copied: 0, skipped: 2 })
+  })
+
+  test("same root or missing source tree is a no-op", async () => {
+    const root = await makeFixtureDir()
+    expect(await copyProjectsTree(root, root)).toEqual({ copied: 0, skipped: 0 })
+    const empty = await makeFixtureDir()
+    expect(await copyProjectsTree(empty, root)).toEqual({ copied: 0, skipped: 0 })
   })
 })
 

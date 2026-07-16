@@ -24,7 +24,7 @@ import { createLocalFsProvider } from "./fs-browser-local"
 import { startFsBrowserServer, isLoopbackAddress, ensureLoopbackNoProxy, type FsBrowserServer } from "./fs-browser-server"
 import { createLogArchiveStore } from "./log-db"
 import { createLogReplayManager } from "./log-replay"
-import { createProjectStore, defaultUserDataRoot, isProjectStoreError } from "./project-store"
+import { copyProjectsTree, createProjectStore, defaultUserDataRoot, isProjectStoreError, type ProjectsMigrationSummary } from "./project-store"
 import { createPublishCallbacks } from "./publish"
 import type { AudioFileKind, AudioPresetsResponse, AudioServerEvent, AudioSettings, GnauralScheduleData, PresetTreeNode, ProjectListResponse, ProjectSectionResponse, ProjectSettingsResponse, ProjectUndoResponse } from "./protocol"
 import { isRecord, toJson } from "./protocol"
@@ -1305,10 +1305,20 @@ const handleApiRequest = async (aRequest: Request): Promise<Response | null> => 
         return errorResponse(400, "userDataRoot must point to an existing directory")
       }
 
+      // PR3.2: optionally copy the projects tree from the previous root before switching. The old
+      // root is never deleted (manual fallback stays available).
+      let migrated: ProjectsMigrationSummary | undefined
+      if (body.migrate === true) {
+        const previousRoot = resolveEffectiveUserDataRoot()
+        const nextRoot = userDataRoot !== "" ? userDataRoot : defaultUserDataRoot()
+        migrated = await copyProjectsTree(previousRoot, nextRoot)
+      }
+
       archiveStore.updateProjectSettings({ userDataRoot })
       const payload: ProjectSettingsResponse = {
         ...archiveStore.getProjectSettings(),
         effectiveUserDataRoot: resolveEffectiveUserDataRoot(),
+        ...(migrated !== undefined ? { migrated } : {}),
       }
       return jsonResponse(payload)
     } catch (error) {

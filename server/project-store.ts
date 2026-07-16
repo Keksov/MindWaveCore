@@ -9,7 +9,7 @@
 
 import { createHash, randomUUID } from "node:crypto"
 import type { Dirent } from "node:fs"
-import { mkdir, readFile, readdir, rename, rm, stat } from "node:fs/promises"
+import { copyFile, mkdir, readFile, readdir, rename, rm, stat } from "node:fs/promises"
 import { homedir } from "node:os"
 import { basename, extname, join, resolve, sep } from "node:path"
 import type { ProjectInfo, ProjectSourceInfo } from "./protocol"
@@ -585,4 +585,71 @@ class ProjectStoreImpl implements ProjectStore {
 
 export const createProjectStore = (aOptions: ProjectStoreOptions): ProjectStore => {
   return new ProjectStoreImpl(aOptions)
+}
+
+// --- user-data root migration (PR3.2, PR-D6) --------------------------------------------------
+
+export interface ProjectsMigrationSummary {
+  readonly copied: number
+  readonly skipped: number
+}
+
+const directoryExists = async (aPath: string): Promise<boolean> => {
+  try {
+    return (await stat(aPath)).isDirectory()
+  } catch {
+    return false
+  }
+}
+
+const copyDirRecursive = async (aFromDir: string, aToDir: string): Promise<void> => {
+  await mkdir(aToDir, { recursive: true })
+  const entries = await readdir(aFromDir, { withFileTypes: true })
+
+  for (const entry of entries) {
+    const from = join(aFromDir, entry.name)
+    const to = join(aToDir, entry.name)
+    if (entry.isDirectory()) {
+      await copyDirRecursive(from, to)
+    } else if (entry.isFile()) {
+      await copyFile(from, to)
+    }
+  }
+}
+
+/** Copy every project folder from <fromRoot>/projects into <toRoot>/projects. A folder that
+ *  already exists at the destination is left untouched (skipped); the source is never modified —
+ *  the old root stays intact as a manual fallback (plan: no auto-delete). */
+export const copyProjectsTree = async (aFromRoot: string, aToRoot: string): Promise<ProjectsMigrationSummary> => {
+  const fromDir = join(resolve(aFromRoot), PROJECTS_DIR_NAME)
+  const toDir = join(resolve(aToRoot), PROJECTS_DIR_NAME)
+  if (fromDir.toLowerCase() === toDir.toLowerCase()) {
+    return { copied: 0, skipped: 0 }
+  }
+
+  let entries: Dirent[]
+  try {
+    entries = await readdir(fromDir, { withFileTypes: true })
+  } catch {
+    return { copied: 0, skipped: 0 }
+  }
+
+  let copied = 0
+  let skipped = 0
+  for (const entry of entries) {
+    if (!entry.isDirectory()) {
+      continue
+    }
+
+    const target = join(toDir, entry.name)
+    if (await directoryExists(target)) {
+      skipped += 1
+      continue
+    }
+
+    await copyDirRecursive(join(fromDir, entry.name), target)
+    copied += 1
+  }
+
+  return { copied, skipped }
 }
