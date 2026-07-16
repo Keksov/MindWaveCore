@@ -267,11 +267,32 @@
       ]
     },
     {
+      "id": "SS2.8",
+      "phase": 2,
+      "title": "Единый вид карточек (owner 2026-07-16, два сообщения): (1) в режиме плиток заголовок блока — как в аккордеоне: текст + горизонтальная черта под ним, но БЕЗ иконки свернуть/развернуть; (2) каждый блок — карточка с рамкой 1px (уходит рваность masonry-границ SS2.7), зазор между карточками не нужен. Оба режима сведены к одному card-стилю",
+      "status": "done",
+      "dependsOn": ["SS2.7"],
+      "artifacts": [
+        "GnauralCore/ui/components/SpectrogramSettingsPanel.vue (unified .spectrogram-settings__card + __block-header[--ruled|--static] + __card-body; tiles = static card with an always-ruled header and no chevron; accordion = the same card, collapsible, header ruled only when open)"
+      ],
+      "verify": "DONE — vue-tsc 0 errors; quasar build ok; bun test ui server 265 pass / 0 fail. Bundle confirms: __card has its own 1px border (no container frame), block-header--ruled adds the horizontal line, --static pads the tile header, and the accordion header rule is reached via :deep. Dev server HTTP 200. Visual acceptance is SS2.2.",
+      "startedAt": "2026-07-16",
+      "finishedAt": "2026-07-16",
+      "blockedReason": null,
+      "evidence": [
+        "Two owner messages in one turn, addressed together because they describe one coherent look: (msg1) tiles titles should read like the accordion header — uppercase text + a horizontal rule under it — minus the collapse chevron; (msg2) each block should be a self-bordered 1px card so masonry has no ragged seams, and no gap between cards. Both resolve to: ONE card style shared by tiles and accordion.",
+        "The ragged-seam problem SS2.7 flagged is gone by construction: SS2.5-2.7 gave each block only right+bottom borders relying on a container frame, so in masonry (unequal heights) the shared lines were incomplete. Now every card draws its OWN full border, so each is a complete rectangle regardless of its neighbours' heights. The container frame is removed (the cards are the frame). Trade: adjacent cards touch as a 2px seam (two 1px borders, gap 0 per the owner) — uniform, not ragged; if the owner wants 1px seams later, a negative-margin collapse is the lever (unreliable across multicol columns, hence not done now).",
+        "The header rule is shown at the right times: ALWAYS in tiles (a static card is always 'open'), and only WHEN OPEN in the accordion (a collapsed block would show a rule under a title with nothing beneath it). Done with a conditional header-class (--ruled) bound to openSet, so no rule/body mismatch.",
+        "Scoped-CSS detail handled: the tile header is in THIS component's template (plain :deep-free selectors apply), while the accordion header is rendered by q-expansion-item (child), so its rule needs :deep. Both are present; the card border reaches the q-expansion-item root because a child component's root inherits the parent's scope id.",
+        "Line endings LF; owner's parallel GTrackView/SpectrogramView/WaveformView not staged."
+      ]
+    },
+    {
       "id": "SS2.2",
       "phase": 2,
-      "title": "PAUSE — owner-проверка вида: masonry-упаковка без пустот (SS2.7); flush-рамка + только стрелки в числовых полях (SS2.6); общие границы плиток (SS2.5); плитки/аккордеон, порог; иконка пресетов и единый диалог со встроенным управлением (SS2.3+SS2.4)",
+      "title": "PAUSE — owner-проверка вида: единый card-вид + заголовок с чертой без шеврона (SS2.8); masonry без пустот (SS2.7); flush + только стрелки в числовых полях (SS2.6); плитки/аккордеон, порог; иконка пресетов и единый диалог со встроенным управлением (SS2.3+SS2.4)",
       "status": "pending",
-      "dependsOn": ["SS2.1", "SS2.3", "SS2.4", "SS2.5", "SS2.6", "SS2.7"],
+      "dependsOn": ["SS2.1", "SS2.3", "SS2.4", "SS2.5", "SS2.6", "SS2.7", "SS2.8"],
       "artifacts": [],
       "verify": "owner drives the real app; the tile/accordion rule matches req 2-4 and the threshold feels right (Q4)",
       "startedAt": null,
@@ -329,6 +350,10 @@
     }
   ],
   "log": [
+    {
+      "at": "2026-07-16",
+      "text": "SS2.8 — owner, two messages in one turn: (1) «В режиме окна заголовки блоков должны отображаться так же как в аккордеоне с горизонтальной чертой, но без иконки свернуть/развернуть»; (2) «Пусть каждый блок имеет рамочку в 1px, тогда не будет рваных границ. Зазор между карточками не нужен». Handled together as one card style: every block is a self-bordered 1px card (no container frame), so masonry has no ragged seams (each card is a complete rectangle); no gap (2px seams where cards touch). The header shows an uppercase title + a horizontal rule — always in tiles (no chevron), only-when-open in the accordion (a collapsed block would otherwise show a rule under an empty title). Scoped-CSS detail: tile header is local (plain selectors), accordion header is q-expansion-item's (needs :deep). verify: vue-tsc 0, quasar build ok, bun 265/0; bundle confirms the card + header-rule CSS."
+    },
     {
       "at": "2026-07-16",
       "text": "SS2.7 — owner (with a screenshot): «Из-за разного размера блоков сейчас образуется много пустого места ... Блоки должны располагаться не в регулярной сетке, а в сетке адаптивного размера чтобы занимать [место]». The empty space came from SS2.5's equal-height grid rows (short «Масштаб» stretched to tall «Цвет»). Fixed by switching tiles to CSS multicol (column-width) masonry: blocks pack into balanced columns by natural height, no stretching, no empty cells. Kept the SS2.5/2.6 borders (container frame + block right/bottom, gap 0, flush). Gotcha caught before building: multicol is ignored on a display:flex container, so --tiles had to set display:block. verify: vue-tsc 0, quasar build ok, bun 265/0; bundle confirms the multicol CSS."
