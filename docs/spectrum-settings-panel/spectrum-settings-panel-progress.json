@@ -246,11 +246,32 @@
       ]
     },
     {
+      "id": "SS2.7",
+      "phase": 2,
+      "title": "Masonry вместо регулярной сетки (owner 2026-07-16, скриншот): блоки разной высоты в регулярной grid растягивали короткий блок до высоты соседа => много пустого места. Плитки переведены на CSS multicol (column-width) — блоки складываются в сбалансированные колонки по своей высоте, без пустот; рамки/flush из SS2.5/2.6 сохранены",
+      "status": "done",
+      "dependsOn": ["SS2.6"],
+      "artifacts": [
+        "GnauralCore/ui/components/SpectrogramSettingsPanel.vue (--tiles: display:block + column-width:280px + column-gap:0 instead of the grid; tile gets break-inside:avoid)"
+      ],
+      "verify": "DONE — vue-tsc 0 errors; quasar build ok; bun test ui server 265 pass / 0 fail. Bundle confirms --tiles is now display:block + column-width:280px + column-gap:0 (multicol), autoprefixed, no grid; dev server HTTP 200. Visual acceptance is SS2.2.",
+      "startedAt": "2026-07-16",
+      "finishedAt": "2026-07-16",
+      "blockedReason": null,
+      "evidence": [
+        "Root cause of the empty space (owner's screenshot): SS2.5 used a regular grid with equal-height rows (align-items removed), so a row's height = its tallest block. «Масштаб» (3 fields) shared a row with «Цвет» (7 fields) and was padded out to «Цвет»'s height — the big blank under «Масштаб». align-items:start would NOT fix it (the empty space is the row height, set by the tall cell), which is why masonry is the actual answer.",
+        "CSS multicol (column-width) is the no-JS masonry: with column-fill:balance (default) and no height cap, the browser packs the 4 blocks into balanced columns by natural height (Масштаб+Цвет | FFT+Резкость), so the container is ~as short as possible with no stretched blocks. Reading order becomes column-major (newspaper), acceptable.",
+        "A BUG I caught before building: the base .spectrogram-settings is display:flex, and CSS multicol is IGNORED on a flex container — it only applies to a block container. So --tiles must set display:block or the columns silently never form. Added display:block to --tiles; bundle confirms it.",
+        "Border/flush treatment from SS2.5/2.6 kept: container full border, each block border-right+bottom, column-gap 0. Touching blocks share one line; masonry makes those interior lines ragged where heights differ, which is inherent to masonry and expected (the trade for zero empty space). column-width == SPECTRUM_BLOCK_MIN_PX (280) so the multicol column count still matches the tiles<->accordion threshold (560).",
+        "break-inside:avoid keeps each block whole across column breaks (Chromium/WebView2 supports it — the prod runtime). Line endings LF; owner's parallel files not staged."
+      ]
+    },
+    {
       "id": "SS2.2",
       "phase": 2,
-      "title": "PAUSE — owner-проверка вида: flush-рамка без зазора + только стрелки в числовых полях (SS2.6); компактность и общие границы плиток (SS2.5); плитки/аккордеон, порог; иконка пресетов и единый диалог пресетов со встроенным управлением (SS2.3+SS2.4)",
+      "title": "PAUSE — owner-проверка вида: masonry-упаковка без пустот (SS2.7); flush-рамка + только стрелки в числовых полях (SS2.6); общие границы плиток (SS2.5); плитки/аккордеон, порог; иконка пресетов и единый диалог со встроенным управлением (SS2.3+SS2.4)",
       "status": "pending",
-      "dependsOn": ["SS2.1", "SS2.3", "SS2.4", "SS2.5", "SS2.6"],
+      "dependsOn": ["SS2.1", "SS2.3", "SS2.4", "SS2.5", "SS2.6", "SS2.7"],
       "artifacts": [],
       "verify": "owner drives the real app; the tile/accordion rule matches req 2-4 and the threshold feels right (Q4)",
       "startedAt": null,
@@ -308,6 +329,10 @@
     }
   ],
   "log": [
+    {
+      "at": "2026-07-16",
+      "text": "SS2.7 — owner (with a screenshot): «Из-за разного размера блоков сейчас образуется много пустого места ... Блоки должны располагаться не в регулярной сетке, а в сетке адаптивного размера чтобы занимать [место]». The empty space came from SS2.5's equal-height grid rows (short «Масштаб» stretched to tall «Цвет»). Fixed by switching tiles to CSS multicol (column-width) masonry: blocks pack into balanced columns by natural height, no stretching, no empty cells. Kept the SS2.5/2.6 borders (container frame + block right/bottom, gap 0, flush). Gotcha caught before building: multicol is ignored on a display:flex container, so --tiles had to set display:block. verify: vue-tsc 0, quasar build ok, bun 265/0; bundle confirms the multicol CSS."
+    },
     {
       "at": "2026-07-16",
       "text": "SS2.6 — owner, two asks: (1) «Между внешей границей блока и рамкой диалога зазор тоже не нужен. Включая отдельное окно и аккордеон» -> body padding 8->0, scrollbar-gutter removed, container border-radius removed so a square frame is flush on all sides in every mode. Removing the gutter re-opened SS2.1's R1 flap risk, so I added hysteresis to the ResizeObserver (band = 24px) — that is the documented R1 fallback. (2) «...оставить только стрелочки в подобных контролах, т.е. плюс/минус вводят в заблуждение и дублируют стрелочки» -> removed the +/- prepend/append buttons from spin fields; the native number arrows + @blur clamp remain, so bounded stepping is unchanged. One gotcha handled: kept the tiles container's FULL border (not top+left) so a ragged last row still closes. verify: vue-tsc 0, quasar build ok, bun 265/0; bundle confirms no padding/gutter/radius and 0 stepper icons."
