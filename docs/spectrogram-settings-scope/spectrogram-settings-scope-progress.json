@@ -266,7 +266,12 @@
     {
       "at": "2026-07-16",
       "step": "SG3.2a",
-      "text": "SG-D8 recorded (owner UX): auto-individual on edit; presets apply to the active scope. SG3.2 SPLIT into SG3.2a (in-window core) + SG3.2b (detach) — validate the per-graph UX before building the detach remote around it (the agreed a/b phasing). SG3.2a DONE — SpectrogramOverridesPanel (scope Оба/L/R + individual toggle + presets-apply + reset=revert) over the overrides store, reusing SpectrogramSettingsView; a `tune` gear in the overall spectrogram group header opens the @panel (replacing the removed toolbar button); SpectrumSettingsDialog hosts it lazily with detach OFF for now. Verify green (vue-tsc 0, build ok, 277 pass/0 fail). Handing SG3.2a to the owner to try (dock/float) before SG3.2b enables detach."
+      "text": "SG-D8 recorded (owner UX): auto-individual on edit; presets apply to the active scope. SG3.2 SPLIT into SG3.2a (in-window core) + SG3.2b (detach) — validate the per-graph UX before building the detach remote around it (the agreed a/b phasing). SG3.2a DONE — SpectrogramOverridesPanel (scope Оба/L/R + individual toggle + presets-apply + reset=revert) over the overrides store, reusing SpectrogramSettingsView; a gear in the overall spectrogram group header opens the @panel (replacing the removed toolbar button); SpectrumSettingsDialog hosts it lazily with detach OFF for now. Verify green (vue-tsc 0, build ok, 277 pass/0 fail). Handing SG3.2a to the owner to try (dock/float) before SG3.2b enables detach."
+    },
+    {
+      "at": "2026-07-16",
+      "step": "SG3.2a",
+      "text": "Owner UX pass on SG3.2a: (1) the group-header icon is now a gear (`settings`), matching the waveform group gear; (2) the scope tabs reuse the overall-waveform form labels («Оба канала»/«Левый»/«Правый», audio.waveformChannels*) and moved to the RIGHT of the panel bar (presets to the left) — the now-unused spectrumScope{Both,Left,Right} keys removed. Verify green (277 pass/0 fail). Awaiting owner re-check before SG3.2b (detach)."
     }
   ]
 }
