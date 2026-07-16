@@ -18,6 +18,10 @@
     {
       "id": "TP-D3",
       "text": "Playback-progress frequency is made adaptive to the schedule, in Pascal (Gnaural.exe), not in the UI. Target ~20 updates per loop, clamped to [100ms .. 1s]. Gnaural's control loop already ticks every 100ms (it polls getPlaybackPosition 10x/s); only the stdout EMIT is throttled to whole seconds, so raising the rate costs bytes, not CPU, and 10Hz is the natural ceiling. Computed once at load (totaltime/loops known) with no UI logic. After TP-D2 the client cost of a faster cursor is ~nil, so the Pascal emit throttle is the real granularity limiter. Deferred (TP3.1) - only needed for sub-second loops."
+    },
+    {
+      "id": "TP-D4",
+      "text": "PREMISE CORRECTION (2026-07-16). The plan assumed the transport reports a SESSION-scale position (0..fullDuration) so the playhead runs off the one-loop axis. Wrong, and my error: I derived it from the duration formula (totalTime*loops in parseLoadedEvent) without checking the position path. Verified in our own Pascal: GnauralSynth resets FcurrentSampleCount to 0 at each loop boundary (GnauralSynth.pas:428) and decrements FcurrentLoop; getPlaybackPosition = FcurrentSampleCount/rate; no layer downstream accumulates. So the reported position is LOOP-LOCAL (0..loopDuration). Owner-observed on waves.gnaural (40s loop x10): the playhead cycles 0..40..0 and the status bar shows loop-local seconds. Consequences: the Tracks tab already handles multi-loop correctly; TP2.2's cyclic-playhead / mod-wrap is a no-op (gnaural already does it); TP2.3's 'position > duration' status-bar bug does not exist (position is loop-local <= one-loop duration). What is actually missing: (1) which loop you are in (gnaural tracks FcurrentLoop but never emits it); (2) sub-second loops stutter under the 1Hz Trunc progress throttle (TP3.1). Both are small and optional. TP-D1 stands in spirit (we do NOT tile/show the full session) but its 'cyclic playhead' half was already reality, not something to build. TP1.1 (overlay canvas) and TP2.1 (loopCount exposed) remain valid on their own merits."
     }
   ],
   "steps": [
@@ -66,25 +70,25 @@
     {
       "id": "TP2.2",
       "phase": 2,
-      "title": "Cyclic playhead (t mod loopDuration) + loop N / M indicator",
+      "title": "Loop indicator (N / M) — report the current loop from gnaural",
       "status": "pending",
       "dependsOn": [
         "TP2.1"
       ],
       "artifacts": [],
-      "verify": "on a multi-loop file the cursor cycles within the one-loop axis and a loop counter shows N/M; single-loop files behave exactly as today",
+      "verify": "on a multi-loop file a 'loop N / M' readout tracks the current loop; single-loop files show nothing extra",
       "startedAt": null,
       "finishedAt": null,
       "blockedReason": null,
       "evidence": [
-        "Today the Tracks stack is one loop wide (gtracks.durationSec=schedule.totalTimeSec; spectrogramDuration=backendAnalysis single-loop) while the playhead position is session-scale, so on CricketsAndFrogs (0.79s loop) it runs off the edge immediately. The playhead already comes from the overlay (TP1.1), so redrawing it cyclically is cheap."
+        "Re-scoped by TP-D4: the cyclic playhead is already provided by gnaural (loop-local position), so nothing to build there. The remaining gap is the loop NUMBER: the client cannot derive it from a loop-local position (it resets each loop), and gnaural has FcurrentLoop but does not emit it. So this needs: emit current loop in playback_progress (Pascal) + a protocol field + a small readout (TP2.1 already exposes loopCount for the denominator). Optional."
       ]
     },
     {
       "id": "TP2.3",
       "phase": 2,
-      "title": "Fix the status bar (session position vs single-loop duration)",
-      "status": "pending",
+      "title": "Status-bar session display (was: fix position vs duration — NOT a bug)",
+      "status": "deferred",
       "dependsOn": [
         "TP2.1"
       ],
@@ -92,9 +96,9 @@
       "verify": "the status bar never shows a position greater than the duration on a multi-loop file",
       "startedAt": null,
       "finishedAt": null,
-      "blockedReason": null,
+      "blockedReason": "Dropped as a bug by TP-D4: position is loop-local, so the status bar already shows position <= one-loop duration (consistent). Only worth doing if we later want an explicit SESSION-scale readout (position/fullDuration); otherwise not needed.",
       "evidence": [
-        "Pre-existing bug found during this work: track-status-bar gets position-sec=gtrackPlayheadSec (session, up to 6303) and duration-sec=spectrogramDuration (one loop), so on CricketsAndFrogs it already shows a position larger than the duration (TracksPanel.vue ~line 829)."
+        "Owner-observed on waves.gnaural: the status bar shows loop-local seconds within the loop duration; there is no position > duration. The earlier 'bug' was based on the wrong session-position premise (TP-D4)."
       ]
     },
     {
@@ -109,7 +113,7 @@
       "verify": "on a sub-second loop the cursor advances smoothly (~20 updates/loop), not in >1-loop jumps; single-loop and long schedules keep the current 1 Hz",
       "startedAt": null,
       "finishedAt": null,
-      "blockedReason": "Optional: only sub-second-loop files need it. Do after TP2.2 confirms the cyclic playhead. Needs a Gnaural.exe rebuild (cli/build_x64.bat).",
+      "blockedReason": "Optional, and now the main remaining FUNCTIONAL item (TP-D4 removed the others). Only ~3 preset files have sub-second loops (CricketsAndFrogs 0.79s, AndromedaHell 1.0s, ToadsAndBugs 1.06s). Needs a Gnaural.exe rebuild.",
       "evidence": [
         "Gnaural emits playback_progress at 1 Hz (emit only on Trunc(sec) change, GnauralApp.pas), but the control loop already ticks at 100ms, so 10Hz is the ceiling and costs bytes not CPU. At 1 Hz a 0.79s loop advances ~1.27 loops per tick, so the cursor jitters. Target ~20 updates/loop, clamp [100ms..1s], computed once at load."
       ]
@@ -133,6 +137,12 @@
       "step": "TP2.1",
       "event": "done",
       "note": "Exposed loopCount + fullDurationSec from the gtrack composable (plumbing); durationSec untouched so single-loop files are unaffected. Commit 8abfe1d."
+    },
+    {
+      "ts": "2026-07-16T00:00:00Z",
+      "step": null,
+      "event": "note",
+      "note": "TP-D4: plan premise corrected. Transport position is loop-local (verified in GnauralSynth.pas + owner-observed on waves.gnaural), so the playhead already cycles and the status bar is consistent. TP2.2 re-scoped to a loop-number indicator; TP2.3 dropped as a non-bug; TP3.1 (sub-second loops) is the main remaining optional item. TP1.1/TP2.1 stand."
     }
   ]
 }
