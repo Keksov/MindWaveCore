@@ -3,7 +3,7 @@
   "plan": "spectrogram-settings-scope",
   "planDoc": "docs/spectrogram-settings-scope/spectrogram-settings-scope-plan.md",
   "title": "spectrogram-settings-scope: the PROGRAM-LEVEL spectrogram «Параметры» move into the general Settings page as a tab; the floating/detachable «Параметры» @panel is retired from the Audio page; and (end goal) each spectrum graph gets a header button for per-graph LEFT/RIGHT channel settings, mirroring the waveform mechanism",
-  "status": "in-progress",
+  "status": "done",
   "createdAt": "2026-07-16",
   "updatedAt": "2026-07-16",
   "decisions": [
@@ -129,14 +129,16 @@
       "id": "SG2.2",
       "phase": 2,
       "title": "PAUSE — owner подтверждает Audio-страницу без tune (программные настройки только в диалоге Меню→Настройки). Проверяется вместе с фазой 3, т.к. фаза 3 снова меняет Audio-страницу (кнопка в шапке графика)",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["SG2.1"],
       "artifacts": [],
       "verify": "owner drives the real app",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-16",
+      "finishedAt": "2026-07-16",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Owner approved («ok», 2026-07-16) together with SG3.3 — the Audio page has no global `tune` opener; the program level lives only in the Меню→Настройки «Спектрограмма» subsystem, and the per-graph editor is reached from the spectrogram group-header gear."
+      ]
     },
     {
       "id": "SG3.0",
@@ -233,14 +235,16 @@
       "id": "SG3.3",
       "phase": 3,
       "title": "PAUSE — owner-проверка: шестерёнка в шапке группы, панель (докабл/детачбл «как сейчас»), scope Оба/L/R, наследование программного уровня, индивидуальная правка канала перерисовывает только его; заодно SG2.2 (Audio без глобального tune)",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["SG3.2b"],
       "artifacts": [],
       "verify": "owner drives the real app",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-16",
+      "finishedAt": "2026-07-16",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Owner approved («ok», 2026-07-16): the group-header gear opens the «Параметры» panel; dock/float/detach all behave «в точности как сейчас»; scope «Оба/Левый/Правый» works; unedited channels inherit the program level, an edit/preset creates the channel's individual override and «Сброс» reverts; a per-channel edit repaints only that channel, and edits in the detached window repaint the main window's spectrogram. Phase 3 accepted; SG2.2 folded in. Feature COMPLETE."
+      ]
     }
   ],
   "log": [
@@ -298,6 +302,11 @@
       "at": "2026-07-16",
       "step": "SG3.2b",
       "text": "SG3.2b DONE — detach for the per-graph «Параметры» panel via the PW5.7 «пульт» pattern, mirrored exactly from the (now-removed) program-level remote. New serializable model (overall-spectrum-overrides-model: OverridesSnapshot with both channels + program level + presets, scope-qualified OverridesAction, applyOverridesAction) + use-overrides-snapshot (reactive snapshot + bound apply shared by the in-window adapter and the bridge). SpectrogramOverridesPanel thinned to the in-window adapter over a new PURE SpectrogramOverridesView (scope LOCAL); SpectrogramOverridesRemote is the storeless detached child. SpectrumSettingsDialog wires bridge-state + panel-event and detach is ON; module.ts manifest repointed to the new remote; dead SpectrogramSettingsRemote removed. Scope stays local (not bridged) — only the resulting edit crosses; one writer (main window, SS-D3). Verify green (vue-tsc 0, build ok — 3 chunks, 277 pass/0 fail). Commit 724f7e6. All phase-3 CODE is done; next is SG3.3 — the owner PAUSE (visual acceptance of gear + panel dock/float/detach + scope + inheritance + per-channel repaint; folds SG2.2)."
+    },
+    {
+      "at": "2026-07-16",
+      "step": "SG3.3 / SG2.2",
+      "text": "FEATURE COMPLETE. Owner approved («ok», 2026-07-16) the final SG3.3 PAUSE: group-header gear opens «Параметры»; dock/float/detach «в точности как сейчас»; scope «Оба/Левый/Правый»; unedited channels inherit the program level, an edit/preset auto-creates the channel override and «Сброс» reverts; per-channel edits repaint only that channel, and detached-window edits repaint the main window. SG2.2 folded in (Audio page has no global tune; program level only in Меню→Настройки). All steps done; feature status → done. Delivered: (1) program-level spectrogram settings as the «Спектрограмма» subsystem of the Audio Меню→Настройки dialog; (2) the removed global tune opener; (3) per-graph L/R channel overrides via the dockable/detachable group-header panel (SG-D6's two surfaces), with band-style form headers (owner polish)."
     }
   ]
 }
