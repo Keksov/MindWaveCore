@@ -299,7 +299,7 @@ apply/cancel, ни промежуточной модели нет — правк
 ### Фаза 1 — форма (req 1): dock/float, содержимое 1:1
 
 - **SS1.1** — `stores/spectrum-settings-panel.ts` + `SpectrumSettingsDialog.vue` (PanelWindow,
-  `:allow-detach="false"`, «Сброс» в `footer` при SS-D6) + хост в `audio-page__dock-wrap`
+  `:allow-detach="false"`) + хост в `audio-page__dock-wrap`
   (AudioPage) + кнопка `tune` переключает `panel.open`. Снос старого флайаута из TracksPanel:
   `aside`+бэкдроп+`transition` (:1134-1164), CSS (:3269-3284), локальный `ref`+toggle/close
   (:2649-2655), ветка Escape (:2828-2830), и — по прецеденту PW5.2 (§2.4) — вычёркивание
