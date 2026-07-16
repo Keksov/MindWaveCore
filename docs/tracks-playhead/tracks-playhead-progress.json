@@ -1,0 +1,128 @@
+{
+  "schemaVersion": 1,
+  "plan": "tracks-playhead",
+  "planDoc": "docs/tracks-playhead/tracks-playhead-plan.md",
+  "title": "tracks-playhead: cursor + multi-loop files on the Tracks tab",
+  "status": "in-progress",
+  "createdAt": "2026-07-16T00:00:00Z",
+  "updatedAt": "2026-07-16",
+  "decisions": [
+    {
+      "id": "TP-D1",
+      "text": "Multi-loop rendering: plan B (show ONE loop + a cyclic playhead), NOT tiling. Owner first proposed reusing the already-computed single-loop spectrogram by placing it into the loop positions (tiling). Rejected after measuring: every loop is acoustically identical and a spectrogram is STFT magnitude, so there is nothing to show beyond one loop; on extreme files (8000 loops x 0.79s) tiling is sub-pixel mush (~0.15px/loop across a ~1200px axis); and to keep the tiled axis aligned with the voice curves it would have to re-time the WHOLE stack (curves + wave + spectrum share one time column), whereas B keeps the stack consistent. Cost of B: a click seeks WITHIN the current loop only (the session axis is not expressible on a one-loop axis, but the status bar shows it). Plan A (tiling / session axis) stays possible if files with a handful of loops ever need it."
+    },
+    {
+      "id": "TP-D2",
+      "text": "The playhead lives on its own overlay canvas above each view's body canvas. Measured: otherwise a moving cursor repaints the body every progress tick, and for the spectrogram draw() recomputes every visible tile's RGBA pixel-by-pixel (tileToImage, uncached) and re-blits it; GTrackView also reallocated its backing store (canvas.width=) each tick. Overlay is pointer-events:none so clicks still reach the body; a shared plotGeometry() per view is the single source of truth for the plot rect + time->x so the two canvases cannot drift. A canvas is a REPLACED element, so position:absolute+inset:0 does NOT stretch it (it stays 300x150) - the overlay needs explicit width/height:100%."
+    },
+    {
+      "id": "TP-D3",
+      "text": "Playback-progress frequency is made adaptive to the schedule, in Pascal (Gnaural.exe), not in the UI. Target ~20 updates per loop, clamped to [100ms .. 1s]. Gnaural's control loop already ticks every 100ms (it polls getPlaybackPosition 10x/s); only the stdout EMIT is throttled to whole seconds, so raising the rate costs bytes, not CPU, and 10Hz is the natural ceiling. Computed once at load (totaltime/loops known) with no UI logic. After TP-D2 the client cost of a faster cursor is ~nil, so the Pascal emit throttle is the real granularity limiter. Deferred (TP3.1) - only needed for sub-second loops."
+    }
+  ],
+  "steps": [
+    {
+      "id": "TP1.1",
+      "phase": 1,
+      "title": "Playhead onto its own overlay canvas (GTrackView / SpectrogramView / WaveformView)",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [
+        "GTrackView/SpectrogramView/WaveformView: a second overlay canvas (pointer-events:none) above the body canvas; the body no longer draws the playhead. A shared plotGeometry(cssW,cssH) per view returns the plot rect + time window, used by both draw() and the new drawPlayhead().",
+        "playheadSec watch -> scheduleDrawPlayhead() (overlay only); view/resize -> both layers; mount draws both; unmount cancels both rAF ids. Overlay backing store reallocated only on real size change. Data gating preserved (gtrack hasData / waveform hasAudio / spectrogram frameCount>0).",
+        "CSS: overlay needs explicit width/height:100% + top/left:0 (a replaced canvas ignores inset:0 and stayed 300x150)."
+      ],
+      "verify": "vue-tsc 0; quasar build ok; GnauralCore bun test ui 227/227; owner: playhead aligns with a click on all three views, click/drag/zoom still work through the overlay, cursor moves on play",
+      "startedAt": "2026-07-16",
+      "finishedAt": "2026-07-16",
+      "blockedReason": null,
+      "evidence": [
+        "Root cause measured, not guessed: SpectrogramView draw() calls tileToImage per visible tile per draw, and tileToImage (spectrogram-render.ts:231) allocates a fresh RGBA and runs a per-pixel colormap loop with NO cache; draw() ran on every playheadSec tick (watch). So a moving cursor recomputed the whole spectrogram image. GTrackView also reallocated its canvas each draw.",
+        "Regression during verification (owner: click at 3 min put the cursor near the start): the overlay canvas with position:absolute;inset:0 stayed at the replaced-element default 300x150, so its clientWidth was ~300 while the body was full-width; clicks (mapped via the body) seeked correctly but the playhead drew compressed into the left ~300px. Fixed with explicit width/height:100%. Owner-confirmed after the fix.",
+        "vue-tsc 0; quasar build ok; GnauralCore bun test ui 227/227. Commit 5d0135b."
+      ]
+    },
+    {
+      "id": "TP2.1",
+      "phase": 2,
+      "title": "Plumb loopCount + loop duration to the Tracks stack",
+      "status": "pending",
+      "dependsOn": [
+        "TP1.1"
+      ],
+      "artifacts": [],
+      "verify": "single-loop files (loops=1, 223 of 296) render identical to before; loopCount reaches use-gtrack-lanes / TracksPanel",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": [
+        "loopCount is already in the protocol (protocol.ts:850) and the schedule dump, but unused on the client (use-gtrack-lanes.ts / TracksPanel.vue). The server derives playback duration = totalTimeSec * max(1, loopCount) (parseLoadedEvent)."
+      ]
+    },
+    {
+      "id": "TP2.2",
+      "phase": 2,
+      "title": "Cyclic playhead (t mod loopDuration) + loop N / M indicator",
+      "status": "pending",
+      "dependsOn": [
+        "TP2.1"
+      ],
+      "artifacts": [],
+      "verify": "on a multi-loop file the cursor cycles within the one-loop axis and a loop counter shows N/M; single-loop files behave exactly as today",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": [
+        "Today the Tracks stack is one loop wide (gtracks.durationSec=schedule.totalTimeSec; spectrogramDuration=backendAnalysis single-loop) while the playhead position is session-scale, so on CricketsAndFrogs (0.79s loop) it runs off the edge immediately. The playhead already comes from the overlay (TP1.1), so redrawing it cyclically is cheap."
+      ]
+    },
+    {
+      "id": "TP2.3",
+      "phase": 2,
+      "title": "Fix the status bar (session position vs single-loop duration)",
+      "status": "pending",
+      "dependsOn": [
+        "TP2.1"
+      ],
+      "artifacts": [],
+      "verify": "the status bar never shows a position greater than the duration on a multi-loop file",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": [
+        "Pre-existing bug found during this work: track-status-bar gets position-sec=gtrackPlayheadSec (session, up to 6303) and duration-sec=spectrogramDuration (one loop), so on CricketsAndFrogs it already shows a position larger than the duration (TracksPanel.vue ~line 829)."
+      ]
+    },
+    {
+      "id": "TP3.1",
+      "phase": 3,
+      "title": "Adaptive playback_progress interval in Gnaural.exe (Pascal)",
+      "status": "deferred",
+      "dependsOn": [
+        "TP2.2"
+      ],
+      "artifacts": [],
+      "verify": "on a sub-second loop the cursor advances smoothly (~20 updates/loop), not in >1-loop jumps; single-loop and long schedules keep the current 1 Hz",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": "Optional: only sub-second-loop files need it. Do after TP2.2 confirms the cyclic playhead. Needs a Gnaural.exe rebuild (cli/build_x64.bat).",
+      "evidence": [
+        "Gnaural emits playback_progress at 1 Hz (emit only on Trunc(sec) change, GnauralApp.pas), but the control loop already ticks at 100ms, so 10Hz is the ceiling and costs bytes not CPU. At 1 Hz a 0.79s loop advances ~1.27 loops per tick, so the cursor jitters. Target ~20 updates/loop, clamp [100ms..1s], computed once at load."
+      ]
+    }
+  ],
+  "log": [
+    {
+      "ts": "2026-07-16T00:00:00Z",
+      "step": null,
+      "event": "plan",
+      "note": "Initiative opened per owner request (thread 2026-07-15/16): make the Tracks tab handle multi-loop .gnaural. Plan B chosen over tiling (TP-D1) after measuring real files (296 presets; up to 8000 loops). Prereq TP-D2 (overlay-canvas playhead) done. Phases: 1 perf, 2 multi-loop playhead + status bar, 3 (optional) adaptive Pascal progress."
+    },
+    {
+      "ts": "2026-07-16T00:00:00Z",
+      "step": "TP1.1",
+      "event": "done",
+      "note": "Playhead moved onto an overlay canvas in all three views; a moving cursor no longer repaints the body (esp. the per-pixel spectrogram recompute). Replaced-element canvas trap fixed with explicit width/height:100%. Commit 5d0135b. Owner-confirmed."
+    }
+  ]
+}
