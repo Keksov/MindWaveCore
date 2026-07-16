@@ -28,6 +28,10 @@
       "text": "PROGRAM-LEVEL semantics. The global Pinia store stores/spectrogram.ts stays the PROGRAM-LEVEL default: a single settings object (spectrogram.ts:96) that already applies to every spectrogram (both overall L/R SpectrogramView instances read spectrogramStore.renderOptions, TracksPanel.vue:492). The Settings tab edits exactly this object. This matches the owner's model: program-level settings apply to all spectrograms UNLESS individual per-graph params are set. Individual per-graph override is SG-D5 (phase 3), not this."
     },
     {
+      "id": "SG-D7",
+      "text": "NEW 2026-07-16 (owner phase-3 design). Two decisions, both owner-picked at the SG3.0 design PAUSE. (1) MODEL = HYBRID: for the overall spectrogram group there are per-CHANNEL overrides [L,R], each either an individual SpectrogramSettings or null=inherit the PROGRAM level (the global store edited via Меню→Настройки). The panel gains a SCOPE selector «Оба | Левый | Правый» + a per-scope «Индивидуальные / наследовать программные» toggle. «Левый»/«Правый» edit that channel's override; «Оба» is a BULK editor writing both channels at once (its toggle sets/clears both). Resolution per rendered channel: channelOverride[ch] ?? programLevel — this is the 'program-level applies unless individual set' the owner named, expressed with the waveform's L/R scope UX (so it honours BOTH of the owner's phrasings; the waveform itself has no program-level inherit, so this ADDS that dimension). (2) PLACEMENT = ONE gear in the overall spectrogram GROUP header (TracksPanel.vue:441-472, today only fold/eye/title — no gear), mirroring the waveform group-header gear (:387-395). It opens the SAME dockable/detachable @panel that «Параметры» used (SG-D3 rev/SG-D6 — machinery kept in SG2.1), now bound to the active scope instead of the global store. ONE panel instance suffices — the overall spectrogram group is singular (gtrack solo spectra keep their own GTrackSpectrumSettings). This replaces the removed global `tune` opener (SG2.1) with a per-group gear."
+    },
+    {
       "id": "SG-D5",
       "text": "END GOAL (phase 3, GATED — decompose only after the SG0.1 scope PAUSE). A gear in each spectrum graph's HEADER opens per-graph individual LEFT/RIGHT channel settings, mirroring the waveform mechanism. North star (waveform, all in TracksPanel.vue, no store/protocol type): per-channel [L,R] arrays + a separate «Оба канала» group + a waveformLinkChannels toggle + resolvers wfScale/wfColor/wfOpacity(ch) (linked => the «both» group, else the per-channel entry) + a two-pane q-dialog opened from the group-header gear (:387-395). NOTE the waveform semantics are NOT «override a global default» — «Оба канала» is a peer group (WS-D9). A CLOSER precedent already exists for the spectrogram itself: the gtrack laneSpectrum override (use-gtrack-lanes.ts:246-296) with individual-else-global resolvers (TracksPanel.vue:2186-2197) and the GTrackSpectrumSettings.vue editor — but it is keyed per lane id and wired only for gtrack solo spectra, not the overall L/R stack. Mirroring for the overall stack = a per-channel [L,R] SpectrogramSettings override (falling back to the program-level global store, SG-D4) feeding the two SpectrogramView instances, plus a gear in the currently gear-less spectrogram group header (TracksPanel.vue:452-483). Substantial and design-heavy; its steps + an owner PAUSE precede any code."
     }
@@ -133,11 +137,52 @@
     {
       "id": "SG3.0",
       "phase": 3,
-      "title": "GATED (SG-D5/SG-D6) — индивидуальные L/R настройки графика спектра по образцу волны, показываемые через ДОКАБЛ/ДЕТАЧБЛ @panel «в точности как сейчас» (owner). Декомпозируется в SG3.x ПОСЛЕ SG0.1: пер-канальный override (individual-else-global поверх программного стора), кнопка в шапке спектра открывает панель, репараметризация panel-стейта под graph/channel, owner-PAUSE",
-      "status": "pending",
+      "title": "DESIGN PAUSE (SG-D5/SG-D6) — индивидуальные L/R настройки графика спектра. Заземлено в коде; развилка в словах владельца вынесена на owner-решение. РЕШЕНО (SG-D7): модель=Гибрид (scope Оба/L/R + per-scope тумблер individual/inherit-программные), кнопка=шестерёнка в шапке группы, одна панель",
+      "status": "done",
       "dependsOn": ["SG0.1"],
       "artifacts": [],
-      "verify": "TBD after SG0.1 scope decision",
+      "verify": "DONE — owner picked at the design PAUSE: «Гибрид (реком.)» for the L/R model and «В шапке группы (реком.)» for the button. SG-D7 records both. Decomposed into SG3.1-3.3.",
+      "startedAt": "2026-07-16",
+      "finishedAt": "2026-07-16",
+      "blockedReason": null,
+      "evidence": [
+        "Grounded in code BEFORE asking (the lesson from the SG-D1 miss): read the overall spectrogram group header (TracksPanel.vue:441-472 — fold/eye/title, NO gear) and confirmed L/R render as two SpectrogramView on the shared spectrogramStore.renderOptions. Surfaced the genuine tension in the owner's own words (mirror-the-waveform, whose model has no program-level inherit, vs program-level-applies-unless-individual) rather than guessing. Owner resolved: Hybrid + group-header gear."
+      ]
+    },
+    {
+      "id": "SG3.1",
+      "phase": 3,
+      "title": "Модель + резолверы (SG-D7): пер-канальные оверрайды [L,R] общего спектра (individual SpectrogramSettings или null=наследовать программный стор) + сеттеры (setChannel/clearChannel/setBoth) + персист + резолверы render/analysis (override ?? программный), заведённые в два SpectrogramView в TracksPanel. Юнит-тесты резолюции. UI пока нет",
+      "status": "pending",
+      "dependsOn": ["SG3.0"],
+      "artifacts": [],
+      "verify": "bun test ui server (new resolution tests) + typecheck + build; the two overall SpectrogramView still render (override-else-global); default = both inherit (no override) so nothing changes visually yet",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "SG3.2",
+      "phase": 3,
+      "title": "UI (SG-D7): шестерёнка в шапке группы общего спектра открывает докабл/детачбл @panel (переиспользуем сохранённый механизм); в контенте панели — селектор scope Оба/L/R + тумблер individual/inherit; форма (View/Fields) привязана к активному scope (оверрайд или программный), правки идут в оверрайд активного канала(ов). i18n новых подписей",
+      "status": "pending",
+      "dependsOn": ["SG3.1"],
+      "artifacts": [],
+      "verify": "typecheck + build + tests; the gear opens the panel; editing L/R writes the channel override and repaints only that channel; toggling «наследовать» clears the override; dock/float/detach still work",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "SG3.3",
+      "phase": 3,
+      "title": "PAUSE — owner-проверка: шестерёнка в шапке группы, панель (докабл/детачбл «как сейчас»), scope Оба/L/R, наследование программного уровня, индивидуальная правка канала перерисовывает только его; заодно SG2.2 (Audio без глобального tune)",
+      "status": "pending",
+      "dependsOn": ["SG3.2"],
+      "artifacts": [],
+      "verify": "owner drives the real app",
       "startedAt": null,
       "finishedAt": null,
       "blockedReason": null,
