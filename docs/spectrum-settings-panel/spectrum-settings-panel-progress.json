@@ -223,11 +223,34 @@
       ]
     },
     {
+      "id": "SS2.6",
+      "phase": 2,
+      "title": "Компактность-2 (owner 2026-07-16): (1) убран зазор между внешней рамкой блока и рамкой окна — во всех режимах (док/float/detached) и в аккордеоне: padding тела диалога 8→0, снят scrollbar-gutter, убран border-radius у контейнеров; против дрожания порога добавлен гистерезис в ResizeObserver. (2) из числовых полей (spin, напр. «Усиление») убраны кнопки +/-, оставлены только нативные стрелки — они дублировали и путали",
+      "status": "done",
+      "dependsOn": ["SS2.5"],
+      "artifacts": [
+        "GnauralCore/ui/components/SpectrumSettingsDialog.vue (body padding 8->0, scrollbar-gutter removed)",
+        "GnauralCore/ui/components/SpectrogramSettingsPanel.vue (tiles/accordion border-radius+overflow removed -> square flush frame; measure() gains hysteresis; imports SPECTRUM_TILES_THRESHOLD_PX instead of layoutForWidth)",
+        "GnauralCore/ui/components/SpectrogramSettingsFields.vue (spin field: removed the +/- prepend/append buttons and stepField; native number arrows + @blur clamp remain)"
+      ],
+      "verify": "DONE — vue-tsc 0 errors; quasar build ok; bun test ui server 265 pass / 0 fail. Bundle confirmed: __body has no padding and no scrollbar-gutter; --tiles/--accordion carry a plain 1px border with NO radius; the compiled fields chunk has 0 'remove'/'add' stepper icons while help_outline stays. Dev server serves the change (HTTP 200). Visual acceptance is SS2.2.",
+      "startedAt": "2026-07-16",
+      "finishedAt": "2026-07-16",
+      "blockedReason": null,
+      "evidence": [
+        "Two coupled decisions behind the 'flush' fix: (a) removing the scrollbar gutter was necessary — with it reserved, padding 0 would still leave a ~15px empty strip on the RIGHT (a gap), so it had to go for the frame to be flush on all four sides; (b) but the gutter was SS2.1's R1 flap guard, so I replaced it with hysteresis (tiles at >= threshold, back to accordion only below threshold-24px). A ~15px scrollbar delta can no longer ping-pong the layout. layoutForWidth stays as the canonical threshold (still unit-tested); measure() now uses the constant + hysteresis.",
+        "border-radius removed from both containers, not just padding: a rounded block frame flush to the square window content box leaves four small corner triangles of background — themselves a 'gap'. A square frame is flush with zero gap anywhere, which is what the owner asked («зазор ... не нужен»).",
+        "Tiles container KEPT its full (4-side) border rather than top+left-only: a non-full last row (3 columns, 4 blocks -> row2 has 1 tile) would otherwise leave the bottom-right open. Full container border + cells' right/bottom keeps interior lines single AND closes ragged rows. I caught this mid-edit (had briefly switched to top+left) and reverted.",
+        "The +/- removal is exactly what the owner described: the spin field already renders the native number-input up/down arrows, so the custom prepend/append buttons duplicated them. Removed the buttons + the now-unused stepField; the field keeps min/max/step (the native arrows honour step) and the @blur clamp, so bounded stepping still works — nothing lost, one control instead of two. Verified no global CSS hides the native spinner (so the arrows are really there).",
+        "Line endings LF on all three; owner's parallel GTrackView/SpectrogramView/WaveformView not staged."
+      ]
+    },
+    {
       "id": "SS2.2",
       "phase": 2,
-      "title": "PAUSE — owner-проверка вида: компактность и общие границы плиток (SS2.5); плитки/аккордеон, порог переключения, поведение на границе; иконка пресетов в тайтл-баре и единый диалог пресетов со встроенным управлением (SS2.3+SS2.4)",
+      "title": "PAUSE — owner-проверка вида: flush-рамка без зазора + только стрелки в числовых полях (SS2.6); компактность и общие границы плиток (SS2.5); плитки/аккордеон, порог; иконка пресетов и единый диалог пресетов со встроенным управлением (SS2.3+SS2.4)",
       "status": "pending",
-      "dependsOn": ["SS2.1", "SS2.3", "SS2.4", "SS2.5"],
+      "dependsOn": ["SS2.1", "SS2.3", "SS2.4", "SS2.5", "SS2.6"],
       "artifacts": [],
       "verify": "owner drives the real app; the tile/accordion rule matches req 2-4 and the threshold feels right (Q4)",
       "startedAt": null,
@@ -285,6 +308,10 @@
     }
   ],
   "log": [
+    {
+      "at": "2026-07-16",
+      "text": "SS2.6 — owner, two asks: (1) «Между внешей границей блока и рамкой диалога зазор тоже не нужен. Включая отдельное окно и аккордеон» -> body padding 8->0, scrollbar-gutter removed, container border-radius removed so a square frame is flush on all sides in every mode. Removing the gutter re-opened SS2.1's R1 flap risk, so I added hysteresis to the ResizeObserver (band = 24px) — that is the documented R1 fallback. (2) «...оставить только стрелочки в подобных контролах, т.е. плюс/минус вводят в заблуждение и дублируют стрелочки» -> removed the +/- prepend/append buttons from spin fields; the native number arrows + @blur clamp remain, so bounded stepping is unchanged. One gotcha handled: kept the tiles container's FULL border (not top+left) so a ragged last row still closes. verify: vue-tsc 0, quasar build ok, bun 265/0; bundle confirms no padding/gutter/radius and 0 stepper icons."
+    },
     {
       "at": "2026-07-16",
       "text": "SS2.5 — owner: «Сделай форму парметров спектра более компактной, сейчас очень большие gap вокруг блоков. Если два блока находятся рядом, то между ними должна быть только одна рамочка, а не две с промежутком как сейчас». Done as a collapsed-border grid: tiles are now a gapless grid in one frame (container = outer border, tile = right+bottom only), so adjacent blocks share ONE line; the accordion is the same idea vertically. Paddings/gaps trimmed. One real consequence recorded: a collapsed grid needs equal-height cells, so I dropped align-items:start (the old R2 ragged-height choice) — short blocks now stretch to their row-mate's height; if that empty space bothers, align-items is the single knob. Also made the tiles threshold honest (gap term 8->0 => 560px). verify: vue-tsc 0, quasar build ok, bun 265/0."
