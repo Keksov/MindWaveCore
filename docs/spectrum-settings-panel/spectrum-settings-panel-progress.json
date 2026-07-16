@@ -371,6 +371,10 @@
   "log": [
     {
       "at": "2026-07-16",
+      "text": "SS3.2 fix (owner during SS3.3 review): «В режиме отдельного окна футер с кнопкой Сброс оказался наверху, т.е. стал хедером». In the first remote cut I put presets + reset + close in ONE top bar, so «Сброс» sat at the top instead of the bottom like the main window's footer. Split the remote chrome: header (top) = presets + close; footer (bottom, right-aligned, border-top) = «Сброс» — mirroring SpectrumSettingsDialog's footer. verify: vue-tsc 0, quasar build ok, bun 269/0; bundle shows spectrum-remote__footer at the bottom. GnauralCore commit follows."
+    },
+    {
+      "at": "2026-07-16",
       "text": "SS2.8 — owner, two messages in one turn: (1) «В режиме окна заголовки блоков должны отображаться так же как в аккордеоне с горизонтальной чертой, но без иконки свернуть/развернуть»; (2) «Пусть каждый блок имеет рамочку в 1px, тогда не будет рваных границ. Зазор между карточками не нужен». Handled together as one card style: every block is a self-bordered 1px card (no container frame), so masonry has no ragged seams (each card is a complete rectangle); no gap (2px seams where cards touch). The header shows an uppercase title + a horizontal rule — always in tiles (no chevron), only-when-open in the accordion (a collapsed block would otherwise show a rule under an empty title). Scoped-CSS detail: tile header is local (plain selectors), accordion header is q-expansion-item's (needs :deep). verify: vue-tsc 0, quasar build ok, bun 265/0; bundle confirms the card + header-rule CSS."
     },
     {
