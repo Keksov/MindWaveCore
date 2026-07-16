@@ -46,17 +46,21 @@
       "id": "TP2.1",
       "phase": 2,
       "title": "Plumb loopCount + loop duration to the Tracks stack",
-      "status": "pending",
+      "status": "done",
       "dependsOn": [
         "TP1.1"
       ],
-      "artifacts": [],
+      "artifacts": [
+        "use-gtrack-lanes.ts: exposes loopCount = max(1, floor(schedule.loopCount)) and fullDurationSec = durationSec * loopCount, alongside the unchanged one-loop durationSec. Reachable via useSharedGtrackLanes (ReturnType passthrough) as gtracks.loopCount / gtracks.fullDurationSec in TracksPanel and AudioPage."
+      ],
       "verify": "single-loop files (loops=1, 223 of 296) render identical to before; loopCount reaches use-gtrack-lanes / TracksPanel",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-16",
+      "finishedAt": "2026-07-16",
       "blockedReason": null,
       "evidence": [
-        "loopCount is already in the protocol (protocol.ts:850) and the schedule dump, but unused on the client (use-gtrack-lanes.ts / TracksPanel.vue). The server derives playback duration = totalTimeSec * max(1, loopCount) (parseLoadedEvent)."
+        "GnauralScheduleData already carries totalTimeSec (849) + loopCount (850) in protocol.ts; the composable took the raw dump but exposed only durationSec (= totalTimeSec, one loop).",
+        "The dump reports the TRUE loops (only the spectrogram render forces <loops>1>, not the schedule), so gtracks.loopCount is the real N (e.g. 8000 for CricketsAndFrogs).",
+        "No behaviour change: durationSec untouched, so single-loop files (223/296) render identically. vue-tsc 0; quasar build ok; GnauralCore bun test ui 227/227. Commit 8abfe1d."
       ]
     },
     {
@@ -123,6 +127,12 @@
       "step": "TP1.1",
       "event": "done",
       "note": "Playhead moved onto an overlay canvas in all three views; a moving cursor no longer repaints the body (esp. the per-pixel spectrogram recompute). Replaced-element canvas trap fixed with explicit width/height:100%. Commit 5d0135b. Owner-confirmed."
+    },
+    {
+      "ts": "2026-07-16T00:00:00Z",
+      "step": "TP2.1",
+      "event": "done",
+      "note": "Exposed loopCount + fullDurationSec from the gtrack composable (plumbing); durationSec untouched so single-loop files are unaffected. Commit 8abfe1d."
     }
   ]
 }

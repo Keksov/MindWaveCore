@@ -75,9 +75,11 @@ per-step commits (префикс id шага), `verify` перед `done`, owner
   Коммит `5d0135b`. Owner-confirmed.
 
 ### Фаза 2 — многопетлевой плейхед
-- [ ] **TP2.1 — Протянуть `loopCount` (и длину петли) до стека «Треки».** `loopCount` уже в
-  протоколе `audio_schedule_loaded`/dump — довести до `use-gtrack-lanes` / `TracksPanel`. Одно-петлевые
-  файлы (`loops` = 1) не должны измениться ни на пиксель.
+- [x] **TP2.1 — Протянуть `loopCount` (и длину петли) до стека «Треки».** `use-gtrack-lanes` теперь
+  отдаёт `loopCount` и `fullDurationSec = durationSec × loopCount` рядом с неизменной одно-петлевой
+  `durationSec`; доступно как `gtracks.loopCount` / `gtracks.fullDurationSec`. Дамп несёт реальные
+  петли (одну петлю форсит только рендер спектра, не расписание). Поведение не изменилось. Коммит
+  `8abfe1d`.
 - [ ] **TP2.2 — Цикличный плейхед + индикатор «петля N / M».** Позиция курсора на одно-петлевой оси =
   `positionSec mod loopDurationSec`; рядом — номер текущей петли и общее число. Плейхед берётся из
   оверлея (TP1.1), так что визуально дёшево.
