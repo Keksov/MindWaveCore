@@ -199,11 +199,35 @@
       ]
     },
     {
+      "id": "SS2.5",
+      "phase": 2,
+      "title": "Компактный вид (owner 2026-07-16): убраны большие gap вокруг блоков; соседние плитки делят ОДНУ границу вместо двух с промежутком — gapless-grid в одном фрейме (контейнер рисует внешнюю рамку, плитка — только правую+нижнюю); аккордеон так же в один фрейм с общими разделителями; уменьшены отступы тела и полей",
+      "status": "done",
+      "dependsOn": ["SS2.1"],
+      "artifacts": [
+        "GnauralCore/ui/components/SpectrogramSettingsPanel.vue (tiles = gapless collapsed-border grid; accordion = one frame with shared dividers; smaller paddings)",
+        "GnauralCore/ui/composables/spectrogram-settings-fields.ts (SPECTRUM_BLOCK_GAP_PX 8 -> 0, so the tiles threshold matches the now-gapless grid: 560px)",
+        "GnauralCore/ui/components/SpectrumSettingsDialog.vue (body padding 12 -> 8)",
+        "GnauralCore/ui/components/SpectrogramSettingsFields.vue (field gap 10 -> 8)"
+      ],
+      "verify": "DONE — vue-tsc 0 errors; quasar build ok; bun test ui server 265 pass / 0 fail (the threshold test uses SPECTRUM_TILES_THRESHOLD_PX symbolically, so 568->560 needed no test edit). Emitted CSS confirmed: --tiles is display:grid + one outer border + overflow:hidden, __tile draws only border-right+border-bottom (adjacent tiles => a single shared line, no gap), --accordion is one framed stack. Visual acceptance is the SS2.2 PAUSE.",
+      "startedAt": "2026-07-16",
+      "finishedAt": "2026-07-16",
+      "blockedReason": null,
+      "evidence": [
+        "The 'one border, not two + a gap' ask is a collapsed-border grid: gap:0, the CONTAINER draws the outer frame, each tile draws only its right + bottom edge. So every interior line is exactly one border (a cell's right or bottom), and the frame closes without doubling. Same pattern vertically for the accordion (each block a border-bottom, :last-child drops it so the frame's own bottom isn't doubled).",
+        "CONSCIOUS trade-off vs the old R2 choice: I removed align-items:start (which let unequal-height blocks sit ragged) — a collapsed grid needs cells to stretch to equal height per row, or the shared horizontal divider would be jagged where a short block ends. So short blocks (e.g. «Масштаб», 3 fields) now stretch to their row-mate's height, trading a little empty space for the straight single borders the owner asked for. If that empty space reads badly at SS2.2, align-items is the knob.",
+        "Consistency fix, not just cosmetics: with the grid now gapless, the tiles<->accordion threshold had to drop the +gap term (SPECTRUM_BLOCK_GAP_PX 8->0 => 560px), otherwise the layout would claim it needs 568px for two blocks that actually fit at 560. The unit test is symbolic so it still passes; the number is now honest.",
+        "Compactness beyond the borders: block gaps removed entirely (the frame + dividers replace them), tile padding 12->8/12/10, body padding 12->8, field gap 10->8. Nothing structural — pure spacing.",
+        "Line endings LF on all four; owner's GTrackView/SpectrogramView/WaveformView untouched."
+      ]
+    },
+    {
       "id": "SS2.2",
       "phase": 2,
-      "title": "PAUSE — owner-проверка вида: плитки/аккордеон, порог переключения, поведение на границе, вид блоков разной высоты; теперь также иконка пресетов в тайтл-баре и единый диалог пресетов со встроенным управлением (SS2.3+SS2.4)",
+      "title": "PAUSE — owner-проверка вида: компактность и общие границы плиток (SS2.5); плитки/аккордеон, порог переключения, поведение на границе; иконка пресетов в тайтл-баре и единый диалог пресетов со встроенным управлением (SS2.3+SS2.4)",
       "status": "pending",
-      "dependsOn": ["SS2.1", "SS2.3", "SS2.4"],
+      "dependsOn": ["SS2.1", "SS2.3", "SS2.4", "SS2.5"],
       "artifacts": [],
       "verify": "owner drives the real app; the tile/accordion rule matches req 2-4 and the threshold feels right (Q4)",
       "startedAt": null,
@@ -261,6 +285,10 @@
     }
   ],
   "log": [
+    {
+      "at": "2026-07-16",
+      "text": "SS2.5 — owner: «Сделай форму парметров спектра более компактной, сейчас очень большие gap вокруг блоков. Если два блока находятся рядом, то между ними должна быть только одна рамочка, а не две с промежутком как сейчас». Done as a collapsed-border grid: tiles are now a gapless grid in one frame (container = outer border, tile = right+bottom only), so adjacent blocks share ONE line; the accordion is the same idea vertically. Paddings/gaps trimmed. One real consequence recorded: a collapsed grid needs equal-height cells, so I dropped align-items:start (the old R2 ragged-height choice) — short blocks now stretch to their row-mate's height; if that empty space bothers, align-items is the single knob. Also made the tiles threshold honest (gap term 8->0 => 560px). verify: vue-tsc 0, quasar build ok, bun 265/0."
+    },
     {
       "at": "2026-07-16",
       "text": "SS2.4 — owner: «Оформи подформу Управления пресетами как часть основной формы пресетов. Лишняя кнопка не нужна, раз уж у нас теперь есть самостоятельное окно». So the whole SpectrogramPresetManager body (built-in/user lists, per-preset manage icons, import/export) moved into SpectrogramPresetsDialog; the manager file and the «Управление…» button are deleted (SS-D12). The merge is a verbatim relocation, so behaviour is unchanged and the store-action tests still cover it. Also removed 3 now-orphaned i18n keys (Manage/Manager/Close) from both locales — 0 code refs workspace-wide, verified before deletion and locale parity re-checked after (443==443). Still one lazy chunk (7.2 KB), no separate manager chunk. verify: vue-tsc 0, quasar build ok, bun 265/0."
