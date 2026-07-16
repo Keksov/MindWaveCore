@@ -178,13 +178,36 @@
       ]
     },
     {
-      "id": "SG3.2",
+      "id": "SG3.2a",
       "phase": 3,
-      "title": "UI (SG-D7): шестерёнка в шапке группы общего спектра открывает докабл/детачбл @panel (переиспользуем сохранённый механизм); в контенте панели — селектор scope Оба/L/R + тумблер individual/inherit; форма (View/Fields) привязана к активному scope (оверрайд или программный), правки идут в оверрайд активного канала(ов). i18n новых подписей",
-      "status": "active",
+      "title": "UI ядро (SG-D7/SG-D8), IN-WINDOW: шестерёнка в шапке группы общего спектра открывает @panel; SpectrogramOverridesPanel — селектор scope Оба/L/R + тумблер individual/inherit + пресеты-apply к scope + «Сброс»=вернуть к наследованию; форма (SpectrogramSettingsView) привязана к эффективным настройкам scope, правки в оверрайд. Detach ВЫКЛ (:allow-detach=false) до SG3.2b. i18n scope-подписей",
+      "status": "done",
       "dependsOn": ["SG3.1"],
+      "artifacts": [
+        "GnauralCore/ui/components/SpectrogramOverridesPanel.vue (new; the in-window per-graph adapter: scope Оба/L/R + individual toggle + presets-apply + reset=revert, over the overrides store, reusing SpectrogramSettingsView for the form)",
+        "GnauralCore/ui/components/SpectrumSettingsDialog.vue (rewritten: hosts SpectrogramOverridesPanel lazily; :allow-detach=\"false\" for SG3.2a; dropped the global presets btn/footer/bridge)",
+        "GnauralCore/ui/components/TracksPanel.vue (re-added useSpectrumSettingsPanelState + a `tune` gear in the overall spectrogram group header toggling panel.open) [CRLF]",
+        "GnauralCore/ui/i18n/en.json + ru.json (audio.spectrumScopeBoth/Left/Right/Individual/InheritHint/Reset)"
+      ],
+      "verify": "DONE — vue-tsc 0 errors; quasar build succeeded (SpectrogramOverridesPanel its own 3.59 KB lazy chunk); bun test ui server 277 pass / 0 fail. Runtime-visual is SG3.3 (owner PAUSE). Dock/float work; detach is deferred to SG3.2b.",
+      "startedAt": "2026-07-16",
+      "finishedAt": "2026-07-16",
+      "blockedReason": null,
+      "evidence": [
+        "REUSE: the form is SpectrogramSettingsView (unchanged), fed a snapshot built from the active scope's effective settings (override ?? program level). Field edits emit 'set'; the adapter seeds+writes the scope override (SG-D8 auto-individual). Presets-apply writes the active scope from allPresets[id].settings. «Сброс» here = clear the scope override (revert to inherit), distinct from the program dialog's reset.",
+        "The gear mirrors the waveform group-header gear (title flex:1 pushes it right); it re-uses the panel-state singleton removed from the toolbar in SG2.1 — so the SAME @panel now opens per-graph from the header instead of globally from the toolbar.",
+        "Laziness kept: SpectrumSettingsDialog defineAsyncComponent-loads the panel, so AudioPage's eager chunk is unaffected (panel is its own 3.59 KB chunk).",
+        "A TS overlap error my typecheck caught: casting SpectrogramSettings to Record<string,string|number> needs `as unknown as` (the interface has boolean/enum fields, no index signature) — fixed."
+      ]
+    },
+    {
+      "id": "SG3.2b",
+      "phase": 3,
+      "title": "Detach (SG-D6, SS-D3): расщепить per-graph панель в PW5.7-«пульт» — pure SpectrogramOverridesView (snapshot+action, scope локально) + in-window adapter + child SpectrogramOverridesRemote + сериализуемая модель (оба канала + программный + пресеты) и scope-квалифицированные действия; включить detach; manifest на новый remote. Владелец: панель «в точности как сейчас» (докабл/детачбл)",
+      "status": "pending",
+      "dependsOn": ["SG3.2a"],
       "artifacts": [],
-      "verify": "typecheck + build + tests; the gear opens the panel; editing L/R writes the channel override and repaints only that channel; toggling «наследовать» clears the override; dock/float/detach still work",
+      "verify": "typecheck + build + tests; detach opens a child window rendering the per-graph panel; edits in the detached window repaint THIS window's spectrogram; dock/float/detach all work; only the main window writes the override store (no clobbering)",
       "startedAt": null,
       "finishedAt": null,
       "blockedReason": null,
@@ -195,7 +218,7 @@
       "phase": 3,
       "title": "PAUSE — owner-проверка: шестерёнка в шапке группы, панель (докабл/детачбл «как сейчас»), scope Оба/L/R, наследование программного уровня, индивидуальная правка канала перерисовывает только его; заодно SG2.2 (Audio без глобального tune)",
       "status": "pending",
-      "dependsOn": ["SG3.2"],
+      "dependsOn": ["SG3.2b"],
       "artifacts": [],
       "verify": "owner drives the real app",
       "startedAt": null,
@@ -239,6 +262,11 @@
       "at": "2026-07-16",
       "step": "SG3.0 / SG3.1",
       "text": "Phase-3 DESIGN settled (SG-D7): owner picked Hybrid (scope Оба/L/R + per-scope individual/inherit toggle) + one gear in the overall spectrogram group header. Grounded in code before asking (post-SG-D1-miss discipline). SG3.1 DONE — pure per-channel override model (composables/overall-spectrum-overrides + 8 tests) + Pinia store + TracksPanel resolvers (overallSpectrumAnalysis/Render) on the overall stack + minimap, kept SEPARATE from the waveform/gtrack analysis so overrides don't leak. Inert by default (both inherit). Verify green (277 pass/0 fail). Now SG3.2 (active): the gear + the scope/inherit panel UI + rebinding the form to the active scope + detach-remote."
+    },
+    {
+      "at": "2026-07-16",
+      "step": "SG3.2a",
+      "text": "SG-D8 recorded (owner UX): auto-individual on edit; presets apply to the active scope. SG3.2 SPLIT into SG3.2a (in-window core) + SG3.2b (detach) — validate the per-graph UX before building the detach remote around it (the agreed a/b phasing). SG3.2a DONE — SpectrogramOverridesPanel (scope Оба/L/R + individual toggle + presets-apply + reset=revert) over the overrides store, reusing SpectrogramSettingsView; a `tune` gear in the overall spectrogram group header opens the @panel (replacing the removed toolbar button); SpectrumSettingsDialog hosts it lazily with detach OFF for now. Verify green (vue-tsc 0, build ok, 277 pass/0 fail). Handing SG3.2a to the owner to try (dock/float) before SG3.2b enables detach."
     }
   ]
 }
