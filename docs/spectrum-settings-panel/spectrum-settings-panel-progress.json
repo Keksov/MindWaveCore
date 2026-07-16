@@ -3,7 +3,7 @@
   "plan": "spectrum-settings-panel",
   "planDoc": "docs/spectrum-settings-panel/spectrum-settings-panel-plan.md",
   "title": "spectrum-settings-panel: the spectrogram «Параметры» panel moves onto the universal @panel control (dockable + detachable, like «Открытие файлов» / «Список треков»), and its parameter groups become blocks laid out as TILES when two fit side by side, or as a single-column ACCORDION when they do not",
-  "status": "in-progress",
+  "status": "complete",
   "createdAt": "2026-07-16",
   "updatedAt": "2026-07-16",
   "decisions": [
@@ -362,15 +362,15 @@
       "id": "SS3.3",
       "phase": 3,
       "title": "PAUSE — owner-проверка detached-окна, В ТОМ ЧИСЛЕ в AppCore (AppMain.exe), а не только в браузере: правка в отдельном окне перерисовывает спектрограмму в главном; закрытие главного закрывает ребёнка; геометрия переживает переоткрытие",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["SS3.2"],
       "artifacts": [],
       "verify": "owner drives the real app in AppCore (per PW-D1 the child is a default WebView2 popup there, which is the production path — the browser is dev only)",
       "startedAt": "2026-07-16",
-      "finishedAt": null,
+      "finishedAt": "2026-07-16",
       "blockedReason": null,
       "evidence": [
-        "In review (owner testing). One fix already landed: the detached window's «Сброс» moved from the top bar to a bottom footer (see log). Remaining owner checks: edit-in-child repaints the parent, presets apply/save-as, smooth typing, parent-close closes child, geometry persists."
+        "Owner approved detach («ok», 2026-07-16) after two review fixes: the detached «Сброс» moved to a bottom footer, and the detached blocks made flush with the window edge (no body padding). Phase 3 (detach via the PW5.7 remote) is accepted. The whole feature is complete: «Параметры» is dockable + floating + detachable (like «Открытие файлов» / «Список треков»), its groups are blocks laid out as masonry tiles when wide or a single-column accordion when narrow, presets live in a title-bar modal (main) / a compact bar (detached), and editing in the detached window repaints the main spectrogram. The one open item — a frameless detached window (no OS title bar) — is SS3.4, deferred to a native AppCore change (SS-D13)."
       ]
     },
     {
@@ -390,6 +390,10 @@
     }
   ],
   "log": [
+    {
+      "at": "2026-07-16",
+      "text": "SS3.3 PASSED — owner approved detach («ok»). Feature COMPLETE (status -> complete). «Параметры» is now dockable + floating + detachable on the @panel control; groups are cards laid out as masonry tiles (wide) or a single-column accordion (narrow); presets are a title-bar modal in the main window and a compact bar in the detached child; a title-bar icon opens presets, «Сброс» is in the footer; editing in the detached window repaints the main spectrogram via the PW5.7 remote (snapshot down, action up). Only SS3.4 stays open — a frameless detached window (no OS title bar) — deferred to a native AppCore change (SS-D13), generic to all @panel detaches. Phases 0-3 done; SS3.4 deferred."
+    },
     {
       "at": "2026-07-16",
       "text": "SS3.2 fix #2 (owner during SS3.3 review): «В режиме отдельного окна не надо делать зазор между блоками и рамкой окна. Плавающее окно уже так отображает.» The remote's __body still had padding:8px (a leftover); the floating main window dropped its body padding in SS2.6. Removed it -> the block frame is flush with the child window edges too (header/footer keep their own padding). verify: vue-tsc 0, quasar build ok, bun 269/0; bundle shows spectrum-remote__body with no padding."
