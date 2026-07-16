@@ -246,11 +246,11 @@ in-memory кеша расписаний (`GnauralCore/ui/stores/audio.ts:133`), 
 - [x] **PR2.2 — Undo-журнал в проект (PR-D8).** Персист снапшотов `GTrackModel` в `undo.json`
   (лимиты), восстановление при открытии; undo переживает перезапуск. Verify: `bun test ui server`
   + вручную.
-- [ ] **PR2.3 — Per-file view-состояние (PR-D13, req 12).** Зум/вьюпорт спектрограммы в секцию
+- [x] **PR2.3 — Per-file view-состояние (PR-D13, req 12).** Зум/вьюпорт спектрограммы в секцию
   `view`; канальные цвета/масштаб/прозрачность волновой формы в секцию `waveform` — переопределения
   поверх дефолтов редактора, восстанавливаются при открытии. Selection не персистим. Verify:
   `bun run typecheck`+`build` (ui) + вручную.
-- [ ] **PR2.4 — Voice-state из `.gnaural` в проект (PR-D11, req 9).** Секция `voiceState`
+- [x] **PR2.4 — Voice-state из `.gnaural` в проект (PR-D11, req 9).** Секция `voiceState`
   (цвет/hidden/muted по голосам): одноразовый импорт значений из файла при первом открытии; UI
   читает/пишет проект вместо `POST /api/audio/schedule/voice-state`; mute/solo применяются к
   воспроизведению и рендеру XML-трансформом (механизм `gnaural-solo-render.ts`); исходник больше не
@@ -260,7 +260,7 @@ in-memory кеша расписаний (`GnauralCore/ui/stores/audio.ts:133`), 
 
 ### Phase 3 — настройки (req 3)
 
-- [ ] **PR3.1 — Настройка `user_data_root` (PR-D6).** `GET/PATCH /api/project-settings` (по образцу
+- [x] **PR3.1 — Настройка `user_data_root` (PR-D6).** `GET/PATCH /api/project-settings` (по образцу
   `/api/audio-settings`), поле в настройках редактора с валидацией существования папки. Verify:
   `bun test` (server) + вручную.
 - [ ] **PR3.2 — Смена папки с переносом.** Копирование `projects/` в новую папку с отчётом и

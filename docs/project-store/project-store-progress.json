@@ -276,10 +276,15 @@
         "GnauralCore/ui/pages/AudioPage.vue"
       ],
       "verify": "bun run typecheck + bun run build (MindWaveCore/ui); manual: zoom/viewport and waveform overrides restored per file after restart, editor defaults apply where the project has no value; selection intentionally not persisted",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-17",
+      "finishedAt": "2026-07-17",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "use-project-view-state.ts: bindProjectViewState wires a surface's shared time/freq windows to a project section with validation, a restore request-id, and a restorePending guard -- the component's own null-reset on file change can no longer clobber the stored section before the async restore lands (watch-registration ordering contract documented). AudioPage binds 'viewAudio', TracksPanel binds 'viewTracks' (the two surfaces are isolated by design, GT-D10). Selection stays ephemeral.",
+        "TracksPanel waveform prefs (mode/scales/colors/opacities/minimap/link/both): the save watch now dual-writes localStorage (the EDITOR DEFAULT, keeping today's behaviour) + the project 'waveform' section; on file open the section is applied over the defaults, and a file WITHOUT a section falls back to the defaults instead of inheriting the previous file's look (PR-D13). Programmatic applies are suppressed from the save watch.",
+        "Survey correction folded in: waveform prefs live ONLY in TracksPanel since the owner's WS/VS rework -- AudioPage has no waveform key; AudioPage got only the viewport binding.",
+        "vue-tsc clean; quasar build ok; GnauralCore bun test ui server 281 pass. Live restart walk-through is the owner's PR2.5 PAUSE check."
+      ]
     },
     {
       "id": "PR2.4",
@@ -294,20 +299,26 @@
         "GnauralCore/server/spectrogram-audio-source.ts"
       ],
       "verify": "bun test ui server (GnauralCore); manual: changing colour/mute does not touch the .gnaural mtime; mute is audible in playback and render via the XML transform; one-time import from file attributes on first open; everything restored after restart",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-17",
+      "finishedAt": "2026-07-17",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Client: voice-state-model.ts (pure merge/seed/patch, 3 unit tests) + use-voice-state.ts IO wrappers; setGnauralSchedule overlays the project's voiceState asynchronously over every dump (both the REST load and the WS schedule_loaded path) and seeds the section from the file's own values on first open (one-time migration); AudioPage's central patch chokepoint now writes the section + applies locally (applyVoiceStateLocally) instead of POSTing voice-state -- no file rewrite, no reload-from-disk, no editor-mutation guard; the save-first dirty guard stays (the cache update still rebuilds the gtrack model).",
+        "Live playback: the CLI already had a mute_voice stdio command (survey B.6) -- new POST /api/audio/voice-mute pushes mute by voice INDEX to the active session only; on audio_schedule_loaded the server pushes the project's overrides where they differ from the file's stale tags.",
+        "Renders: applyVoiceMuteMap (gnaural-solo-render.ts, same mechanics as muteNonSoloVoices, 2 tests) stamps explicit <voice_mute> values; renderGnauralSpectrogramWav applies it to the single-loop temp copy and renderGnauralAudioFile stages a transformed copy next to the source; the mute set is part of the sha1 cache key (voiceMuteFingerprint) so a changed project mute never serves a stale render.",
+        "Old files keep their stale tags (R9, not scrubbed); the voice-state endpoint stays server-side but the UI no longer calls it (audio-api wrappers marked deprecated).",
+        "Verify: GnauralCore bun test ui server 286 pass / 953 expect; tsc@5.7.3 (known TS2540 only); vue-tsc clean; quasar build ok. Audible mute + restart walk-through is the owner's PR2.5 PAUSE check."
+      ]
     },
     {
       "id": "PR2.5",
       "phase": 2,
       "title": "PAUSE: owner проверяет, что редактор всё вспоминает после перезапуска",
-      "status": "pending",
+      "status": "active",
       "dependsOn": ["PR2.1", "PR2.2", "PR2.3", "PR2.4"],
       "artifacts": [],
       "verify": "owner confirms: lanes, undo, zoom, voice-state restored for a real file; .gnaural no longer rewritten by view changes",
-      "startedAt": null,
+      "startedAt": "2026-07-17",
       "finishedAt": null,
       "blockedReason": null,
       "evidence": []
@@ -324,10 +335,15 @@
         "SharedPasCore/ts/protocol.ts"
       ],
       "verify": "bun test (server); manual: setting visible in editor settings, rejects a non-existing directory",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-17",
+      "finishedAt": "2026-07-17",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "log-db.ts updateProjectSettings (app_settings key user_data_root); server.ts GET/PATCH /api/project-settings mirroring audio-settings: existing-directory validation, response carries userDataRoot + effectiveUserDataRoot (configured or the LOCALAPPDATA default); protocol ProjectSettingsPatchRequest/Response (SharedPasCore 5defbf8).",
+        "GnauralSettingsTab.vue: new 'Projects' block above the cache -- q-input with the effective root as placeholder/hint, save button, error surface; projectApi.fetch/updateProjectSettings; i18n keys ru/en (staged via index blobs while the owner's parallel i18n work was uncommitted, then the owner's commit landed first).",
+        "Live REST smoke on the real server (port 3418): GET shows the default effective root; PATCH to a scratch dir switches it and a subsequent /api/projects/open provisions under the NEW root without restart (per-operation resolution); PATCH to a non-existing dir -> 400; PATCH '' resets to the default. Setting restored to '' after the smoke.",
+        "tsc@5.7.3: only the known pre-existing TS2540; vue-tsc clean."
+      ]
     },
     {
       "id": "PR3.2",
@@ -339,10 +355,15 @@
         "MindWaveCore/server/project-store.ts"
       ],
       "verify": "manual scenario: change the folder -> projects copied, editor keeps working against the new root; old folder left intact",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-17",
+      "finishedAt": "2026-07-17",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "project-store.ts copyProjectsTree: copies <from>/projects/* recursively into <to>/projects/, skips project folders already present at the destination, never touches the source (old root stays as a manual fallback); same-root and missing-source are no-ops. Tests: 2 projects (one with undo.json) copied intact, re-run reports skipped=2, no-op cases.",
+        "PATCH /api/project-settings gained migrate: the copy runs from the PREVIOUS effective root into the next one before the setting is stored; response carries {migrated: {copied, skipped}}. Protocol: ProjectsMigrationSummary + migrate flag (SharedPasCore 8179132).",
+        "GnauralSettingsTab: saving the folder now asks 'copy the existing projects?' (copy / do not copy; dismiss aborts the save); the success toast reports copied/skipped counts.",
+        "bun test project-store 24 pass / 76 expect; tsc@5.7.3 (known TS2540 only); vue-tsc clean."
+      ]
     },
     {
       "id": "PR4.1",
@@ -453,6 +474,10 @@
     }
   ],
   "log": [
+    {
+      "at": "2026-07-17",
+      "text": "Phases 2 and 3 complete (PR2.1-PR2.4, PR3.1-PR3.2), each step with its own per-repo commits and green verify (GnauralCore 286 tests, server tsc, vue-tsc, quasar build, REST smokes for project-settings). Everything the owner listed in req 1 now lives in the project: lanes/laneSpectrum/mixExcluded sections with one-time localStorage migration, the undo journal (signature-gated adopt, byte-budgeted), per-file view state (spectrogram time/freq windows per surface + waveform settings as overrides over editor defaults), and voice colour/hidden/muted moved OUT of the .gnaural (voiceState section; renders take a mute-fingerprinted cache key + staged transformed copy; live mute via the CLI's mute_voice command, pushed on schedule load). The user-data folder is configurable with an offer to copy the projects tree. Stopped at the PR2.5 PAUSE: the owner walks through a real file -- lanes/undo/zoom/waveform/voice-state must survive a restart and the .gnaural must stay untouched by view changes."
+    },
     {
       "at": "2026-07-15",
       "text": "Phase 1 (the priority: service class + API) complete in one session -- PR1.1..PR1.5 done, each with its own commit and green verify (project-store bun tests 22, GnauralCore ui+server 252, vue-tsc, quasar build, tsc@5.7.3 server typecheck). End-to-end smoke on the real server: opening a file provisions <LOCALAPPDATA>/KKSoundCore/projects/<slug>-<hash8>/project.scp.json and sections round-trip over REST. Stopped at the PR1.6 PAUSE for the owner to click through the live app and approve naming/layout/sections before Phase 2 integrations."
