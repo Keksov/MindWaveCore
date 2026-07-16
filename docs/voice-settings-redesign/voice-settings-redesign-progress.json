@@ -1,0 +1,137 @@
+{
+  "schemaVersion": 1,
+  "plan": "voice-settings-redesign",
+  "planDoc": "docs/voice-settings-redesign/voice-settings-redesign-plan.md",
+  "title": "voice-settings-redesign: the per-track gear + point-mode buttons move from the graph overlay into the track's header bar; the «Настройки дорожки» dialog becomes a two-pane form (variant B); solo-spectrum and solo-wave sublane gears get their OWN dialogs (per-lane spectrum settings with «Сброс»-to-inherit; wave colour+opacity), and those sections leave the track dialog",
+  "status": "in-progress",
+  "createdAt": "2026-07-16",
+  "updatedAt": "2026-07-16",
+  "decisions": [
+    {
+      "id": "VS-D1",
+      "text": "RESOLVED at the VS0.1 PAUSE (owner). The owner's «тулбар голоса» = the per-track header bar GT11.5 (tracks-panel__gtrack-header, TracksPanel.vue:149-186 — stripe, fold, hidden-graphs eye, title; no gear today). BOTH overlay buttons move there: the settings gear AND the point-mode toggle (edit_location_alt) — owner picked «Тоже перенести в шапку» over keeping point-mode on the canvas. The gtrack-view__actions overlay (GTrackView.vue:83-103) is removed entirely; no buttons remain drawn in the graph. Bonus: the header is visible even when the track is folded, so access improves (today a folded track has no gear at all)."
+    },
+    {
+      "id": "VS-D2",
+      "text": "RESOLVED at the VS0.1 PAUSE (owner): redesign = VARIANT B, two-pane, modelled on the overall-waveform dialog GT10.29 (TracksPanel.vue:722-810 — section list left, content right). Sections: «График» (display mode + beat band), «Соло-звук» (TWO independent toggles «Волна»/«Спектр» replacing the 4-way off/wave/spectrum/both toggle whose «Оба» was the comprehension killer, + placement toggle with self-explanatory labels «Отдельным графиком ниже»/«Фоном под кривыми», long hint → short caption), «Голоса» (checklist). NO style settings remain in the dialog — spectrum behind its graph's gear (VS-D3), wave colour/opacity behind its graph's gear (VS-D4). Delete-track stays in the footer; title simplified to «Настройки дорожки». Rejected: A (flat form, wave style inline — obsoleted by VS-D4 moving style out), C (accordion). UI-only change: soloMode off|wave|spectrum|both stays the persisted model, the two toggles map onto it (R5)."
+    },
+    {
+      "id": "VS-D3",
+      "text": "OWNER (req. 2): the «Свои настройки спектра для этой дорожки» toggle + GTrackSpectrumSettings accordion (TracksPanel.vue:671-687) LEAVE the track dialog. The solo-spectrum sublane's existing gear (SpectrogramView :show-settings-gear, wired at TracksPanel.vue:315-321, today opening the TRACK dialog) is repointed to a NEW per-lane spectrum-settings dialog: GTrackSpectrumSettings + «Сброс» (clear the laneSpectrum override → inherit the program level), auto-individual-on-edit semantics modelled on SG-D8. The individual-else-global machinery already exists (use-gtrack-lanes.ts:276+, resolvers TracksPanel.vue:2186-2200). Inline placement («Под кривыми») has no sublane graph hence no gear — owner confirmed that is fine (switch to sublane to tune)."
+    },
+    {
+      "id": "VS-D4",
+      "text": "RESOLVED at the VS0.1 PAUSE (owner): solo-WAVE style (colour + opacity) moves OUT of the track dialog, behind the solo-wave graph's own gear (WaveformView.vue:44 already draws one; today it opens the track dialog) — a small dedicated dialog, symmetric with the spectrum (VS-D3). Inline wave placement: like the spectrum, no gear."
+    }
+  ],
+  "steps": [
+    {
+      "id": "VS0.1",
+      "phase": 0,
+      "title": "План + леджер + разведка + PAUSE. ПРОЙДЕНА 2026-07-16: редизайн = B (две панели); стиль волны — за гир графика волны; point-mode — тоже в шапку; инлайн-спектр без шестерёнки — ок",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [
+        "docs/voice-settings-redesign/voice-settings-redesign-plan.md",
+        "docs/voice-settings-redesign/voice-settings-redesign-progress.json"
+      ],
+      "verify": "PASSED — owner picked at the PAUSE (AskUserQuestion, 2026-07-16): (а) variant «B: две панели»; (б) wave style «За шестерёнку графика волны»; (в) point-mode «Тоже перенести в шапку»; (г) inline spectrum «Ок, шестерёнка не нужна». All four recorded in VS-D1..VS-D4.",
+      "startedAt": "2026-07-16",
+      "finishedAt": "2026-07-16",
+      "blockedReason": null,
+      "evidence": [
+        "Gear today: GTrackView.vue:95-102 (canvas overlay, next to point-mode :85-94) → emit open-settings → TracksPanel.vue:245 gtrackSettingsId. Two more emitters open the SAME dialog: solo-wave WaveformView (gear at :44, wired :290) and solo-spectrum SpectrogramView (:show-settings-gear, wired :315-321).",
+        "The per-track header bar (GT11.5, TracksPanel.vue:149-186) has stripe/fold/eye/title and NO gear — and it is visible even when the track is folded, so moving the buttons there IMPROVES access (today a folded track has no gear at all).",
+        "Dialog anatomy (TracksPanel.vue:572-717): mode toggle + beat-band; solo 4-way + hint + placement + wave colour/opacity; spectrum-custom toggle + GTrackSpectrumSettings accordion (:671-687, toggleLaneSpectrumCustom :2200); voices checklist; delete-track footer. Two-pane precedent: the waveform dialog GT10.29 (:722-810).",
+        "Per-lane spectrum override already individual-else-global: use-gtrack-lanes.ts getLaneSpectrum/setLaneSpectrum (:276+), resolvers TracksPanel.vue:2186-2200 — VS2.1 is a re-homing of an existing editor, not new model work.",
+        "Adjacent feature spectrogram-settings-scope (SG3.x, currently at its SG3.3 owner-PAUSE) built the OVERALL spectrum's header gear + scoped panel; it does NOT touch lane solo spectra — no overlap in model, but SAME FILE TracksPanel.vue → R3.",
+        "Step prefix VS is free (grep over docs/*/*-progress.json; taken: AP/BK/FB/GT/MR/PR/PW/R/RF/SB/SF/SG/SS/TP/TT/WS)."
+      ]
+    },
+    {
+      "id": "VS1.1",
+      "phase": 1,
+      "title": "Гир + point-mode в шапку дорожки (tracks-panel__gtrack-header); удалить оверлей gtrack-view__actions из GTrackView.vue (+осиротевшие emit'ы/пропсы)",
+      "status": "pending",
+      "dependsOn": ["VS0.1"],
+      "artifacts": [],
+      "verify": "bun test ui server (GnauralCore); bun run typecheck + build (MindWaveCore/ui); реальное приложение: гир и point-mode в шапке (в т.ч. у свёрнутой дорожки) работают, в графике кнопок нет",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "VS2.1",
+      "phase": 2,
+      "title": "Диалог настроек спектра дорожки (GTrackSpectrumSettings + «Сброс» → наследование, auto-individual-on-edit по SG-D8); перенацелить @open-settings соло-спектра (TracksPanel.vue:321) на него (VS-D3)",
+      "status": "pending",
+      "dependsOn": ["VS1.1"],
+      "artifacts": [],
+      "verify": "bun test ui server (GnauralCore); typecheck + build (MindWaveCore/ui); реальное приложение: спектр-гир открывает свой диалог, «Сброс» возвращает программные настройки",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "VS2.2",
+      "phase": 2,
+      "title": "Диалог стиля соло-волны (цвет + прозрачность); перенацелить @open-settings соло-волны (TracksPanel.vue:290) на него (VS-D4)",
+      "status": "pending",
+      "dependsOn": ["VS1.1"],
+      "artifacts": [],
+      "verify": "bun test ui server (GnauralCore); typecheck + build (MindWaveCore/ui); реальное приложение: волна-гир открывает диалог цвет/прозрачность, правки применяются вживую",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "VS2.3",
+      "phase": 2,
+      "title": "PAUSE — owner-проверка: шапка (гир+point-mode, включая свёрнутую дорожку), спектр-диалог со «Сбросом», волна-диалог",
+      "status": "pending",
+      "dependsOn": ["VS2.1", "VS2.2"],
+      "artifacts": [],
+      "verify": "Owner подтверждает",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "VS3.1",
+      "phase": 3,
+      "title": "Редизайн диалога дорожки — вариант B (две панели по образцу GT10.29): секции График / Соло-звук (два тумблера + размещение) / Голоса; убрать «Свои настройки спектра» (:671-687, toggleLaneSpectrumCustom) и цвет/прозрачность волны; i18n ru/en; заголовок «Настройки дорожки»",
+      "status": "pending",
+      "dependsOn": ["VS2.3"],
+      "artifacts": [],
+      "verify": "bun test ui server (GnauralCore); typecheck + build (MindWaveCore/ui); реальное приложение: двух-панельный диалог, тумблеры Волна/Спектр корректно мапятся на soloMode (R5)",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "VS3.2",
+      "phase": 3,
+      "title": "PAUSE — финальная owner-приёмка фичи",
+      "status": "pending",
+      "dependsOn": ["VS3.1"],
+      "artifacts": [],
+      "verify": "Owner подтверждает",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    }
+  ],
+  "log": [
+    {
+      "at": "2026-07-16",
+      "step": "VS0.1",
+      "text": "Plan + ledger created; recon done (gear overlay GTrackView.vue:95-102, header GT11.5 without gear, dialog anatomy :572-717, three open-settings emitters, existing laneSpectrum override). Variants A/B/C presented with mockups; owner picked at the PAUSE: B (two-pane), wave style behind the wave graph's gear, point-mode also moves to the header, inline spectrum needs no gear. VS-D1..VS-D4 resolved; steps re-cut (phase 2 = per-graph dialogs BEFORE the phase-3 dialog redesign, so wave style is never unreachable in between)."
+    }
+  ]
+}
