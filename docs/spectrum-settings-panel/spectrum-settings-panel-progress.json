@@ -392,6 +392,10 @@
   "log": [
     {
       "at": "2026-07-16",
+      "text": "SS3.2 fix #2 (owner during SS3.3 review): «В режиме отдельного окна не надо делать зазор между блоками и рамкой окна. Плавающее окно уже так отображает.» The remote's __body still had padding:8px (a leftover); the floating main window dropped its body padding in SS2.6. Removed it -> the block frame is flush with the child window edges too (header/footer keep their own padding). verify: vue-tsc 0, quasar build ok, bun 269/0; bundle shows spectrum-remote__body with no padding."
+    },
+    {
+      "at": "2026-07-16",
       "text": "SS3.4 DEFERRED (owner 2026-07-16, SS-D13). Owner asked whether the detached window's OS-native title bar can be hidden so it looks exactly like the in-window panel. Answer: not from web code — the OS/window manager draws the frame and a window.open child cannot shed it; the browser blocks it by design (anti-spoofing, same as the address bar), and AppCore/WebView2 would need a native NewWindowRequested handler making a frameless window (plan B of panel-window req 6) — a non-trivial change in the AppCore repo outside this workspace. Document PiP was considered and rejected (one window at a time; reworks the mechanism). Owner: «Добавь в план, пока отложим эту задачу.» Recorded as SS-D13 + step SS3.4 (deferred, blockedReason = native AppCore work). Detach ships with the standard OS frame for now. The task is generic to all @panel detaches, so when revisited it belongs at panel-window/AppCore, not here."
     },
     {
