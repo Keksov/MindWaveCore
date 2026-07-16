@@ -26,7 +26,7 @@ import { createLogArchiveStore } from "./log-db"
 import { createLogReplayManager } from "./log-replay"
 import { createProjectStore, defaultUserDataRoot, isProjectStoreError } from "./project-store"
 import { createPublishCallbacks } from "./publish"
-import type { AudioFileKind, AudioPresetsResponse, AudioServerEvent, AudioSettings, GnauralScheduleData, PresetTreeNode, ProjectListResponse, ProjectSectionResponse, ProjectUndoResponse } from "./protocol"
+import type { AudioFileKind, AudioPresetsResponse, AudioServerEvent, AudioSettings, GnauralScheduleData, PresetTreeNode, ProjectListResponse, ProjectSectionResponse, ProjectSettingsResponse, ProjectUndoResponse } from "./protocol"
 import { isRecord, toJson } from "./protocol"
 import { handleUiClose, handleUiMessage, handleUiOpen, type UiSocketData } from "./ui-ws-handler"
 import { createScheduleWatcher } from "../../GnauralCore/server/schedule-watcher"
@@ -56,12 +56,11 @@ const archiveStore = createLogArchiveStore(runtimeDir)
 const gnauralEditorStore = createGnauralEditorStore(runtimeDir)
 // project-store PR1.4 (PR-D5/D6): per-file "Project" folders under the user-data root; the root is
 // re-resolved on every operation so a settings change needs no restart.
-const projectStore = createProjectStore({
-  resolveUserDataRoot: () => {
-    const configured = archiveStore.getProjectSettings().userDataRoot
-    return configured !== "" ? configured : defaultUserDataRoot()
-  },
-})
+const resolveEffectiveUserDataRoot = (): string => {
+  const configured = archiveStore.getProjectSettings().userDataRoot
+  return configured !== "" ? configured : defaultUserDataRoot()
+}
+const projectStore = createProjectStore({ resolveUserDataRoot: resolveEffectiveUserDataRoot })
 let gnauralSession: GnauralSession
 
 const MAX_RESTART_ATTEMPTS = 5
@@ -1277,6 +1276,43 @@ const handleApiRequest = async (aRequest: Request): Promise<Response | null> => 
       return jsonResponse(archiveStore.updateAudioSettings({ presetsRoot }))
     } catch (error) {
       const message = error instanceof Error ? error.message : "Invalid audio settings payload"
+      return errorResponse(400, message)
+    }
+  }
+
+  // project-store PR3.1 (PR-D6): the user-data root setting behind the editor settings UI.
+  if (segments.length === 2 && segments[1] === "project-settings") {
+    if (aRequest.method === "GET") {
+      const payload: ProjectSettingsResponse = {
+        ...archiveStore.getProjectSettings(),
+        effectiveUserDataRoot: resolveEffectiveUserDataRoot(),
+      }
+      return jsonResponse(payload)
+    }
+
+    if (aRequest.method !== "PATCH") {
+      return errorResponse(405, "Method not allowed")
+    }
+
+    try {
+      const body = await parseJsonBody(aRequest)
+      if (!isRecord(body) || typeof body.userDataRoot !== "string") {
+        return errorResponse(400, "userDataRoot must be provided as a string")
+      }
+
+      const userDataRoot = body.userDataRoot.trim()
+      if (userDataRoot !== "" && !(await ensureDirectory(userDataRoot))) {
+        return errorResponse(400, "userDataRoot must point to an existing directory")
+      }
+
+      archiveStore.updateProjectSettings({ userDataRoot })
+      const payload: ProjectSettingsResponse = {
+        ...archiveStore.getProjectSettings(),
+        effectiveUserDataRoot: resolveEffectiveUserDataRoot(),
+      }
+      return jsonResponse(payload)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Invalid project settings payload"
       return errorResponse(400, message)
     }
   }

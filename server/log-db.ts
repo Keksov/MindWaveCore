@@ -777,6 +777,14 @@ export class LogArchiveStore {
     return this.getAudioSettings()
   }
 
+  public updateProjectSettings(input: Partial<ProjectSettings>): ProjectSettings {
+    if (input.userDataRoot !== undefined) {
+      this.upsertAppSetting("user_data_root", input.userDataRoot.trim())
+    }
+
+    return this.getProjectSettings()
+  }
+
   public cleanupRetention(referenceTime = new Date()): number {
     const retentionDays = this.getRetentionDays()
     if (retentionDays === 0) {
