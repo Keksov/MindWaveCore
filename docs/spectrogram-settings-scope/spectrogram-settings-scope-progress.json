@@ -17,7 +17,11 @@
     },
     {
       "id": "SG-D3",
-      "text": "The floating «Параметры» @panel is RETIRED entirely (owner Q2: «Кнопка не нужна, её нужно убрать»). Precise cleanup list, from grep over GnauralCore/ui: (a) TracksPanel.vue:125-132 tune toolbar toggle + useSpectrumSettingsPanelState (:1168,2616) [CRLF file]; (b) AudioPage.vue:156 host <SpectrumSettingsDialog v-if> + import (:462) + state (:461,626) [CRLF file]; (c) delete SpectrumSettingsDialog.vue; (d) delete SpectrogramSettingsRemote.vue + the 'spectrum-settings' panel entry in module.ts:38-47 [CRLF file]; (e) delete stores/spectrum-settings-panel.ts. STAYS ALIVE (reused by the tab): SpectrogramSettingsPanel/View/Fields, spectrum-settings-model/actions, use-spectrum-settings-snapshot, SpectrogramPresetsDialog, composables/spectrogram-settings-fields.ts. The SS-D11 titlebar-actions slot on the shared PanelWindow loses its only consumer but STAYS (a shared @panel-control feature; an unused named slot renders nothing and removing shared-control surface is more risk than reward) — noted as 0 consumers. Orphaned localStorage keys mindwave-panel-spectrum-settings-* are harmless (best-effort reads). Retirement is a SEPARATE phase (2) done AFTER the tab is owner-approved (phase 1), so SG1.2 judges the tab cleanly and the deletion is a reversible decision after «ok»."
+      "text": "REVISED 2026-07-16 (owner clarification after SG0.1 PAUSE): «после того, как у спектра появится своя кнопка с индивидуальными настройками, панель настроек должна выглядеть В ТОЧНОСТИ КАК СЕЙЧАС — в виде докабл/детачбл окна». So the @panel/PanelWindow machinery is NOT deleted — it is PRESERVED and REPURPOSED: the per-graph individual settings (SG-D5, phase 3) are shown through the SAME dockable/detachable panel that «Параметры» is today. What phase 2 actually does is NARROWER than the superseded plan: remove the panel's GLOBAL binding + its Audio-toolbar `tune` opener (the program level moves to the Settings tab, SG-D2/SG-D4), so the panel is no longer opened as the global editor; its NEW opener becomes a per-graph button in each spectrum header, and its content binds to that graph's individual L/R override (phase 3). The reusable pieces stay ALIVE by construction: PanelWindow/SpectrumSettingsDialog/SpectrogramSettingsRemote/stores/spectrum-settings-panel become the TEMPLATE for the per-graph panel (likely parameterized by a graph/channel key rather than the single global singleton), not dead code. The SS-D11 titlebar-actions slot stays. What still goes away in phase 2: only the Audio-toolbar `tune` toggle as the GLOBAL entry point (TracksPanel.vue:125-132) — the panel itself lives on for phase 3. Orphaned localStorage keys, if any, are harmless (best-effort reads). --- SUPERSEDED rev 1 (owner Q2 «кнопка не нужна, её нужно убрать», read too broadly as 'delete the whole apparatus'): (a) TracksPanel.vue:125-132 tune toggle + useSpectrumSettingsPanelState (:1168,2616); (b) AudioPage.vue:156 host + import (:462) + state (:461,626); (c) delete SpectrumSettingsDialog.vue; (d) delete SpectrogramSettingsRemote.vue + the 'spectrum-settings' manifest entry (module.ts:38-47); (e) delete stores/spectrum-settings-panel.ts. That rev was wrong about DELETING the panel machinery — the owner wants exactly that dockable/detachable window kept for the per-graph editor. The `tune` toolbar button removal (Q2) still holds; the file DELETIONS do not."
+    },
+    {
+      "id": "SG-D6",
+      "text": "NEW 2026-07-16 (owner clarification). TWO surfaces for TWO levels: (1) PROGRAM-LEVEL settings live in the general Settings page as a plain TAB (SG-D1/SG-D2/SG-D4) — always a tab, no window chrome. (2) PER-GRAPH INDIVIDUAL settings (SG-D5, phase 3) live in the DOCKABLE/DETACHABLE @panel — «в точности как сейчас» — opened from a button in each spectrum graph's header. So the current «Параметры» dockable/detachable panel is not retired but re-homed onto the per-graph level; the program level it used to edit is taken over by the Settings tab. This settles a design question phase 3 raises: the per-graph editor's form factor is FIXED by the owner (dock/float/detach), and its content is the same SpectrogramSettings form (View/Fields/presets) already reused by the tab — only its data binding differs (per-graph individual override vs the global program store). OPEN for phase-3 design: one panel retargeted to the active graph vs one panel instance per graph (multiple @panel states); and how the per-channel L/R split maps onto the panel (a scope selector like the waveform dialog's both/L/R, or two sub-forms)."
     },
     {
       "id": "SG-D4",
@@ -82,11 +86,11 @@
     {
       "id": "SG2.1",
       "phase": 2,
-      "title": "Снос плавающей панели «Параметры» (SG-D3): tune-кнопка + state в TracksPanel; хост+импорт+state в AudioPage; удалить SpectrumSettingsDialog, SpectrogramSettingsRemote, stores/spectrum-settings-panel; убрать запись spectrum-settings из manifest. CRLF пофайлово",
+      "title": "Убрать ГЛОБАЛЬНЫЙ вход в панель (SG-D3 rev.): удалить tune-кнопку тулбара Audio (TracksPanel.vue:125-132) — глобальный уровень уходит в таб Settings. Панель @panel НЕ удаляется: она сохраняется как шаблон для пер-графикового редактора (фаза 3). Точный объём (перенацелить/распараметрить vs временно оставить без опенера) зависит от sequencing на SG0.1",
       "status": "pending",
       "dependsOn": ["SG1.2"],
       "artifacts": [],
-      "verify": "typecheck+build+tests green; grep 0 dangling refs to the removed symbols/files; PanelHostPage no longer resolves 'spectrum-settings'; the reused form pieces still build",
+      "verify": "typecheck+build+tests green; the @panel machinery still builds (kept for phase 3); program-level settings reachable only via the Settings tab",
       "startedAt": null,
       "finishedAt": null,
       "blockedReason": null,
@@ -108,7 +112,7 @@
     {
       "id": "SG3.0",
       "phase": 3,
-      "title": "GATED (SG-D5) — индивидуальные L/R настройки графика спектра по образцу волны. Декомпозируется в SG3.x ПОСЛЕ подтверждения scope на SG0.1 PAUSE; включает пер-канальный override (individual-else-global поверх программного стора), шестерёнку в шапке спектра, редактор L/R и owner-PAUSE",
+      "title": "GATED (SG-D5/SG-D6) — индивидуальные L/R настройки графика спектра по образцу волны, показываемые через ДОКАБЛ/ДЕТАЧБЛ @panel «в точности как сейчас» (owner). Декомпозируется в SG3.x ПОСЛЕ SG0.1: пер-канальный override (individual-else-global поверх программного стора), кнопка в шапке спектра открывает панель, репараметризация panel-стейта под graph/channel, owner-PAUSE",
       "status": "pending",
       "dependsOn": ["SG0.1"],
       "artifacts": [],
@@ -123,7 +127,12 @@
     {
       "at": "2026-07-16",
       "step": "SG0.1",
-      "text": "Feature opened. Two Explore passes mapped: (1) the general Settings dialog — CONFIRMED it is a plain in-app /settings route, NOT a separate window (the stated premise was false), and the settingsTab seam; (2) the waveform per-channel north star + the spectrogram global-store architecture + the gtrack laneSpectrum individual-else-global precedent + the reusable form pieces. Plan + ledger written. Owner clarified via AskUserQuestion: keep the general Settings as an in-app tab (not @panel); remove the floating «Параметры» tune panel entirely; program-level spectrogram settings apply to all spectrograms unless per-graph individual params are set; end goal is a per-graph header button for individual L/R channel settings, mirroring the waveform. Decisions SG-D1..SG-D5 recorded. PAUSE at SG0.1 for the owner to settle §7 (phase-3 scope, tab UX, GT10.17 reversal) before any code."
+      "text": "Feature opened. Two Explore passes mapped: (1) the general Settings dialog — CONFIRMED it is a plain in-app /settings route, NOT a separate window (the stated premise was false), and the settingsTab seam; (2) the waveform per-channel north star + the spectrogram global-store architecture + the gtrack laneSpectrum individual-else-global precedent + the reusable form pieces. Plan + ledger written. Owner clarified via AskUserQuestion: keep the general Settings as an in-app tab (not @panel); program-level spectrogram settings apply to all spectrograms unless per-graph individual params are set; end goal is a per-graph header button for individual L/R channel settings, mirroring the waveform. Decisions SG-D1..SG-D5 recorded. PAUSE at SG0.1 for the owner to settle §7 (phase-3 scope, tab UX, GT10.17 reversal) before any code."
+    },
+    {
+      "at": "2026-07-16",
+      "step": "SG0.1",
+      "text": "Owner clarification at the SG0.1 PAUSE reshaped the retirement: «после того, как у спектра появится своя кнопка с индивидуальными настройками, панель настроек должна выглядеть в точности как сейчас — в виде докабл/детачбл окна». => The @panel/PanelWindow machinery is PRESERVED and repurposed for the per-graph individual editor (phase 3), NOT deleted. SG-D3 REVISED (superseded rev 1's file deletions; only the Audio-toolbar `tune` global opener still goes); SG-D6 ADDED (two surfaces: program-level = Settings tab; per-graph = dockable/detachable panel). SG2.1/SG3.0 re-scoped. STILL OPEN and re-asked: sequencing — is phase 3 in this task now (then phase 2 = repoint the panel to per-graph), or land phase 1 (tab) first and take the panel repurpose + per-graph as a later phase. No code until the owner picks sequencing."
     }
   ]
 }
