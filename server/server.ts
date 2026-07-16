@@ -26,10 +26,11 @@ import { createLogArchiveStore } from "./log-db"
 import { createLogReplayManager } from "./log-replay"
 import { copyProjectsTree, createProjectStore, defaultUserDataRoot, isProjectStoreError, type ProjectsMigrationSummary } from "./project-store"
 import { createPublishCallbacks } from "./publish"
-import type { AudioFileKind, AudioPresetsResponse, AudioServerEvent, AudioSettings, GnauralScheduleData, PresetTreeNode, ProjectListResponse, ProjectSectionResponse, ProjectSettingsResponse, ProjectUndoResponse } from "./protocol"
+import type { AudioFileKind, AudioPresetsResponse, AudioServerEvent, AudioSettings, AudioVoiceMuteItem, AudioVoiceMuteResponse, GnauralScheduleData, PresetTreeNode, ProjectListResponse, ProjectSectionResponse, ProjectSettingsResponse, ProjectUndoResponse } from "./protocol"
 import { isRecord, toJson } from "./protocol"
 import { handleUiClose, handleUiMessage, handleUiOpen, type UiSocketData } from "./ui-ws-handler"
 import { createScheduleWatcher } from "../../GnauralCore/server/schedule-watcher"
+import { applyVoiceMuteMap } from "../../GnauralCore/server/gnaural-solo-render"
 import { checkSpectrogramWorkerHealth } from "../../GnauralCore/server/spectrogram-bridge"
 
 // Never route same-machine loopback fetches through a local HTTP proxy (owner: "bun must not use a
@@ -343,19 +344,61 @@ const getAudioOutputCachePath = async (
   return join(aCacheDir, `${sourceName}-${cacheKey}.${aTargetFileKind}`)
 }
 
+// project-store PR2.4 (owner req 9): voice mute is project data. Renders must honour the
+// project's voiceState section — the file's own <voice_mute> tags are stale after migration.
+const projectVoiceMuteMap = async (aSourceFilePath: string): Promise<Map<number, boolean>> => {
+  const muteMap = new Map<number, boolean>()
+
+  try {
+    const info = await projectStore.openProject(aSourceFilePath)
+    const section = await projectStore.getSection(info.id, "voiceState")
+    if (section !== null && typeof section === "object" && !Array.isArray(section)) {
+      for (const [key, value] of Object.entries(section as Record<string, unknown>)) {
+        const voiceId = Number(key)
+        if (!Number.isInteger(voiceId)) {
+          continue
+        }
+
+        if (value !== null && typeof value === "object" && typeof (value as { muted?: unknown }).muted === "boolean") {
+          muteMap.set(voiceId, (value as { muted: boolean }).muted)
+        }
+      }
+    }
+  } catch {
+    // no project / unreadable section -> no overrides
+  }
+
+  return muteMap
+}
+
+// Part of the render cache key: a different project mute set is a different render.
+const voiceMuteFingerprint = (aMuteMap: ReadonlyMap<number, boolean>): string => {
+  if (aMuteMap.size === 0) {
+    return ""
+  }
+
+  const parts = [...aMuteMap.entries()]
+    .sort((aLeft, aRight) => aLeft[0] - aRight[0])
+    .map(([voiceId, muted]) => `${voiceId}=${muted ? 1 : 0}`)
+  return `muted:${parts.join(",")}`
+}
+
 // Render a .gnaural to WAV for spectrogram display, forcing a SINGLE loop. Gnaural has no loop
 // override flag, so we render a temp copy with <loops>1</loops>. This keeps files like
 // "1 s x 4900 loops" (AndromedaHell) from producing an ~868 MB WAV the browser cannot decode.
 const GNAURAL_LOOPS_TAG = /<loops>\s*\d+\s*<\/loops>/i
 const renderGnauralSpectrogramWav = async (aSourceFilePath: string): Promise<string> => {
-  const cachePath = await getAudioOutputCachePath(aSourceFilePath, "wav", audioRenderCacheDir, "single-loop")
+  const muteMap = await projectVoiceMuteMap(aSourceFilePath)
+  const muteFingerprint = voiceMuteFingerprint(muteMap)
+  const discriminator = muteFingerprint === "" ? "single-loop" : `single-loop|${muteFingerprint}`
+  const cachePath = await getAudioOutputCachePath(aSourceFilePath, "wav", audioRenderCacheDir, discriminator)
   if (await ensureFile(cachePath)) {
     return cachePath
   }
 
   await mkdir(audioRenderCacheDir, { recursive: true })
   const original = await Bun.file(aSourceFilePath).text()
-  const singleLoopContent = original.replace(GNAURAL_LOOPS_TAG, "<loops>1</loops>")
+  const singleLoopContent = applyVoiceMuteMap(original.replace(GNAURAL_LOOPS_TAG, "<loops>1</loops>"), muteMap)
   // GT10.11 (owner req. 59): the temp schedule copy MUST live next to the source file — Gnaural
   // resolves preparse generators AND pcm audio files relative to the schedule's own directory, so
   // a copy in tmp/audio-render broke both ("Preparse generator not found", silent pcm voices).
@@ -391,7 +434,7 @@ const renderGnauralSpectrogramWav = async (aSourceFilePath: string): Promise<str
     }
     await unlink(tempWavPath).catch(() => undefined)
   }
-  await audioCacheManifest.record(cachePath, aSourceFilePath, "wav", "single-loop") // GT6.1
+  await audioCacheManifest.record(cachePath, aSourceFilePath, "wav", discriminator) // GT6.1
   return cachePath
 }
 
@@ -403,10 +446,17 @@ const createCachedAudioOutput = async (
   aSpawnFailureMessage: string,
   aReadFailureMessage: string,
   aMissingOutputMessage: string,
+  aOptions?: {
+    readonly discriminator?: string
+    // project-store PR2.4: transformed .gnaural content to render INSTEAD of the source file. It
+    // is staged next to the source (Gnaural resolves preparse/pcm relative to the schedule dir,
+    // GT10.11) and substituted for the source path in the command args.
+    readonly stagedGnauralContent?: string | null
+  },
 ): Promise<string> => {
   await mkdir(aCacheDir, { recursive: true })
 
-  const targetFilePath = await getAudioOutputCachePath(aSourceFilePath, aTargetFileKind, aCacheDir)
+  const targetFilePath = await getAudioOutputCachePath(aSourceFilePath, aTargetFileKind, aCacheDir, aOptions?.discriminator ?? "")
   if (await ensureFile(targetFilePath)) {
     return targetFilePath
   }
@@ -417,11 +467,22 @@ const createCachedAudioOutput = async (
     `${basename(targetFilePath, targetExt)}.${process.pid}.${randomUUID()}.tmp${targetExt}`,
   )
 
+  const stagedContent = aOptions?.stagedGnauralContent ?? null
+  const stagedInputPath = stagedContent === null
+    ? null
+    : join(dirname(aSourceFilePath), `.pm-${process.pid}-${randomUUID()}.gnaural`)
+  if (stagedInputPath !== null && stagedContent !== null) {
+    await Bun.write(stagedInputPath, stagedContent)
+  }
+  const effectiveArgs = stagedInputPath === null
+    ? aCommandArgs
+    : aCommandArgs.map((aArg) => (aArg === aSourceFilePath ? stagedInputPath : aArg))
+
   let child: Subprocess<"ignore", "pipe", "pipe">
   try {
     child = Bun.spawn([
       gnauralExePath,
-      ...aCommandArgs,
+      ...effectiveArgs,
       tempFilePath,
     ], {
       cwd: gnauralCwd,
@@ -430,6 +491,9 @@ const createCachedAudioOutput = async (
       stderr: "pipe",
     })
   } catch (error) {
+    if (stagedInputPath !== null) {
+      await unlink(stagedInputPath).catch(() => undefined)
+    }
     const message = error instanceof Error ? error.message : aSpawnFailureMessage
     throw new Error(message)
   }
@@ -448,6 +512,10 @@ const createCachedAudioOutput = async (
     await unlink(tempFilePath).catch(() => undefined)
     const message = error instanceof Error ? error.message : aReadFailureMessage
     throw new Error(message)
+  } finally {
+    if (stagedInputPath !== null) {
+      await unlink(stagedInputPath).catch(() => undefined)
+    }
   }
 
   if (exitCode !== 0) {
@@ -499,6 +567,12 @@ const renderGnauralAudioFile = async (
   aSourceFilePath: string,
   aTargetFileKind: LocalAudioFileKind,
 ): Promise<string> => {
+  // project-store PR2.4: honour the project's mute overrides in the full render too.
+  const muteMap = await projectVoiceMuteMap(aSourceFilePath)
+  const stagedGnauralContent = muteMap.size === 0
+    ? null
+    : applyVoiceMuteMap(await Bun.file(aSourceFilePath).text(), muteMap)
+
   return createCachedAudioOutput(
     aSourceFilePath,
     aTargetFileKind,
@@ -507,6 +581,10 @@ const renderGnauralAudioFile = async (
     "Failed to spawn Gnaural audio render process",
     "Failed to read Gnaural audio render output",
     "Rendered audio output file was not created",
+    {
+      discriminator: voiceMuteFingerprint(muteMap),
+      stagedGnauralContent,
+    },
   )
 }
 
@@ -1280,6 +1358,51 @@ const handleApiRequest = async (aRequest: Request): Promise<Response | null> => 
     }
   }
 
+  // project-store PR2.4 (owner req 9): live in-memory mute for the running engine. Persistence
+  // lives in the project's voiceState section; this endpoint only touches the active session.
+  if (segments.length === 3 && segments[1] === "audio" && segments[2] === "voice-mute") {
+    if (aRequest.method !== "POST") {
+      return errorResponse(405, "Method not allowed")
+    }
+
+    try {
+      const body = await parseJsonBody(aRequest)
+      if (!isRecord(body) || typeof body.path !== "string" || !Array.isArray(body.items)) {
+        return errorResponse(400, "path and items must be provided")
+      }
+
+      const items: AudioVoiceMuteItem[] = []
+      for (const raw of body.items) {
+        if (
+          !isRecord(raw) ||
+          typeof raw.voiceIndex !== "number" ||
+          !Number.isInteger(raw.voiceIndex) ||
+          raw.voiceIndex < 0 ||
+          typeof raw.muted !== "boolean"
+        ) {
+          return errorResponse(400, "items must be {voiceIndex: int >= 0, muted: boolean}")
+        }
+
+        items.push({ voiceIndex: raw.voiceIndex, muted: raw.muted })
+      }
+
+      const audioStatus = gnauralSession.getStatus()
+      let applied = 0
+      if (audioStatus.transportState !== "idle" && audioStatus.filePath === body.path) {
+        for (const item of items) {
+          gnauralSession.setVoiceMute(item.voiceIndex, item.muted)
+          applied += 1
+        }
+      }
+
+      const payload: AudioVoiceMuteResponse = { applied }
+      return jsonResponse(payload)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Invalid voice-mute payload"
+      return errorResponse(400, message)
+    }
+  }
+
   // project-store PR3.1 (PR-D6): the user-data root setting behind the editor settings UI.
   if (segments.length === 2 && segments[1] === "project-settings") {
     if (aRequest.method === "GET") {
@@ -2036,6 +2159,28 @@ gnauralSession = createGnauralSession(runtimeDir, {
       }
       sessionWatchedPath = aEvent.filePath
       scheduleWatcher.watch(sessionWatchedPath)
+
+      // project-store PR2.4: the engine just loaded the file's own (possibly stale) <voice_mute>
+      // tags; push the project's voiceState mute overrides into the live session by voice INDEX
+      // (dump order), only where they differ from what the file provided.
+      const loadedSchedule = aEvent.schedule
+      void projectVoiceMuteMap(aEvent.filePath).then((muteMap) => {
+        if (muteMap.size === 0) {
+          return
+        }
+
+        const currentStatus = gnauralSession.getStatus()
+        if (currentStatus.filePath !== aEvent.filePath) {
+          return
+        }
+
+        loadedSchedule.voices.forEach((aVoice, aIndex) => {
+          const target = muteMap.get(aVoice.id)
+          if (target !== undefined && target !== aVoice.muted) {
+            gnauralSession.setVoiceMute(aIndex, target)
+          }
+        })
+      }).catch(() => undefined)
     }
 
     if (aEvent.type === "audio_status" && aEvent.transportState === "idle") {
@@ -2126,7 +2271,7 @@ registerShutdownHandlers()
 console.log(`[server] listening on http://localhost:${server.port}`)
 console.log(`[server] file-browse (loopback-only): ${fsBrowserServer.url}`)
 console.log(`[server] static files: ${publicDir}`)
-console.log(`[server] endpoints: /ws/ui, /api/logs, /api/log-settings, /api/audio-settings, /api/audio/presets, /api/audio/file, /api/audio/schedule, /api/audio/schedule/voice-state, /api/audio/editor, /api/audio/editor/save, /api/audio/editor/autosave, /api/audio/editor/history, /api/projects, /api/projects/{open,info,section,undo,relink}`)
+console.log(`[server] endpoints: /ws/ui, /api/logs, /api/log-settings, /api/audio-settings, /api/audio/presets, /api/audio/file, /api/audio/schedule, /api/audio/schedule/voice-state, /api/audio/voice-mute, /api/audio/editor, /api/audio/editor/save, /api/audio/editor/autosave, /api/audio/editor/history, /api/project-settings, /api/projects, /api/projects/{open,info,section,undo,relink}`)
 if (isUiOnlyMode) {
   console.log("[server] UI-only mode: BodyMonitor.exe autostart disabled")
 }
