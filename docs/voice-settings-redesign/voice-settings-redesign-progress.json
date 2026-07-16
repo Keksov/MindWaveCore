@@ -72,27 +72,39 @@
       "id": "VS2.1",
       "phase": 2,
       "title": "Диалог настроек спектра дорожки (GTrackSpectrumSettings + «Сброс» → наследование, auto-individual-on-edit по SG-D8); перенацелить @open-settings соло-спектра (TracksPanel.vue:321) на него (VS-D3)",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["VS1.1"],
-      "artifacts": [],
-      "verify": "bun test ui server (GnauralCore); typecheck + build (MindWaveCore/ui); реальное приложение: спектр-гир открывает свой диалог, «Сброс» возвращает программные настройки",
-      "startedAt": null,
-      "finishedAt": null,
+      "artifacts": [
+        "GnauralCore/ui/components/TracksPanel.vue (new gtrackSpectrumDialogId state + q-dialog hosting GTrackSpectrumSettings with :model-value=\"getLaneSpectrum(id) ?? spectrogramStore.settings\"; solo-spectrum sublane @open-settings repointed) [CRLF]",
+        "GnauralCore/ui/i18n/ru.json + en.json (gtrackSpectrumTitle, gtrackSpectrumHint)"
+      ],
+      "verify": "DONE — vue-tsc 0 errors; quasar build exit 0; bun test ui server 277 pass / 0 fail. Runtime (gear opens the dialog; Reset re-inherits) owner-verified at VS2.3.",
+      "startedAt": "2026-07-16",
+      "finishedAt": "2026-07-16",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Auto-individual-on-edit fell out of the EXISTING model for free: when no override exists the form displays spectrogramStore.settings (the program level), and GTrackSpectrumSettings emits the FULL patched object, which setLaneSpectrum stores — creating the override seeded from what was displayed. «Сброс» = clearLaneSpectrum (disabled while getLaneSpectrum === null), exactly the SG-D8 semantics; no new store code.",
+        "The dialog guards on gtrackSpectrumDialogLane !== null (lane removed while open → card hides), same pattern as the track dialog."
+      ]
     },
     {
       "id": "VS2.2",
       "phase": 2,
       "title": "Диалог стиля соло-волны (цвет + прозрачность); перенацелить @open-settings соло-волны (TracksPanel.vue:290) на него (VS-D4)",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["VS1.1"],
-      "artifacts": [],
-      "verify": "bun test ui server (GnauralCore); typecheck + build (MindWaveCore/ui); реальное приложение: волна-гир открывает диалог цвет/прозрачность, правки применяются вживую",
-      "startedAt": null,
-      "finishedAt": null,
+      "artifacts": [
+        "GnauralCore/ui/components/TracksPanel.vue (new gtrackWaveDialogId state + q-dialog with the colour swatch/q-color popup + opacity slider — the SAME controls as the track dialog's wave-style row, driving setLaneSoloWaveStyle; solo-wave sublane @open-settings repointed) [CRLF]",
+        "GnauralCore/ui/i18n/ru.json + en.json (gtrackWaveTitle)"
+      ],
+      "verify": "DONE — vue-tsc 0 errors; quasar build exit 0; bun test ui server 277 pass / 0 fail. Runtime owner-verified at VS2.3.",
+      "startedAt": "2026-07-16",
+      "finishedAt": "2026-07-16",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "The track dialog STILL shows the wave colour/opacity row until VS3.1 removes it — both edit the same lane fields (setLaneSoloWaveStyle), so there is no conflict window, just temporary duplication.",
+        "Colour swatch + q-popup-proxy + q-color and the 0.1-1/0.05 opacity slider copied verbatim from the GT10.4/GT10.20 controls so the owner sees an identical editor, just re-homed."
+      ]
     },
     {
       "id": "VS2.3",
@@ -135,6 +147,11 @@
     }
   ],
   "log": [
+    {
+      "at": "2026-07-16",
+      "step": "VS2.1 / VS2.2",
+      "text": "Per-graph dialogs done: the solo-spectrum gear now opens a per-lane spectrum dialog (GTrackSpectrumSettings over getLaneSpectrum ?? program settings; edit auto-creates the override, «Сброс» clears it back to inherit — disabled while inheriting), and the solo-wave gear opens a colour+opacity dialog (same GT10.4/GT10.20 controls, re-homed). Verify green both steps (vue-tsc 0, build ok, 277/0). Next: VS2.3 owner PAUSE, then the VS3.1 two-pane redesign."
+    },
     {
       "at": "2026-07-16",
       "step": "VS1.1",
