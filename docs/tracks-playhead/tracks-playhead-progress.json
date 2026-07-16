@@ -3,7 +3,7 @@
   "plan": "tracks-playhead",
   "planDoc": "docs/tracks-playhead/tracks-playhead-plan.md",
   "title": "tracks-playhead: cursor + multi-loop files on the Tracks tab",
-  "status": "in-progress",
+  "status": "done",
   "createdAt": "2026-07-16T00:00:00Z",
   "updatedAt": "2026-07-16",
   "decisions": [
@@ -22,6 +22,10 @@
     {
       "id": "TP-D4",
       "text": "PREMISE CORRECTION (2026-07-16). The plan assumed the transport reports a SESSION-scale position (0..fullDuration) so the playhead runs off the one-loop axis. Wrong, and my error: I derived it from the duration formula (totalTime*loops in parseLoadedEvent) without checking the position path. Verified in our own Pascal: GnauralSynth resets FcurrentSampleCount to 0 at each loop boundary (GnauralSynth.pas:428) and decrements FcurrentLoop; getPlaybackPosition = FcurrentSampleCount/rate; no layer downstream accumulates. So the reported position is LOOP-LOCAL (0..loopDuration). Owner-observed on waves.gnaural (40s loop x10): the playhead cycles 0..40..0 and the status bar shows loop-local seconds. Consequences: the Tracks tab already handles multi-loop correctly; TP2.2's cyclic-playhead / mod-wrap is a no-op (gnaural already does it); TP2.3's 'position > duration' status-bar bug does not exist (position is loop-local <= one-loop duration). What is actually missing: (1) which loop you are in (gnaural tracks FcurrentLoop but never emits it); (2) sub-second loops stutter under the 1Hz Trunc progress throttle (TP3.1). Both are small and optional. TP-D1 stands in spirit (we do NOT tile/show the full session) but its 'cyclic playhead' half was already reality, not something to build. TP1.1 (overlay canvas) and TP2.1 (loopCount exposed) remain valid on their own merits."
+    },
+    {
+      "id": "TP-D5",
+      "text": "Spectrum redraw regression, found + fixed while verifying TP2.2/TP3.1 (2026-07-16). The solo spectrum lane repainted on every playhead tick; TP3.1 (10Hz) made a latent 1Hz churn obvious. Root cause, pinned by instrumentation (not guessed): TracksPanel binds :analysis / :render to function-call results (laneSpectrogramAnalysis(...)) that mint a fresh object each render, and the panel re-renders at the playhead rate; SpectrogramView's deep watch on props.analysis keyed on the object REFERENCE, so it fired with contentChanged=false -> reconfigureAnalysis -> refetch -> a full per-pixel tile repaint. Fix: key those watches on the SERIALIZED content (JSON.stringify), so they fire only on a real change. Independent of multi-loop and of TP1.1 (the playhead was already on its own overlay). Commit 65ba9c6."
     }
   ],
   "steps": [
@@ -71,17 +75,20 @@
       "id": "TP2.2",
       "phase": 2,
       "title": "Loop indicator (N / M) — report the current loop from gnaural",
-      "status": "pending",
+      "status": "done",
       "dependsOn": [
         "TP2.1"
       ],
-      "artifacts": [],
+      "artifacts": [
+        "GnauralSynth.pas: getCurrentLoop = LoopCount - FcurrentLoop + 1 (clamped). GnauralApp.pas: playback_progress carries \"loop\". protocol AudioProgressEvent.loop?. gnaural-session parses it. audio store: remoteCurrentLoop -> audio.currentLoop (cleared on idle/exit). TrackStatusBar shows 'Петля N / M' when loopCount > 1 (denominator from gtracks.loopCount)."
+      ],
       "verify": "on a multi-loop file a 'loop N / M' readout tracks the current loop; single-loop files show nothing extra",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-16",
+      "finishedAt": "2026-07-16",
       "blockedReason": null,
       "evidence": [
-        "Re-scoped by TP-D4: the cyclic playhead is already provided by gnaural (loop-local position), so nothing to build there. The remaining gap is the loop NUMBER: the client cannot derive it from a loop-local position (it resets each loop), and gnaural has FcurrentLoop but does not emit it. So this needs: emit current loop in playback_progress (Pascal) + a protocol field + a small readout (TP2.1 already exposes loopCount for the denominator). Optional."
+        "gnaural resets its position to 0 each loop (TP-D4), so the client could not derive the loop number; the synth's FcurrentLoop is now surfaced end-to-end.",
+        "Commit 4c5428c (GnauralCore) + c0512b0 (SharedPasCore protocol). Owner-confirmed."
       ]
     },
     {
@@ -105,17 +112,20 @@
       "id": "TP3.1",
       "phase": 3,
       "title": "Adaptive playback_progress interval in Gnaural.exe (Pascal)",
-      "status": "deferred",
+      "status": "done",
       "dependsOn": [
         "TP2.2"
       ],
-      "artifacts": [],
+      "artifacts": [
+        "GnauralApp.pas: playback_progress emit is throttled by position advance, not whole seconds. FprogressIntervalSec = TotalTime / 20 clamped to [0.1s, 1s], set per schedule in rebuildSynth; emit on first tick, on a loop wrap (position dropped), or once advanced by the interval. FlastProgressSecond (int) -> FlastProgressPos (double)."
+      ],
       "verify": "on a sub-second loop the cursor advances smoothly (~20 updates/loop), not in >1-loop jumps; single-loop and long schedules keep the current 1 Hz",
-      "startedAt": null,
-      "finishedAt": null,
-      "blockedReason": "Optional, and now the main remaining FUNCTIONAL item (TP-D4 removed the others). Only ~3 preset files have sub-second loops (CricketsAndFrogs 0.79s, AndromedaHell 1.0s, ToadsAndBugs 1.06s). Needs a Gnaural.exe rebuild.",
+      "startedAt": "2026-07-16",
+      "finishedAt": "2026-07-16",
+      "blockedReason": null,
       "evidence": [
-        "Gnaural emits playback_progress at 1 Hz (emit only on Trunc(sec) change, GnauralApp.pas), but the control loop already ticks at 100ms, so 10Hz is the ceiling and costs bytes not CPU. At 1 Hz a 0.79s loop advances ~1.27 loops per tick, so the cursor jitters. Target ~20 updates/loop, clamp [100ms..1s], computed once at load."
+        "At 1Hz a 0.79s loop advanced >1 loop per emit; the control loop already ticks at 100ms and polls the position, so a faster emit costs stdout bytes, not CPU (10Hz ceiling).",
+        "Commit 4c5428c. Owner-confirmed smoother sub-second cursor."
       ]
     }
   ],
@@ -143,6 +153,12 @@
       "step": null,
       "event": "note",
       "note": "TP-D4: plan premise corrected. Transport position is loop-local (verified in GnauralSynth.pas + owner-observed on waves.gnaural), so the playhead already cycles and the status bar is consistent. TP2.2 re-scoped to a loop-number indicator; TP2.3 dropped as a non-bug; TP3.1 (sub-second loops) is the main remaining optional item. TP1.1/TP2.1 stand."
+    },
+    {
+      "ts": "2026-07-16T00:00:00Z",
+      "step": null,
+      "event": "done",
+      "note": "TP2.2 (loop N/M indicator) + TP3.1 (adaptive progress rate) done, one Pascal rebuild. Plus TP-D5: fixed a spectrum-redraw regression (deep watch on a fresh-object analysis prop) that TP3.1 exposed. Commits: protocol c0512b0, spectrum fix 65ba9c6, feature 4c5428c. Phase 2 & 3 complete; the tracks-playhead initiative is done."
     }
   ]
 }
