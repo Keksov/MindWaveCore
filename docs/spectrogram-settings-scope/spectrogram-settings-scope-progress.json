@@ -204,14 +204,30 @@
       "id": "SG3.2b",
       "phase": 3,
       "title": "Detach (SG-D6, SS-D3): расщепить per-graph панель в PW5.7-«пульт» — pure SpectrogramOverridesView (snapshot+action, scope локально) + in-window adapter + child SpectrogramOverridesRemote + сериализуемая модель (оба канала + программный + пресеты) и scope-квалифицированные действия; включить detach; manifest на новый remote. Владелец: панель «в точности как сейчас» (докабл/детачбл)",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["SG3.2a"],
-      "artifacts": [],
-      "verify": "typecheck + build + tests; detach opens a child window rendering the per-graph panel; edits in the detached window repaint THIS window's spectrogram; dock/float/detach all work; only the main window writes the override store (no clobbering)",
-      "startedAt": null,
-      "finishedAt": null,
+      "artifacts": [
+        "GnauralCore/ui/composables/overall-spectrum-overrides-model.ts (new; the JSON-serializable contract: OverridesSnapshot {program, channel0, channel1, presets} + scope-qualified OverridesAction {set-field|apply-preset|reset, scope} + pure helpers scopeChannels/displayedForScope/scopeHasOverride + applyOverridesAction(action, ctx) — the main-window-authoritative apply)",
+        "GnauralCore/ui/composables/use-overrides-snapshot.ts (new; useOverridesSnapshot = reactive OverridesSnapshot from the two stores; useApplyOverridesAction = the apply bound to the live stores — shared by the in-window adapter and the bridge handler)",
+        "GnauralCore/ui/components/SpectrogramOverridesView.vue (new; the PURE per-graph view — scope nav «Оба/Левый/Правый» LOCAL, presets-apply, «Сброс» — props snapshot, emits scope-qualified action; the two-pane layout moved here from the old SpectrogramOverridesPanel)",
+        "GnauralCore/ui/components/SpectrogramOverridesPanel.vue (rewritten; thinned to the IN-WINDOW adapter — useOverridesSnapshot + useApplyOverridesAction, renders the View)",
+        "GnauralCore/ui/components/SpectrogramOverridesRemote.vue (new; the DETACHED child content — renders bridgeState as the snapshot, re-emits action; no store, SS-D3)",
+        "GnauralCore/ui/components/SpectrumSettingsDialog.vue (bridge-state=snapshot + panel-event=onBridgedEvent wired; :allow-detach removed => detach ON)",
+        "GnauralCore/ui/module.ts (manifest 'spectrum-settings' component repointed to SpectrogramOverridesRemote; comment updated) [CRLF — \\r\\n-preserving node script]",
+        "REMOVED: GnauralCore/ui/components/SpectrogramSettingsRemote.vue (the dead program-level remote — its only importer was the manifest, now repointed; program level is a Settings TAB, not a detachable panel)"
+      ],
+      "verify": "DONE — vue-tsc 0 errors; quasar build succeeded (three chunks: SpectrogramOverridesView 2.74 KB / Panel 1.71 KB / Remote 1.26 KB); bun test ui server 277 pass / 0 fail. Runtime detach (child window opens + repaints THIS window) is owner-verified at SG3.3 (no browser driver here). Dock/float already worked in SG3.2a; this step re-enables detach over the same bridge the program-level panel used.",
+      "startedAt": "2026-07-16",
+      "finishedAt": "2026-07-16",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "PW5.7 «пульт», mirrored from the program-level panel EXACTLY (read bf32bc1~1 SpectrumSettingsDialog + SpectrogramSettingsRemote + PanelWindow before writing): parent passes :bridge-state=snapshot + @panel-event; PanelWindow.sendState pushes the snapshot to the child and emits panelEvent('action', [action]) when the child bridges back; onBridgedEvent applies payload[0] via the shared apply. The child (Remote) holds NO store — it renders bridgeState and re-emits action. Same contract shape as SpectrumSettingsAction, extended with `scope`.",
+        "SCOPE IS LOCAL, NOT BRIDGED (SG3.2b design): the child keeps its own scope ref; the snapshot carries BOTH channels + the program level so the child can render any scope offline, and only the resulting edit crosses (scope-qualified). This is why the action union gained `scope` rather than the snapshot gaining a `scope` field — the parent must not dictate the child's selected tab.",
+        "ONE WRITER (SS-D3): applyOverridesAction runs only in the main window — in-window via useApplyOverridesAction (SpectrogramOverridesPanel), detached via onBridgedEvent (SpectrumSettingsDialog). When detached, PanelWindow renders nothing in the slot, so the in-window adapter is not mounted — no double-apply. The override store's localStorage is written by the main window alone.",
+        "apply-preset resolves id→settings in the MAIN window (ctx.findPreset over store.allPresets): the serializable snapshot carries only {id,name,builtin} per preset (no settings payload crosses the bridge), matching the program-level SpectrumPresetSnapshot.",
+        "DEAD CODE REMOVED, not left: SpectrogramSettingsRemote.vue had exactly one importer (the manifest) — grep confirmed the other two mentions are in comments. Repointed the manifest, git rm'd the file. SpectrogramSettingsPanel.vue (the program-level IN-WINDOW adapter) STAYS — it is the Settings-tab form (SpectrogramSettingsTab), a different surface.",
+        "Line endings: 5 new/rewritten component+composable files LF (CR=0); module.ts CRLF preserved (CR===LF===48) via a \\r\\n-preserving node script (single-line component swap + a CRLF-matched comment block)."
+      ]
     },
     {
       "id": "SG3.3",
@@ -272,6 +288,16 @@
       "at": "2026-07-16",
       "step": "SG3.2a",
       "text": "Owner UX pass on SG3.2a: (1) the group-header icon is now a gear (`settings`), matching the waveform group gear; (2) the scope tabs reuse the overall-waveform form labels («Оба канала»/«Левый»/«Правый», audio.waveformChannels*) and moved to the RIGHT of the panel bar (presets to the left) — the now-unused spectrumScope{Both,Left,Right} keys removed. Verify green (277 pass/0 fail). Awaiting owner re-check before SG3.2b (detach)."
+    },
+    {
+      "at": "2026-07-16",
+      "step": "SG3.2a",
+      "text": "Owner discussion resolved (SG-D8 SIMPLIFIED): the «Индивидуальные настройки» toggle was removed as redundant — auto-individual-on-edit + «Сброс»-to-clear cover it; «Сброс» keeps its plain name (owner: NOT «Вернуть к наследованию»). Then two visual polishes of the shared form's group headers (МАСШТАБ/ЦВЕТ/FFT/РЕЗКОСТЬ), which read as faint labels: owner picked «Заливка-полоса» from four mockups — a filled band (tint + full-brightness bold text + letter-spacing), then a left accent bar (--q-primary) added for extra emphasis; applied to both the tiles (static) and accordion (:deep) headers in SpectrogramSettingsView. Owner: «Fixed». Commits 8cacfb9 (toggle), 5ade4ed (headers). Verify green throughout."
+    },
+    {
+      "at": "2026-07-16",
+      "step": "SG3.2b",
+      "text": "SG3.2b DONE — detach for the per-graph «Параметры» panel via the PW5.7 «пульт» pattern, mirrored exactly from the (now-removed) program-level remote. New serializable model (overall-spectrum-overrides-model: OverridesSnapshot with both channels + program level + presets, scope-qualified OverridesAction, applyOverridesAction) + use-overrides-snapshot (reactive snapshot + bound apply shared by the in-window adapter and the bridge). SpectrogramOverridesPanel thinned to the in-window adapter over a new PURE SpectrogramOverridesView (scope LOCAL); SpectrogramOverridesRemote is the storeless detached child. SpectrumSettingsDialog wires bridge-state + panel-event and detach is ON; module.ts manifest repointed to the new remote; dead SpectrogramSettingsRemote removed. Scope stays local (not bridged) — only the resulting edit crosses; one writer (main window, SS-D3). Verify green (vue-tsc 0, build ok — 3 chunks, 277 pass/0 fail). Commit 724f7e6. All phase-3 CODE is done; next is SG3.3 — the owner PAUSE (visual acceptance of gear + panel dock/float/detach + scope + inheritance + per-channel repaint; folds SG2.2)."
     }
   ]
 }
