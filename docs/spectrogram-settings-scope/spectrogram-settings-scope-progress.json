@@ -29,7 +29,7 @@
     },
     {
       "id": "SG-D7",
-      "text": "NEW 2026-07-16 (owner phase-3 design). Two decisions, both owner-picked at the SG3.0 design PAUSE. (1) MODEL = HYBRID: for the overall spectrogram group there are per-CHANNEL overrides [L,R], each either an individual SpectrogramSettings or null=inherit the PROGRAM level (the global store edited via Меню→Настройки). The panel gains a SCOPE selector «Оба | Левый | Правый» + a per-scope «Индивидуальные / наследовать программные» toggle. «Левый»/«Правый» edit that channel's override; «Оба» is a BULK editor writing both channels at once (its toggle sets/clears both). Resolution per rendered channel: channelOverride[ch] ?? programLevel — this is the 'program-level applies unless individual set' the owner named, expressed with the waveform's L/R scope UX (so it honours BOTH of the owner's phrasings; the waveform itself has no program-level inherit, so this ADDS that dimension). (2) PLACEMENT = ONE gear in the overall spectrogram GROUP header (TracksPanel.vue:441-472, today only fold/eye/title — no gear), mirroring the waveform group-header gear (:387-395). It opens the SAME dockable/detachable @panel that «Параметры» used (SG-D3 rev/SG-D6 — machinery kept in SG2.1), now bound to the active scope instead of the global store. ONE panel instance suffices — the overall spectrogram group is singular (gtrack solo spectra keep their own GTrackSpectrumSettings). This replaces the removed global `tune` opener (SG2.1) with a per-group gear."
+      "text": "NEW 2026-07-16 (owner phase-3 design). Two decisions, both owner-picked at the SG3.0 design PAUSE. (1) MODEL = HYBRID: for the overall spectrogram group there are per-CHANNEL overrides [L,R], each either an individual SpectrogramSettings or null=inherit the PROGRAM level (the global store edited via Меню→Настройки). The panel gains a SCOPE selector «Оба | Левый | Правый» + a per-scope «Индивидуальные / наследовать программные» toggle. «Левый»/«Правый» edit that channel's override; «Оба» is a BULK editor writing both channels at once (its toggle sets/clears both). [SUPERSEDED BY SG3.5, owner 2026-07-17: «Оба» is now a PEER GROUP with its own settings slot — the full waveform WS-D9 model; see the SG3.5 step.] Resolution per rendered channel: channelOverride[ch] ?? programLevel — this is the 'program-level applies unless individual set' the owner named, expressed with the waveform's L/R scope UX (so it honours BOTH of the owner's phrasings; the waveform itself has no program-level inherit, so this ADDS that dimension). (2) PLACEMENT = ONE gear in the overall spectrogram GROUP header (TracksPanel.vue:441-472, today only fold/eye/title — no gear), mirroring the waveform group-header gear (:387-395). It opens the SAME dockable/detachable @panel that «Параметры» used (SG-D3 rev/SG-D6 — machinery kept in SG2.1), now bound to the active scope instead of the global store. ONE panel instance suffices — the overall spectrogram group is singular (gtrack solo spectra keep their own GTrackSpectrumSettings). This replaces the removed global `tune` opener (SG2.1) with a per-group gear."
     },
     {
       "id": "SG-D8",
@@ -266,11 +266,43 @@
       "evidence": [
         "The toggle is UI state, not channel data: persisted under its OWN key so flipping it never touches the overrides; default ON mirrors the waveform's wfPrefs.link default and gives the safe behaviour (channels cannot diverge until explicitly unlinked).",
         "Detach-correct by construction: the flag rides the OverridesSnapshot and flips via a bridged scope-free 'set-link' action, so the MAIN window stays the single writer (SS-D3); a link flip while detached coerces the child's local scope off a locked tab via the snapshot watch.",
-        "Unlinked semantics deliberately UNCHANGED from SG-D7: «Оба» remains the live bulk editor (unlike the waveform's inert both-form, WS-D3) because the spectrum's «Оба» has real bulk-write semantics the owner designed in SG-D7; the owner asked only to lock the per-channel tabs while ON. If they want the full WS-D3 inert mirror, it is a small follow-up."
+        "Unlinked semantics deliberately UNCHANGED from SG-D7: «Оба» remains the live bulk editor (unlike the waveform's inert both-form, WS-D3) because the spectrum's «Оба» has real bulk-write semantics the owner designed in SG-D7; the owner asked only to lock the per-channel tabs while ON. If they want the full WS-D3 inert mirror, it is a small follow-up. [They did — see SG3.5.]"
+      ]
+    },
+    {
+      "id": "SG3.5",
+      "phase": 3,
+      "title": "Owner follow-up (2026-07-17): полное зеркало модели волны — (1) правки на «Оба канала» НЕ передаются на «Левый»/«Правый» (peer group, WS-D9), (2) при выключенном тоггле все контролы вкладки «Оба канала» недоступны (WS-D3). Ревизия SG-D7 (бывший bulk-editor)",
+      "status": "done",
+      "dependsOn": ["SG3.4"],
+      "artifacts": [
+        "GnauralCore/ui/composables/overall-spectrum-overrides.ts (SpectrumOverrides gains `both` slot; setBothOverride/clearBothOverride now write ONLY the group; new bothOverride + effectiveOverride(o, linked, ch); loadOverrides parses `both`, legacy storage -> null)",
+        "GnauralCore/ui/composables/overall-spectrum-overrides.test.ts (peer-group + effectiveOverride + legacy-load tests; 287 total)",
+        "GnauralCore/ui/stores/overall-spectrum-overrides.ts (getBoth/effective; setBoth/clearBoth re-pointed at the group slot)",
+        "GnauralCore/ui/composables/overall-spectrum-overrides-model.ts (snapshot.both; displayedForScope/scopeHasOverride read the scope's OWN group; apply writes the group; context.overrides gains getBoth; scopeChannels removed)",
+        "GnauralCore/ui/composables/use-overrides-snapshot.ts (snapshot carries both)",
+        "GnauralCore/ui/components/SpectrogramOverridesView.vue (formDisabled = both-scope && !linked && !mono: fields/presets/«Сброс» disabled, toggle stays live; set-actions guarded)",
+        "GnauralCore/ui/components/SpectrogramSettingsView.vue + SpectrogramSettingsFields.vue (optional disabled/disable prop plumbed to all four control kinds; accordion headers stay live)",
+        "GnauralCore/ui/components/TracksPanel.vue (overallSpectrumAnalysis/Render resolve via spectrumOverrides.effective(ch): linked -> both ?? program, unlinked -> channel ?? program)",
+        "GnauralCore/ui/components/SpectrogramOverridesRemote.vue + LaneSpectrumSettingsDialog.vue + LaneSpectrumSettingsRemote.vue (snapshots gain both; the mono lane adapter maps getBoth/setBoth/clearBoth onto its single laneSpectrum entry — mono behaviour unchanged)"
+      ],
+      "verify": "DONE — vue-tsc 0 errors; quasar build exit 0; bun test ui server 287 pass / 0 fail (model tests rewritten for peer-group semantics). Runtime — owner-проверка вместе с VS2.6.",
+      "startedAt": "2026-07-17",
+      "finishedAt": "2026-07-17",
+      "blockedReason": null,
+      "evidence": [
+        "MIGRATION: pre-SG3.5 localStorage has only channel slots (the old bulk write filled 0 and 1). Loading gives both=null, so with link ON (default) the panel/rendering show the PROGRAM level until «Оба» is edited; the old bulk-written values remain on «Левый»/«Правый», reachable by unlinking. No data is destroyed.",
+        "«Сброс» on «Оба» clears only the group slot — channel overrides survive hidden behind the link, exactly like the waveform's independent groups (WS-D9).",
+        "The inert form is enforced twice: every control gets :disable (visual + interaction), and onFieldAction drops set-actions while formDisabled (a bridged detached child from a stale build cannot write either)."
       ]
     }
   ],
   "log": [
+    {
+      "at": "2026-07-17",
+      "step": "SG3.5",
+      "text": "Owner follow-up completing the waveform mirror: «1. Если мы меняем что-то в параметрах на вкладке Оба канала, то эти изменения не передаются на вкладки Левый и Правый 2. Если тоггл Применить к обоим каналам не включен, то все контролы на этой вкладке становятся недоступны». SG-D7's «Оба»=bulk-editor is superseded: «Оба» is now a peer group with its own slot (WS-D9), rendering resolves linked->both??program / unlinked->channel??program (new effectiveOverride), and the both-form goes fully inert while unlinked (WS-D3; disabled prop plumbed through SettingsView->Fields, presets/«Сброс» disabled, set-actions guarded). Model tests rewritten (287/0); vue-tsc 0; build 0. Legacy stored channel overrides survive (group slot loads as inherit). Runtime check rides VS2.6."
+    },
     {
       "at": "2026-07-17",
       "step": "SG3.4",
