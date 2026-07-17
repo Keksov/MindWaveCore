@@ -319,9 +319,11 @@
       "artifacts": [],
       "verify": "owner confirms: lanes, undo, zoom, voice-state restored for a real file; .gnaural no longer rewritten by view changes",
       "startedAt": "2026-07-17",
-      "finishedAt": null,
+      "finishedAt": "2026-07-17",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Owner 2026-07-17: «ok» -- live walk-through passed; Phase 4/5 unblocked."
+      ]
     },
     {
       "id": "PR3.1",
@@ -376,10 +378,13 @@
         "SharedPasCore/ts/protocol.ts"
       ],
       "verify": "bun test project-store; manual: rename the source file -> status moved -> re-link restores the connection",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-17",
+      "finishedAt": "2026-07-17",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Server side (listProjects with sourceStatus ok|missing, relinkProject, the openProject scan fallback that finds a relinked project) shipped back in PR1.3/PR1.4 with tests; this step adds the UI: a 'Projects on disk' list in the settings tab -- source basename + full path, a red 'file not found' badge for missing sources, refresh, and a re-link action (prompt dialog seeded with the stored path) that reloads the list on success.",
+        "GnauralCore 9f84458 (panel bundle commit PR4.1-PR4.3+PR5.1-PR5.2); vue-tsc + quasar build clean."
+      ]
     },
     {
       "id": "PR4.2",
@@ -391,10 +396,12 @@
         "MindWaveCore/server/project-store.ts"
       ],
       "verify": "bun test project-store; manual: delete removes only a folder inside projects/",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-17",
+      "finishedAt": "2026-07-17",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "deleteProject (isSafeProjectId 400 + inside-projects/ 403 + 404, tested in PR1.3) is now reachable from the panel: per-project delete with a named confirm, plus 'Delete orphans (N)' -- a confirmed batch delete of every project whose source file is missing (the manual GC from the plan; the button only appears when orphans exist)."
+      ]
     },
     {
       "id": "PR4.3",
@@ -406,10 +413,12 @@
         "GnauralCore/ui/settings/GnauralSettingsTab.vue"
       ],
       "verify": "bun run typecheck + bun run build (MindWaveCore/ui); manual walk-through of every action",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-17",
+      "finishedAt": "2026-07-17",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "The panel lives in GnauralSettingsTab between the user-data folder and the cache block: list, missing-source badge, re-link, export, reveal (POST /api/projects/reveal spawns explorer.exe on the project dir; 501 off-Windows), delete, orphan GC, import. Owner walk-through of every action remains open -- flagged for the next session."
+      ]
     },
     {
       "id": "PR5.1",
@@ -422,10 +431,13 @@
         "SharedPasCore/ts/protocol.ts"
       ],
       "verify": "bun test project-store; manual: exported bundle is valid JSON and readable",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-17",
+      "finishedAt": "2026-07-17",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "exportProject returns { schemaVersion: 1, kind: 'SoundCoreProjectExport', exportedAt, project: <scp.json data>, undo: <journal|null> } -- one text JSON, no zip dependency (PR-D10); GET /api/projects/export?id serves it with a content-disposition attachment <id>.scpexport.json; the panel's download button saves it via a Blob link.",
+        "bun test project-store 26 pass / 88 expect (export->import round-trip restores sections + undo on another root)."
+      ]
     },
     {
       "id": "PR5.2",
@@ -437,10 +449,13 @@
         "MindWaveCore/server/project-store.ts"
       ],
       "verify": "bun test project-store; manual: export on one path -> import on another -> settings restored",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-17",
+      "finishedAt": "2026-07-17",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "importProject validates the bundle shape (400 on junk), derives the project folder from bundle.project.source.path, 409s on an existing project unless overwrite, writes scp.json + undo.json atomically under the project's write queue; POST /api/projects/import { bundle, overwrite }.",
+        "Panel: Import button -> file picker -> parse -> POST; on the 409 message a confirm dialog offers the overwrite retry (the explicit choice from PR-D10). Tested: conflict keeps the existing project intact until overwrite=true replaces it."
+      ]
     },
     {
       "id": "PR6.1",
@@ -474,6 +489,10 @@
     }
   ],
   "log": [
+    {
+      "at": "2026-07-17",
+      "text": "PR2.5 PAUSE passed (owner «ok») and Phases 4-5 shipped the same day: the settings tab gained a 'Projects on disk' panel (list with missing-source badges, re-link via a path prompt, per-project delete + confirmed orphan GC, reveal-in-Explorer, one-file .scpexport.json export/import with a 409->overwrite conflict flow); export/import core landed in ProjectStore with round-trip tests (26 project-store tests total). Remaining: PR6.1 (waveform peaks in the central cache) -- deliberately deferred to its own session: it needs a real design pass (peaks pyramid format, client aggregation replacing per-zoom recompute from the decoded buffer) and none of it touches the Project entity; the plan's function set for the Project itself is complete. Owner: click through the new panel actions when convenient."
+    },
     {
       "at": "2026-07-17",
       "text": "Phases 2 and 3 complete (PR2.1-PR2.4, PR3.1-PR3.2), each step with its own per-repo commits and green verify (GnauralCore 286 tests, server tsc, vue-tsc, quasar build, REST smokes for project-settings). Everything the owner listed in req 1 now lives in the project: lanes/laneSpectrum/mixExcluded sections with one-time localStorage migration, the undo journal (signature-gated adopt, byte-budgeted), per-file view state (spectrogram time/freq windows per surface + waveform settings as overrides over editor defaults), and voice colour/hidden/muted moved OUT of the .gnaural (voiceState section; renders take a mute-fingerprinted cache key + staged transformed copy; live mute via the CLI's mute_voice command, pushed on schedule load). The user-data folder is configurable with an offer to copy the projects tree. Stopped at the PR2.5 PAUSE: the owner walks through a real file -- lanes/undo/zoom/waveform/voice-state must survive a restart and the .gnaural must stay untouched by view changes."
