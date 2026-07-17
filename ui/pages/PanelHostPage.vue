@@ -38,8 +38,13 @@ const panel = computed(() => modulePanels.find((p) => p.id === panelId.value))
 // fixed by this window's URL.
 // PW5.7: the latest parent-pushed snapshot; remote-control content (e.g. «Список треков») renders it.
 const bridgeState = ref<unknown>(undefined)
+// VS2.8: the parent-pushed dynamic caption (e.g. «Параметры: <голос>: Спектр»); null until pushed.
+const bridgeTitle = ref<string | null>(null)
 let bridge: PanelBridgeChild | null = panel.value !== undefined
-  ? createPanelBridgeChild(panelId.value, { onState: (s) => { bridgeState.value = s } })
+  ? createPanelBridgeChild(panelId.value, {
+      onState: (s) => { bridgeState.value = s },
+      onTitle: (title) => { bridgeTitle.value = title },
+    })
   : null
 
 // PW4.1 (PW-D7): remember this window's on-screen rect so the next detach/auto-reopen restores
@@ -87,10 +92,11 @@ const panelComponent = computed<Component | null>(() => {
   return p === undefined ? null : defineAsyncComponent(p.component)
 })
 
-// The OS window caption (PW-D4); tracks the locale too.
+// The OS window caption (PW-D4); tracks the locale too. VS2.8: a parent-pushed dynamic title wins
+// over the static manifest key (which remains the pre-push fallback).
 watchEffect(() => {
   const p = panel.value
-  document.title = p === undefined ? t('app.title') : t(p.titleKey)
+  document.title = bridgeTitle.value ?? (p === undefined ? t('app.title') : t(p.titleKey))
 })
 
 // Generic listeners for the content component: 'close' closes this OS window (allowed for

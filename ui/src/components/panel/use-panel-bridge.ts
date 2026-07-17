@@ -26,11 +26,15 @@ interface BridgeMessage {
     | 'child-closed'
     | 'panel-event'
     | 'panel-state'
+    | 'panel-title'
   readonly name?: string
   readonly payload?: PanelEventPayload
   // PW5.7: parent -> child state snapshot for remote-control panels (e.g. «Список треков»), whose
   // child window holds NO state and renders whatever the parent pushes.
   readonly state?: unknown
+  // VS2.8: parent -> child window caption. PanelWindow's :title can be DYNAMIC (e.g. «Параметры:
+  // <голос>: Спектр» retargets per lane); the manifest titleKey is only the pre-push fallback.
+  readonly title?: string
 }
 
 const HEARTBEAT_MS = 2000
@@ -51,6 +55,8 @@ export interface PanelBridgeParent {
   readonly requestClose: () => void
   /** PW5.7: push a state snapshot to the child (remote-control panels). */
   readonly sendState: (state: unknown) => void
+  /** VS2.8: push the (possibly dynamic) panel title — becomes the child's document.title. */
+  readonly sendTitle: (title: string) => void
   readonly dispose: () => void
 }
 
@@ -83,6 +89,7 @@ export function createPanelBridgeParent(
   return {
     requestClose: (): void => post({ type: 'close-panel' }),
     sendState: (state: unknown): void => post({ type: 'panel-state', state }),
+    sendTitle: (title: string): void => post({ type: 'panel-title', title }),
     dispose: (): void => {
       window.clearInterval(heartbeat)
       window.removeEventListener('pagehide', onPageHide)
@@ -100,6 +107,8 @@ export interface PanelBridgeChild {
 export interface PanelBridgeChildHandlers {
   /** PW5.7: a state snapshot pushed by the parent (remote-control panels). */
   readonly onState?: (state: unknown) => void
+  /** VS2.8: a window caption pushed by the parent (dynamic panel titles). */
+  readonly onTitle?: (title: string) => void
 }
 
 export function createPanelBridgeChild(panelId: string, handlers: PanelBridgeChildHandlers = {}): PanelBridgeChild {
@@ -122,6 +131,8 @@ export function createPanelBridgeChild(panelId: string, handlers: PanelBridgeChi
       window.close()
     } else if (msg.type === 'panel-state') {
       handlers.onState?.(msg.state)
+    } else if (msg.type === 'panel-title' && msg.title !== undefined) {
+      handlers.onTitle?.(msg.title)
     }
   }
 

@@ -189,6 +189,14 @@ const sendCurrentState = (): void => {
   }
 }
 
+// VS2.8: the title prop can be dynamic (e.g. it names the lane a settings panel is retargeted to)
+// — mirror it to the detached child's window caption.
+const sendCurrentTitle = (): void => {
+  if (bridge !== null) {
+    bridge.sendTitle(props.title)
+  }
+}
+
 const ensureBridge = (): void => {
   if (bridge !== null) {
     return
@@ -196,8 +204,9 @@ const ensureBridge = (): void => {
   bridge = createPanelBridgeParent(props.state.panelId, {
     onChildReady: (): void => {
       cancelChildClosedTimer()
-      // A freshly-ready child gets the current snapshot immediately (PW5.7).
+      // A freshly-ready child gets the current snapshot immediately (PW5.7) + the caption (VS2.8).
       sendCurrentState()
+      sendCurrentTitle()
     },
     onChildClosed: (): void => {
       cancelChildClosedTimer()
@@ -256,6 +265,8 @@ watch(() => props.state.open, (open) => {
 
 // PW5.7: forward snapshot changes to the detached child (deep — the snapshot is an object).
 watch(() => props.bridgeState, () => sendCurrentState(), { deep: true })
+// VS2.8: forward title changes too (retargeting a panel renames its detached window).
+watch(() => props.title, () => sendCurrentTitle())
 
 // Host unmount (e.g. the main window navigates away): close the child cleanly instead of letting
 // its watchdog time out. mode stays 'detached' + open stays true, so remounting reopens it.
