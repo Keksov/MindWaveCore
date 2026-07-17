@@ -1576,6 +1576,75 @@ const handleApiRequest = async (aRequest: Request): Promise<Response | null> => 
     }
   }
 
+  // project-store PR5.1 (PR-D10): the whole project as one portable text bundle.
+  if (segments.length === 3 && segments[1] === "projects" && segments[2] === "export") {
+    if (aRequest.method !== "GET") {
+      return errorResponse(405, "Method not allowed")
+    }
+
+    try {
+      const id = url.searchParams.get("id") ?? ""
+      const bundle = await projectStore.exportProject(id)
+      return new Response(`${JSON.stringify(bundle, null, 2)}\n`, {
+        status: 200,
+        headers: {
+          "content-type": "application/json; charset=utf-8",
+          "cache-control": "no-store",
+          "content-disposition": `attachment; filename="${encodeURIComponent(id)}.scpexport.json"`,
+        },
+      })
+    } catch (error) {
+      return mapProjectStoreError(error)
+    }
+  }
+
+  // project-store PR5.2 (PR-D10): import a bundle; conflict -> 409 unless overwrite.
+  if (segments.length === 3 && segments[1] === "projects" && segments[2] === "import") {
+    if (aRequest.method !== "POST") {
+      return errorResponse(405, "Method not allowed")
+    }
+
+    try {
+      const body = await parseJsonBody(aRequest)
+      if (!isRecord(body) || body.bundle === undefined) {
+        return errorResponse(400, "bundle must be provided")
+      }
+
+      return jsonResponse(await projectStore.importProject(body.bundle, body.overwrite === true))
+    } catch (error) {
+      return mapProjectStoreError(error)
+    }
+  }
+
+  // project-store PR4.3: reveal the project folder in the OS file manager (local desktop host).
+  if (segments.length === 3 && segments[1] === "projects" && segments[2] === "reveal") {
+    if (aRequest.method !== "POST") {
+      return errorResponse(405, "Method not allowed")
+    }
+
+    try {
+      const body = await parseJsonBody(aRequest)
+      if (!isRecord(body) || typeof body.id !== "string") {
+        return errorResponse(400, "id must be provided as a string")
+      }
+
+      const info = await projectStore.getProject(body.id)
+      if (info === null) {
+        return errorResponse(404, "Project not found")
+      }
+
+      if (process.platform !== "win32") {
+        return errorResponse(501, "Reveal is only supported on Windows")
+      }
+
+      // explorer.exe exits non-zero even on success — fire and forget.
+      Bun.spawn(["explorer.exe", info.dir], { stdin: "ignore", stdout: "ignore", stderr: "ignore" })
+      return new Response(null, { status: 204 })
+    } catch (error) {
+      return mapProjectStoreError(error)
+    }
+  }
+
   if (segments.length === 3 && segments[1] === "admin" && segments[2] === "bun-actions") {
     if (aRequest.method === "GET") {
       return jsonResponse(getAdminBunActionStatus())

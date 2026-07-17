@@ -268,6 +268,28 @@ export interface ProjectStore {
   putUndoJournal(aProjectId: string, aJournal: unknown): Promise<void>
   deleteProject(aProjectId: string): Promise<void>
   relinkProject(aProjectId: string, aNewSourcePath: string): Promise<ProjectInfo>
+  exportProject(aProjectId: string): Promise<ProjectExportBundle>
+  importProject(aBundle: unknown, aOverwrite: boolean): Promise<ProjectInfo>
+}
+
+/** PR5.1 (PR-D10): a single text bundle — the whole project as one portable JSON document. */
+export interface ProjectExportBundle {
+  readonly schemaVersion: number
+  readonly kind: "SoundCoreProjectExport"
+  readonly exportedAt: string
+  readonly project: ProjectFileData
+  readonly undo: unknown | null
+}
+
+const EXPORT_BUNDLE_KIND = "SoundCoreProjectExport"
+
+const isProjectExportBundle = (aValue: unknown): aValue is ProjectExportBundle => {
+  return (
+    isRecordValue(aValue) &&
+    aValue.schemaVersion === PROJECT_SCHEMA_VERSION &&
+    aValue.kind === EXPORT_BUNDLE_KIND &&
+    isProjectFileData(aValue.project)
+  )
 }
 
 export const UNDO_JOURNAL_MAX_BYTES = 5 * 1024 * 1024
@@ -491,6 +513,57 @@ class ProjectStoreImpl implements ProjectStore {
       }
 
       await rm(dir, { recursive: true, force: true })
+    })
+  }
+
+  public async exportProject(aProjectId: string): Promise<ProjectExportBundle> {
+    const { dir, data } = await this.requireProjectData(aProjectId)
+    const undoParsed = await readJsonFileTolerant(dir, UNDO_FILE_NAME, isUndoFileData, false)
+
+    return {
+      schemaVersion: PROJECT_SCHEMA_VERSION,
+      kind: EXPORT_BUNDLE_KIND,
+      exportedAt: new Date().toISOString(),
+      project: data,
+      undo: undoParsed === null ? null : (undoParsed as UndoFileData).journal,
+    }
+  }
+
+  public async importProject(aBundle: unknown, aOverwrite: boolean): Promise<ProjectInfo> {
+    if (!isProjectExportBundle(aBundle)) {
+      throw new ProjectStoreError(400, "Not a SoundCoreProject export bundle")
+    }
+
+    const sourcePath = aBundle.project.source.path
+    const id = projectDirName(sourcePath)
+    const projectsRoot = await this.projectsRoot()
+    const dir = join(projectsRoot, id)
+
+    return this.queues.run(id, async () => {
+      const existing = await readProjectFile(dir, false)
+      if (existing !== null && !aOverwrite) {
+        throw new ProjectStoreError(409, "A project for this source file already exists")
+      }
+
+      const imported: ProjectFileData = {
+        ...aBundle.project,
+        sections: { ...aBundle.project.sections },
+        updatedAt: new Date().toISOString(),
+      }
+      await writeProjectFile(dir, imported)
+
+      if (aBundle.undo !== null && aBundle.undo !== undefined) {
+        const payload: UndoFileData = {
+          schemaVersion: PROJECT_SCHEMA_VERSION,
+          updatedAt: new Date().toISOString(),
+          journal: aBundle.undo,
+        }
+        await writeJsonFileAtomic(dir, UNDO_FILE_NAME, payload)
+      } else {
+        await rm(join(dir, UNDO_FILE_NAME), { force: true }).catch(() => undefined)
+      }
+
+      return this.buildInfo(id, dir, imported)
     })
   }
 

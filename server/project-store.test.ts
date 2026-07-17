@@ -344,6 +344,53 @@ describe("ProjectStore core API (PR1.3 / PR-D5, PR-D8)", () => {
   })
 })
 
+describe("export/import bundle (PR5.1+PR5.2 / PR-D10)", () => {
+  test("export -> import on another root restores sections and the undo journal", async () => {
+    const rootA = await makeFixtureDir()
+    const rootB = await makeFixtureDir()
+    const sourceDir = await makeFixtureDir()
+    const source = join(sourceDir, "bundle.gnaural")
+    await writeFile(source, "<gnaural/>")
+
+    const storeA = createProjectStore({ resolveUserDataRoot: () => rootA })
+    const info = await storeA.openProject(source)
+    await storeA.putSection(info.id, "view", { zoom: 4 })
+    await storeA.putUndoJournal(info.id, { entries: ["a"] })
+
+    const bundle = await storeA.exportProject(info.id)
+    expect(bundle.kind).toBe("SoundCoreProjectExport")
+    expect(bundle.undo).toEqual({ entries: ["a"] })
+
+    const storeB = createProjectStore({ resolveUserDataRoot: () => rootB })
+    const imported = await storeB.importProject(JSON.parse(JSON.stringify(bundle)), false)
+    expect(imported.id).toBe(info.id)
+    expect(await storeB.getSection(imported.id, "view")).toEqual({ zoom: 4 })
+    expect(await storeB.getUndoJournal(imported.id)).toEqual({ entries: ["a"] })
+  })
+
+  test("import conflicts with 409 unless overwrite; junk bundles are rejected with 400", async () => {
+    const root = await makeFixtureDir()
+    const sourceDir = await makeFixtureDir()
+    const source = join(sourceDir, "clash.gnaural")
+    await writeFile(source, "<gnaural/>")
+
+    const store = createProjectStore({ resolveUserDataRoot: () => root })
+    const info = await store.openProject(source)
+    await store.putSection(info.id, "view", { zoom: 1 })
+    const bundle = await store.exportProject(info.id)
+
+    await store.putSection(info.id, "view", { zoom: 9 })
+    await expectStoreError(store.importProject(bundle, false), 409)
+    expect(await store.getSection(info.id, "view")).toEqual({ zoom: 9 })
+
+    const overwritten = await store.importProject(bundle, true)
+    expect(overwritten.id).toBe(info.id)
+    expect(await store.getSection(info.id, "view")).toEqual({ zoom: 1 })
+
+    await expectStoreError(store.importProject({ nope: true }, false), 400)
+  })
+})
+
 describe("copyProjectsTree (PR3.2 / PR-D6)", () => {
   test("copies project folders recursively, skips existing destinations, leaves the source intact", async () => {
     const fromRoot = await makeFixtureDir()
