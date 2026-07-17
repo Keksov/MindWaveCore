@@ -212,28 +212,36 @@
     {
       "id": "VS2.6",
       "phase": 2,
-      "title": "PAUSE — owner-повторная проверка пер-графиковых окон: спектр-гир открывает стандартную докабл-детачбл панель (Моно-форма, пресеты, «Сброс»→программные; dock/float/detach), волна-гир открывает общий диалог волны (вкладка «Моно», цвет/шкала/прозрачность); заголовки «Параметры: <сущность>» (VS2.8); заодно SG3.4/SG3.5 (линк-тоггл общего спектра, peer-group «Оба»)",
-      "status": "pending",
+      "title": "PAUSE — owner-повторная проверка пер-графиковых окон: спектр-гир открывает стандартную докабл-детачбл панель (Моно-форма, пресеты, «Сброс»→программные; dock/float/detach), волна-гир открывает общий диалог волны (вкладка «Моно», цвет/шкала/прозрачность); заголовки «Параметры: <сущность>» (VS2.8); заодно SG3.4/SG3.5 (линк-тоггл общего спектра, peer-group «Оба»). ПРОЙДЕНА 2026-07-17: «OK»",
+      "status": "done",
       "dependsOn": ["VS2.5", "VS2.7", "VS2.8"],
       "artifacts": [],
-      "verify": "Owner подтверждает",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "PASSED — owner «OK» (2026-07-17) after driving the real app: lane spectrum panel (dock/float/detach, mono form, presets, Reset→inherit), lane wave dialog (mono tab), overall-spectrum link toggle + peer-group «Оба», entity-naming captions.",
+      "startedAt": "2026-07-17",
+      "finishedAt": "2026-07-17",
       "blockedReason": null,
       "evidence": []
     },
     {
       "id": "VS3.1",
       "phase": 3,
-      "title": "Редизайн диалога дорожки — вариант B (две панели по образцу GT10.29): секции График / Соло-звук (два тумблера + размещение) / Голоса; убрать «Свои настройки спектра» (:671-687, toggleLaneSpectrumCustom, + GTrackSpectrumSettings.vue целиком — больше никем не используется) и цвет/прозрачность волны; i18n ru/en; заголовок «Настройки дорожки»",
-      "status": "pending",
+      "title": "Редизайн диалога дорожки — вариант B (две панели по образцу GT10.29): секции График / Соло-звук (два тумблера + размещение) / Голоса; убрать «Свои настройки спектра» (toggleLaneSpectrumCustom + GTrackSpectrumSettings.vue целиком) и цвет/прозрачность волны; i18n ru/en; заголовок «Настройки дорожки»",
+      "status": "done",
       "dependsOn": ["VS2.6"],
-      "artifacts": [],
-      "verify": "bun test ui server (GnauralCore); typecheck + build (MindWaveCore/ui); реальное приложение: двух-панельный диалог, тумблеры Волна/Спектр корректно мапятся на soloMode (R5)",
-      "startedAt": null,
-      "finishedAt": null,
+      "artifacts": [
+        "GnauralCore/ui/components/TracksPanel.vue (диалог переписан двухпанельным на классах tracks-panel__wf-settings*: нав «График/Соло-звук/Голоса» + контент; gtrackSettingsTab (сброс на «График» при открытии); laneSoloWaveOn/laneSoloSpectrumOn + setLaneSoloParts — два тумблера поверх персистного soloMode (R5); секция spectrum-custom, ряды цвет/прозрачность, toggleLaneSpectrumCustom и CSS .audio-page__gtrack-dialog удалены) [CRLF]",
+        "GnauralCore/ui/components/GTrackSpectrumSettings.vue DELETED (единственный потребитель — старая секция диалога)",
+        "GnauralCore/ui/i18n/ru+en (gtrackSettings → «Настройки дорожки»/Track settings; новые gtrackSectionGraph/gtrackSectionVoices/gtrackSoloPlacement; gtrackSoloSublane/Under → «Отдельным графиком ниже»/«Фоном под кривыми»; hint укорочен; удалены сироты gtrackSoloOff/Both, gtrackSpectrumCustom, gtrackSoloWaveColor/Opacity)"
+      ],
+      "verify": "DONE — vue-tsc 0 errors; quasar build exit 0; bun test ui server 287 pass / 0 fail. Runtime-визуал — финальная owner-приёмка VS3.2.",
+      "startedAt": "2026-07-17",
+      "finishedAt": "2026-07-17",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "The persisted model is untouched (R5): soloMode stays the 4-state union; the two toggles are a pure UI mapping (wave&&spectrum→'both'), so existing lane configs and the sublane/inline render logic keep working unchanged.",
+        "The dialog reuses the waveform dialog's two-pane CSS classes verbatim (tracks-panel__wf-settings*) — same width/nav/active styling, no new CSS.",
+        "gtrackSpectrumTitle key STAYS despite the dialog rework — it is the lane-spectrum panel's manifest titleKey fallback (VS2.7/VS2.8)."
+      ]
     },
     {
       "id": "VS3.2",
@@ -250,6 +258,11 @@
     }
   ],
   "log": [
+    {
+      "at": "2026-07-17",
+      "step": "VS2.6 / VS3.1",
+      "text": "VS2.6 PAUSE PASSED — owner «OK» (per-graph windows: lane spectrum panel dock/float/detach, lane wave mono dialog, overall link toggle + peer-group «Оба», entity captions). VS3.1 done same-day: the track dialog is now two-pane (variant B, waveform-dialog CSS classes) — «График» (режим + полоса бита), «Соло-звук» (independent Волна/Спектр toggles over the persisted soloMode + «Размещение» with self-explanatory labels), «Голоса» (checklist); spectrum-custom section and wave style rows are gone (behind their graphs' gears), GTrackSpectrumSettings.vue deleted, orphan i18n keys removed, title «Настройки дорожки». Verify green (vue-tsc 0, build 0, 287/0). Next: VS3.2 — final owner acceptance of the whole feature."
+    },
     {
       "at": "2026-07-17",
       "step": "VS2.8",
