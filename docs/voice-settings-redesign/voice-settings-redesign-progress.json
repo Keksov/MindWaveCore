@@ -17,7 +17,7 @@
     },
     {
       "id": "VS-D3",
-      "text": "REVISED 2026-07-17 (owner at the VS2.3 PAUSE — the VS2.1 build was rejected): «Настройки соло-спектра должны вызывать диалог, который отображает стандартные свойства спектра, это должен в точности тот самый диалог, который есть в настройках программы и в настройках общего спектра, видимо, в режиме Моно. Никакого нового диалога тут изобретать не нужно. Должно быть 100% переиспользование готового контрола». So the lane dialog hosts SpectrogramOverridesView (the SAME pure view as the overall-spectrum panel, whose inner form SpectrogramSettingsView is also the program-settings form) with a new `mono` prop that hides the L/R scope nav. The channel-based OverridesSnapshot/ActionContext contract fits mono naturally: the lane's single laneSpectrum override plays both \"channels\" (snapshot channel0=channel1=override; setChannel/setBoth→setLaneSpectrum, clear*→clearLaneSpectrum), preserving SG-D8 auto-individual + presets-apply + «Сброс»→inherit as the view's own chrome. GTrackSpectrumSettings (the compact accordion subset) is NOT the reused control — it dies with the track-dialog section in VS3.1. --- Still true from rev 1: the toggle+accordion leave the track dialog (owner req. 2); inline placement has no gear (owner confirmed at VS0.1). SUPERSEDED rev 1: a bespoke dialog around GTrackSpectrumSettings + its own «Сброс» footer (built in VS2.1, rejected — not the standard form)."
+      "text": "REVISED AGAIN 2026-07-17 — rev 3 (owner after VS2.4): «Окно настроек соло-спектра должно быть оформлено в виде стандартного докабл-детачбл окна, как у общего спектра». So not only the FORM is the standard one (rev 2), the WINDOW CHROME is too: a PanelWindow @panel exactly like the overall spectrum's «Параметры» (SpectrumSettingsDialog is the model). Built in VS2.7: stores/lane-spectrum-panel.ts (panelId 'lane-spectrum-settings', floating default, + a module-level target-lane ref — ONE panel instance retargeted per gear click, the SG-D7 pattern), LaneSpectrumSettingsDialog.vue (PanelWindow chrome hosting the mono SpectrogramOverridesView lazily; applies both local and bridged actions to the lane override), LaneSpectrumSettingsRemote.vue (detached child, mono twin of SpectrogramOverridesRemote, SS-D3: no child-side store) + module.ts panels entry; hosted in AudioPage's shared dock-wrap (Teleport-to-body when floating, joins dockWrapClass). The q-dialog host from rev 2 is deleted from TracksPanel — the gear just sets the target lane + opens the shared panel state. --- rev 2 (owner at the VS2.3 PAUSE, still true for the CONTENT): «в точности тот самый диалог… 100% переиспользование готового контрола», в режиме Моно — SpectrogramOverridesView gained the `mono` prop (hides the L/R nav); the channel-based OverridesSnapshot/ActionContext contract fits mono naturally (channel0=channel1=laneOverride; setChannel/setBoth→setLaneSpectrum, clear*→clearLaneSpectrum), preserving SG-D8 auto-individual + presets-apply + «Сброс»→inherit as the view's own chrome. GTrackSpectrumSettings is NOT the reused control — it dies with the track-dialog section in VS3.1. Still true from rev 1: the toggle+accordion leave the track dialog (owner req. 2); inline placement has no gear (VS0.1). SUPERSEDED: rev 2's q-dialog host (built VS2.4, replaced by the panel in VS2.7); rev 1's bespoke GTrackSpectrumSettings dialog (built VS2.1, rejected at VS2.3)."
     },
     {
       "id": "VS-D4",
@@ -161,11 +161,35 @@
       ]
     },
     {
+      "id": "VS2.7",
+      "phase": 2,
+      "title": "Спектр-окно → стандартный докабл-детачбл @panel (VS-D3 rev 3): lane-spectrum-panel стейт + target-ref (одна панель, перенацеливается гиром), LaneSpectrumSettingsDialog (PanelWindow + mono-форма + bridged actions), LaneSpectrumSettingsRemote (detach, SS-D3), manifest-entry, хост в dock-wrap AudioPage; q-dialog из VS2.4 удалён",
+      "status": "done",
+      "dependsOn": ["VS2.4"],
+      "artifacts": [
+        "GnauralCore/ui/stores/lane-spectrum-panel.ts (new, LF: usePanelWindowState('lane-spectrum-settings', floating/320) + module-level laneSpectrumTarget ref)",
+        "GnauralCore/ui/components/LaneSpectrumSettingsDialog.vue (new, LF: PanelWindow chrome по образцу SpectrumSettingsDialog; лениво хостит mono SpectrogramOverridesView; snapshot по target-лейну; applyAction локально и из onBridgedEvent)",
+        "GnauralCore/ui/components/LaneSpectrumSettingsRemote.vue (new, LF: mono-близнец SpectrogramOverridesRemote для detach)",
+        "GnauralCore/ui/module.ts (panels: 'lane-spectrum-settings' → Remote, events ['action'], titleKey audio.gtrackSpectrumTitle) [CRLF]",
+        "GnauralCore/ui/pages/AudioPage.vue (Teleport-хост рядом с SpectrumSettingsDialog; laneSpectrumPanel/Floating; dockWrapClass учитывает панель) [CRLF]",
+        "GnauralCore/ui/components/TracksPanel.vue (q-dialog + снапшот/apply/CSS удалены; гир → openLaneSpectrumSettings: target + panel.open) [CRLF]"
+      ],
+      "verify": "DONE — vue-tsc 0 errors; quasar build exit 0; bun test ui server 286 pass / 0 fail (281→286: владелец продолжает добавлять тесты параллельно). Runtime (dock/float/detach; правки из detached-окна перерисовывают спектр лейна) owner-verified at VS2.6.",
+      "startedAt": "2026-07-17",
+      "finishedAt": "2026-07-17",
+      "blockedReason": null,
+      "evidence": [
+        "The panel apparatus was designed for exactly this reuse (SG-D3 rev: «the panel machinery becomes the TEMPLATE for the per-graph panel»): the dialog is a near-copy of SpectrumSettingsDialog with the stores swapped for the lane adapter, and the remote is SpectrogramOverridesRemote + mono. No PanelWindow/bridge changes were needed.",
+        "One panel instance retargeted per gear click (module-level target ref) — mirrors SG-D7's «one panel suffices» call for the overall group; clicking another lane's gear while open just retargets the live panel (snapshot is computed off the target ref).",
+        "Detach carries the MONO snapshot; the bridged action's scope collapses onto the single lane override in applyAction, so the child needs no laneId — the parent owns the target (same 'parent owns the binding' shape as SG3.2b's local-scope decision)."
+      ]
+    },
+    {
       "id": "VS2.6",
       "phase": 2,
-      "title": "PAUSE — owner-повторная проверка пер-графиковых диалогов: спектр-гир открывает стандартную форму спектра (Моно, пресеты, «Сброс»→программные), волна-гир открывает общий диалог волны (вкладка «Моно», цвет/шкала/прозрачность)",
+      "title": "PAUSE — owner-повторная проверка пер-графиковых окон: спектр-гир открывает стандартную докабл-детачбл панель (Моно-форма, пресеты, «Сброс»→программные; dock/float/detach), волна-гир открывает общий диалог волны (вкладка «Моно», цвет/шкала/прозрачность)",
       "status": "pending",
-      "dependsOn": ["VS2.4", "VS2.5"],
+      "dependsOn": ["VS2.5", "VS2.7"],
       "artifacts": [],
       "verify": "Owner подтверждает",
       "startedAt": null,
@@ -201,6 +225,11 @@
     }
   ],
   "log": [
+    {
+      "at": "2026-07-17",
+      "step": "VS2.7",
+      "text": "Owner correction after VS2.4: the lane solo-spectrum window must be the standard dockable/detachable @panel «как у общего спектра» (VS-D3 rev 3), not a q-dialog. Rebuilt on the panel apparatus: new lane-spectrum-panel state (+target-lane ref, one retargetable panel), LaneSpectrumSettingsDialog (PanelWindow + mono overrides view + bridged apply), LaneSpectrumSettingsRemote (detach), manifest entry, AudioPage dock-wrap host; TracksPanel gear now just retargets+opens the shared panel. Verify green (vue-tsc 0, build 0, 286/0). VS2.6 PAUSE re-cut to cover dock/float/detach."
+    },
     {
       "at": "2026-07-17",
       "step": "VS2.3 / VS2.4 / VS2.5",
