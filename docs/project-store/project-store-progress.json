@@ -5,7 +5,7 @@
   "title": "Project entity: per-file editor data (curve colours, waves, undo journal) in a per-project folder (.scp.json) -- service class + API first",
   "status": "in-progress",
   "createdAt": "2026-07-15",
-  "updatedAt": "2026-07-15",
+  "updatedAt": "2026-07-17",
   "decisions": [
     {
       "id": "PR-D1",
@@ -85,7 +85,9 @@
       "phase": 0,
       "title": "PAUSE: owner утвердил план и ответил на Q1-Q5 (2026-07-15)",
       "status": "done",
-      "dependsOn": ["PR0.1"],
+      "dependsOn": [
+        "PR0.1"
+      ],
       "artifacts": [],
       "verify": "owner answers recorded in the plan (decision annotations) and in this ledger; contested decisions revised before Phase 1",
       "startedAt": "2026-07-15",
@@ -105,7 +107,9 @@
       "phase": 1,
       "title": "Идентичность и раскладка: slug+hash8, resolve папки, ProjectStoreError",
       "status": "done",
-      "dependsOn": ["PR0.2"],
+      "dependsOn": [
+        "PR0.2"
+      ],
       "artifacts": [
         "MindWaveCore/server/project-store.ts",
         "MindWaveCore/server/project-store.test.ts"
@@ -126,7 +130,9 @@
       "phase": 1,
       "title": "Хранилище project.scp.json: атомарная запись, толерантное чтение, unknown sections, очередь записи",
       "status": "done",
-      "dependsOn": ["PR1.1"],
+      "dependsOn": [
+        "PR1.1"
+      ],
       "artifacts": [
         "MindWaveCore/server/project-store.ts",
         "MindWaveCore/server/project-store.test.ts"
@@ -147,7 +153,9 @@
       "phase": 1,
       "title": "Полный API ядра: open/list/get, секции, undo-транспорт, delete, relink",
       "status": "done",
-      "dependsOn": ["PR1.2"],
+      "dependsOn": [
+        "PR1.2"
+      ],
       "artifacts": [
         "MindWaveCore/server/project-store.ts",
         "MindWaveCore/server/project-store.test.ts"
@@ -168,8 +176,10 @@
       "id": "PR1.4",
       "phase": 1,
       "title": "Протокол + REST /api/projects* + wiring синглтона + user_data_root",
-      "status": "pending",
-      "dependsOn": ["PR1.3"],
+      "status": "done",
+      "dependsOn": [
+        "PR1.3"
+      ],
       "artifacts": [
         "SharedPasCore/ts/protocol.ts",
         "MindWaveCore/server/server.ts"
@@ -190,8 +200,10 @@
       "id": "PR1.5",
       "phase": 1,
       "title": "UI-клиент project-api.ts + composable use-project.ts + openProject из потока выбора файла",
-      "status": "pending",
-      "dependsOn": ["PR1.4"],
+      "status": "done",
+      "dependsOn": [
+        "PR1.4"
+      ],
       "artifacts": [
         "GnauralCore/ui/project-api.ts",
         "GnauralCore/ui/composables/use-project.ts",
@@ -214,7 +226,9 @@
       "phase": 1,
       "title": "PAUSE: owner смотрит ядро (папка, scp.json, интерфейс) до интеграций",
       "status": "done",
-      "dependsOn": ["PR1.5"],
+      "dependsOn": [
+        "PR1.5"
+      ],
       "artifacts": [],
       "verify": "owner approves naming/layout/sections; Phase 2+ does not start before the answer",
       "startedAt": "2026-07-15",
@@ -228,8 +242,10 @@
       "id": "PR2.1",
       "phase": 2,
       "title": "Лейны в проект: gtrackLanes/laneSpectrum/mixExcluded + одноразовая миграция из localStorage",
-      "status": "pending",
-      "dependsOn": ["PR1.6"],
+      "status": "done",
+      "dependsOn": [
+        "PR1.6"
+      ],
       "artifacts": [
         "GnauralCore/ui/composables/use-gtrack-lanes.ts"
       ],
@@ -248,8 +264,10 @@
       "id": "PR2.2",
       "phase": 2,
       "title": "Undo-журнал в undo.json: персист снапшотов GTrackModel, лимиты, восстановление",
-      "status": "pending",
-      "dependsOn": ["PR1.6"],
+      "status": "done",
+      "dependsOn": [
+        "PR1.6"
+      ],
       "artifacts": [
         "GnauralCore/ui/composables/gtrack-model.ts",
         "GnauralCore/ui/composables/use-gtrack-lanes.ts"
@@ -269,8 +287,10 @@
       "id": "PR2.3",
       "phase": 2,
       "title": "Per-file view: зум/вьюпорт + секция waveform (переопределения поверх дефолтов редактора, PR-D13)",
-      "status": "pending",
-      "dependsOn": ["PR1.6"],
+      "status": "done",
+      "dependsOn": [
+        "PR1.6"
+      ],
       "artifacts": [
         "GnauralCore/ui/composables/spectrogram-viewport.ts",
         "GnauralCore/ui/pages/AudioPage.vue"
@@ -290,8 +310,10 @@
       "id": "PR2.4",
       "phase": 2,
       "title": "Voice-state (цвет/hidden/muted) из .gnaural в секцию voiceState; файл больше не мутируем",
-      "status": "pending",
-      "dependsOn": ["PR1.6"],
+      "status": "done",
+      "dependsOn": [
+        "PR1.6"
+      ],
       "artifacts": [
         "GnauralCore/ui/audio-api.ts",
         "GnauralCore/ui/stores/audio.ts",
@@ -314,8 +336,13 @@
       "id": "PR2.5",
       "phase": 2,
       "title": "PAUSE: owner проверяет, что редактор всё вспоминает после перезапуска",
-      "status": "active",
-      "dependsOn": ["PR2.1", "PR2.2", "PR2.3", "PR2.4"],
+      "status": "done",
+      "dependsOn": [
+        "PR2.1",
+        "PR2.2",
+        "PR2.3",
+        "PR2.4"
+      ],
       "artifacts": [],
       "verify": "owner confirms: lanes, undo, zoom, voice-state restored for a real file; .gnaural no longer rewritten by view changes",
       "startedAt": "2026-07-17",
@@ -329,8 +356,10 @@
       "id": "PR3.1",
       "phase": 3,
       "title": "Настройка user_data_root: GET/PATCH /api/project-settings + поле в настройках редактора",
-      "status": "pending",
-      "dependsOn": ["PR1.6"],
+      "status": "done",
+      "dependsOn": [
+        "PR1.6"
+      ],
       "artifacts": [
         "MindWaveCore/server/log-db.ts",
         "MindWaveCore/server/server.ts",
@@ -351,8 +380,10 @@
       "id": "PR3.2",
       "phase": 3,
       "title": "Смена папки данных с переносом проектов (copy, отчёт, без авто-удаления старой)",
-      "status": "pending",
-      "dependsOn": ["PR3.1"],
+      "status": "done",
+      "dependsOn": [
+        "PR3.1"
+      ],
       "artifacts": [
         "MindWaveCore/server/project-store.ts"
       ],
@@ -371,8 +402,10 @@
       "id": "PR4.1",
       "phase": 4,
       "title": "Список проектов + статус источника (ok/moved/missing) + re-link",
-      "status": "pending",
-      "dependsOn": ["PR1.6"],
+      "status": "done",
+      "dependsOn": [
+        "PR1.6"
+      ],
       "artifacts": [
         "MindWaveCore/server/project-store.ts",
         "SharedPasCore/ts/protocol.ts"
@@ -390,8 +423,10 @@
       "id": "PR4.2",
       "phase": 4,
       "title": "Удаление проекта (с защитой projects/), ручной GC осиротевших",
-      "status": "pending",
-      "dependsOn": ["PR4.1"],
+      "status": "done",
+      "dependsOn": [
+        "PR4.1"
+      ],
       "artifacts": [
         "MindWaveCore/server/project-store.ts"
       ],
@@ -407,8 +442,11 @@
       "id": "PR4.3",
       "phase": 4,
       "title": "UI «Проекты»: список, статус, удалить/re-link/открыть папку",
-      "status": "pending",
-      "dependsOn": ["PR4.1", "PR4.2"],
+      "status": "done",
+      "dependsOn": [
+        "PR4.1",
+        "PR4.2"
+      ],
       "artifacts": [
         "GnauralCore/ui/settings/GnauralSettingsTab.vue"
       ],
@@ -424,8 +462,10 @@
       "id": "PR5.1",
       "phase": 5,
       "title": "Экспорт проекта: текстовый бандл .scpexport.json (cache по умолчанию исключён)",
-      "status": "pending",
-      "dependsOn": ["PR1.6"],
+      "status": "done",
+      "dependsOn": [
+        "PR1.6"
+      ],
       "artifacts": [
         "MindWaveCore/server/project-store.ts",
         "SharedPasCore/ts/protocol.ts"
@@ -443,8 +483,10 @@
       "id": "PR5.2",
       "phase": 5,
       "title": "Импорт проекта: валидация, конфликты -> 409 + выбор, re-link на локальный источник",
-      "status": "pending",
-      "dependsOn": ["PR5.1"],
+      "status": "done",
+      "dependsOn": [
+        "PR5.1"
+      ],
       "artifacts": [
         "MindWaveCore/server/project-store.ts"
       ],
@@ -462,7 +504,9 @@
       "phase": 6,
       "title": "Кеш пиков волновой формы в центральном кеше (tmp/ + манифест; req 11)",
       "status": "pending",
-      "dependsOn": ["PR0.2"],
+      "dependsOn": [
+        "PR0.2"
+      ],
       "artifacts": [
         "GnauralCore/ui/composables/audio-model.ts",
         "MindWaveCore/server/audio-cache-manifest.ts",
@@ -489,6 +533,10 @@
     }
   ],
   "log": [
+    {
+      "at": "2026-07-17",
+      "text": "LEDGER REPAIR: fourteen shipped steps (PR1.4..PR5.2) were sitting with stale status pending/active -- they had been 'completed' by editing only the verify/evidence block, and the status line above the anchor never flipped (the exact trap from the ledger-status-field-slip note). A parallel session read the ledger honestly and concluded the foundation (PR1.4/PR1.5) was still pending. All fourteen are in fact committed (MindWaveCore 0730140/172815b + docs chain to 0f0fe72; GnauralCore c296548..9f84458; SharedPasCore 639a71a..cfc12d4). Statuses fixed to done per the commit record; the validator is hardened (dates/evidence with a pending status are now a hard error) and committed to the workspace root as validate-ledger.js with a binding rule in AGENTS.md."
+    },
     {
       "at": "2026-07-17",
       "text": "PR2.5 PAUSE passed (owner «ok») and Phases 4-5 shipped the same day: the settings tab gained a 'Projects on disk' panel (list with missing-source badges, re-link via a path prompt, per-project delete + confirmed orphan GC, reveal-in-Explorer, one-file .scpexport.json export/import with a 409->overwrite conflict flow); export/import core landed in ProjectStore with round-trip tests (26 project-store tests total). Remaining: PR6.1 (waveform peaks in the central cache) -- deliberately deferred to its own session: it needs a real design pass (peaks pyramid format, client aggregation replacing per-zoom recompute from the decoded buffer) and none of it touches the Project entity; the plan's function set for the Project itself is complete. Owner: click through the new panel actions when convenient."
