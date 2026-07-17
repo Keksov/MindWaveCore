@@ -185,11 +185,36 @@
       ]
     },
     {
+      "id": "VS2.8",
+      "phase": 2,
+      "title": "Owner (2026-07-17): заголовки окон настроек называют редактируемую сущность — «Параметры: Общий спектр | Общая волна | <имя голоса>: Спектр | <имя голоса>: Волна». Плюс PW-расширение: динамический заголовок пробрасывается в отделённое окно ('panel-title' в бридже)",
+      "status": "done",
+      "dependsOn": ["VS2.5", "VS2.7"],
+      "artifacts": [
+        "MindWaveCore/ui/src/components/panel/use-panel-bridge.ts (BridgeMessage += 'panel-title'; parent sendTitle; child onTitle) [коммит 140ec51]",
+        "MindWaveCore/ui/src/components/panel/PanelWindow.vue (sendCurrentTitle на child-ready + watch на :title — перенацеливание панели переименовывает отделённое окно)",
+        "MindWaveCore/ui/pages/PanelHostPage.vue (document.title = пушнутый заголовок ?? статический manifest titleKey)",
+        "GnauralCore/ui/i18n/ru+en (paramsTitle «Параметры: {entity}», entityOverallSpectrum/OverallWave/LaneSpectrum/LaneWave)",
+        "GnauralCore/ui/components/SpectrumSettingsDialog.vue («Параметры: Общий спектр»)",
+        "GnauralCore/ui/components/LaneSpectrumSettingsDialog.vue (panelTitle computed: «Параметры: <имена голосов дорожки>: Спектр», реактивен к перенацеливанию)",
+        "GnauralCore/ui/components/TracksPanel.vue (waveformDialogTitle: «Параметры: Общая волна» / «Параметры: <голоса>: Волна» по wfDlgLane; laneVoiceNamesById helper)"
+      ],
+      "verify": "DONE — vue-tsc 0 errors; quasar build exit 0; bun test ui server 287 pass / 0 fail. Runtime (заголовки в док/плав/отделённом виде, смена при перенацеливании) — owner-проверка на VS2.6.",
+      "startedAt": "2026-07-17",
+      "finishedAt": "2026-07-17",
+      "blockedReason": null,
+      "evidence": [
+        "Voice names, not lane labels: the owner asked for «<имя голоса>», so the caption joins the lane's voice descriptions (fallback #id), WITHOUT the mode prefix that gtrackLaneLabel adds to header bars.",
+        "The detached OS window previously always showed the static manifest titleKey — extending the PW bridge (rather than putting the title into each panel's bridgeState) keeps snapshots domain-pure and gives every future panel dynamic captions for free.",
+        "Existing keys untouched: waveformSettingsTitle/spectrogramSettingsTitle still label gear tooltips/aria; only the window captions switched to paramsTitle."
+      ]
+    },
+    {
       "id": "VS2.6",
       "phase": 2,
-      "title": "PAUSE — owner-повторная проверка пер-графиковых окон: спектр-гир открывает стандартную докабл-детачбл панель (Моно-форма, пресеты, «Сброс»→программные; dock/float/detach), волна-гир открывает общий диалог волны (вкладка «Моно», цвет/шкала/прозрачность)",
+      "title": "PAUSE — owner-повторная проверка пер-графиковых окон: спектр-гир открывает стандартную докабл-детачбл панель (Моно-форма, пресеты, «Сброс»→программные; dock/float/detach), волна-гир открывает общий диалог волны (вкладка «Моно», цвет/шкала/прозрачность); заголовки «Параметры: <сущность>» (VS2.8); заодно SG3.4/SG3.5 (линк-тоггл общего спектра, peer-group «Оба»)",
       "status": "pending",
-      "dependsOn": ["VS2.5", "VS2.7"],
+      "dependsOn": ["VS2.5", "VS2.7", "VS2.8"],
       "artifacts": [],
       "verify": "Owner подтверждает",
       "startedAt": null,
@@ -225,6 +250,11 @@
     }
   ],
   "log": [
+    {
+      "at": "2026-07-17",
+      "step": "VS2.8",
+      "text": "Owner: settings captions must name the edited entity — «Парметры <имя изменяемой сущности>»: Общий спектр | Общая волна | <имя голоса>: Спектр|Волна. Done as «Параметры: {entity}»: overall-spectrum panel, lane-spectrum panel (voice names of the target lane, live on retarget), waveform dialog (overall vs lane target). PW bridge extended with a 'panel-title' message so a DETACHED window's OS caption follows the dynamic title too (PanelWindow pushes on child-ready + on change; PanelHostPage prefers it over the static manifest titleKey). Verify green (vue-tsc 0, build 0, 287/0). Commits: MindWaveCore 140ec51, GnauralCore 345bee5."
+    },
     {
       "at": "2026-07-17",
       "step": "VS2.7",
