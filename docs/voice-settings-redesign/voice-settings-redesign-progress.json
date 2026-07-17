@@ -3,9 +3,9 @@
   "plan": "voice-settings-redesign",
   "planDoc": "docs/voice-settings-redesign/voice-settings-redesign-plan.md",
   "title": "voice-settings-redesign: the per-track gear + point-mode buttons move from the graph overlay into the track's header bar; the «Настройки дорожки» dialog becomes a two-pane form (variant B); solo-spectrum and solo-wave sublane gears get their OWN dialogs (per-lane spectrum settings with «Сброс»-to-inherit; wave colour+opacity), and those sections leave the track dialog",
-  "status": "in-progress",
+  "status": "done",
   "createdAt": "2026-07-16",
-  "updatedAt": "2026-07-16",
+  "updatedAt": "2026-07-17",
   "decisions": [
     {
       "id": "VS-D1",
@@ -246,18 +246,23 @@
     {
       "id": "VS3.2",
       "phase": 3,
-      "title": "PAUSE — финальная owner-приёмка фичи",
-      "status": "pending",
+      "title": "PAUSE — финальная owner-приёмка фичи. ПРОЙДЕНА 2026-07-17: «ok»",
+      "status": "done",
       "dependsOn": ["VS3.1"],
       "artifacts": [],
-      "verify": "Owner подтверждает",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "PASSED — owner «ok» (2026-07-17) after driving the real app: the two-pane track dialog (incl. legacy 'both' configs mapping onto the Волна/Спектр toggles) and the whole re-homed settings surface (header gear+point-mode, lane spectrum panel, lane wave mono dialog, overall link toggle, entity captions). Feature COMPLETE.",
+      "startedAt": "2026-07-17",
+      "finishedAt": "2026-07-17",
       "blockedReason": null,
       "evidence": []
     }
   ],
   "log": [
+    {
+      "at": "2026-07-17",
+      "step": "VS3.2",
+      "text": "FINAL PAUSE PASSED — owner «ok». Feature COMPLETE. Net result vs the 2026-07-16 start: the per-track gear + point-mode live in the track header bar (not the canvas); the track dialog is a clean two-pane form (График / Соло-звук with independent Волна+Спектр toggles / Голоса); the solo-spectrum gear opens a standard dockable/detachable panel hosting the standard mono spectrum form (100% reuse, SG-D8 semantics); the solo-wave gear opens the shared waveform dialog's mono mode (lane gained soloWaveScale); all settings windows carry entity-naming captions incl. detached OS windows (new 'panel-title' PW bridge message). Side quests recorded in spectrogram-settings-scope: SG3.4 (link toggle) + SG3.5 (peer-group «Оба», WS-D9/WS-D3 mirror)."
+    },
     {
       "at": "2026-07-17",
       "step": "VS2.6 / VS3.1",
