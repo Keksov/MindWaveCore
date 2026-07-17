@@ -5,7 +5,7 @@
   "title": "spectrogram-settings-scope: the PROGRAM-LEVEL spectrogram «Параметры» move into the general Settings page as a tab; the floating/detachable «Параметры» @panel is retired from the Audio page; and (end goal) each spectrum graph gets a header button for per-graph LEFT/RIGHT channel settings, mirroring the waveform mechanism",
   "status": "done",
   "createdAt": "2026-07-16",
-  "updatedAt": "2026-07-16",
+  "updatedAt": "2026-07-17",
   "decisions": [
     {
       "id": "SG-D1",
@@ -245,9 +245,37 @@
       "evidence": [
         "Owner approved («ok», 2026-07-16): the group-header gear opens the «Параметры» panel; dock/float/detach all behave «в точности как сейчас»; scope «Оба/Левый/Правый» works; unedited channels inherit the program level, an edit/preset creates the channel's individual override and «Сброс» reverts; a per-channel edit repaints only that channel, and edits in the detached window repaint the main window's spectrogram. Phase 3 accepted; SG2.2 folded in. Feature COMPLETE."
       ]
+    },
+    {
+      "id": "SG3.4",
+      "phase": 3,
+      "title": "Post-acceptance owner follow-up (2026-07-17, из сессии voice-settings-redesign): тоггл «Применить к обоим каналам» в панели общего спектра — аналог линка волны (owner req 6 волны); при включении вкладки «Левый»/«Правый» блокируются",
+      "status": "done",
+      "dependsOn": ["SG3.3"],
+      "artifacts": [
+        "GnauralCore/ui/stores/overall-spectrum-overrides.ts (linkChannels ref + setLinkChannels, персистится в mindwave-spectrogram-overrides-link отдельно от данных каналов, default ON)",
+        "GnauralCore/ui/composables/overall-spectrum-overrides-model.ts (OverridesSnapshot.linkChannels; новый scope-free action {kind:'set-link'}; OverridesActionContext.setLinkChannels? — optional, mono-хосты его не дают)",
+        "GnauralCore/ui/composables/use-overrides-snapshot.ts (снапшот несёт linkChannels; apply-контекст пробрасывает setLinkChannels)",
+        "GnauralCore/ui/components/SpectrogramOverridesView.vue (q-toggle на scope «Оба» с меткой audio.waveformApplyBoth; scopeOptions.disable + свой click-guard — урок WS1.1 про QItem :disable; watch коэрсит scope→'both' при включении линка из другого окна)",
+        "GnauralCore/ui/components/SpectrogramOverridesRemote.vue + LaneSpectrumSettingsDialog.vue + LaneSpectrumSettingsRemote.vue (снапшоты дополнены linkChannels: true; в mono тоггл скрыт)"
+      ],
+      "verify": "DONE — vue-tsc 0 errors; quasar build exit 0; bun test ui server 286 pass / 0 fail. Runtime — owner-проверка вместе с VS2.6 (соседний леджер voice-settings-redesign).",
+      "startedAt": "2026-07-17",
+      "finishedAt": "2026-07-17",
+      "blockedReason": null,
+      "evidence": [
+        "The toggle is UI state, not channel data: persisted under its OWN key so flipping it never touches the overrides; default ON mirrors the waveform's wfPrefs.link default and gives the safe behaviour (channels cannot diverge until explicitly unlinked).",
+        "Detach-correct by construction: the flag rides the OverridesSnapshot and flips via a bridged scope-free 'set-link' action, so the MAIN window stays the single writer (SS-D3); a link flip while detached coerces the child's local scope off a locked tab via the snapshot watch.",
+        "Unlinked semantics deliberately UNCHANGED from SG-D7: «Оба» remains the live bulk editor (unlike the waveform's inert both-form, WS-D3) because the spectrum's «Оба» has real bulk-write semantics the owner designed in SG-D7; the owner asked only to lock the per-channel tabs while ON. If they want the full WS-D3 inert mirror, it is a small follow-up."
+      ]
     }
   ],
   "log": [
+    {
+      "at": "2026-07-17",
+      "step": "SG3.4",
+      "text": "Owner follow-up (raised during the voice-settings-redesign session): «В настройках общего спектра нужно добавить тоггл Применить к обоим каналам, по аналогии с настройками общей волны. Если тоггл включен, то нужно блокировать вкладки Левый и Правый». Implemented as SG3.4: linkChannels in the overrides store (own localStorage key, default ON) → snapshot → q-toggle on the «Оба» scope (label reuses audio.waveformApplyBoth) → per-channel nav items locked while ON (QItem :disable + own click guard, the WS1.1 lesson) → scope-free 'set-link' action over the detach bridge. Unlinked «Оба» stays the SG-D7 bulk editor (not the waveform's inert both-form) — the owner asked only for the tab lock. Verify green: vue-tsc 0, build 0, 286/0. Runtime check rides the VS2.6 PAUSE."
+    },
     {
       "at": "2026-07-16",
       "step": "SG0.1",
