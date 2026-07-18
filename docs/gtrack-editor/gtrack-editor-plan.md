@@ -224,6 +224,9 @@ atomic per-step commits (префикс id шага), verify перед done, п
 - [x] **GT1.1 — Editable-модель gtrack (клиент).** `gtrack-model.ts`: загрузка
   `GnauralScheduleData` → редактируемая копия; операции над вершинами (move/set params);
   undo/redo command-стек; dirty. Чистый TS + bun-тесты.
+  — **Уточнение (`undo-command-log`, 2026-07-18):** «command-стек» реализовали СНАПШОТАМИ всего расписания
+  (`undoStack`/`redoStack`), не командами — это раздувало персист `undo.json`. Ядро переписано в настоящий
+  action-лог (voice-дельты транзакции + курсор); см. фичу `undo-command-log`.
 - [x] **GT1.2 — XML-патчер (Save).** Модель+исходный XML → обновлённый XML (GT-D5); запись через
   существующий gnaural-editor-store API; round-trip verify: патч → `--dump-schedule` → сравнение
   с моделью (допуск на float).

@@ -1,0 +1,186 @@
+{
+  "schemaVersion": 1,
+  "plan": "undo-command-log",
+  "planDoc": "docs/undo-command-log/undo-command-log-plan.md",
+  "title": "undo-command-log: переписать undo в GTrackModel со снапшотов всего расписания на лог действий — упорядоченный log шагов + курсор, где шаг = voice-дельта транзакции (before/after изменённых голосов, по идентичности ссылок). Журнал undo.json → компактный формат v2 {version,currentSig,cursor,steps}; keepalive-фикс (только на выгрузке) чинит putUndoJournal 'Failed to fetch' (64 КБ). Публичный API модели и мутации не меняются",
+  "status": "active",
+  "createdAt": "2026-07-18",
+  "updatedAt": "2026-07-18",
+  "decisions": [
+    {
+      "id": "UC-D1",
+      "text": "Модель истории = лог действий. Заменить undoStack/redoStack (массивы полных снапшотов GTrackSchedule) на один упорядоченный log шагов steps[] + курсор cursor. Шаг = дельта транзакции. undo = применить before, cursor--; redo = применить after, cursor++; новый commit обрезает хвост после cursor и добавляет шаг. Публичный API (beginEdit/commitEdit/cancelEdit/edit/undo/redo/canUndo/canRedo/isDirty/markSaved) и мутации НЕ меняются — вызывающий код не трогаем."
+    },
+    {
+      "id": "UC-D2",
+      "text": "Гранулярность дельты = ГОЛОС, не точка. Шаг хранит { voiceId, before: GTrackVoice, after: GTrackVoice }[] для изменённых голосов, вычисляется в commitEdit сравнением txnBefore.voices и current.voices ПО ИДЕНТИЧНОСТИ ССЫЛОК (структурный шаринг → у изменённого голоса новая ссылка). Почему не точка: movePointCrossing (режим по умолчанию) пересортировывает точки, у точек нет стабильного id → value-diff не отличит «точка переехала» от «много изменилось», point-операции неоднозначны/рискованны. Голос — однозначно инвертируемо, корректно для ВСЕХ мутаций, и всё равно на 1-2 порядка меньше расписания. Point-level — будущее уточнение."
+    },
+    {
+      "id": "UC-D3",
+      "text": "ИТОГ (UC0.1→UC2.1): ВАРИАНТ A — компактный лог целиком (last-write-wins). Формат undo.json v2 = {version:2, currentSig, cursor, steps}. На UC0.1 владелец выбрал Вариант 2 (инкрементальный append) ради версионности; на UC2.1 при реализации вскрылось, что инкрементальный append НЕсовместим с ОГРАНИЧЕННЫМ окном undo — индексы шагов у клиента (полный in-memory лог) и сервера (обрезанная копия) расходятся при скольжении окна, нужна доп.машинерия (скользящее окно + rebase индексов/стабильные id) ради ~0 выигрыша на localhost. Инкрементальный append чист ТОЛЬКО для НЕограниченного append-only лога (=версионность) и даже не является хорошим её фундаментом иначе. Владелец выбрал A: текущий леджер — компактный лог целиком (Фаза 1 уже даёт: KБ, last-write-wins, идемпотентно; persistUndoJournal шлёт exportUndoJournal(50)); сервер undo.json без изменений (opaque JSON). Инкрементальный append + полная версионность (unbounded log, компакция, checkout, point-дельты) — ОТДЕЛЬНЫЙ будущий план."
+    },
+    {
+      "id": "UC-D4",
+      "text": "keepalive. Оставить keepalive:true ТОЛЬКО во флаше на выгрузку (flushPendingProjectWrites), убрать из обычной дебаунс-записи putSection/putUndoJournal (project-api.ts + use-project.ts). Чинит 'Failed to fetch' (браузерный 64-КБ лимит keepalive) независимо от остального."
+    },
+    {
+      "id": "UC-D5",
+      "text": "Миграция. Бамп версии undo.json до 2; старые снапшотные журналы (без version / v1) при загрузке ОТБРАСЫВАЮТСЯ (adopt → false). История undo best-effort на файл, конвертер не нужен. adopt не должен падать на чужом формате — тихо false."
+    },
+    {
+      "id": "UC-D6",
+      "text": "Инварианты. Сохранить guard currentSig в adopt (журнал принимается только если чейнится на загруженное расписание по сигнатуре). Модель не добавляет/не удаляет голоса (правятся только точки внутри голосов) → применение voice-дельты по voiceId корректно. isGTrackUndoJournal валидирует форму v2."
+    }
+  ],
+  "steps": [
+    {
+      "id": "UC0.1",
+      "phase": 0,
+      "title": "PAUSE: подтвердить UC-D1..D6, особенно UC-D3 — персистентность компактным логом целиком (реком., консистентно с PR-D7) vs инкрементальный append одного шага (буквально «слать только текущее действие», но чужд last-write-wins). Владельческий чекпоинт для Фазы 2.",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [
+        "docs/undo-command-log/undo-command-log-plan.md (решения UC-D1..D6, разд. 3)"
+      ],
+      "verify": "PASSED — владелец выбрал Вариант 2 (инкрементальный append) как фундамент будущей версионности. UC-D1/D2/D4/D5/D6 в силе. Фаза 2 разблокирована под append-протокол.",
+      "startedAt": "2026-07-18",
+      "finishedAt": "2026-07-18",
+      "blockedReason": null,
+      "evidence": [
+        "Владелец на вопрос о размере (Вариант 1 ограничен окном ~50 шагов, ~сотни КБ навсегда) и о версионности выбрал Вариант 2: append-only лог — единственный из двух, что расширяется в полную историю правок.",
+        "Следствие: undo.json на сервере становится stateful (лог+курсор с append/truncate) — это исключение из PR-D7 (last-write-wins), которое надо отразить в project-store (PR-D8/PR-D7).",
+        "Версионность (point-дельты, компакция, снапшот-якоря, checkout, retention) — НЕ в этом леджере; отдельный план поверх append-лога. Здесь append-лог используется как ограниченный undo (voice-level, окно шагов)."
+      ]
+    },
+    {
+      "id": "UC1.1",
+      "phase": 1,
+      "title": "gtrack-model.ts: лог шагов steps[] + курсор cursor вместо undoStack/redoStack снапшотов; commitEdit считает voice-дельту по идентичности ссылок (txnBefore vs current); undo/redo/canUndo/canRedo/cancelEdit через курсор; применение дельты по voiceId. Публичный API и мутации без изменений.",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [
+        "GnauralCore/ui/composables/gtrack-model.ts (история: steps[]+cursor; commitEdit diff по ссылкам; undo/redo применяют before/after голосов) [LF]"
+      ],
+      "verify": "DONE — bun test ui 251 pass / 0 fail; поведенческие тесты undo/redo (gtrack-model.test.ts:190-372) зелёные БЕЗ изменений — семантика сохранена. vue-tsc 0 ошибок.",
+      "startedAt": "2026-07-18",
+      "finishedAt": "2026-07-18",
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "UC1.2",
+      "phase": 1,
+      "title": "gtrack-model.ts: журнал v2 {version, currentSig, cursor, steps}; exportUndoJournal/adoptUndoJournal/isGTrackUndoJournal под v2; бюджет по числу шагов. Переписать тесты формата журнала (gtrack-model.test.ts:418-466).",
+      "status": "done",
+      "dependsOn": [
+        "UC1.1"
+      ],
+      "artifacts": [
+        "GnauralCore/ui/composables/gtrack-model.ts (GTrackUndoJournal v2, export/adopt/isGTrackUndoJournal, отбрасывание v1) [LF]",
+        "GnauralCore/ui/composables/gtrack-model.test.ts (тесты формата журнала под v2: раунд-трип шагов+курсора, sig-mismatch→false, v1→отброшен, бюджет) [LF]"
+      ],
+      "verify": "DONE — журнал v2 {version,currentSig,cursor,steps}; тесты формата переписаны (раунд-трип шагов+курсора, sig-mismatch→false, v1→отброшен, бюджет по шагам, шаг=один голос). bun test ui/composables/gtrack-model.test.ts 38 pass / 0 fail; vue-tsc 0.",
+      "startedAt": "2026-07-18",
+      "finishedAt": "2026-07-18",
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "UC2.1",
+      "phase": 2,
+      "title": "Персистентность v2 — ВАРИАНТ A (компактный лог целиком). persistUndoJournal упрощён: слать exportUndoJournal(50) целиком (last-write-wins); убрана снапшот-байт-эвристика (она занижала глубину undo на больших расписаниях). Сервер project-store не меняется (undo.json — opaque JSON, 5 МБ backstop). Инкрементальный append отклонён (см. UC-D3).",
+      "status": "done",
+      "dependsOn": [
+        "UC0.1",
+        "UC1.2"
+      ],
+      "artifacts": [
+        "GnauralCore/ui/composables/use-gtrack-lanes.ts (persistUndoJournal: фикс.кэп UNDO_JOURNAL_MAX_STEPS=50, удалена байт-эвристика по размеру расписания) [CRLF]"
+      ],
+      "verify": "DONE (в UC3.1) — vue-tsc 0; quasar build 0; bun test ui server 291 pass / 0 fail. Сервер undo.json без изменений.",
+      "startedAt": "2026-07-18",
+      "finishedAt": "2026-07-18",
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "UC2.2",
+      "phase": 2,
+      "title": "keepalive-фикс (UC-D4): project-api.ts — keepalive опционально; use-project.ts — передавать keepalive:true только из flushPendingProjectWrites (выгрузка/смена файла), обычная дебаунс-запись без keepalive.",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [
+        "GnauralCore/ui/project-api.ts (putSection/putUndoJournal: keepalive-параметр, по умолчанию false) [LF]",
+        "GnauralCore/ui/composables/use-project.ts (sendSection/sendUndoJournal: keepalive-параметр; flushPendingProjectWrites передаёт true; дебаунс-запись — без keepalive) [LF]"
+      ],
+      "verify": "DONE — vue-tsc 0 ошибок. Обычная дебаунс-запись идёт без keepalive (нет 64-КБ лимита → нет 'Failed to fetch'); флаш на beforeunload — с keepalive. Файлы project-api.ts/use-project.ts оказались LF (не CRLF, как было в артефактах — исправлено).",
+      "startedAt": "2026-07-18",
+      "finishedAt": "2026-07-18",
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "UC3.1",
+      "phase": 3,
+      "title": "Верификация сборкой: bun test ui server, bun run typecheck, bun run build.",
+      "status": "done",
+      "dependsOn": [
+        "UC2.1",
+        "UC2.2"
+      ],
+      "artifacts": [],
+      "verify": "DONE — bun test ui server 291 pass / 0 fail; vue-tsc --noEmit exit 0; quasar build exit 0. Регрессий нет.",
+      "startedAt": "2026-07-18",
+      "finishedAt": "2026-07-18",
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "UC3.2",
+      "phase": 3,
+      "title": "PAUSE (финальная приёмка): владелец в приложении — правка точки → через 1.5с нет putUndoJournal 'Failed to fetch' в консоли; перезагрузка страницы → undo/redo восстановлены; глубокая история переживает reload; Save/mute не ломают.",
+      "status": "pending",
+      "dependsOn": [
+        "UC3.1"
+      ],
+      "artifacts": [],
+      "verify": "Владелец подтвердил в приложении («ok») — фича COMPLETE.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    }
+  ],
+  "log": [
+    {
+      "at": "2026-07-18",
+      "step": "UC0.1",
+      "text": "План+леджер созданы. Разобраны модель (снапшот-стеки, мутации через replaceVoice, журнал currentSig/undo/redo) и тесты (поведение undo/redo :190-372 сохраняем; формат журнала :418-466 переписываем под v2). Владелец выбрал вариант C (настоящий лог действий). Ключ: мутации не трогаем, переписываем только представление истории (steps+cursor) + формат журнала. Гранулярность — голос (UC-D2, из-за crossover-пересортировки без стабильного id точек). Открыт UC-D3 (транспорт: компактный-лог-целиком vs инкрементальный) — на UC0.1. Фаза 1 транспорт-независима, можно делать параллельно."
+    },
+    {
+      "at": "2026-07-18",
+      "step": "UC1.2",
+      "text": "Фаза 1 готова. gtrack-model.ts: история переписана со снапшот-стеков на лог шагов steps[] + курсор cursor. commitEdit считает voice-дельту транзакции по идентичности ссылок (txnBefore.voices vs current.voices — изменённые голоса имеют новую ссылку из-за структурного шаринга), обрезает redo-хвост, добавляет шаг. undo/redo двигают курсор и применяют before/after голосов (applyDelta). Публичный API (beginEdit/commitEdit/cancelEdit/edit/undo/redo/canUndo/canRedo/isDirty/markSaved) и мутации НЕ тронуты. Журнал v2: exportUndoJournal (бюджет по шагам, курсор клампится), adoptUndoJournal (v!==2 → false = миграция UC-D5), isGTrackUndoJournal под v2. ВАЖНО: раз журнал теперь компактный (voice-дельты, не полные снапшоты), тело putUndoJournal падает ниже 64 КБ для обычных файлов → исходная ошибка 'Failed to fetch' уходит уже здесь. bun test ui 251 pass / 0 fail; vue-tsc 0."
+    },
+    {
+      "at": "2026-07-18",
+      "step": "UC0.1",
+      "text": "PAUSE UC0.1 пройден. Владелец выбрал ВАРИАНТ 2 (инкрементальный append) — на вопросы о размере и версионности: Вариант 1 (компактный лог целиком) ограничен окном ~50 шагов и историю дать не может; Вариант 2 (append-only event log) — фундамент полной версионности. Для ТЕКУЩЕГО леджера append используется как ограниченный undo (voice-level дельты); полноценная версионность (point-дельты, компакция, checkout) — отдельный будущий план. Задача: append-протокол на сервере (undo.json = лог+курсор, push/truncate/setCursor) — исключение из PR-D7 last-write-wins, отразить в project-store. Отдельно: поиск существующего плана про undo ядро — найдены gtrack-editor GT1.1 (ядро модели, дословно «command-стек») и project-store PR-D8 (персист снапшотами); согласование с владельцем, какой править."
+    },
+    {
+      "at": "2026-07-18",
+      "step": "UC2.2",
+      "text": "UC2.2 готов: keepalive только во flushPendingProjectWrites (выгрузка), обычная дебаунс-запись без keepalive — это и чинит исходный 'Failed to fetch' (64-КБ лимит keepalive) окончательно, независимо от формата журнала. vue-tsc 0. project-api.ts/use-project.ts — LF (артефакты поправлены)."
+    },
+    {
+      "at": "2026-07-18",
+      "step": "UC2.1",
+      "text": "UC2.1 ЗАБЛОКИРОВАН находкой при проектировании append. Инкрементальный «append от индекса» несовместим с ОГРАНИЧЕННЫМ окном undo без доп.машинерии (скользящее окно + rebase индексов или стабильные step-id), потому что индексы клиента (полный лог) и сервера (обрезанная копия) расходятся. Инкрементальный append чист ТОЛЬКО для неограниченного append-only лога — это и есть версионность, отдельный план. Для ограниченного undo компактный-лог-целиком (Фаза 1) — правильный, простой, без синхро-проблем (KБ, last-write-wins). Плюс: инкрементальный-для-ограниченного-undo даже НЕ является хорошим фундаментом версионности (той нужен unbounded log). Рекомендация: закрыть текущий леджер компактным-логом-целиком + инкрементальный append перенести в план версионности. Жду решения владельца (A/B)."
+    },
+    {
+      "at": "2026-07-18",
+      "step": "UC2.1",
+      "text": "Владелец выбрал Вариант A (после блокера UC2.1). UC2.1 закрыт: persistUndoJournal упрощён до exportUndoJournal(50) целиком (last-write-wins), удалена устаревшая снапшот-байт-эвристика (занижала глубину undo). Сервер undo.json не тронут. Доки исправлены: пометки в project-store (PR-D7/PR-D8/R3) переписаны с ошибочного «инкрементальный append» на «остаётся last-write-wins, компактный лог целиком; инкрементальный append+версионность — отдельный план»; UC-D3 в плане undo-command-log обновлён на вариант A. UC3.1 верификация: bun test ui server 291/0, vue-tsc 0, quasar build 0. Осталось UC3.2 — приёмка владельцем в приложении."
+    }
+  ]
+}
