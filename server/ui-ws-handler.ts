@@ -4,6 +4,7 @@ import type { LogReplayManager, ReplayPublisher } from "./log-replay"
 import { prepareAlphaRelaxationSchedule } from "./alpha-relaxation-schedule"
 import { prepareSleepDrowseSchedule } from "./sleep-drowse-schedule"
 import { isAudioBrowserMessage, isBrowserMessage, toJson } from "./protocol"
+import { isLoopbackAddress } from "./fs-browser-server"
 import type { AppSession } from "../../BodyMonitorCore/server"
 import {
   resolveAllowedAudioFilePath,
@@ -15,11 +16,17 @@ import { isSpectrogramClientMessage } from "../../GnauralCore/server/protocol"
 
 export interface UiSocketData {
   readonly kind: "ui"
+  // AC3.2 (audio-panel-cleanup): the connecting client's address, captured at upgrade, so the
+  // spectrogram-open handler can restrict whole-machine file reads to loopback callers.
+  readonly clientIp: string | null
 }
 
 export interface UiWsContext {
   readonly audioSession: GnauralSession
   readonly archiveStore: LogArchiveStore
+  // AC3.1 (audio-panel-cleanup): the allowed audio roots (fs-browser roots) replace the removed
+  // presetsRoot as the file-access allow-list.
+  readonly getAudioAccessRoots: () => Promise<readonly string[]>
   readonly replayManager: LogReplayManager
   readonly replayPublisher: ReplayPublisher
   readonly scheduleWatcher: { watch(filePath: string): void; unwatch(filePath: string): void }
@@ -39,7 +46,12 @@ const getSpectrogramSession = (
       if (requestedPath === undefined || requestedPath === "") {
         throw new Error("spectrogram:open requires a filePath")
       }
-      const resolved = resolveAllowedAudioFilePath(requestedPath, aContext.archiveStore.getAudioSettings())
+      // AC3.2 (Q2=b): the spectrogram reads whole-machine files (fs-browser roots), so gate it to
+      // loopback callers like the byte-serving HTTP endpoints and the fs-browser itself (FB-D2).
+      if (!isLoopbackAddress(aSocket.data.clientIp)) {
+        throw new Error("spectrogram access is restricted to same-machine (loopback) callers")
+      }
+      const resolved = resolveAllowedAudioFilePath(requestedPath, await aContext.getAudioAccessRoots())
       if (resolved === null) {
         throw new Error("audio file is not allowed or has an unsupported type")
       }
@@ -90,8 +102,7 @@ const startAlphaRelaxationAudio = async (aContext: UiWsContext, aDurationMin: nu
   const schedule = await prepareAlphaRelaxationSchedule(aDurationMin)
   await aContext.audioSession.start(
     schedule.filePath,
-    aContext.archiveStore.getAudioSettings(),
-    [schedule.rootPath],
+    [...(await aContext.getAudioAccessRoots()), schedule.rootPath],
   )
 }
 
@@ -99,8 +110,7 @@ const startSleepDrowseAudio = async (aContext: UiWsContext, aDurationMin: number
   const schedule = await prepareSleepDrowseSchedule(aDurationMin)
   await aContext.audioSession.start(
     schedule.filePath,
-    aContext.archiveStore.getAudioSettings(),
-    [schedule.rootPath],
+    [...(await aContext.getAudioAccessRoots()), schedule.rootPath],
   )
 }
 
@@ -159,7 +169,7 @@ export const handleUiMessage = async (
   if (isAudioBrowserMessage(parsed)) {
     try {
       if (parsed.type === "audio_start") {
-        await aContext.audioSession.start(parsed.filePath, aContext.archiveStore.getAudioSettings())
+        await aContext.audioSession.start(parsed.filePath, await aContext.getAudioAccessRoots())
         return
       }
 

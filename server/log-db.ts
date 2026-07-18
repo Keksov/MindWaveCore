@@ -4,7 +4,6 @@ import { join } from "node:path"
 import { buildArchivedLogChartData } from "./log-chart"
 import type { ProcessStateSnapshot } from "./process-manager"
 import type {
-  AudioSettings,
   ProjectSettings,
   ArchivedLogChartData,
   ArchivedLogDetail,
@@ -27,7 +26,6 @@ import type {
 const DB_FILE_NAME = "mindwave-logs.sqlite"
 const DB_FILE_SIDE_SUFFIXES = ["", "-shm", "-wal"] as const
 const DEFAULT_RETENTION_DAYS = 30
-const DEFAULT_AUDIO_PRESETS_ROOT = ""
 // project-store PR-D6: empty string = "not configured" -> the server falls back to
 // defaultUserDataRoot() (%LOCALAPPDATA%\KKSoundCore on Windows).
 const DEFAULT_USER_DATA_ROOT = ""
@@ -748,12 +746,6 @@ export class LogArchiveStore {
     }
   }
 
-  public getAudioSettings(): AudioSettings {
-    return {
-      presetsRoot: this.getAudioPresetsRoot(),
-    }
-  }
-
   public getProjectSettings(): ProjectSettings {
     return {
       userDataRoot: this.getUserDataRoot(),
@@ -767,14 +759,6 @@ export class LogArchiveStore {
     }
 
     return this.getSettings()
-  }
-
-  public updateAudioSettings(input: Partial<AudioSettings>): AudioSettings {
-    if (input.presetsRoot !== undefined) {
-      this.upsertAppSetting("audio_presets_root", input.presetsRoot.trim())
-    }
-
-    return this.getAudioSettings()
   }
 
   public updateProjectSettings(input: Partial<ProjectSettings>): ProjectSettings {
@@ -893,22 +877,11 @@ export class LogArchiveStore {
        ON CONFLICT(key) DO NOTHING`,
       ["retention_days", JSON.stringify(DEFAULT_RETENTION_DAYS)],
     )
-    this.db.run(
-      `INSERT INTO app_settings (key, value_json)
-       VALUES (?, ?)
-       ON CONFLICT(key) DO NOTHING`,
-      ["audio_presets_root", JSON.stringify(DEFAULT_AUDIO_PRESETS_ROOT)],
-    )
   }
 
   private getRetentionDays(): number {
     const parsed = this.getAppSettingValue<number>("retention_days", DEFAULT_RETENTION_DAYS)
     return normalizeDayCount(parsed)
-  }
-
-  private getAudioPresetsRoot(): string {
-    const parsed = this.getAppSettingValue<string>("audio_presets_root", DEFAULT_AUDIO_PRESETS_ROOT)
-    return typeof parsed === "string" ? parsed.trim() : DEFAULT_AUDIO_PRESETS_ROOT
   }
 
   private getUserDataRoot(): string {
