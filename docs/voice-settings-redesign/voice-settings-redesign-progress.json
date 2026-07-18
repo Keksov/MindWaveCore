@@ -372,6 +372,11 @@
   "log": [
     {
       "at": "2026-07-18",
+      "step": "VS4.6 (runtime confirmed)",
+      "text": "Owner confirmed the solo «Волна+Спектр» overlay renders correctly («Fixed» + screenshot: the cyan waveform drawn over the spectrum, above the orange curves). VS4.6 runtime-verified. VS4.4 (whole-phase-4 acceptance) still open for the owner's explicit final sign-off on the rest (mode blocks/checkboxes, visibility eye, stacked graphs, «Все режимы в одной дорожке»)."
+    },
+    {
+      "at": "2026-07-18",
       "step": "VS4.6 + commit",
       "text": "Added the solo «Волна+Спектр» (overlay) mode — a combined single sub-graph (wave over spectrum via SpectrogramView.waveformOverlay), a third mutually-exclusive toggle on the Соло-звук sub-form; display implemented for both inline and sub-lane placement. Then, on the owner's «go», the deferred Gnaural commit landed: VS4.1-4.6 committed as 49305cf. The earlier-noted entanglement was honoured — the shared trio (GTrackView/TracksPanel/use-gtrack-lanes) + the owner's interleaved VB2.1 balance-band (gtrack-model/render + tests) are bundled in that commit (no file-level split possible; commit author is Keksov, so VB stays under the owner's name); the project-store increment (use-project/project-api) was left unstaged for its own PR commit. So the per-step «НЕ ЗАКОММИЧЕН» notes above are now resolved by 49305cf. Verify green: vue-tsc 0, build 0, 291/0. Remaining: VS4.4 owner acceptance."
     },
