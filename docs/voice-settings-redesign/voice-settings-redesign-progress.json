@@ -3,7 +3,7 @@
   "plan": "voice-settings-redesign",
   "planDoc": "docs/voice-settings-redesign/voice-settings-redesign-plan.md",
   "title": "voice-settings-redesign: the per-track gear + point-mode buttons move from the graph overlay into the track's header bar; the «Настройки дорожки» dialog becomes a two-pane form (variant B); solo-spectrum and solo-wave sublane gears get their OWN dialogs (per-lane spectrum settings with «Сброс»-to-inherit; wave colour+opacity), and those sections leave the track dialog",
-  "status": "in-progress",
+  "status": "done",
   "createdAt": "2026-07-16",
   "updatedAt": "2026-07-18",
   "decisions": [
@@ -358,18 +358,23 @@
     {
       "id": "VS4.4",
       "phase": 4,
-      "title": "PAUSE — финальная owner-приёмка фазы 4 (стек режимов, чекбоксы «Отображать на графике», глаз, новая раскладка «Все режимы в одной дорожке», соло «Волна+Спектр»)",
-      "status": "pending",
+      "title": "PAUSE — финальная owner-приёмка фазы 4 (стек режимов, чекбоксы «Отображать на графике», глаз, новая раскладка «Все режимы в одной дорожке», соло «Волна+Спектр»). ПРОЙДЕНА 2026-07-18: «ok»",
+      "status": "done",
       "dependsOn": ["VS4.2", "VS4.3", "VS4.6"],
       "artifacts": [],
-      "verify": "Owner подтверждает",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "PASSED — owner «ok» (2026-07-18) after driving the real app: mode blocks + «Отображать на графике» checkboxes, per-mode graph stack, dialog visibility eye (crossed when zero modes), «Все режимы в одной дорожке» track-list layout, and the solo «Волна+Спектр» overlay (separately screenshot-confirmed). Phase 4 accepted; FEATURE COMPLETE.",
+      "startedAt": "2026-07-18",
+      "finishedAt": "2026-07-18",
       "blockedReason": null,
       "evidence": []
     }
   ],
   "log": [
+    {
+      "at": "2026-07-18",
+      "step": "VS4.4",
+      "text": "FINAL PHASE-4 PAUSE PASSED — owner «ok». Feature COMPLETE (phases 0-4). Phase 4 net result: the track dialog's «График» section became «Режимы отображения» — every display mode is an always-visible block with an «Отображать на графике» checkbox; the lane model went single mode → modes[] with a per-mode stacked graph render (own resize/label each); zero checked modes hides the lane, with a header visibility eye that crosses out accordingly; the beat/balance bands moved inside their mode blocks; a new «Все режимы в одной дорожке» track-list layout builds per-voice stacks; and the Соло-звук sub-form gained a «Волна+Спектр» overlay mode (wave over spectrum in one combined sub-graph). All committed in GnauralCore 49305cf (bundling the owner's interleaved VB2.1 balance-band, author Keksov)."
+    },
     {
       "at": "2026-07-18",
       "step": "VS4.6 (runtime confirmed)",
