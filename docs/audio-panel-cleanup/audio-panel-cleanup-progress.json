@@ -93,19 +93,23 @@
     {
       "id": "AC1.3",
       "phase": 1,
-      "title": "Мёртвые i18n + CSS после удаления main: удалить (после grep 0 ссылок) audio.scheduleTab/playbackTab/spectrogramTabHint/scheduleLoading/noSchedule (ru+en) и CSS player-view-tabs-bar/player-view-tabs, output-section--main/--schedule, schedule-view, player-toolbar, player-controls (+ @media)",
-      "status": "pending",
+      "title": "Мёртвые i18n + CSS после удаления main: удалены (после grep 0 ссылок) audio.scheduleTab/playbackTab/spectrogramTabHint/scheduleLoading/noSchedule (ru+en) и CSS player-view-tabs-bar/player-view-tabs/player-view-panels/player-view-panel, output-section--main/--schedule, schedule-view, player-toolbar, player-controls (+ @media). Сохранены: output-section/--spectrogram, player-body, playerTab, spectrogramTab",
+      "status": "done",
       "dependsOn": ["AC1.2"],
       "artifacts": [
         "GnauralCore/ui/i18n/ru.json",
         "GnauralCore/ui/i18n/en.json",
         "GnauralCore/ui/pages/AudioPage.vue"
       ],
-      "verify": "grep каждого ключа/класса по GnauralCore → 0 ДО удаления; bun run build зелёный; плеер = только Треки, лишних пустот нет.",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "grep 5 ключей по GnauralCore (вкл. сохранённый GnauralScheduleView.vue) → 0 code-ссылок ДО удаления; CSS-классы: все ссылки только в <style> (0 в шаблоне). JSON обеих локалей парсится, CRLF цел, git diff --check чист. vue-tsc + quasar build зелёные.",
+      "startedAt": "2026-07-18",
+      "finishedAt": "2026-07-18",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "5 i18n-ключей: rg по ui (все .vue/.ts, вкл. GnauralScheduleView.vue) → только определения в i18n/*.json, 0 code-ссылок. JSON.parse обеих локалей OK, dead keys отсутствуют, playerTab/spectrogramTab/tracksTab/editorTab на месте.",
+        "9 CSS-классов удалены; проверено, что все их ссылки были в <style> (строки >1140), 0 в шаблоне; output-section (база)/--spectrogram/player-body/empty сохранены (используются TracksPanel/шаблоном).",
+        "CRLF цел (git diff --check без ошибок), финальная строка без завершающего \\n — как в HEAD (не я). vue-tsc --noEmit + quasar build зелёные."
+      ]
     },
     {
       "id": "AC2.1",
@@ -289,6 +293,10 @@
     {
       "at": "2026-07-18",
       "text": "ФАЗА 1 (AC1.1+AC1.2) исполнена: вкладка main плеера удалена, «Треки» — единственный вид; снят весь мёртвый script (computeds/scheduleViewRef/handlePlayerKeyDown/nav-рефы/watch(displayMode)/activePlayerViewTab). ИСПРАВЛЕНИЕ ПРЕМИСЫ: GnauralScheduleView.vue оказался НЕ сиротой (кросс-репо потребители ArchiveReplayView + MonitoringPage + реэкспорт) — попытка удаления дала vue-tsc TS2307, файл восстановлен, удалено только использование в AudioPage. AC-D1/AC1.2/plan §2.1 исправлены. vue-tsc + quasar build зелёные. Осталось AC1.3 (мёртвые i18n + CSS)."
+    },
+    {
+      "at": "2026-07-18",
+      "text": "ФАЗА 1 ЗАВЕРШЕНА (AC1.3 done): удалены 5 мёртвых i18n-ключей (ru+en) и 9 мёртвых CSS-классов; каждый проверен grep-ом на 0 ссылок (i18n — по всем .vue/.ts, вкл. сохранённый GnauralScheduleView.vue; CSS — все ссылки только в <style>). JSON парсится, CRLF цел, vue-tsc + quasar build зелёные. Код: GnauralCore (AudioPage.vue + ru/en.json). Фаза 2 (удаление фичи дерева пресетов) — следующая."
     }
   ]
 }
