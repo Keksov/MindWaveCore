@@ -1,0 +1,161 @@
+{
+  "schemaVersion": 1,
+  "plan": "track-scale-mode",
+  "planDoc": "docs/track-scale-mode/track-scale-mode-plan.md",
+  "title": "track-scale-mode: глобальный переключатель шкалы «Линейный / Логарифмический» для оси базовой частоты дорожек. q-btn-toggle в панели «Список треков» рядом с «Перенос точек» (TS-D1), персист в localStorage как pointDragMode (TS-D2), влияет только на дорожки mode='base' — 'linear' строит линейную ось поверх диапазона данных, 'log' = текущее авто log/symlog (TS-D3). Проводка: gtrackAxis(...,baseScale) → GTrackView проп → TracksPanel; панель через TrackListSnapshot.baseScaleMode + action set-base-scale-mode (TS-D4). ЗАВЕРШЕНО — приёмка владельца пройдена (2026-07-18).",
+  "status": "done",
+  "createdAt": "2026-07-18",
+  "updatedAt": "2026-07-18",
+  "decisions": [
+    {
+      "id": "TS-D1",
+      "text": "Форма и место: глобальный q-btn-toggle в секции свойств редактора панели «Список треков» (TrackListView), под тумблером «Перенос точек» (pointDragMode) — та же форма (snapshot/action, не локальный ref), gnaural-only (v-if snapshot.isGnaural). Прецедент — тумблер «Шкала» (Логарифмическая/Линейная) в GnauralScheduleView. Выбор владельца (AskUserQuestion 2026-07-18): «Список треков», глобально."
+    },
+    {
+      "id": "TS-D2",
+      "text": "Тип и дефолт: GTrackBaseScale = 'log' | 'linear', дефолт 'log' = текущее поведение (нет визуальной регрессии). Персист в localStorage ключ 'mindwave-gtrack-base-scale', ровно как pointDragMode ('mindwave-gtrack-point-drag-mode') — глобальная editor-настройка, НЕ пер-дорожка и НЕ в модели расписания."
+    },
+    {
+      "id": "TS-D3",
+      "text": "Область: переключатель влияет только на дорожки mode='base'. 'linear' строит обычную линейную ось поверх диапазона данных (та же логика паддинга/headroom, что у линейной оси бита — общий хелпер linearAutoAxis). 'log' = текущее авто (log, либо symlog если данные достигают 0). Громкость (0..1), баланс (-1..1), бит (линейный автодиапазон) переключатель не трогает. Симлог при 'linear' не нужен — линейная ось представляет 0 напрямую."
+    },
+    {
+      "id": "TS-D4",
+      "text": "Проводка override: gtrackAxis(voices, mode, editable, beatBand, baseScale='log') — 5-й необязательный параметр, обратно совместимо. GTrackView получает проп baseScaleMode (дефолт 'log') и прокидывает в gtrackAxis; TracksPanel передаёт :base-scale-mode=gtracks.baseScaleMode.value. Панель «Список треков»: TrackListSnapshot.baseScaleMode + TrackListAction {kind:'set-base-scale-mode', mode} → applyTrackListAction → gtracks.setBaseScaleMode (контракт как у set-point-drag-mode; работает и для откреплённого окна через мост snapshot/action)."
+    },
+    {
+      "id": "TS-D5",
+      "text": "i18n: новые ключи рядом с gtrackDragMode* — gtrackBaseScale (подпись секции), gtrackBaseScale_log, gtrackBaseScale_linear. Существующие scheduleScaleLog/scheduleScaleLinear как значения НЕ переиспользуем — держим gtrack-скоуп параллельно gtrackDragMode_* (clamp/crossover)."
+    }
+  ],
+  "steps": [
+    {
+      "id": "TS1.1",
+      "phase": 1,
+      "title": "gtrack-render.ts: тип GTrackBaseScale; хелпер linearAutoAxis(lo,hi,editable) (вынести общую логику линейной оси из ветки beat); 5-й параметр baseScale в gtrackAxis; линейная ветка базовой оси при baseScale='linear'; юнит-тесты (base linear vs log, дефолт 'log' не меняет вывод).",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [
+        "GnauralCore/ui/composables/gtrack-render.ts (тип GTrackBaseScale; хелпер linearAutoAxis, переиспользован веткой beat; gtrackAxis(...,baseScale='log'); линейная ветка mode='base' при baseScale='linear') [LF]",
+        "GnauralCore/ui/composables/gtrack-render.test.ts (describe «gtrackAxis baseScale override (TS-D3)»: linear-ось базы, дефолт log без изменений, 0→linear vs symlog, non-base не затронуты) [LF]"
+      ],
+      "verify": "DONE — bun test ui/composables/gtrack-render.test.ts: 35 pass / 0 fail. Линейная база = arithmetic mid (150), лог = geometric (141); дефолт 'log' идентичен прежнему выводу; данные с 0 → 'linear' ставит 0 напрямую (vs 'symlog'); volume/balance/beat не затронуты.",
+      "startedAt": "2026-07-18",
+      "finishedAt": "2026-07-18",
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "TS1.2",
+      "phase": 1,
+      "title": "use-gtrack-lanes.ts: персист-ref baseScaleMode + setBaseScaleMode (зеркало pointDragMode: loadBaseScale из localStorage 'mindwave-gtrack-base-scale', дефолт 'log'), экспорт из композабла.",
+      "status": "done",
+      "dependsOn": ["TS1.1"],
+      "artifacts": [
+        "GnauralCore/ui/composables/use-gtrack-lanes.ts (import GTrackBaseScale; STORAGE_BASE_SCALE_KEY 'mindwave-gtrack-base-scale'; loadBaseScale/ baseScaleMode ref / setBaseScaleMode — зеркало pointDragMode; экспорт baseScaleMode+setBaseScaleMode) [LF]"
+      ],
+      "verify": "DONE — vue-tsc 0 ошибок (в составе TS3.1); baseScaleMode/setBaseScaleMode в return композабла, персист в localStorage, дефолт 'log'.",
+      "startedAt": "2026-07-18",
+      "finishedAt": "2026-07-18",
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "TS2.1",
+      "phase": 2,
+      "title": "Контракт панели: track-list-model.ts (baseScaleMode в TrackListSnapshot, set-base-scale-mode в TrackListAction); use-track-list-snapshot.ts (baseScaleMode: gtracks.baseScaleMode.value); track-list-actions.ts (setBaseScaleMode в TrackListGtracksApi + case) и его тест (дубль + кейс).",
+      "status": "done",
+      "dependsOn": ["TS1.2"],
+      "artifacts": [
+        "GnauralCore/ui/composables/track-list-model.ts (baseScaleMode в TrackListSnapshot; action {kind:'set-base-scale-mode', mode}) [LF]",
+        "GnauralCore/ui/composables/use-track-list-snapshot.ts (baseScaleMode: gtracks.baseScaleMode.value) [LF]",
+        "GnauralCore/ui/composables/track-list-actions.ts (setBaseScaleMode в TrackListGtracksApi; case 'set-base-scale-mode') [LF]",
+        "GnauralCore/ui/composables/track-list-actions.test.ts (дубль setBaseScaleMode + кейс set-base-scale-mode->setBaseScaleMode) [LF]",
+        "GnauralCore/ui/components/TrackListRemote.vue (EMPTY_SNAPSHOT.baseScaleMode:'log' — заглушка до первого снапшота) [LF]"
+      ],
+      "verify": "DONE — bun test ui/composables/track-list-actions.test.ts: 15 pass / 0 fail (новый кейс зелёный); vue-tsc 0 (после добавления baseScaleMode в EMPTY_SNAPSHOT TrackListRemote — было единственной missing-property ошибкой).",
+      "startedAt": "2026-07-18",
+      "finishedAt": "2026-07-18",
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "TS2.2",
+      "phase": 2,
+      "title": "GTrackView.vue: проп baseScaleMode (дефолт 'log') → gtrackAxis в autoAxis; TracksPanel.vue: :base-scale-mode=gtracks.baseScaleMode.value на GTrackView.",
+      "status": "done",
+      "dependsOn": ["TS2.1"],
+      "artifacts": [
+        "GnauralCore/ui/components/GTrackView.vue (import GTrackBaseScale; проп baseScaleMode?='log'; withDefaults 'log'; autoAxis прокидывает 5-й арг baseScaleMode в gtrackAxis) [LF]",
+        "GnauralCore/ui/components/TracksPanel.vue (:base-scale-mode=\"gtracks.baseScaleMode.value\" на GTrackView) [LF]"
+      ],
+      "verify": "DONE — vue-tsc 0; quasar build exit 0 (в составе TS3.1). autoAxis теперь зависит от baseScaleMode; для не-base дорожек параметр игнорируется в gtrackAxis.",
+      "startedAt": "2026-07-18",
+      "finishedAt": "2026-07-18",
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "TS2.3",
+      "phase": 2,
+      "title": "TrackListView.vue: q-btn-toggle «Шкала базовой частоты» (Логарифмическая/Линейная) в секции свойств редактора под «Перенос точек», эмитит set-base-scale-mode; ключи gtrackBaseScale/_log/_linear в ru.json + en.json.",
+      "status": "done",
+      "dependsOn": ["TS2.2"],
+      "artifacts": [
+        "GnauralCore/ui/components/TrackListView.vue (import GTrackBaseScale; q-btn-toggle baseScaleMode под pointDragMode в блоке v-if snapshot.isGnaural, эмит {kind:'set-base-scale-mode'}) [LF]",
+        "GnauralCore/ui/i18n/ru.json (gtrackBaseScale «Шкала базовой частоты»/_log «Логарифмическая»/_linear «Линейная») [CRLF]",
+        "GnauralCore/ui/i18n/en.json (gtrackBaseScale «Base frequency scale»/_log «Logarithmic»/_linear «Linear») [CRLF]"
+      ],
+      "verify": "DONE — vue-tsc 0; quasar build exit 0; i18n JSON (ru+en) парсится. Тумблер в секции свойств редактора «Списка треков» (gnaural-only), под «Перенос точек».",
+      "startedAt": "2026-07-18",
+      "finishedAt": "2026-07-18",
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "TS3.1",
+      "phase": 3,
+      "title": "Верификация сборкой: bun test ui server, bun run typecheck (vue-tsc), bun run build (quasar).",
+      "status": "done",
+      "dependsOn": ["TS2.3"],
+      "artifacts": [],
+      "verify": "DONE — bun test ui server: 296 pass / 0 fail (23 файла); vue-tsc --noEmit exit 0; quasar build exit 0 (server/public пересобран). Единственная всплывшая ошибка типов (TrackListRemote EMPTY_SNAPSHOT без baseScaleMode) исправлена в TS2.1. Регрессий нет.",
+      "startedAt": "2026-07-18",
+      "finishedAt": "2026-07-18",
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "TS3.2",
+      "phase": 3,
+      "title": "PAUSE (финальная приёмка): владелец гоняет реальное приложение — тумблер «Шкала базовой частоты» в «Списке треков», дорожка базовой частоты перерисовывается лог↔лин, выбор переживает перезагрузку. Владельческий чекпоинт.",
+      "status": "done",
+      "dependsOn": ["TS3.1"],
+      "artifacts": [],
+      "verify": "PASSED — владелец подтвердил приёмку («ok», 2026-07-18). Фича COMPLETE.",
+      "startedAt": "2026-07-18",
+      "finishedAt": "2026-07-18",
+      "blockedReason": null,
+      "evidence": [
+        "Владелец 2026-07-18: «ok» — приёмка в реальном приложении пройдена."
+      ]
+    }
+  ],
+  "log": [
+    {
+      "at": "2026-07-18",
+      "step": "TS1.1",
+      "text": "План + леджер созданы. Изучён паттерн pointDragMode (глобальная persist editor-настройка: use-gtrack-lanes loadDragMode/setPointDragMode → snapshot pointDragMode → action set-point-drag-mode → applyTrackListAction → q-btn-toggle в TrackListView) и прецедент scaleMode в GnauralScheduleView (log/linear q-select, persist per-scope). Ось базовой частоты (gtrackAxis, mode='base') сейчас авто log/symlog; линейная ветка бита (gtrack-render.ts:321-346) — образец для linearAutoAxis. Владелец (AskUserQuestion): место = «Список треков» глобально; метод = Plan+Ledger."
+    },
+    {
+      "at": "2026-07-18",
+      "step": "TS3.1",
+      "text": "Фазы 1-2 реализованы и верифицированы одним проходом. gtrack-render: linearAutoAxis вынесен из ветки beat и переиспользован; gtrackAxis получил 5-й параметр baseScale='log' (обратно совместимо), при 'linear' ветка mode='base' строит линейную ось (symlog не нужен — 0 ставится напрямую). Persist в use-gtrack-lanes (зеркало pointDragMode). Контракт панели: baseScaleMode в snapshot + action set-base-scale-mode + applier (+тест). Проводка: GTrackView проп → gtrackAxis, TracksPanel передаёт gtracks.baseScaleMode.value. UI: q-btn-toggle «Шкала базовой частоты» в TrackListView под «Перенос точек» + i18n ru/en. Верификация: bun test ui server 296/0, vue-tsc 0, quasar build 0. Одна всплывшая ошибка типов (TrackListRemote EMPTY_SNAPSHOT без нового поля) исправлена. Все файлы GnauralCore/ui на LF, i18n на CRLF — EOL сохранён. Остаётся TS3.2 — PAUSE, приёмка владельцем в реальном приложении. Коммиты не делал (жду отмашки владельца)."
+    },
+    {
+      "at": "2026-07-18",
+      "step": "TS3.2",
+      "text": "PAUSE TS3.2 ПРОЙДЕН — владелец подтвердил приёмку («ok»). Фича track-scale-mode COMPLETE. Атомарные коммиты по шагам: GnauralCore (код по TS1.1/TS1.2/TS2.1/TS2.2/TS2.3, застейджены только свои файлы) + MindWaveCore (docs-леджер). Общие/рантайм-файлы владельца не трогал."
+    }
+  ]
+}
