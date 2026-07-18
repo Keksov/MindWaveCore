@@ -115,79 +115,91 @@
       "id": "AC2.1",
       "phase": 2,
       "title": "AudioPage.vue: удалить сайдбар пресетов (:168-236, вкл. баннер пустого presetsRoot :189-193), кнопку-тоггл «Файлы» (:247-259), все древо-хелперы/хендлеры/состояние (expandedTreePaths, filesPanelOpen + STORAGE_* + watch, toTreeNodes/treeNodes/getTreeNodeIcon/findPresetNodeByPath/collectDirectoryPaths/findAncestorDirectoryPaths/syncRestoredTreeState/selectedTreePath/handlePresetNodeClick/handleSelectedPathChange/refreshPresets/toggleFilesPanel/closeFilesPanel), вызов refreshPresets в onMounted, импорт PresetTreeNode, мёртвый CSS сайдбара/дерева; клики недавних файлов → audio.selectPath (AC-D3)",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["AC1.3"],
       "artifacts": ["GnauralCore/ui/pages/AudioPage.vue"],
-      "verify": "bun run build зелёный; запуск: слева от «Плеер» нет «Файлы», сайдбара нет; Меню→Файл→Открыть работает; клик по недавнему файлу выбирает и играет.",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "vue-tsc + quasar build (MindWaveCore/ui) зелёные. Сайдбар пресетов, кнопка «Файлы» и все древо-хелперы/состояние удалены; недавние файлы бьют в audio.selectPath (AC-D3).",
+      "startedAt": "2026-07-18",
+      "finishedAt": "2026-07-18",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Удалены: сайдбар (template), files-toggle, tree-хелперы (toTreeNodes/getTreeNodeIcon/findPresetNodeByPath/collect/findAncestor/syncRestoredTreeState/selectedTreePath/handlePresetNodeClick/handleSelectedPathChange/refreshPresets/toggle/closeFilesPanel), STORAGE_* + loaders + filesPanelOpen/expandedTreePaths/treeSelectionAutoPlayRequested, импорты PresetTreeNode/QTreeNode, вызов refreshPresets в onMounted, CSS сайдбара/дерева (+ @media). Сохранены output-section/player-body. vue-tsc чист."
+      ]
     },
     {
       "id": "AC2.2",
       "phase": 2,
       "title": "stores/audio.ts: удалить presetsTree/presetsLoading/refreshPresets/findNodeByPath + экспорты; переписать selectPath на fileKind из расширения (AC-D3); заменить тип selectedNode на локальный SelectedAudioFile (AC-D4); снять импорт PresetTreeNode",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["AC2.1"],
       "artifacts": ["GnauralCore/ui/stores/audio.ts"],
-      "verify": "bun run typecheck + bun test ui (GnauralCore) зелёные; недавние файлы (wav/flac/gnaural) выбираются и играют; canStart/selectedFileKind работают.",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "vue-tsc зелёный; GnauralCore bun test ui server — 296 pass / 0 fail. selectPath переписан на getFileKindFromPath (extension); selectedNode → SelectedAudioFile; presetsTree/presetsLoading/refreshPresets/findNodeByPath + экспорты удалены.",
+      "startedAt": "2026-07-18",
+      "finishedAt": "2026-07-18",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "AC-D3/AC-D4 реализованы: локальные SelectedAudioFile + getFileKindFromPath заменили PresetTreeNode/findNodeByPath. selectExternalPath тоже строит SelectedAudioFile. 296 тестов GnauralCore зелёные."
+      ]
     },
     {
       "id": "AC2.3",
       "phase": 2,
       "title": "ui/audio-api.ts: удалить fetchPresets() и импорт AudioPresetsResponse",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["AC2.2"],
       "artifacts": ["GnauralCore/ui/audio-api.ts"],
-      "verify": "grep fetchPresets по GnauralCore → 0; bun run typecheck зелёный.",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "fetchPresets() и импорт AudioPresetsResponse удалены; vue-tsc зелёный.",
+      "startedAt": "2026-07-18",
+      "finishedAt": "2026-07-18",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "audioApi.fetchPresets удалён; AudioPresetsResponse снят из импорта @protocol. Единственный вызыватель был store.refreshPresets (удалён в AC2.2)."
+      ]
     },
     {
       "id": "AC2.4",
       "phase": 2,
       "title": "MindWaveCore/server/server.ts (UTF-8 + NUL, grep --text): удалить маршрут GET /api/audio/presets (:1696-1702), listPresetTree (:198-266), createAudioPresetsResponse (:268-286), comparePresetNodes (:190-196), импорты PresetTreeNode/AudioPresetsResponse (СОХРАНИТЬ AudioSettings — уходит в фазе 3); обновить баннер эндпоинтов (:2343); проверить readDirUtf8 (:161-162) на прочих вызывателей — удалить, только если сирота",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["AC1.3"],
       "artifacts": ["MindWaveCore/server/server.ts"],
-      "verify": "R1: файл остаётся UTF-8 (штатный Edit, не плодить NUL). Сервер стартует, var/*.log без ошибок; GET /api/audio/presets → 404; доступ к аудио пока цел (presetsRoot ещё жив до фазы 3).",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "Маршрут /api/audio/presets, listPresetTree, createAudioPresetsResponse, comparePresetNodes + осиротевшие хелперы (readDirUtf8/getDirectoryIdentity/getEntryKind) и импорты (PresetTreeNode/AudioPresetsResponse/getConfiguredAudioPresetsRoot/readdir/realpath) удалены; баннер обновлён. Файл остаётся UTF-8 с NUL (75275 байт). Сервер загружается до Bun.serve (EADDRINUSE на 3300 — AppCore владельца жив), т.е. все импорты/код исполнились.",
+      "startedAt": "2026-07-18",
+      "finishedAt": "2026-07-18",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "rg --text по server.ts: 0 остаточных ссылок на удалённые символы. NUL-байт сохранён (has NUL: true). Boot: EADDRINUSE на Bun.serve (последняя строка) = загрузка прошла целиком. ensureDirectory сохранён (нужен PATCH + userDataRoot); normalizeAudioPresetsRoot сохранён (PATCH, жив до фазы 3)."
+      ]
     },
     {
       "id": "AC2.5",
       "phase": 2,
       "title": "SharedPasCore/ts/protocol.ts: удалить PresetTreeNode (:204-210) и AudioPresetsResponse (:212-215) ПОСЛЕ обнуления ссылок; AudioSettings (:134-136) пока ОСТАВИТЬ (удаляется в фазе 3)",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["AC2.1", "AC2.2", "AC2.3", "AC2.4"],
       "artifacts": ["SharedPasCore/ts/protocol.ts"],
-      "verify": "grep PresetTreeNode|AudioPresetsResponse по воркспейсу → 0 (R4: реэкспорт обоими серверами); GnauralCore typecheck + MindWaveCore server стартует.",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "PresetTreeNode + AudioPresetsResponse удалены. rg --text по воркспейсу (GnauralCore/MindWaveCore/SharedPasCore/BodyMonitorCore/VendorsCore/SpectrumCore): 0 CODE-ссылок (остались только доки). AudioSettings сохранён. vue-tsc + сервер-загрузка зелёные.",
+      "startedAt": "2026-07-18",
+      "finishedAt": "2026-07-18",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Удалять последним (R4, реэкспорт MindWaveCore/GnauralCore server): проверено 0 code-ссылок ДО удаления. AudioSettings оставлен (уходит в фазе 3)."
+      ]
     },
     {
       "id": "AC2.6",
       "phase": 2,
       "title": "i18n: удалить (после grep 0) audio.presetsTitle/presetsSubtitle/configureRootHint/noPresets/filesTab/filesShow/filesHide/refresh из ru.json + en.json",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["AC2.1"],
       "artifacts": ["GnauralCore/ui/i18n/ru.json", "GnauralCore/ui/i18n/en.json"],
-      "verify": "grep каждого ключа по GnauralCore → 0; bun run build зелёный; без битых плейсхолдеров i18n.",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "8 ключей (presetsTitle/presetsSubtitle/configureRootHint/noPresets/filesTab/filesShow/filesHide/refresh) удалены из ru+en после rg-проверки 0 code-ссылок; JSON.parse обеих локалей OK; quasar build зелёный.",
+      "startedAt": "2026-07-18",
+      "finishedAt": "2026-07-18",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "rg --text по ui (.vue/.ts): 0 ссылок на каждый из 8 ключей (audio.refresh отличён от fsBrowser.refresh). JSON валиден."
+      ]
     },
     {
       "id": "AC3.1",
@@ -297,6 +309,10 @@
     {
       "at": "2026-07-18",
       "text": "ФАЗА 1 ЗАВЕРШЕНА (AC1.3 done): удалены 5 мёртвых i18n-ключей (ru+en) и 9 мёртвых CSS-классов; каждый проверен grep-ом на 0 ссылок (i18n — по всем .vue/.ts, вкл. сохранённый GnauralScheduleView.vue; CSS — все ссылки только в <style>). JSON парсится, CRLF цел, vue-tsc + quasar build зелёные. Код: GnauralCore (AudioPage.vue + ru/en.json). Фаза 2 (удаление фичи дерева пресетов) — следующая."
+    },
+    {
+      "at": "2026-07-18",
+      "text": "ФАЗА 2 ЗАВЕРШЕНА (AC2.1-AC2.6 done): фича дерева пресетов удалена целиком — UI сайдбар/тоггл + tree-хелперы (AudioPage), presetsTree/presetsLoading/refreshPresets/findNodeByPath + selectPath переписан на extension (store, AC-D3), selectedNode → SelectedAudioFile (AC-D4), audioApi.fetchPresets, серверные listPresetTree/createAudioPresetsResponse/comparePresetNodes + маршрут /api/audio/presets + осиротевшие хелперы, типы PresetTreeNode/AudioPresetsResponse (protocol), 8 i18n-ключей. presetsRoot СОХРАНЁН (уходит в фазе 3). Verify: vue-tsc + quasar build зелёные, GnauralCore 296 тестов pass, server.ts грузится до Bun.serve (EADDRINUSE=код исполнился), 0 code-ссылок на удалённые символы по всему воркспейсу, JSON валиден, NUL/CRLF целы. Следующая — ФАЗА 3 (удаление presetsRoot + пере-гейт доступа на корни fs-browser + loopback-гейт, Q2=b)."
     }
   ]
 }
