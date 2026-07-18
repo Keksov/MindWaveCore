@@ -3,9 +3,9 @@
   "plan": "voice-settings-redesign",
   "planDoc": "docs/voice-settings-redesign/voice-settings-redesign-plan.md",
   "title": "voice-settings-redesign: the per-track gear + point-mode buttons move from the graph overlay into the track's header bar; the «Настройки дорожки» dialog becomes a two-pane form (variant B); solo-spectrum and solo-wave sublane gears get their OWN dialogs (per-lane spectrum settings with «Сброс»-to-inherit; wave colour+opacity), and those sections leave the track dialog",
-  "status": "done",
+  "status": "in-progress",
   "createdAt": "2026-07-16",
-  "updatedAt": "2026-07-17",
+  "updatedAt": "2026-07-18",
   "decisions": [
     {
       "id": "VS-D1",
@@ -18,6 +18,10 @@
     {
       "id": "VS-D3",
       "text": "REVISED AGAIN 2026-07-17 — rev 3 (owner after VS2.4): «Окно настроек соло-спектра должно быть оформлено в виде стандартного докабл-детачбл окна, как у общего спектра». So not only the FORM is the standard one (rev 2), the WINDOW CHROME is too: a PanelWindow @panel exactly like the overall spectrum's «Параметры» (SpectrumSettingsDialog is the model). Built in VS2.7: stores/lane-spectrum-panel.ts (panelId 'lane-spectrum-settings', floating default, + a module-level target-lane ref — ONE panel instance retargeted per gear click, the SG-D7 pattern), LaneSpectrumSettingsDialog.vue (PanelWindow chrome hosting the mono SpectrogramOverridesView lazily; applies both local and bridged actions to the lane override), LaneSpectrumSettingsRemote.vue (detached child, mono twin of SpectrogramOverridesRemote, SS-D3: no child-side store) + module.ts panels entry; hosted in AudioPage's shared dock-wrap (Teleport-to-body when floating, joins dockWrapClass). The q-dialog host from rev 2 is deleted from TracksPanel — the gear just sets the target lane + opens the shared panel state. --- rev 2 (owner at the VS2.3 PAUSE, still true for the CONTENT): «в точности тот самый диалог… 100% переиспользование готового контрола», в режиме Моно — SpectrogramOverridesView gained the `mono` prop (hides the L/R nav); the channel-based OverridesSnapshot/ActionContext contract fits mono naturally (channel0=channel1=laneOverride; setChannel/setBoth→setLaneSpectrum, clear*→clearLaneSpectrum), preserving SG-D8 auto-individual + presets-apply + «Сброс»→inherit as the view's own chrome. GTrackSpectrumSettings is NOT the reused control — it dies with the track-dialog section in VS3.1. Still true from rev 1: the toggle+accordion leave the track dialog (owner req. 2); inline placement has no gear (VS0.1). SUPERSEDED: rev 2's q-dialog host (built VS2.4, replaced by the panel in VS2.7); rev 1's bespoke GTrackSpectrumSettings dialog (built VS2.1, rejected at VS2.3)."
+    },
+    {
+      "id": "VS-D5",
+      "text": "PHASE 4 DESIGN (owner requirement 2026-07-18, verbatim: «Рефактор формы отображения графиков в настройках дорожки. 1. Режим отображения нужно переименовать в Реживы отображения 2. Все режимы нужно сразу вывести на форму в виде отдельных блоков видимых сразу (уйти от текущих вкладок Ьазовая частота, Частота биений, Громкость, Баланс. 3. В каждом блоке должен появиться чекбокс Отображать на графике. Какие графики выбраны, такие и отображаем.») — the checkbox-per-mode form implies MULTIPLE simultaneous modes per lane, so the single lane.mode becomes modes: GTrackMode[] with a per-mode graph stack in the lane. OPEN at the VS4.0 PAUSE: (а) render = stacked per-mode GTrackViews inside the lane (own resize each; recommended — mirrors the solo sub-graph stack) vs overlaying curves in one canvas (axes clash); (б) zero checked = forbid unchecking the last one (recommended) vs a curve-less lane; (в) «Полоса бита» moves INSIDE the «Базовая частота» block; (г) how the track-list bulk actions (set-voice-mode, «Показать все режимы» = today one lane per voice×mode) re-express over modes[]."
     },
     {
       "id": "VS-D4",
@@ -250,14 +254,90 @@
       "status": "done",
       "dependsOn": ["VS3.1"],
       "artifacts": [],
-      "verify": "PASSED — owner «ok» (2026-07-17) after driving the real app: the two-pane track dialog (incl. legacy 'both' configs mapping onto the Волна/Спектр toggles) and the whole re-homed settings surface (header gear+point-mode, lane spectrum panel, lane wave mono dialog, overall link toggle, entity captions). Feature COMPLETE.",
+      "verify": "PASSED — owner «ok» (2026-07-17) after driving the real app: the two-pane track dialog (incl. legacy 'both' configs mapping onto the Волна/Спектр toggles) and the whole re-homed settings surface (header gear+point-mode, lane spectrum panel, lane wave mono dialog, overall link toggle, entity captions). Feature COMPLETE (phases 0-3; phase 4 added 2026-07-18 reopened the ledger).",
       "startedAt": "2026-07-17",
       "finishedAt": "2026-07-17",
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "VS4.0",
+      "phase": 4,
+      "title": "Фаза 4 (owner 2026-07-18): рефактор секции «График» → «Режимы отображения» с четырьмя всегда видимыми блоками и чекбоксом «Отображать на графике» в каждом. Разведка + план + PAUSE: owner решает VS-D5 (стек графиков vs наложение; запрет нуля; полоса бита в блоке базы; судьба массовых действий)",
+      "status": "active",
+      "dependsOn": ["VS3.2"],
+      "artifacts": [
+        "docs/voice-settings-redesign/voice-settings-redesign-plan.md §6.5 (реквизиты дословно + инвентаризация + VS-D5 + шаги VS4.x)"
+      ],
+      "verify": "Owner answers the VS-D5 questions at the PAUSE",
+      "startedAt": "2026-07-18",
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": [
+        "The checkbox form is a MODEL change, not a dialog skin: lane.mode is singular (use-gtrack-lanes.ts:32) and is read by the renderer (GTrackView :mode — axis, beat band, point mapping), point dragging (dragPoint(..., lane.mode)), the lane label (gtrackLaneLabel), per-lane curveHeight (ONE curve graph per lane today), and the track-list bulk actions.",
+        "«Все режимы» already exists as a LAYOUT action (showAllModesPerVoice — one lane per voice×mode, use-gtrack-lanes.ts:967-976); phase 4 moves that capability INTO a single lane (modes[]), so the bulk actions need re-expression (VS-D5г).",
+        "The natural render shape is the existing stack pattern: the lane already stacks solo wave/spectrum sub-graphs under the curve with per-graph heights (GT11.7) — per-mode curve graphs slot into the same architecture."
+      ]
+    },
+    {
+      "id": "VS4.1",
+      "phase": 4,
+      "title": "Модель: lane.mode → modes: GTrackMode[] (+пер-режимные высоты), миграция stored/project персиста, адаптация setVoiceMode/setAllLanesMode/showAllModesPerVoice и track-list",
+      "status": "pending",
+      "dependsOn": ["VS4.0"],
+      "artifacts": [],
+      "verify": "bun test ui server (GnauralCore); bun run typecheck + build (MindWaveCore/ui)",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "VS4.2",
+      "phase": 4,
+      "title": "Секция «График» диалога → «Режимы отображения»: четыре всегда видимых блока (Базовая частота / Частота биений / Громкость / Баланс), в каждом чекбокс «Отображать на графике»; «Полоса бита» внутри блока базовой частоты; i18n ru/en",
+      "status": "pending",
+      "dependsOn": ["VS4.1"],
+      "artifacts": [],
+      "verify": "bun test ui server (GnauralCore); typecheck + build (MindWaveCore/ui)",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "VS4.3",
+      "phase": 4,
+      "title": "Рендер: стек GTrackView по выбранным режимам внутри дорожки (ось времени/плейхед/пер-графиковые ресайзы/фолд/подпись дорожки)",
+      "status": "pending",
+      "dependsOn": ["VS4.1"],
+      "artifacts": [],
+      "verify": "bun test ui server (GnauralCore); typecheck + build (MindWaveCore/ui); реальное приложение",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "VS4.4",
+      "phase": 4,
+      "title": "PAUSE — финальная owner-приёмка фазы 4",
+      "status": "pending",
+      "dependsOn": ["VS4.2", "VS4.3"],
+      "artifacts": [],
+      "verify": "Owner подтверждает",
+      "startedAt": null,
+      "finishedAt": null,
       "blockedReason": null,
       "evidence": []
     }
   ],
   "log": [
+    {
+      "at": "2026-07-18",
+      "step": "VS4.0",
+      "text": "Phase 4 opened on an owner follow-up: the dialog's «График» section becomes «Режимы отображения» — four always-visible mode blocks, each with an «Отображать на графике» checkbox; checked modes render. Recon: this is a model change (single lane.mode → modes[]) with a per-mode graph stack in the lane (the solo sub-graph stack is the architectural precedent) + persist migration + re-expression of the track-list bulk mode actions. Plan §6.5 + VS-D5 + steps VS4.1-VS4.4 written; ledger reopened (in-progress). At the VS4.0 PAUSE: стек vs наложение, запрет нуля, полоса бита в блоке базы, судьба массовых действий."
+    },
     {
       "at": "2026-07-17",
       "step": "VS3.2",
