@@ -21,7 +21,7 @@
     },
     {
       "id": "VS-D5",
-      "text": "PHASE 4 DESIGN (owner requirement 2026-07-18, verbatim: «Рефактор формы отображения графиков в настройках дорожки. 1. Режим отображения нужно переименовать в Реживы отображения 2. Все режимы нужно сразу вывести на форму в виде отдельных блоков видимых сразу (уйти от текущих вкладок Ьазовая частота, Частота биений, Громкость, Баланс. 3. В каждом блоке должен появиться чекбокс Отображать на графике. Какие графики выбраны, такие и отображаем.») — the checkbox-per-mode form implies MULTIPLE simultaneous modes per lane, so the single lane.mode becomes modes: GTrackMode[] with a per-mode graph stack in the lane. OPEN at the VS4.0 PAUSE: (а) render = stacked per-mode GTrackViews inside the lane (own resize each; recommended — mirrors the solo sub-graph stack) vs overlaying curves in one canvas (axes clash); (б) zero checked = forbid unchecking the last one (recommended) vs a curve-less lane; (в) «Полоса бита» moves INSIDE the «Базовая частота» block; (г) how the track-list bulk actions (set-voice-mode, «Показать все режимы» = today one lane per voice×mode) re-express over modes[]."
+      "text": "PHASE 4 DESIGN (owner requirement 2026-07-18, verbatim: «Рефактор формы отображения графиков в настройках дорожки. 1. Режим отображения нужно переименовать в Реживы отображения 2. Все режимы нужно сразу вывести на форму в виде отдельных блоков видимых сразу (уйти от текущих вкладок Ьазовая частота, Частота биений, Громкость, Баланс. 3. В каждом блоке должен появиться чекбокс Отображать на графике. Какие графики выбраны, такие и отображаем.») — the checkbox-per-mode form implies MULTIPLE simultaneous modes per lane: lane.mode becomes modes: GTrackMode[] with a per-mode graph stack in the lane. RESOLVED at the VS4.0 PAUSE (owner, 2026-07-18): (а) render = STACKED per-mode graphs inside the lane («Стек графиков»); (б) zero checked is ALLOWED — «Добавь в диалог настроек иконку-глаз. Если не выбран ни один режим, то дорожка скрывается»: an all-unchecked lane leaves the visible stack (listed among hidden; setLaneHidden(false) re-seeds the voice's default mode so «show» never yields an empty lane), and the dialog header gets a visibility EYE toggling lane.hidden; (в) «Полоса бита» moves INSIDE the «Базовая частота» block (and the owner's new balance band goes inside «Громкость», both inert while their mode is unchecked); (г) bulk actions: «Это должен быть новый режим на форме Список треков, существующие режимы отображения не трогаем» — existing actions keep their lane-per-mode/single-mode semantics, a NEW track-list action «Все режимы в одной дорожке» (show-all-modes-stacked → allModesOneLanePerVoice) builds the per-voice stacks."
     },
     {
       "id": "VS-D4",
@@ -263,15 +263,15 @@
     {
       "id": "VS4.0",
       "phase": 4,
-      "title": "Фаза 4 (owner 2026-07-18): рефактор секции «График» → «Режимы отображения» с четырьмя всегда видимыми блоками и чекбоксом «Отображать на графике» в каждом. Разведка + план + PAUSE: owner решает VS-D5 (стек графиков vs наложение; запрет нуля; полоса бита в блоке базы; судьба массовых действий)",
-      "status": "active",
+      "title": "Фаза 4 (owner 2026-07-18): рефактор секции «График» → «Режимы отображения» с четырьмя всегда видимыми блоками и чекбоксом «Отображать на графике» в каждом. Разведка + план + PAUSE ПРОЙДЕНА: стек графиков; ноль разрешён (дорожка скрывается) + глаз в диалоге; полосы внутрь блоков; массовые действия не трогаем + новый режим в «Списке треков»",
+      "status": "done",
       "dependsOn": ["VS3.2"],
       "artifacts": [
         "docs/voice-settings-redesign/voice-settings-redesign-plan.md §6.5 (реквизиты дословно + инвентаризация + VS-D5 + шаги VS4.x)"
       ],
-      "verify": "Owner answers the VS-D5 questions at the PAUSE",
+      "verify": "PASSED — owner picked at the PAUSE (AskUserQuestion, 2026-07-18): «Стек графиков»; zero-checked → «иконка-глаз в диалоге + дорожка скрывается»; «Да, в блок базы»; bulk = «новый режим на форме Список треков, существующие не трогаем». All recorded in VS-D5.",
       "startedAt": "2026-07-18",
-      "finishedAt": null,
+      "finishedAt": "2026-07-18",
       "blockedReason": null,
       "evidence": [
         "The checkbox form is a MODEL change, not a dialog skin: lane.mode is singular (use-gtrack-lanes.ts:32) and is read by the renderer (GTrackView :mode — axis, beat band, point mapping), point dragging (dragPoint(..., lane.mode)), the lane label (gtrackLaneLabel), per-lane curveHeight (ONE curve graph per lane today), and the track-list bulk actions.",
@@ -282,41 +282,58 @@
     {
       "id": "VS4.1",
       "phase": 4,
-      "title": "Модель: lane.mode → modes: GTrackMode[] (+пер-режимные высоты), миграция stored/project персиста, адаптация setVoiceMode/setAllLanesMode/showAllModesPerVoice и track-list",
-      "status": "pending",
+      "title": "Модель: lane.mode → modes: GTrackMode[] (+пер-режимные высоты modeHeights), миграция stored/project персиста, адаптация массовых действий, новый track-list-экшен «Все режимы в одной дорожке»",
+      "status": "done",
       "dependsOn": ["VS4.0"],
-      "artifacts": [],
-      "verify": "bun test ui server (GnauralCore); bun run typecheck + build (MindWaveCore/ui)",
-      "startedAt": null,
-      "finishedAt": null,
+      "artifacts": [
+        "GnauralCore/ui/composables/use-gtrack-lanes.ts (GTrackLane/ResolvedGTrackLane/StoredLane: modes[] + modeHeights; toModes/sanitizeModeHeights миграция — legacy mode читается, mode=modes[0] пишется для даунгрейда; visibleLanes исключает modes=[]; hiddenLanes включает их; setLaneHidden(false) ресидит дефолтный режим; toggleLaneMode; allModesOneLanePerVoice; setLaneMode/setVoiceMode/setAllLanesMode → [mode]; mergeAll наследует modes; voiceMode → null при мультирежиме; setLaneGraphHeight(…, mode) пишет modeHeights[mode]; Ctrl/Shift-resize сбрасывают modeHeights в uniform) — НЕ ЗАКОММИЧЕН, см. evidence",
+        "GnauralCore/ui/composables/track-list-model.ts + track-list-actions.ts ('show-all-modes-stacked' → allModesOneLanePerVoice)",
+        "GnauralCore/ui/components/TrackListView.vue (кнопка view_agenda «Все режимы в одной дорожке»)",
+        "GnauralCore/ui/i18n/ru+en (gtrackAllModesStacked)"
+      ],
+      "verify": "DONE — vue-tsc 0 errors; quasar build exit 0; bun test ui server 291 pass / 0 fail (тестов стало больше — владелец параллельно ведёт баланс-полосу VB2.1). Runtime — owner на VS4.4.",
+      "startedAt": "2026-07-18",
+      "finishedAt": "2026-07-18",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "COMMIT DEFERRED (R3 materialized the other way round): GTrackView.vue / TracksPanel.vue / use-gtrack-lanes.ts also carry the OWNER'S UNCOMMITTED balance-band (VB2.1) work (gtrack-model/render + tests are wholly theirs, all green). Staging those files whole would sweep their WIP into a VS commit — held off; the owner decides the commit order (their VB commit first, then VS4.x cleanly).",
+        "Migration is two-way tolerant: old storage (single mode) loads as modes=[mode]; new storage still writes mode=modes[0] so a downgraded build reads something sane; an explicit modes=[] round-trips (the «hidden by modes» state survives reload)."
+      ]
     },
     {
       "id": "VS4.2",
       "phase": 4,
-      "title": "Секция «График» диалога → «Режимы отображения»: четыре всегда видимых блока (Базовая частота / Частота биений / Громкость / Баланс), в каждом чекбокс «Отображать на графике»; «Полоса бита» внутри блока базовой частоты; i18n ru/en",
-      "status": "pending",
+      "title": "Секция «График» диалога → «Режимы отображения»: четыре всегда видимых блока с чекбоксом «Отображать на графике»; «Полоса бита» внутри блока базы (и владельческая «полоса баланса» внутри блока громкости), inert при снятом чекбоксе; иконка-глаз видимости дорожки в заголовке диалога; i18n ru/en",
+      "status": "done",
       "dependsOn": ["VS4.1"],
-      "artifacts": [],
-      "verify": "bun test ui server (GnauralCore); typecheck + build (MindWaveCore/ui)",
-      "startedAt": null,
-      "finishedAt": null,
+      "artifacts": [
+        "GnauralCore/ui/components/TracksPanel.vue (секция «График»: v-for GTRACK_MODES → .tracks-panel__mode-block с заголовком режима + чекбоксом toggleLaneMode; полосы бита/баланса внутри своих блоков c :disable; глаз в шапке диалога → setLaneHidden; CSS блока) [CRLF] — НЕ ЗАКОММИЧЕН (см. VS4.1 evidence)",
+        "GnauralCore/ui/i18n/ru+en (gtrackModeLabel → «Режимы отображения»/Display modes; gtrackModeShow «Отображать на графике»/Show on the graph)"
+      ],
+      "verify": "DONE — vue-tsc 0; build 0; 291/0. Runtime — owner на VS4.4.",
+      "startedAt": "2026-07-18",
+      "finishedAt": "2026-07-18",
       "blockedReason": null,
       "evidence": []
     },
     {
       "id": "VS4.3",
       "phase": 4,
-      "title": "Рендер: стек GTrackView по выбранным режимам внутри дорожки (ось времени/плейхед/пер-графиковые ресайзы/фолд/подпись дорожки)",
-      "status": "pending",
+      "title": "Рендер: стек GTrackView по выбранным режимам внутри дорожки (ось времени/плейхед/пер-графиковые ресайзы/фолд/подпись дорожки/подпись режима на графике)",
+      "status": "done",
       "dependsOn": ["VS4.1"],
-      "artifacts": [],
-      "verify": "bun test ui server (GnauralCore); typecheck + build (MindWaveCore/ui); реальное приложение",
-      "startedAt": null,
-      "finishedAt": null,
+      "artifacts": [
+        "GnauralCore/ui/components/TracksPanel.vue (curve-зона → template v-for по lane.modes: контейнер+GTrackView+ресайз-ручка на каждый режим; инлайн-подложка/side-actions/верхняя ось времени — только у ПЕРВОГО графика стека; :mode/:height=modeHeights[gmode]; drag-move несёт режим своего графика; подпись графика = имя режима при >1; шапка дорожки перечисляет режимы через « + »; onGraphResizeDown/Target несут mode) [CRLF] — НЕ ЗАКОММИЧЕН (см. VS4.1 evidence)",
+        "GnauralCore/ui/components/GTrackView.vue (новый проп showSideActions, default true — левый хром только у первого графика) [CRLF] — НЕ ЗАКОММИЧЕН"
+      ],
+      "verify": "DONE — vue-tsc 0; build 0; 291/0. Runtime-визуал (стек, ресайзы, точки в каждом режиме, фолд, скрытие при нуле режимов) — owner на VS4.4.",
+      "startedAt": "2026-07-18",
+      "finishedAt": "2026-07-18",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Selection/point-mode are LANE-level and shared by every graph of the stack — the same vertex highlights in all modes (each shows its own value axis), and a drag in one graph edits via that graph's mode mapping.",
+        "The inline solo underlay renders under the FIRST graph only (a per-graph underlay would draw N waves); flagged for the owner's eye at VS4.4."
+      ]
     },
     {
       "id": "VS4.4",
@@ -333,6 +350,11 @@
     }
   ],
   "log": [
+    {
+      "at": "2026-07-18",
+      "step": "VS4.1 / VS4.2 / VS4.3",
+      "text": "Phase 4 implemented same-day after the PAUSE: modes[] model (+modeHeights, two-way-tolerant migration), «Режимы отображения» blocks with per-mode checkboxes + dialog eye, per-mode graph stack rendering, new track-list action «Все режимы в одной дорожке». Verify green: vue-tsc 0, quasar build 0, bun test 291/0. GNAURAL COMMITS DEFERRED: GTrackView/TracksPanel/use-gtrack-lanes also carry the owner's uncommitted balance-band (VB2.1) WIP — staging them whole would sweep it; awaiting the owner's call on commit order (see VS4.1 evidence). Next: VS4.4 owner acceptance."
+    },
     {
       "at": "2026-07-18",
       "step": "VS4.0",
