@@ -9,7 +9,7 @@
   "decisions": [
     {
       "id": "AC-D1",
-      "text": "«Воспроизведение» = внутренняя вкладка `main` плеера внутри «Плеер» (AudioPage.vue: q-tabs `activePlayerViewTab`, панели main/tracks). Лейбл ДИНАМИЧЕСКИЙ: .gnaural → «Расписание» (t('audio.scheduleTab'), <gnaural-schedule-view>), wav/flac → «Воспроизведение» (t('audio.playbackTab'), плейсхолдер: транспорт + подсказка t('audio.spectrogramTabHint')). Владелец 2026-07-18 выбрал «Всю вкладку main (и «Расписание»)» → удаляем ВСЮ вкладку main (обе формы), плеер = единственный вид «Треки»: панель под-вкладок (AudioPage.vue:281-296) исчезает, содержимое `tracks` (:381-406) поднимается в тело плеера. ПРЕМИСА ПРОВЕРЕНА чтением кода: (1) TracksPanel рендерит расписание .gnaural как gtrack-дорожки — showGtracks (TracksPanel.vue:1356), рендер лейнов (:144-145), ошибки дампа (:11-14); удаление «Расписание» не теряет функциональности. (2) Транспорт переживает через слот #toolbar Треков (AudioPage.vue:391-403 → TracksPanel.vue:23); экземпляры в main (:312,:358) умирают с блоком. МЁРТВЫЙ КОД после удаления: computeds playerViewMainTabLabel/Icon (:954-960), showStandalonePlayerControls (:946-952), showEmbeddedScheduleView (:983-988); scheduleViewRef + interface GnauralScheduleViewHandle (:491-493,578); async-импорт и ФАЙЛ GnauralScheduleView.vue (сирота — единств. импорт :520/342, прочее — комментарии TracksPanel.vue:20,2950 и gtrack-render.ts:193,352); handlePlayerKeyDown (:1104-1145) целиком + addEventListener (:1330/1334) + nav-рефы spectrogramNavRef/waveformNavRef/trackEditorNav/SPECTROGRAM_NAV_KEYS/SpectrogramNavHandle (:1088-1093,1119-1128 — уже мертвы, не биндятся в шаблоне после WS2.1; TracksPanel владеет хоткеями); watch(audio.displayMode) (:1348-1360). activePlayerViewTab схлопывается в константу; тело ensureSpectrogramPrepared СОХРАНЯЕТСЯ (декод wav/flac для Треки), снимаются лишь гварды по вкладке (:832,840,753-754). Фаза 1 от Q1/Q2 НЕ зависит."
+      "text": "«Воспроизведение» = внутренняя вкладка `main` плеера внутри «Плеер» (AudioPage.vue: q-tabs `activePlayerViewTab`, панели main/tracks). Лейбл ДИНАМИЧЕСКИЙ: .gnaural → «Расписание» (t('audio.scheduleTab'), <gnaural-schedule-view>), wav/flac → «Воспроизведение» (t('audio.playbackTab'), плейсхолдер: транспорт + подсказка t('audio.spectrogramTabHint')). Владелец 2026-07-18 выбрал «Всю вкладку main (и «Расписание»)» → удаляем ВСЮ вкладку main (обе формы), плеер = единственный вид «Треки»: панель под-вкладок (AudioPage.vue:281-296) исчезает, содержимое `tracks` (:381-406) поднимается в тело плеера. ПРЕМИСА ПРОВЕРЕНА чтением кода: (1) TracksPanel рендерит расписание .gnaural как gtrack-дорожки — showGtracks (TracksPanel.vue:1356), рендер лейнов (:144-145), ошибки дампа (:11-14); удаление «Расписание» не теряет функциональности. (2) Транспорт переживает через слот #toolbar Треков (AudioPage.vue:391-403 → TracksPanel.vue:23); экземпляры в main (:312,:358) умирают с блоком. МЁРТВЫЙ КОД после удаления: computeds playerViewMainTabLabel/Icon (:954-960), showStandalonePlayerControls (:946-952), showEmbeddedScheduleView (:983-988); scheduleViewRef + interface GnauralScheduleViewHandle (:491-493,578); async-импорт GnauralScheduleView В AudioPage (:520/342 — удаляется ТОЛЬКО использование в AudioPage). ИСПРАВЛЕНО 2026-07-18: сам файл GnauralScheduleView.vue НЕ сирота и НЕ удаляется — у него КРОСС-РЕПО потребители (MindWaveCore/ui/components/ArchiveReplayView.vue:460, BodyMonitorCore/ui/pages/MonitoringPage.vue:333, реэкспорт MindWaveCore/ui/src/components/GnauralScheduleView.vue:2). Первый проход-инвентаризация грепал только GnauralCore и ошибочно счёл его сиротой — поймано vue-tsc при удалении (память verify-the-load-bearing-premise). handlePlayerKeyDown (:1104-1145) целиком + addEventListener (:1330/1334) + nav-рефы spectrogramNavRef/waveformNavRef/trackEditorNav/SPECTROGRAM_NAV_KEYS/SpectrogramNavHandle (:1088-1093,1119-1128 — уже мертвы, не биндятся в шаблоне после WS2.1; TracksPanel владеет хоткеями); watch(audio.displayMode) (:1348-1360). activePlayerViewTab схлопывается в константу; тело ensureSpectrogramPrepared СОХРАНЯЕТСЯ (декод wav/flac для Треки), снимаются лишь гварды по вкладке (:832,840,753-754). Фаза 1 от Q1/Q2 НЕ зависит."
     },
     {
       "id": "AC-D2",
@@ -61,30 +61,34 @@
       "id": "AC1.1",
       "phase": 1,
       "title": "AudioPage.vue (шаблон): удалить блок <q-tab-panel name=\"main\"> (:306-375) и <q-tab name=\"main\"> (:291); схлопнуть панель под-вкладок (:281-296) и обёртку <q-tab-panels> (:305,407); поднять содержимое `tracks` (:381-406) в тело плеера",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["AC0.1"],
       "artifacts": ["GnauralCore/ui/pages/AudioPage.vue"],
-      "verify": "bun run build (host) + запуск: во «Плеер» нет под-вкладок, виден только стек «Треки»; .gnaural → gtrack-дорожки + транспорт; wav через Меню→Файл→Открыть → Треки показывает спектр.",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "bun run typecheck + bun run build (MindWaveCore/ui) — ОБА зелёные. Драйв-верификация в реальном приложении отложена (в воркспейсе нет браузер-драйвера — см. verify-typecheck-workflow); визуальную проверку «Плеер = только Треки» подтверждает владелец при следующем запуске.",
+      "startedAt": "2026-07-18",
+      "finishedAt": "2026-07-18",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Шаблон плеера: внутренние под-вкладки (main/tracks) и блок main удалены, <tracks-panel> поднят прямо в audio-page__player-body с тем же #toolbar-транспортом. vue-tsc + quasar build зелёные."
+      ]
     },
     {
       "id": "AC1.2",
       "phase": 1,
-      "title": "AudioPage.vue (script) + удаление сироты: снять мёртвые computeds (playerViewMainTabLabel/Icon, showStandalonePlayerControls, showEmbeddedScheduleView), scheduleViewRef + GnauralScheduleViewHandle, async-импорт GnauralScheduleView, handlePlayerKeyDown + addEventListener + nav-рефы (spectrogramNavRef/waveformNavRef/trackEditorNav/SPECTROGRAM_NAV_KEYS/SpectrogramNavHandle), watch(displayMode); схлопнуть activePlayerViewTab в константу, упростить гварды в ensureSpectrogramPrepared/handleExternalFileOpen; удалить файл GnauralScheduleView.vue",
-      "status": "pending",
+      "title": "AudioPage.vue (script): снять мёртвые computeds (playerViewMainTabLabel/Icon, showStandalonePlayerControls, showEmbeddedScheduleView), scheduleViewRef + GnauralScheduleViewHandle, async-импорт GnauralScheduleView + shouldIgnorePlayerHotkey, handlePlayerKeyDown + addEventListener + nav-рефы (spectrogramNavRef/waveformNavRef/trackEditorNav/SPECTROGRAM_NAV_KEYS/SpectrogramNavHandle), watch(displayMode); убрать activePlayerViewTab (все ссылки), упростить гварды в ensureSpectrogramPrepared/handleExternalFileOpen/handleSelectedPathChange. NB: файл GnauralScheduleView.vue НЕ удаляется — кросс-репо потребители (см. AC-D1)",
+      "status": "done",
       "dependsOn": ["AC1.1"],
       "artifacts": [
-        "GnauralCore/ui/pages/AudioPage.vue",
-        "GnauralCore/ui/components/GnauralScheduleView.vue (удаляется)"
+        "GnauralCore/ui/pages/AudioPage.vue"
       ],
-      "verify": "bun run typecheck (vue-tsc) зелёный, 0 висящих ссылок; grep GnauralScheduleView → 0 импортов; приложение стартует, Space/hotkeys в Треки работают (владелец — TracksPanel).",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "bun run typecheck (vue-tsc) зелёный, 0 висящих ссылок — ВЫПОЛНЕНО (MindWaveCore/ui bun run typecheck чистый). Попытка удалить GnauralScheduleView.vue дала TS2307 у ArchiveReplayView/MonitoringPage/реэкспорта → файл восстановлен, удалено только использование в AudioPage.",
+      "startedAt": "2026-07-18",
+      "finishedAt": "2026-07-18",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "vue-tsc --noEmit (из MindWaveCore/ui) зелёный после снятия всего мёртвого script и промоушена «Треки» в тело плеера.",
+        "GnauralScheduleView.vue сохранён: git rm → vue-tsc TS2307 у MindWaveCore/ui/components/ArchiveReplayView.vue:460, BodyMonitorCore/ui/pages/MonitoringPage.vue:333, реэкспорта MindWaveCore/ui/src/components/GnauralScheduleView.vue:2 → git checkout HEAD восстановил. Урок: греп сироты — по ВСЕМ репо, не только GnauralCore."
+      ]
     },
     {
       "id": "AC1.3",
@@ -281,6 +285,10 @@
     {
       "at": "2026-07-18",
       "text": "PAUSE Q2 (AC-D6, безопасность) — владелец выбрал (b): пере-гейт на корни fs-browser + loopback-ограничение аудио-эндпоинтов (/api/audio/file, /api/audio/schedule, спектрограмма) по образцу /api/fs/info (isLoopbackAddress, server.ts:2288-2290), сохраняя границу FB-D2. Добавлен шаг AC3.2 (loopback-гейт), фаза 3 перенумерована (история→AC3.3, обвес→AC3.4, AudioSettings→AC3.5). Оба owner-чекпоинта закрыты — план готов к исполнению."
+    },
+    {
+      "at": "2026-07-18",
+      "text": "ФАЗА 1 (AC1.1+AC1.2) исполнена: вкладка main плеера удалена, «Треки» — единственный вид; снят весь мёртвый script (computeds/scheduleViewRef/handlePlayerKeyDown/nav-рефы/watch(displayMode)/activePlayerViewTab). ИСПРАВЛЕНИЕ ПРЕМИСЫ: GnauralScheduleView.vue оказался НЕ сиротой (кросс-репо потребители ArchiveReplayView + MonitoringPage + реэкспорт) — попытка удаления дала vue-tsc TS2307, файл восстановлен, удалено только использование в AudioPage. AC-D1/AC1.2/plan §2.1 исправлены. vue-tsc + quasar build зелёные. Осталось AC1.3 (мёртвые i18n + CSS)."
     }
   ]
 }

@@ -49,10 +49,12 @@ gtrack-дорожки ([TracksPanel.vue:1356](../../../GnauralCore/ui/components
 [:144-145](../../../GnauralCore/ui/components/TracksPanel.vue#L144-L145)); транспорт переживает через
 слот `#toolbar` ([AudioPage.vue:391-403](../../../GnauralCore/ui/pages/AudioPage.vue#L391-L403) →
 [TracksPanel.vue:23](../../../GnauralCore/ui/components/TracksPanel.vue#L23)). Полный список мёртвого
-кода (computeds, `scheduleViewRef`, сирота
-[GnauralScheduleView.vue](../../../GnauralCore/ui/components/GnauralScheduleView.vue),
-`handlePlayerKeyDown` + nav-рефы, `watch(displayMode)`) — в AC-D1 леджера. Фаза 1 **от Q1/Q2 не
-зависит**.
+кода (computeds, `scheduleViewRef`, `handlePlayerKeyDown` + nav-рефы, `watch(displayMode)`) — в AC-D1
+леджера. **ИСПРАВЛЕНО 2026-07-18:** сам компонент
+[GnauralScheduleView.vue](../../../GnauralCore/ui/components/GnauralScheduleView.vue) **НЕ сирота и
+остаётся** — его импортируют `ArchiveReplayView.vue` (MindWaveCore) и `MonitoringPage.vue`
+(BodyMonitorCore); удаляется только его использование в AudioPage. Первый проход счёл его сиротой
+(греп только по GnauralCore) — поймано `vue-tsc`. Фаза 1 **от Q1/Q2 не зависит**.
 
 ### 2.2. Панель «Файлы (пресеты)» — фича дерева (объём 2, фаза 2)
 
