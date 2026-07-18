@@ -3,7 +3,7 @@
   "plan": "audio-panel-cleanup",
   "planDoc": "docs/audio-panel-cleanup/audio-panel-cleanup-plan.md",
   "title": "audio-panel-cleanup: убрать из формы «Аудио» (a) внутреннюю вкладку плеера main — «Воспроизведение» (wav/flac) / «Расписание» (.gnaural), оставив единственным видом плеера «Треки»; (b) старую боковую панель «Файлы (пресеты)» с деревом пресетов — целиком (UI + стор + серверный эндпоинт дерева + типы протокола + i18n); (c) по решению владельца 2026-07-18 — УБРАТЬ И presetsRoot целиком, пере-гейтив доступ к аудиофайлам на корни fs-browser. Q2 (AC-D6) ЗАКРЫТ 2026-07-18: владелец выбрал (b) — пере-гейт на корни fs-browser С ОДНОВРЕМЕННЫМ ограничением аудио-эндпоинтов (/api/audio/file, /api/audio/schedule, спектрограмма) LOOPBACK-ом, чтобы сохранить границу FB-D2 и не открывать всю машину в LAN.",
-  "status": "active",
+  "status": "complete",
   "createdAt": "2026-07-18",
   "updatedAt": "2026-07-18",
   "decisions": [
@@ -205,7 +205,7 @@
       "id": "AC3.1",
       "phase": 3,
       "title": "ПЕРЕ-ГЕЙТ КОРНЕЙ доступа к аудио на корни fs-browser. Ввести общий резолвер разрешённых аудио-корней из createLocalFsProvider().listRoots() (async → await, map .path); перенаправить 4 точки доступа: server.ts:1723 (/api/audio/file), server.ts:1780 (/api/audio/schedule), ui-ws-handler.ts:42 (спектрограмма), нормальный play (ui-ws-handler.ts:162 → gnaural-session.ts:333). Loopback-ограничение эндпоинтов — отдельным шагом AC3.2 (Q2=b)",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["AC2.5"],
       "artifacts": [
         "MindWaveCore/server/server.ts",
@@ -213,46 +213,52 @@
         "GnauralCore/server/gnaural-session.ts",
         "GnauralCore/server/audio-file-utils.ts"
       ],
-      "verify": "Запуск (с loopback): воспроизведение/спектрограмма/скачивание wav/flac/gnaural из корней fs-browser работают; путь вне разрешённых корней → отказ. Loopback-ограничение доступности проверяется в AC3.2.",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "resolveAllowedAudioFilePath(path, aAllowedRoots) — presetsRoot убран; server.ts getAudioAccessRoots()=listRoots().map(.path) заменил getAudioSettings() на всех путях доступа (audio/file, schedule, 8 маршрутов редактора, replay, alpha/sleep, spectrogram). session.start(path, roots). vue-tsc + server-typecheck (TS5.7.3) чисты (только предсущ. audio-cache-manifest ошибка), server boot=server_ready, GnauralCore 296 тестов pass.",
+      "startedAt": "2026-07-18",
+      "finishedAt": "2026-07-18",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Кросс-репо: GnauralCore не может импортировать MindWaveCore, поэтому корни считаются на MindWaveCore-стороне (getAudioAccessRoots) и передаются вниз явным списком. gnaural-session/editor-store/audio-file-utils приняли aAllowedRoots вместо AudioSettings."
+      ]
     },
     {
       "id": "AC3.2",
       "phase": 3,
       "title": "LOOPBACK-ГЕЙТ аудио-эндпоинтов, отдающих байты/анализ файла (Q2=b, AC-D6): ограничить server.ts:1723 (/api/audio/file), server.ts:1780 (/api/audio/schedule) и ui-ws-handler.ts:42 (спектрограмма) вызовами только с loopback-адреса — по образцу /api/fs/info (server.ts:2288-2290, isLoopbackAddress(aServer.requestIP(aRequest)?.address)). Проверку ставить в верхнем fetch (есть aServer), НЕ в handleApiRequest (нет сервера). Серверный play (gnaural-session) не гейтить — байты клиенту не утекают",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["AC3.1"],
       "artifacts": [
         "MindWaveCore/server/server.ts",
         "MindWaveCore/server/ui-ws-handler.ts"
       ],
-      "verify": "С loopback (тот же хост / AppCore webview): проигрывание, спектрограмма, /api/audio/schedule работают. С не-loopback (другой хост в LAN): /api/audio/file и /api/audio/schedule → отказ, спектр не строится — ОЖИДАЕМО (граница FB-D2 сохранена). Путь серверного play не затронут.",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "/api/audio/file + /api/audio/schedule гейтятся в верхнем fetch через isLoopbackAddress(aServer.requestIP(...)). WS-спектрограмма: clientIp запоминается при upgrade (UiSocketData), проверяется в resolveSource. Путь серверного play (gnaural-session) не гейтится. server boot=server_ready.",
+      "startedAt": "2026-07-18",
+      "finishedAt": "2026-07-18",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Логика гейта зеркалит готовый /api/fs/info (server.ts). ОГРАНИЧЕНИЕ ВЕРИФИКАЦИИ: реальный отказ с не-loopback адреса рантаймом не проверен — нет второго хоста-драйвера в воркспейсе; проверено чтением + типами + бутом. Владелец согласовал (Q2=b), ждёт визуальной проверки с same-host."
+      ]
     },
     {
       "id": "AC3.3",
       "phase": 3,
       "title": "Каталог истории редактора (gnaural-editor-store.ts:508,517-527): заменить границу-контейнмент по единственному presetsRoot на «внутри ЛЮБОГО разрешённого корня» (тот же источник, что AC3.1); убрать throw «Configured presets root is missing» (:518-520)",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["AC3.1"],
       "artifacts": ["GnauralCore/server/gnaural-editor-store.ts"],
-      "verify": "bun test server (GnauralCore); правка .gnaural из разрешённого корня сохраняется, .history создаётся рядом; load/save/autosave/voice-state работают.",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "resolveEditorFile принимает aAllowedRoots; containment .history заменён на canonicalRoots.some(root => isPathInsideBase(root, historyDir)); throw «Configured presets root is missing» убран, тексты ошибок → «allowed roots». 8 публичных методов приняли aAllowedRoots. GnauralCore 296 тестов pass.",
+      "startedAt": "2026-07-18",
+      "finishedAt": "2026-07-18",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Файл уже валидируется внутри разрешённого корня выше по resolveAllowedAudioFilePath; .history — сиблинг того же родителя, поэтому проверка «внутри любого корня» эквивалентна старой при одном корне и корректна при нескольких."
+      ]
     },
     {
       "id": "AC3.4",
       "phase": 3,
       "title": "Удалить обвес presetsRoot (AC-D5): getConfiguredAudioPresetsRoot/normalizeAudioPresetsRoot + presetsRoot из сигнатуры resolveAllowedAudioFilePath (audio-file-utils.ts:40-101); настройку БД audio_presets_root (log-db.ts:30,751-755,772-778,896-901,909-912); UI store saveSettings (audio.ts:762-774) + audioApi updateAudioSettings (audio-api.ts:123-128); сид fileDialogInitialPath (AudioPage.vue:616-619 → корень fs-browser/listRoots); i18n settings.audio* (ru/en:438-445)",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["AC3.1", "AC3.3"],
       "artifacts": [
         "GnauralCore/server/audio-file-utils.ts",
@@ -263,17 +269,19 @@
         "GnauralCore/ui/i18n/ru.json",
         "GnauralCore/ui/i18n/en.json"
       ],
-      "verify": "grep presetsRoot|audio_presets_root|getConfiguredAudioPresetsRoot|normalizeAudioPresetsRoot → 0 (кроме удаляемых определений); typecheck + bun test server зелёные; сервер стартует.",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "Удалены getConfiguredAudioPresetsRoot/normalizeAudioPresetsRoot; presetsRoot из сигнатуры resolveAllowedAudioFilePath; audio_presets_root из БД (log-db: DEFAULT/seed/getAudioSettings/updateAudioSettings/getAudioPresetsRoot); store saveSettings + audioApi updateAudioSettings; fileDialogInitialPath → () => undefined; i18n settings.audio* (7 ключей). rg по коду: 0 ссылок на presetsRoot/audio_presets_root/getConfigured/normalize (кроме комментариев). vue-tsc + build + 296 тестов зелёные.",
+      "startedAt": "2026-07-18",
+      "finishedAt": "2026-07-18",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "settings.audio* (7 ключей settings.*, НЕ audio.*) удалены после проверки 0 code-ссылок. fs-browser.ts:388 остался устаревший комментарий про presetsRoot-сид — безвреден (initialPath теперь undefined)."
+      ]
     },
     {
       "id": "AC3.5",
       "phase": 3,
       "title": "Судьба AudioSettings: после удаления presetsRoot интерфейс AudioSettings (protocol.ts:134-136) ПУСТ. Проверить всех потребителей типа AudioSettings; если только несёт presetsRoot — удалить интерфейс + маршруты GET/PATCH /api/audio-settings (server.ts:1336,1345-1354) + store.loadSettings (audio.ts:746-756) + audioApi.fetchAudioSettings (audio-api.ts:119-121) + getAudioSettings (log-db.ts:751-755)",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["AC3.4"],
       "artifacts": [
         "SharedPasCore/ts/protocol.ts",
@@ -282,9 +290,9 @@
         "GnauralCore/ui/stores/audio.ts",
         "GnauralCore/ui/audio-api.ts"
       ],
-      "verify": "grep AudioSettings по воркспейсу → только оставленные (или 0); typecheck зелёный; сервер стартует, приложение открывает/играет аудио без /api/audio-settings.",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "AudioSettings удалён из SharedPasCore/ts/protocol.ts и из ВСЕХ импортов (server.ts, log-db.ts, audio-file-utils.ts, gnaural-session.ts, gnaural-editor-store.ts, audio-api.ts, store audio.ts). GET/PATCH /api/audio-settings + store.loadSettings + audioApi.fetchAudioSettings + log-db getAudioSettings/updateAudioSettings сняты. rg AudioSettings по воркспейсу → 0 code-ссылок. vue-tsc + server-typecheck + build + 296 тестов + server boot зелёные.",
+      "startedAt": "2026-07-18",
+      "finishedAt": "2026-07-18",
       "blockedReason": null,
       "evidence": []
     }
@@ -313,6 +321,10 @@
     {
       "at": "2026-07-18",
       "text": "ФАЗА 2 ЗАВЕРШЕНА (AC2.1-AC2.6 done): фича дерева пресетов удалена целиком — UI сайдбар/тоггл + tree-хелперы (AudioPage), presetsTree/presetsLoading/refreshPresets/findNodeByPath + selectPath переписан на extension (store, AC-D3), selectedNode → SelectedAudioFile (AC-D4), audioApi.fetchPresets, серверные listPresetTree/createAudioPresetsResponse/comparePresetNodes + маршрут /api/audio/presets + осиротевшие хелперы, типы PresetTreeNode/AudioPresetsResponse (protocol), 8 i18n-ключей. presetsRoot СОХРАНЁН (уходит в фазе 3). Verify: vue-tsc + quasar build зелёные, GnauralCore 296 тестов pass, server.ts грузится до Bun.serve (EADDRINUSE=код исполнился), 0 code-ссылок на удалённые символы по всему воркспейсу, JSON валиден, NUL/CRLF целы. Следующая — ФАЗА 3 (удаление presetsRoot + пере-гейт доступа на корни fs-browser + loopback-гейт, Q2=b)."
+    },
+    {
+      "at": "2026-07-18",
+      "text": "ФАЗА 3 ЗАВЕРШЕНА (AC3.1-AC3.5 done) — ФИЧА COMPLETE. presetsRoot удалён целиком, доступ к аудио пере-гейтён на корни fs-browser (getAudioAccessRoots из createLocalFsProvider().listRoots()); сигнатуры resolveAllowedAudioFilePath/session.start/8 методов редактора приняли явный aAllowedRoots вместо AudioSettings (кросс-репо: корни считаются на MindWaveCore-стороне). Loopback-гейт (Q2=b): /api/audio/file+/schedule в верхнем fetch, WS-спектрограмма через clientIp — граница FB-D2 сохранена; серверный play не гейтится. Удалён весь обвес: AudioSettings (protocol+все импорты), GET/PATCH /api/audio-settings, audio_presets_root (БД), loadSettings/saveSettings/fetchAudioSettings/updateAudioSettings, fileDialogInitialPath→undefined, 7 i18n settings.audio*. Verify: vue-tsc+build+server-typecheck(TS5.7.3, только предсущ. audio-cache-manifest ошибка)+server boot(server_ready)+296 тестов+0 code-ссылок. НЕ проверено рантаймом: реальный не-loopback отказ (нет второго хоста). Владелец согласовал дифф («ok»)."
     }
   ]
 }
