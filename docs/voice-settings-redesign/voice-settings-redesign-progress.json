@@ -352,6 +352,11 @@
   "log": [
     {
       "at": "2026-07-18",
+      "step": "VS4.2 (VS4.5 refinement)",
+      "text": "Owner: «Если не выбран ни один режим, то глаз в диалоге настроек должен перечёркиваться». The dialog eye now reflects EFFECTIVE visibility (gtrackSettingsLaneHidden = hidden || modes.length===0): all-unchecked → crossed eye; clicking the crossed eye shows the lane via setLaneHidden(false), which re-seeds the default mode. Verify green (vue-tsc 0, build 0, 291/0). Gnaural commits still deferred (owner's VB2.1 WIP remains uncommitted in the shared files)."
+    },
+    {
+      "at": "2026-07-18",
       "step": "VS4.1 / VS4.2 / VS4.3",
       "text": "Phase 4 implemented same-day after the PAUSE: modes[] model (+modeHeights, two-way-tolerant migration), «Режимы отображения» blocks with per-mode checkboxes + dialog eye, per-mode graph stack rendering, new track-list action «Все режимы в одной дорожке». Verify green: vue-tsc 0, quasar build 0, bun test 291/0. GNAURAL COMMITS DEFERRED: GTrackView/TracksPanel/use-gtrack-lanes also carry the owner's uncommitted balance-band (VB2.1) WIP — staging them whole would sweep it; awaiting the owner's call on commit order (see VS4.1 evidence). Next: VS4.4 owner acceptance."
     },
