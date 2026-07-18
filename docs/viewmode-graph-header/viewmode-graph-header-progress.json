@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 1,
+  "plan": "viewmode-graph-header",
+  "planDoc": "docs/viewmode-graph-header/viewmode-graph-header-plan.md",
+  "title": "viewmode-graph-header: убрать дроп-даун типов отображения «Волна+Спектр» (viewMode) из общего тулбара вкладки «Треки» (VH-D1) и показывать его только в хедерах общих графиков волны и спектра — перед шестерёнкой (VH-D2), icon-only (VH-D4). Переиспользуемый компонент ViewModeDropdown.vue (v-model↔viewMode) + вынос типа AudioViewMode/AUDIO_VIEW_MODES в ui/composables/audio-view-mode.ts (VH-D5); persist/синхронизация viewMode в TracksPanel без изменений. Область — только общие хедеры, per-lane не трогаем; достижимость всех 4 режимов гарантирована гейтингом (VH-D3).",
+  "status": "done",
+  "createdAt": "2026-07-18",
+  "updatedAt": "2026-07-18",
+  "decisions": [
+    {
+      "id": "VH-D1",
+      "text": "Убрать дроп-даун viewMode (q-btn-dropdown icon=\"layers\", :label=viewModeLabel — TracksPanel.vue:62-79) из общего тулбара целиком, вместе с комментарием SF23.3."
+    },
+    {
+      "id": "VH-D2",
+      "text": "Область: тот же дроп-даун показывать ТОЛЬКО в двух общих хедерах (волна tracksOverallWave ~381-424; спектр tracksOverallSpectrum ~480-523), перед шестерёнкой header-gear. В per-lane (gtrack) хедеры НЕ добавлять — там свои переключатели soloMode; viewMode — глобальный «общий» режим. Выбор владельца (AskUserQuestion 2026-07-18: «Только общие графики»)."
+    },
+    {
+      "id": "VH-D3",
+      "text": "Достижимость: гейтинг сам гарантирует ≥1 видимый общий хедер в любом режиме (both/overlay → оба хедера; waveform → только волновой; spectrogram → только спектральный), поэтому дроп-даун всегда доступен. В both/overlay он виден в обоих хедерах — допустимо и консистентно (оба меняют один глобальный viewMode). Дублирование логики не требуется — общий компонент."
+    },
+    {
+      "id": "VH-D4",
+      "text": "Вид: только иконка (icon=\"layers\", без :label), размер под хедер (dense flat round size=\"xs\", как соседняя header-gear); активный режим — галочкой в списке и в тултипе t('audio.viewMode'). Выбор владельца (AskUserQuestion 2026-07-18: «Только иконка»)."
+    },
+    {
+      "id": "VH-D5",
+      "text": "Переиспользование (память reuse-standard-forms): дроп-даун — маленький презентационный компонент ViewModeDropdown.vue (проп modelValue: AudioViewMode, эмит update:modelValue), используемый в обоих хедерах через v-model. Тип AudioViewMode + AUDIO_VIEW_MODES вынесены в ui/composables/audio-view-mode.ts (единый источник для компонента и TracksPanel; без циклов и дублей списка). Persist/синхронизация viewMode остаются в TracksPanel без изменений. Новых i18n-ключей нет — audio.viewMode / audio.viewMode_* уже существуют."
+    }
+  ],
+  "steps": [
+    {
+      "id": "VH1.1",
+      "phase": 1,
+      "title": "ui/composables/audio-view-mode.ts: экспорт AudioViewMode + AUDIO_VIEW_MODES (перенос из TracksPanel). TracksPanel импортирует их, локальные объявления удаляет; viewModeLabel/persist/computed продолжают работать.",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [
+        "GnauralCore/ui/composables/audio-view-mode.ts (новый: export type AudioViewMode + const AUDIO_VIEW_MODES) [LF]",
+        "GnauralCore/ui/components/TracksPanel.vue (удалены локальные type AudioViewMode/AUDIO_VIEW_MODES ~1897-1898; import { AUDIO_VIEW_MODES, type AudioViewMode } from '../composables/audio-view-mode') [CRLF]"
+      ],
+      "verify": "DONE — vue-tsc 0 (в составе VH3.1); AUDIO_VIEW_MODES по-прежнему используется в ref-инициализации viewMode, AudioViewMode в ref<AudioViewMode>. Persist/синхронизация не тронуты.",
+      "startedAt": "2026-07-18",
+      "finishedAt": "2026-07-18",
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "VH1.2",
+      "phase": 1,
+      "title": "ui/components/ViewModeDropdown.vue: icon-only q-btn-dropdown (layers), проп modelValue: AudioViewMode + эмит update:modelValue, список AUDIO_VIEW_MODES с i18n audio.viewMode_* и галочкой активного, тултип audio.viewMode. Лёгкий unit-тест (рендер опций + эмит выбора).",
+      "status": "done",
+      "dependsOn": ["VH1.1"],
+      "artifacts": [
+        "GnauralCore/ui/components/ViewModeDropdown.vue (новый: icon-only q-btn-dropdown size=xs, v-model через modelValue/update:modelValue, тултип 'audio.viewMode: <текущий режим>') [LF]",
+        "GnauralCore/ui/composables/audio-view-mode.test.ts (новый: контракт AUDIO_VIEW_MODES — ровно 4 уникальных режима + наличие ru/en ключей viewMode_<m>) [LF]"
+      ],
+      "verify": "DONE — bun test ui/composables/audio-view-mode.test.ts: 3 pass / 0 fail. В репо нет component-mount харнесса (@vue/test-utils отсутствует; все тесты — pure-logic), поэтому вместо mount-теста проверен разделяемый контракт списка+i18n, на который опирается презентационный компонент. vue-tsc 0.",
+      "startedAt": "2026-07-18",
+      "finishedAt": "2026-07-18",
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "VH2.1",
+      "phase": 2,
+      "title": "TracksPanel.vue: удалить блок дроп-дауна из тулбара (VH-D1); импортировать ViewModeDropdown и вставить <view-mode-dropdown v-model=\"viewMode\" /> перед шестерёнкой в обоих общих хедерах (волна: после title ~411; спектр: после title ~510).",
+      "status": "done",
+      "dependsOn": ["VH1.2"],
+      "artifacts": [
+        "GnauralCore/ui/components/TracksPanel.vue (тулбарный q-btn-dropdown viewMode удалён → комментарий VH-D1; import ViewModeDropdown; <view-mode-dropdown v-model=\"viewMode\"/> вставлен перед header-gear в обоих общих хедерах; удалён осиротевший computed viewModeLabel — использовался только тулбарным дроп-дауном) [CRLF]"
+      ],
+      "verify": "DONE — vue-tsc 0; quasar build exit 0. Файл нормализован в CRLF после правок (perl lone-LF→CRLF): 3657 CRLF, 0 lone LF. viewModeLabel удалён т.к. остался бы неиспользуемым.",
+      "startedAt": "2026-07-18",
+      "finishedAt": "2026-07-18",
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "VH3.1",
+      "phase": 3,
+      "title": "Верификация сборкой: bun test ui server, bun run typecheck (vue-tsc), bun run build (quasar). Ручной прогон приложения: переключение режимов из хедеров, достижимость всех 4 режимов, тулбар без дроп-дауна.",
+      "status": "done",
+      "dependsOn": ["VH2.1"],
+      "artifacts": [],
+      "verify": "DONE (сборка) — GnauralCore bun test ui server: 299 pass / 0 fail (24 файла, +3 новых теста audio-view-mode); MindWaveCore/ui vue-tsc --noEmit exit 0; quasar build exit 0 (server/public пересобран). Ручной прогон в реальном приложении отнесён к VH3.2 (владельческий PAUSE).",
+      "startedAt": "2026-07-18",
+      "finishedAt": "2026-07-18",
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "VH3.2",
+      "phase": 3,
+      "title": "PAUSE (финальная приёмка): владелец гоняет реальное приложение — дроп-даун ушёл из тулбара, появился в хедерах общих графиков перед шестерёнкой (icon-only), все режимы переключаются и достижимы. Владельческий чекпоинт.",
+      "status": "done",
+      "dependsOn": ["VH3.1"],
+      "artifacts": [],
+      "verify": "PASSED — владелец подтвердил приёмку («ok», 2026-07-18). Фича viewmode-graph-header COMPLETE.",
+      "startedAt": "2026-07-18",
+      "finishedAt": "2026-07-18",
+      "blockedReason": null,
+      "evidence": [
+        "Владелец 2026-07-18: «ok» — приёмка в реальном приложении пройдена."
+      ]
+    }
+  ],
+  "log": [
+    {
+      "at": "2026-07-18",
+      "step": "VH1.1",
+      "text": "План + леджер созданы. Изучён текущий viewMode-дроп-даун (TracksPanel.vue:62-79, icon=layers, :label=viewModeLabel; тип/список локально ~1897-1898; persist localStorage 'mindwave-tracks-waveform' + синхронизация проекта currentWaveformPrefsObject/applyWaveformPrefsObject; computed showWaveform/showSpectrogram/waveformOverlay гейтят рендер). Хедеры общих графиков: волна (381-424, gear openWaveformSettingsGroup) и спектр (480-523, gear spectrumSettingsPanel.open) — оба заканчиваются связкой title(flex:1)→header-gear. Владелец (AskUserQuestion 2026-07-18): область = только общие хедеры (per-lane не трогать); вид = только иконка. Достижимость всех режимов подтверждена анализом гейтинга (VH-D3). Реализация ещё не начата — все шаги pending."
+    },
+    {
+      "at": "2026-07-18",
+      "step": "VH3.1",
+      "text": "Фазы 1-2 реализованы и верифицированы сборкой одним проходом. VH1.1: тип AudioViewMode + AUDIO_VIEW_MODES вынесены в новый ui/composables/audio-view-mode.ts, TracksPanel импортирует их (локальные объявления удалены; AUDIO_VIEW_MODES ещё нужен для ref-инициализации). VH1.2: новый презентационный ViewModeDropdown.vue (icon-only q-btn-dropdown, v-model, тултип с текущим режимом) + тест контракта списка/i18n (в репо нет component-mount харнесса — все тесты pure-logic). VH2.1: тулбарный дроп-даун удалён (VH-D1), <view-mode-dropdown v-model=\"viewMode\"/> вставлен перед шестерёнкой в обоих общих хедерах (VH-D2); удалён осиротевший computed viewModeLabel. Верификация: bun test ui server 299/0, vue-tsc 0, quasar build 0. TracksPanel.vue нормализован в CRLF после правок (3657 CRLF, 0 lone LF — см. память crlf-scripted-edits); новые файлы GnauralCore/ui на LF. Новых i18n-ключей нет. Остаётся VH3.2 — PAUSE, приёмка владельцем в реальном приложении. Коммиты НЕ делал (жду отмашки владельца, как в track-scale-mode)."
+    },
+    {
+      "at": "2026-07-18",
+      "step": "VH3.2",
+      "text": "PAUSE VH3.2 ПРОЙДЕН — владелец подтвердил приёмку («ok»). Фича viewmode-graph-header COMPLETE. Атомарные коммиты по шагам: GnauralCore (audio-view-mode.ts + .test.ts, ViewModeDropdown.vue, TracksPanel.vue — застейджены только свои файлы) + MindWaveCore (docs-леджер). Рантайм/общие файлы владельца (server/app.cfg, server/public, docs/panel-window) не трогал."
+    }
+  ]
+}
