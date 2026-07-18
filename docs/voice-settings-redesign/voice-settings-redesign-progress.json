@@ -336,11 +336,31 @@
       ]
     },
     {
+      "id": "VS4.6",
+      "phase": 4,
+      "title": "Соло-звук: новый режим «Волна+Спектр» (overlay) — совмещённый график (волна поверх спектра), зеркало общего overlay-режима; отображение реализовано через SpectrogramView.waveformOverlay",
+      "status": "done",
+      "dependsOn": ["VS4.3"],
+      "artifacts": [
+        "GnauralCore/ui/composables/use-gtrack-lanes.ts (GTrackSoloMode += 'overlay'; SOLO_MODES) [CRLF]",
+        "GnauralCore/ui/components/TracksPanel.vue (laneInlineKind → 'overlay'; laneSpectrumSublane включает overlay — совмещённый график живёт в spectrum-слоте; inline+sublane spectrogram-view получают :waveform-overlay/scale/color/opacity при overlay; третий тумблер «Волна+Спектр» на подформе Соло-звук, взаимоисключающий с Волна/Спектр через setLaneSoloOverlay; hidden-eye label) [CRLF]",
+        "GnauralCore/ui/i18n/ru+en (gtrackSoloOverlay «Волна+Спектр»/Wave+Spectrum)"
+      ],
+      "verify": "DONE — vue-tsc 0; quasar build 0; bun test ui server 291/0. Runtime-визуал (волна поверх спектра в одном соло-графике, свой ресайз/гир/скрытие) — owner на VS4.4.",
+      "startedAt": "2026-07-18",
+      "finishedAt": "2026-07-18",
+      "blockedReason": null,
+      "evidence": [
+        "'overlay' reuses the SPECTRUM sub-graph slot (not a new fourth slot): SpectrogramView already draws an optional waveform overlay (SF22.3/GT7.3 waveformOverlay from backend peaks) for the overall «Волна поверх спектра» view, so the lane overlay is the same prop set fed the lane's soloWave colour/scale/opacity — no new canvas.",
+        "Mutually exclusive with the split Волна/Спектр toggles: setLaneSoloOverlay(true) sets soloMode='overlay' (clearing wave/spectrum), and ticking Волна or Спектр returns via setLaneSoloParts — the three toggles read off the single persisted soloMode (R5)."
+      ]
+    },
+    {
       "id": "VS4.4",
       "phase": 4,
-      "title": "PAUSE — финальная owner-приёмка фазы 4",
+      "title": "PAUSE — финальная owner-приёмка фазы 4 (стек режимов, чекбоксы «Отображать на графике», глаз, новая раскладка «Все режимы в одной дорожке», соло «Волна+Спектр»)",
       "status": "pending",
-      "dependsOn": ["VS4.2", "VS4.3"],
+      "dependsOn": ["VS4.2", "VS4.3", "VS4.6"],
       "artifacts": [],
       "verify": "Owner подтверждает",
       "startedAt": null,
@@ -350,6 +370,11 @@
     }
   ],
   "log": [
+    {
+      "at": "2026-07-18",
+      "step": "VS4.6 + commit",
+      "text": "Added the solo «Волна+Спектр» (overlay) mode — a combined single sub-graph (wave over spectrum via SpectrogramView.waveformOverlay), a third mutually-exclusive toggle on the Соло-звук sub-form; display implemented for both inline and sub-lane placement. Then, on the owner's «go», the deferred Gnaural commit landed: VS4.1-4.6 committed as 49305cf. The earlier-noted entanglement was honoured — the shared trio (GTrackView/TracksPanel/use-gtrack-lanes) + the owner's interleaved VB2.1 balance-band (gtrack-model/render + tests) are bundled in that commit (no file-level split possible; commit author is Keksov, so VB stays under the owner's name); the project-store increment (use-project/project-api) was left unstaged for its own PR commit. So the per-step «НЕ ЗАКОММИЧЕН» notes above are now resolved by 49305cf. Verify green: vue-tsc 0, build 0, 291/0. Remaining: VS4.4 owner acceptance."
+    },
     {
       "at": "2026-07-18",
       "step": "VS4.2 (VS4.5 refinement)",
