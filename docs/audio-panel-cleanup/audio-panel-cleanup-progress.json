@@ -1,0 +1,286 @@
+{
+  "schemaVersion": 1,
+  "plan": "audio-panel-cleanup",
+  "planDoc": "docs/audio-panel-cleanup/audio-panel-cleanup-plan.md",
+  "title": "audio-panel-cleanup: убрать из формы «Аудио» (a) внутреннюю вкладку плеера main — «Воспроизведение» (wav/flac) / «Расписание» (.gnaural), оставив единственным видом плеера «Треки»; (b) старую боковую панель «Файлы (пресеты)» с деревом пресетов — целиком (UI + стор + серверный эндпоинт дерева + типы протокола + i18n); (c) по решению владельца 2026-07-18 — УБРАТЬ И presetsRoot целиком, пере-гейтив доступ к аудиофайлам на корни fs-browser. Q2 (AC-D6) ЗАКРЫТ 2026-07-18: владелец выбрал (b) — пере-гейт на корни fs-browser С ОДНОВРЕМЕННЫМ ограничением аудио-эндпоинтов (/api/audio/file, /api/audio/schedule, спектрограмма) LOOPBACK-ом, чтобы сохранить границу FB-D2 и не открывать всю машину в LAN.",
+  "status": "active",
+  "createdAt": "2026-07-18",
+  "updatedAt": "2026-07-18",
+  "decisions": [
+    {
+      "id": "AC-D1",
+      "text": "«Воспроизведение» = внутренняя вкладка `main` плеера внутри «Плеер» (AudioPage.vue: q-tabs `activePlayerViewTab`, панели main/tracks). Лейбл ДИНАМИЧЕСКИЙ: .gnaural → «Расписание» (t('audio.scheduleTab'), <gnaural-schedule-view>), wav/flac → «Воспроизведение» (t('audio.playbackTab'), плейсхолдер: транспорт + подсказка t('audio.spectrogramTabHint')). Владелец 2026-07-18 выбрал «Всю вкладку main (и «Расписание»)» → удаляем ВСЮ вкладку main (обе формы), плеер = единственный вид «Треки»: панель под-вкладок (AudioPage.vue:281-296) исчезает, содержимое `tracks` (:381-406) поднимается в тело плеера. ПРЕМИСА ПРОВЕРЕНА чтением кода: (1) TracksPanel рендерит расписание .gnaural как gtrack-дорожки — showGtracks (TracksPanel.vue:1356), рендер лейнов (:144-145), ошибки дампа (:11-14); удаление «Расписание» не теряет функциональности. (2) Транспорт переживает через слот #toolbar Треков (AudioPage.vue:391-403 → TracksPanel.vue:23); экземпляры в main (:312,:358) умирают с блоком. МЁРТВЫЙ КОД после удаления: computeds playerViewMainTabLabel/Icon (:954-960), showStandalonePlayerControls (:946-952), showEmbeddedScheduleView (:983-988); scheduleViewRef + interface GnauralScheduleViewHandle (:491-493,578); async-импорт и ФАЙЛ GnauralScheduleView.vue (сирота — единств. импорт :520/342, прочее — комментарии TracksPanel.vue:20,2950 и gtrack-render.ts:193,352); handlePlayerKeyDown (:1104-1145) целиком + addEventListener (:1330/1334) + nav-рефы spectrogramNavRef/waveformNavRef/trackEditorNav/SPECTROGRAM_NAV_KEYS/SpectrogramNavHandle (:1088-1093,1119-1128 — уже мертвы, не биндятся в шаблоне после WS2.1; TracksPanel владеет хоткеями); watch(audio.displayMode) (:1348-1360). activePlayerViewTab схлопывается в константу; тело ensureSpectrogramPrepared СОХРАНЯЕТСЯ (декод wav/flac для Треки), снимаются лишь гварды по вкладке (:832,840,753-754). Фаза 1 от Q1/Q2 НЕ зависит."
+    },
+    {
+      "id": "AC-D2",
+      "text": "REVISED 2026-07-18 (ответ владельца на Q1). Изначально план предлагал СОХРАНИТЬ presetsRoot (он несёт allow-list доступа ко всем аудиофайлам, сид диалога открытия, каталог истории редактора). Владелец выбрал «Убрать и presetsRoot» → presetsRoot удаляется ЦЕЛИКОМ, доступ к аудиофайлам ПЕРЕ-ГЕЙТИТСЯ на корни fs-browser. Объём разбит на ДВЕ фазы: ФАЗА 2 = удаление ФИЧИ ДЕРЕВА пресетов (presetsTree/presetsLoading/refreshPresets/findNodeByPath; listPresetTree/createAudioPresetsResponse/comparePresetNodes; маршрут GET /api/audio/presets; audioApi.fetchPresets; типы PresetTreeNode/AudioPresetsResponse; UI сайдбара + i18n) — presetsRoot тут ещё жив. ФАЗА 3 = удаление presetsRoot + пере-гейт (см. AC-D5, AC-D6). КАРТА ПЕРЕ-ГЕЙТА (проверено чтением кода): resolveAllowedAudioFilePath (audio-file-utils.ts:67-101) УЖЕ мульти-рутовый (merge presetsRoot + aExtraRoots), НО корни fs-browser нигде не заведены как аудио-корни — сегодня aExtraRoots несут только эфемерные temp-каталоги (alpha/sleep/replay). Единый источник корней fs-browser = createLocalFsProvider().listRoots() (MindWaveCore/server/fs-browser-local.ts:149-164; async, отдаёт FsRoot[] с .path; зарегистр. server.ts:2269-2271; отдаётся GET /fs/roots на loopback fs-browser-server). 5 вызывателей resolveAllowedAudioFilePath: gnaural-editor-store.ts:508 (редактор), gnaural-session.ts:333 (play, extraRoots от ui-ws-handler.ts:162 audio_start = пусто), ui-ws-handler.ts:42 (спектрограмма), server.ts:1723 (GET /api/audio/file), server.ts:1780 (GET /api/audio/schedule). Спектрограммные «пресеты» (stores/spectrogram.ts, SpectrogramPresetsDialog.vue, i18n audio.spectrogramPreset*) — ДРУГАЯ фича, НЕ ТРОГАТЬ (R6)."
+    },
+    {
+      "id": "AC-D3",
+      "text": "store.selectPath (audio.ts:793-827) сейчас резолвит fileKind из ДЕРЕВА через findNodeByPath(presetsTree.value, path) (:794). После удаления дерева единственный вызыватель — дропдаун недавних файлов (AudioPage.vue:37 audio.selectPath(path)). РЕШЕНИЕ: переписать selectPath на вывод fileKind из РАСШИРЕНИЯ (зеркало selectExternalPath, audio.ts:832-860, не зависит от дерева) — недавние файлы работают без дерева. handleSelectedPathChange (:1018-1063, использовал findPresetNodeByPath, был сеттером selectedTreePath для q-tree) умирает вместе с деревом."
+    },
+    {
+      "id": "AC-D4",
+      "text": "store.selectedNode (audio.ts:114) типизирован PresetTreeNode, ставится обеими select-функциями, ПОТРЕБЛЯЕТСЯ ТОЛЬКО ВНУТРИ стора (selectedFileKind :145, canStart :252, selectPath :801, selectExternalPath :840); экспортируется (:955), но grep по GnauralCore — ни один .vue/.ts вне audio.ts не читает audio.selectedNode. Чтобы удалить PresetTreeNode из протокола (AC2.5), тип selectedNode заменяется на минимальный локальный интерфейс в сторе: `interface SelectedAudioFile { path: string; fileKind: AudioFileKind; isDir: boolean }`. selectExternalPath уже строит объект нужной формы inline."
+    },
+    {
+      "id": "AC-D5",
+      "text": "REVISED 2026-07-18 (следствие Q1=убрать presetsRoot). Ранее это была «бонус-зачистка осиротевшего пути записи presetsRoot». Теперь, раз presetsRoot удаляется целиком, ВЕСЬ обвес presetsRoot уходит в ФАЗЕ 3, а НЕ сохраняется: поле AudioSettings.presetsRoot (protocol.ts:134-136 — интерфейс становится ПУСТЫМ → удалить/схлопнуть, проверив прочих потребителей типа AudioSettings), getConfiguredAudioPresetsRoot/normalizeAudioPresetsRoot (audio-file-utils.ts:40-48), сигнатура resolveAllowedAudioFilePath (перестаёт принимать aSettings/presetsRoot — принимает корни напрямую), настройка БД audio_presets_root (log-db.ts:30,751-755,772-778,896-901,909-912), маршруты GET+PATCH /api/audio-settings (server.ts:1336,1345-1354), UI store saveSettings/loadSettings (audio.ts:746-774) + audioApi fetchAudioSettings/updateAudioSettings (audio-api.ts:119-128) + i18n settings.audio* (ru/en:438-445), сид fileDialogInitialPath (AudioPage.vue:616-619 — репойнт на корень fs-browser или старт со listRoots), баннер пустого presetsRoot (AudioPage.vue:189-193 — уже удаляется в AC2.1 вместе с сайдбаром). ВАЖНО: НЕ удалять GET /api/audio-settings/loadSettings, пока не подтверждено, что AudioSettings нигде больше не нужен (AC3.4)."
+    },
+    {
+      "id": "AC-D6",
+      "text": "OWNER-ЧЕКПОИНТ БЕЗОПАСНОСТИ (PAUSE Q2, перед фазой 3). Корни fs-browser (createLocalFsProvider().listRoots(), fs-browser-local.ts:149-164) = ВСЯ МАШИНА: listKnownFolders() (Home/Desktop/Documents/Downloads, :125-147) + listWindowsDrives() (все A:–Z:, :64-78), без песочницы пути (комментарий :1-5: «Full-machine read is intentional; the safety boundary is the separate 127.0.0.1 bind (FB-D2), not a path sandbox»). ГЛАВНЫЙ сервер слушает Bun.serve({ port }) БЕЗ hostname (server.ts:2273-2274) → дефолт 0.0.0.0 = LAN-facing. FB-D2 (server.ts:2266-2268) НАМЕРЕННО вынес доступ-ко-всей-машине на ОТДЕЛЬНЫЙ loopback-only (127.0.0.1) сервер, недостижимый по LAN. Пере-гейт /api/audio/file (server.ts:1723) и /api/audio/schedule (server.ts:1780) — оба на LAN-facing главном сервере — на корни fs-browser РАЗВЕРНЁТ границу FB-D2: любой клиент в LAN сможет читать ЛЮБОЙ файл машины с аудио-расширением. ЗАКРЫТ 2026-07-18 — владелец выбрал (b): пере-гейт на корни fs-browser + ОДНОВРЕМЕННО ограничить аудио-эндпоинты, отдающие байты/анализ файла (server.ts:1723 /api/audio/file, server.ts:1780 /api/audio/schedule, ui-ws-handler.ts:42 спектрограмма), LOOPBACK-ом — как сам fs-browser. Прецедент готов: isLoopbackAddress уже используется для /api/fs/info (server.ts:2288-2290) через aServer.requestIP(aRequest)?.address. РЕАЛИЗАЦИОННЫЕ ЗАМЕТКИ для фазы 3: (1) loopback-проверку ставить там, где доступен requestIP — это верхний fetch (server.ts:2276-2303, есть aServer), а не handleApiRequest(aRequest) (:2298, без сервера) → либо гейтить эти пути в верхнем fetch до handleApiRequest, либо протянуть IP внутрь. (2) СЛЕДСТВИЕ поведения: LAN-клиент, открывший UI с главного (0.0.0.0) сервера, теряет проигрывание/спектр локальных wav/flac и /api/audio/schedule — это ОЖИДАЕМО и согласуется с FB-D2 (у LAN-клиента и так не было файлового браузера). (3) Путь ПРОИГРЫВАНИЯ gnaural (gnaural-session.ts:333 через ui-ws-handler.ts:162 audio_start) читает файл СЕРВЕРНО и играет через движок — байты клиенту не утекают, поэтому его loopback-гейт не обязателен; ему нужен лишь пере-гейт КОРНЕЙ (AC3.1). Отдельный шаг loopback-гейта — AC3.2. (a) отклонён (открывал бы всю машину в LAN); (c) отклонён (оставлял presetsRoot-подобный механизм вопреки «убрать presetsRoot»)."
+    }
+  ],
+  "steps": [
+    {
+      "id": "AC0.1",
+      "phase": 0,
+      "title": "План + леджер + инвентаризация (3 прохода: main-tab, presets-tree, re-gate). Q1 (AC-D2) — ОТВЕЧЕН: убрать presetsRoot, пере-гейт на корни fs-browser. Q2 (AC-D6) — ОТВЕЧЕН: (b) loopback-гейт аудио-эндпоинтов. Оба чекпоинта закрыты — план готов к исполнению по фазам",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [
+        "docs/audio-panel-cleanup/audio-panel-cleanup-plan.md",
+        "docs/audio-panel-cleanup/audio-panel-cleanup-progress.json"
+      ],
+      "verify": "Оба owner-чекпоинта закрыты 2026-07-18: Q1 (AC-D2) «Убрать и presetsRoot» → фаза 3; Q2 (AC-D6) «(b) loopback для аудио-эндпоинтов» → AC3.2. Объёмы AC-D1 (вся вкладка main) и удаление сайдбара «Файлы» также подтверждены. Леджер прошёл validate-ledger.js (15 шагов/6 решений, DAG ацикличен). Владелец: «закоммить доки и поехали» → фаза 1 стартует.",
+      "startedAt": "2026-07-18",
+      "finishedAt": "2026-07-18",
+      "blockedReason": null,
+      "evidence": [
+        "Три фоновых прохода-инвентаризации (Explore) по GnauralCore ui+server+cli, MindWaveCore server+ui, SharedPasCore/ts/protocol.ts; каждый факт — из чтения кода (память verify-the-load-bearing-premise / instrument-runtime-first).",
+        "AC-D1 премиса подтверждена: TracksPanel.vue:1356/144-145 (gtrack-дорожки .gnaural = расписание), транспорт через #toolbar (AudioPage.vue:391-403 → TracksPanel.vue:23), GnauralScheduleView.vue — сирота, handlePlayerKeyDown уже мёртв (nav-рефы не биндятся после WS2.1).",
+        "AC-D2/AC-D6 карта пере-гейта: resolveAllowedAudioFilePath (audio-file-utils.ts:67-101) уже мульти-рутовый, но корни fs-browser не заведены как аудио-корни (aExtraRoots = только temp alpha/sleep/replay). Единый источник = createLocalFsProvider().listRoots() (fs-browser-local.ts:149-164). 5 вызывателей: gnaural-editor-store.ts:508, gnaural-session.ts:333, ui-ws-handler.ts:42, server.ts:1723, server.ts:1780.",
+        "БЕЗОПАСНОСТЬ (AC-D6): корни fs-browser = вся машина (fs-browser-local.ts:1-5,64-78,125-164). Главный сервер = 0.0.0.0/LAN (server.ts:2273-2274, без hostname → дефолт Bun). FB-D2 (server.ts:2266-2268) держит доступ-ко-всей-машине на отдельном loopback-сервере СПЕЦИАЛЬНО. Пере-гейт LAN-facing /api/audio/file+/schedule на эти корни разворачивает FB-D2 → PAUSE Q2.",
+        "AC-D4: audio.selectedNode читается только внутри audio.ts (grep GnauralCore) — тип заменяем локально.",
+        "ИСПРАВЛЕНИЕ к ранней заметке: server.ts — НЕ UTF-16, а UTF-8 со случайным NUL-байтом (~offset 10862), из-за которого ripgrep считает файл бинарным; grep нужен с --text. Правки штатным Edit безопасны; сохранять кодировку (не плодить NUL).",
+        "Префикс шагов AC свободен (заняты AP/FB/BK/GT/R/MR/PW/PR/SF/SB/TT/RF/WS/SS/VS/VB)."
+      ]
+    },
+    {
+      "id": "AC1.1",
+      "phase": 1,
+      "title": "AudioPage.vue (шаблон): удалить блок <q-tab-panel name=\"main\"> (:306-375) и <q-tab name=\"main\"> (:291); схлопнуть панель под-вкладок (:281-296) и обёртку <q-tab-panels> (:305,407); поднять содержимое `tracks` (:381-406) в тело плеера",
+      "status": "pending",
+      "dependsOn": ["AC0.1"],
+      "artifacts": ["GnauralCore/ui/pages/AudioPage.vue"],
+      "verify": "bun run build (host) + запуск: во «Плеер» нет под-вкладок, виден только стек «Треки»; .gnaural → gtrack-дорожки + транспорт; wav через Меню→Файл→Открыть → Треки показывает спектр.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "AC1.2",
+      "phase": 1,
+      "title": "AudioPage.vue (script) + удаление сироты: снять мёртвые computeds (playerViewMainTabLabel/Icon, showStandalonePlayerControls, showEmbeddedScheduleView), scheduleViewRef + GnauralScheduleViewHandle, async-импорт GnauralScheduleView, handlePlayerKeyDown + addEventListener + nav-рефы (spectrogramNavRef/waveformNavRef/trackEditorNav/SPECTROGRAM_NAV_KEYS/SpectrogramNavHandle), watch(displayMode); схлопнуть activePlayerViewTab в константу, упростить гварды в ensureSpectrogramPrepared/handleExternalFileOpen; удалить файл GnauralScheduleView.vue",
+      "status": "pending",
+      "dependsOn": ["AC1.1"],
+      "artifacts": [
+        "GnauralCore/ui/pages/AudioPage.vue",
+        "GnauralCore/ui/components/GnauralScheduleView.vue (удаляется)"
+      ],
+      "verify": "bun run typecheck (vue-tsc) зелёный, 0 висящих ссылок; grep GnauralScheduleView → 0 импортов; приложение стартует, Space/hotkeys в Треки работают (владелец — TracksPanel).",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "AC1.3",
+      "phase": 1,
+      "title": "Мёртвые i18n + CSS после удаления main: удалить (после grep 0 ссылок) audio.scheduleTab/playbackTab/spectrogramTabHint/scheduleLoading/noSchedule (ru+en) и CSS player-view-tabs-bar/player-view-tabs, output-section--main/--schedule, schedule-view, player-toolbar, player-controls (+ @media)",
+      "status": "pending",
+      "dependsOn": ["AC1.2"],
+      "artifacts": [
+        "GnauralCore/ui/i18n/ru.json",
+        "GnauralCore/ui/i18n/en.json",
+        "GnauralCore/ui/pages/AudioPage.vue"
+      ],
+      "verify": "grep каждого ключа/класса по GnauralCore → 0 ДО удаления; bun run build зелёный; плеер = только Треки, лишних пустот нет.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "AC2.1",
+      "phase": 2,
+      "title": "AudioPage.vue: удалить сайдбар пресетов (:168-236, вкл. баннер пустого presetsRoot :189-193), кнопку-тоггл «Файлы» (:247-259), все древо-хелперы/хендлеры/состояние (expandedTreePaths, filesPanelOpen + STORAGE_* + watch, toTreeNodes/treeNodes/getTreeNodeIcon/findPresetNodeByPath/collectDirectoryPaths/findAncestorDirectoryPaths/syncRestoredTreeState/selectedTreePath/handlePresetNodeClick/handleSelectedPathChange/refreshPresets/toggleFilesPanel/closeFilesPanel), вызов refreshPresets в onMounted, импорт PresetTreeNode, мёртвый CSS сайдбара/дерева; клики недавних файлов → audio.selectPath (AC-D3)",
+      "status": "pending",
+      "dependsOn": ["AC1.3"],
+      "artifacts": ["GnauralCore/ui/pages/AudioPage.vue"],
+      "verify": "bun run build зелёный; запуск: слева от «Плеер» нет «Файлы», сайдбара нет; Меню→Файл→Открыть работает; клик по недавнему файлу выбирает и играет.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "AC2.2",
+      "phase": 2,
+      "title": "stores/audio.ts: удалить presetsTree/presetsLoading/refreshPresets/findNodeByPath + экспорты; переписать selectPath на fileKind из расширения (AC-D3); заменить тип selectedNode на локальный SelectedAudioFile (AC-D4); снять импорт PresetTreeNode",
+      "status": "pending",
+      "dependsOn": ["AC2.1"],
+      "artifacts": ["GnauralCore/ui/stores/audio.ts"],
+      "verify": "bun run typecheck + bun test ui (GnauralCore) зелёные; недавние файлы (wav/flac/gnaural) выбираются и играют; canStart/selectedFileKind работают.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "AC2.3",
+      "phase": 2,
+      "title": "ui/audio-api.ts: удалить fetchPresets() и импорт AudioPresetsResponse",
+      "status": "pending",
+      "dependsOn": ["AC2.2"],
+      "artifacts": ["GnauralCore/ui/audio-api.ts"],
+      "verify": "grep fetchPresets по GnauralCore → 0; bun run typecheck зелёный.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "AC2.4",
+      "phase": 2,
+      "title": "MindWaveCore/server/server.ts (UTF-8 + NUL, grep --text): удалить маршрут GET /api/audio/presets (:1696-1702), listPresetTree (:198-266), createAudioPresetsResponse (:268-286), comparePresetNodes (:190-196), импорты PresetTreeNode/AudioPresetsResponse (СОХРАНИТЬ AudioSettings — уходит в фазе 3); обновить баннер эндпоинтов (:2343); проверить readDirUtf8 (:161-162) на прочих вызывателей — удалить, только если сирота",
+      "status": "pending",
+      "dependsOn": ["AC1.3"],
+      "artifacts": ["MindWaveCore/server/server.ts"],
+      "verify": "R1: файл остаётся UTF-8 (штатный Edit, не плодить NUL). Сервер стартует, var/*.log без ошибок; GET /api/audio/presets → 404; доступ к аудио пока цел (presetsRoot ещё жив до фазы 3).",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "AC2.5",
+      "phase": 2,
+      "title": "SharedPasCore/ts/protocol.ts: удалить PresetTreeNode (:204-210) и AudioPresetsResponse (:212-215) ПОСЛЕ обнуления ссылок; AudioSettings (:134-136) пока ОСТАВИТЬ (удаляется в фазе 3)",
+      "status": "pending",
+      "dependsOn": ["AC2.1", "AC2.2", "AC2.3", "AC2.4"],
+      "artifacts": ["SharedPasCore/ts/protocol.ts"],
+      "verify": "grep PresetTreeNode|AudioPresetsResponse по воркспейсу → 0 (R4: реэкспорт обоими серверами); GnauralCore typecheck + MindWaveCore server стартует.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "AC2.6",
+      "phase": 2,
+      "title": "i18n: удалить (после grep 0) audio.presetsTitle/presetsSubtitle/configureRootHint/noPresets/filesTab/filesShow/filesHide/refresh из ru.json + en.json",
+      "status": "pending",
+      "dependsOn": ["AC2.1"],
+      "artifacts": ["GnauralCore/ui/i18n/ru.json", "GnauralCore/ui/i18n/en.json"],
+      "verify": "grep каждого ключа по GnauralCore → 0; bun run build зелёный; без битых плейсхолдеров i18n.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "AC3.1",
+      "phase": 3,
+      "title": "ПЕРЕ-ГЕЙТ КОРНЕЙ доступа к аудио на корни fs-browser. Ввести общий резолвер разрешённых аудио-корней из createLocalFsProvider().listRoots() (async → await, map .path); перенаправить 4 точки доступа: server.ts:1723 (/api/audio/file), server.ts:1780 (/api/audio/schedule), ui-ws-handler.ts:42 (спектрограмма), нормальный play (ui-ws-handler.ts:162 → gnaural-session.ts:333). Loopback-ограничение эндпоинтов — отдельным шагом AC3.2 (Q2=b)",
+      "status": "pending",
+      "dependsOn": ["AC2.5"],
+      "artifacts": [
+        "MindWaveCore/server/server.ts",
+        "MindWaveCore/server/ui-ws-handler.ts",
+        "GnauralCore/server/gnaural-session.ts",
+        "GnauralCore/server/audio-file-utils.ts"
+      ],
+      "verify": "Запуск (с loopback): воспроизведение/спектрограмма/скачивание wav/flac/gnaural из корней fs-browser работают; путь вне разрешённых корней → отказ. Loopback-ограничение доступности проверяется в AC3.2.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "AC3.2",
+      "phase": 3,
+      "title": "LOOPBACK-ГЕЙТ аудио-эндпоинтов, отдающих байты/анализ файла (Q2=b, AC-D6): ограничить server.ts:1723 (/api/audio/file), server.ts:1780 (/api/audio/schedule) и ui-ws-handler.ts:42 (спектрограмма) вызовами только с loopback-адреса — по образцу /api/fs/info (server.ts:2288-2290, isLoopbackAddress(aServer.requestIP(aRequest)?.address)). Проверку ставить в верхнем fetch (есть aServer), НЕ в handleApiRequest (нет сервера). Серверный play (gnaural-session) не гейтить — байты клиенту не утекают",
+      "status": "pending",
+      "dependsOn": ["AC3.1"],
+      "artifacts": [
+        "MindWaveCore/server/server.ts",
+        "MindWaveCore/server/ui-ws-handler.ts"
+      ],
+      "verify": "С loopback (тот же хост / AppCore webview): проигрывание, спектрограмма, /api/audio/schedule работают. С не-loopback (другой хост в LAN): /api/audio/file и /api/audio/schedule → отказ, спектр не строится — ОЖИДАЕМО (граница FB-D2 сохранена). Путь серверного play не затронут.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "AC3.3",
+      "phase": 3,
+      "title": "Каталог истории редактора (gnaural-editor-store.ts:508,517-527): заменить границу-контейнмент по единственному presetsRoot на «внутри ЛЮБОГО разрешённого корня» (тот же источник, что AC3.1); убрать throw «Configured presets root is missing» (:518-520)",
+      "status": "pending",
+      "dependsOn": ["AC3.1"],
+      "artifacts": ["GnauralCore/server/gnaural-editor-store.ts"],
+      "verify": "bun test server (GnauralCore); правка .gnaural из разрешённого корня сохраняется, .history создаётся рядом; load/save/autosave/voice-state работают.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "AC3.4",
+      "phase": 3,
+      "title": "Удалить обвес presetsRoot (AC-D5): getConfiguredAudioPresetsRoot/normalizeAudioPresetsRoot + presetsRoot из сигнатуры resolveAllowedAudioFilePath (audio-file-utils.ts:40-101); настройку БД audio_presets_root (log-db.ts:30,751-755,772-778,896-901,909-912); UI store saveSettings (audio.ts:762-774) + audioApi updateAudioSettings (audio-api.ts:123-128); сид fileDialogInitialPath (AudioPage.vue:616-619 → корень fs-browser/listRoots); i18n settings.audio* (ru/en:438-445)",
+      "status": "pending",
+      "dependsOn": ["AC3.1", "AC3.3"],
+      "artifacts": [
+        "GnauralCore/server/audio-file-utils.ts",
+        "MindWaveCore/server/log-db.ts",
+        "GnauralCore/ui/stores/audio.ts",
+        "GnauralCore/ui/audio-api.ts",
+        "GnauralCore/ui/pages/AudioPage.vue",
+        "GnauralCore/ui/i18n/ru.json",
+        "GnauralCore/ui/i18n/en.json"
+      ],
+      "verify": "grep presetsRoot|audio_presets_root|getConfiguredAudioPresetsRoot|normalizeAudioPresetsRoot → 0 (кроме удаляемых определений); typecheck + bun test server зелёные; сервер стартует.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "AC3.5",
+      "phase": 3,
+      "title": "Судьба AudioSettings: после удаления presetsRoot интерфейс AudioSettings (protocol.ts:134-136) ПУСТ. Проверить всех потребителей типа AudioSettings; если только несёт presetsRoot — удалить интерфейс + маршруты GET/PATCH /api/audio-settings (server.ts:1336,1345-1354) + store.loadSettings (audio.ts:746-756) + audioApi.fetchAudioSettings (audio-api.ts:119-121) + getAudioSettings (log-db.ts:751-755)",
+      "status": "pending",
+      "dependsOn": ["AC3.4"],
+      "artifacts": [
+        "SharedPasCore/ts/protocol.ts",
+        "MindWaveCore/server/server.ts",
+        "MindWaveCore/server/log-db.ts",
+        "GnauralCore/ui/stores/audio.ts",
+        "GnauralCore/ui/audio-api.ts"
+      ],
+      "verify": "grep AudioSettings по воркспейсу → только оставленные (или 0); typecheck зелёный; сервер стартует, приложение открывает/играет аудио без /api/audio-settings.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    }
+  ],
+  "log": [
+    {
+      "at": "2026-07-18",
+      "text": "Создан план+леджер. Владелец 2026-07-18: (1) «Избавиться от вкладки Воспроизведение» → объём «Вся вкладка main (и Расписание)» (AC-D1); (2) «Избавиться от старой вкладки Файлы (пресеты)» → «Полностью, включая store/сервер» (AC-D2)."
+    },
+    {
+      "at": "2026-07-18",
+      "text": "PAUSE Q1 (presetsRoot) — владелец ответил «Убрать и presetsRoot». Добавлена ФАЗА 3 (пере-гейт доступа к аудио на корни fs-browser) + решения AC-D2/AC-D5 REVISED, AC-D6 NEW. Третий проход-инвентаризация вскрыл: корни fs-browser = вся машина, главный сервер = 0.0.0.0/LAN, FB-D2 намеренно изолировал доступ-ко-всей-машине на loopback → НОВЫЙ PAUSE Q2 (безопасность) перед фазой 3. Также исправлено: server.ts — UTF-8 c NUL-байтом, не UTF-16 (R1)."
+    },
+    {
+      "at": "2026-07-18",
+      "text": "PAUSE Q2 (AC-D6, безопасность) — владелец выбрал (b): пере-гейт на корни fs-browser + loopback-ограничение аудио-эндпоинтов (/api/audio/file, /api/audio/schedule, спектрограмма) по образцу /api/fs/info (isLoopbackAddress, server.ts:2288-2290), сохраняя границу FB-D2. Добавлен шаг AC3.2 (loopback-гейт), фаза 3 перенумерована (история→AC3.3, обвес→AC3.4, AudioSettings→AC3.5). Оба owner-чекпоинта закрыты — план готов к исполнению."
+    }
+  ]
+}
