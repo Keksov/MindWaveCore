@@ -1,0 +1,202 @@
+{
+  "schemaVersion": 1,
+  "plan": "volume-balance-band",
+  "planDoc": "docs/volume-balance-band/volume-balance-band-plan.md",
+  "title": "volume-balance-band: совместный график «Громкость + Баланс» по аналогии с «Базовая частота + Полоса бита». Пер-дорожечный тумблер balanceBand на дорожке volume рисует вокруг средней линии V=(volL+volR)/2 коридор [volL, volR] (симметричный, полуширина V·|balance|, на той же оси 0..1 без её расширения); края коридора перетаскиваются и редактируют баланс. Точное зеркало паттерна beatBand (модель→рендер→drag→UI→i18n→персист)",
+  "status": "active",
+  "createdAt": "2026-07-17",
+  "updatedAt": "2026-07-18",
+  "decisions": [
+    {
+      "id": "VB-D1",
+      "text": "Форма режима = пер-дорожечный тумблер balanceBand на дорожке mode='volume', а НЕ пятый GTrackMode. В режиме «Громкость» с включённым тумблером вокруг средней линии V=(volL+volR)/2 рисуется коридор [volL, volR]. Точное зеркало beatBand на дорожке 'base'. Обоснование: владелец задал прямую аналогию с base+bit; значения баланса (volL/volR) живут в тех же единицах, что и ось громкости (linear 0..1), новая ось не нужна. Принято по умолчанию на VB0.1 (владелец не возражал; явно выбирался только VB-D3)."
+    },
+    {
+      "id": "VB-D2",
+      "text": "Геометрия. Линия = V=(volL+volR)/2 на оси 0..1. Края коридора = volL и volR (оба в 0..1). Симметричны относительно V: V−volL = volR−V = (volR−volL)/2 = V·balance (полуширина h=|volR−volL|/2 = V·|balance|). Заливка между краями + тонкая центральная линия на V. При balance==0 коридор схлопывается в линию, ручек нет (как при beatFreqHalf<=0). Расширение оси НЕ требуется (volL,volR ≤ 1 = максимум оси всегда) — это упрощение против beat, где ось базы приходилось расширять под база±бит/2 (gtrack-render.ts:254-261)."
+    },
+    {
+      "id": "VB-D3",
+      "text": "РЕШЕНО на VB0.1 (владелец): вариант A — СИММЕТРИЧНО, ГРОМКОСТЬ ФИКСИРОВАНА (точное зеркало «Полосы бита»). Семантика перетаскивания края (треб. 2, «вершины графика Баланс редактируются»): тянем край → меняется |balance| при фиксированных V и знаке (какой канал громче); противоположный край едет симметрично; b_new = sign(b_old)·|курсор−V|/V, клампится |b|≤1; реиспользуем valuePatchForMode(p,'balance',b_new,mono). Центр b=0 не имеет схватываемых краёв (баланс с нуля — отдельным графиком «Баланс» или диалогом точки, ровно как нельзя схватить полосу бита при бит=0). Плюс вершина громкости по-прежнему тянется (режим volume уже умеет) — весь коридор едет с ней, ширина масштабируется (ratio=balance сохраняется). ОТКЛОНЕНО: (B) свободный край = задаёт канал (менялись бы и баланс, и громкость, линия V «прыгает», не зеркалит beat); (C) знаковый край при фиксированной V (края визуально перекрещиваются при переходе центра)."
+    },
+    {
+      "id": "VB-D4",
+      "text": "Моно / вырожденные случаи. У моно-голоса нет стерео-баланса → тумблер скрыт/недоступен, коридор не рисуется (зеркало: полоса бита только в 'base'; valuePatchForMode('balance') при mono возвращает {}). Точка с volL==volR (центр) — ручек нет (края совпали с линией). Тишина volL=volR=0 — баланс не определён (pointBalance→0), коридора нет."
+    },
+    {
+      "id": "VB-D5",
+      "text": "Hover / захват / undo / отрисовка. Переиспользуем механику hoverEdge + drag-транзакции: добавить состояние BalanceEdgeRef/hoverEdge-аналог (или обобщить BeatEdgeRef). Один drag = одна единица undo (beginPointDrag→commit); press-release без движения открывает диалог точки (поле «Баланс»). Стиль: одна полупрозрачная заливка (α≈0.18) + маленькие ручки на краях + центральная линия; цвет — от цвета голоса, как у beat. Locked (preparse) голоса — без ручек."
+    }
+  ],
+  "steps": [
+    {
+      "id": "VB0.1",
+      "phase": 0,
+      "title": "PAUSE: показать владельцу VB-D1..D5, подтвердить семантику перетаскивания края (VB-D3: A симметрично / B свободный-край) и что режим = тумблер balanceBand на дорожке volume (не новый GTrackMode). Владельческий чекпоинт.",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [
+        "docs/volume-balance-band/volume-balance-band-plan.md (решения VB-D1..D5, разд. 3)"
+      ],
+      "verify": "PASSED — владелец выбрал VB-D3 = A (симметрично, громкость фиксирована), точное зеркало «Полосы бита». VB-D1 (тумблер на volume-дорожке) и остальные принято по умолчанию. Фаза 1 разблокирована.",
+      "startedAt": "2026-07-17",
+      "finishedAt": "2026-07-17",
+      "blockedReason": null,
+      "evidence": [
+        "Владелец на VB0.1 (AskUserQuestion) выбрал «A — симметрично (реком.)»: край меняет |balance| при фиксированной громкости V, противоположный край едет зеркально; центр b=0 без схватываемых краёв.",
+        "Следствие для реализации: VB1.1 хелпер маппит амплитуду края → balance при фиксированной V (b=sign(b_old)·|курсор−V|/V); VB2.1 drag края эмитит новое значение balance, а не отдельные volL/volR. Громкость линии остаётся на месте во время правки баланса.",
+        "Требование 2 «вершины графика Баланс редактируются» покрыто: (а) края коридора тянутся (|balance|), (б) вершина громкости тянется и двигает весь коридор, (в) диалог точки и отдельный график «Баланс» правят баланс полностью, как и раньше."
+      ]
+    },
+    {
+      "id": "VB1.1",
+      "phase": 1,
+      "title": "gtrack-render.ts: чистый хелпер края коридора баланса (маппинг амплитуды курсора → новое значение balance при фиксированной V, вариант A: b=sign(b_old)·|курсор−V|/V, клампы) — по образцу beatFreqHalf=|value−base|. Ось громкости (0..1) не трогаем. Юнит-тесты.",
+      "status": "done",
+      "dependsOn": [
+        "VB0.1"
+      ],
+      "artifacts": [
+        "GnauralCore/ui/composables/gtrack-render.ts (новый экспорт balanceEdgeToBalance: амплитуда края → balance при фиксированной V, знак сохраняется, клампится |b|≤1; ось volume без изменений) [LF]",
+        "GnauralCore/ui/composables/gtrack-render.test.ts (describe balanceEdgeToBalance: |b|=|amp−V|/V, сохранение знака, клампы, silence/центр→0, round-trip через valuePatchForMode) [LF]"
+      ],
+      "verify": "DONE — bun test ui: 250 pass / 0 fail (файл gtrack-render.test.ts: 31 pass). Новые кейсы зелёные, существующие не сломаны. Файлы GnauralCore/ui/composables — pure-LF (не CRLF), правки сохранили LF.",
+      "startedAt": "2026-07-17",
+      "finishedAt": "2026-07-17",
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "VB1.2",
+      "phase": 1,
+      "title": "use-gtrack-lanes.ts: сквозной пер-дорожечный флаг balanceBand (GTrackLane/ResolvedGTrackLane/StoredLane, resolveLane, storedLanesSnapshot, mapStoredLanes), операция setLaneBalanceBand, тип GTrackBalanceDragMove + операция dragPointBalance(ref, balance) — зеркало beatBand/dragPointBeat.",
+      "status": "done",
+      "dependsOn": [
+        "VB0.1",
+        "VB1.1"
+      ],
+      "artifacts": [
+        "GnauralCore/ui/composables/use-gtrack-lanes.ts (balanceBand в 6 местах персиста как beatBand; setLaneBalanceBand; GTrackBalanceDragMove; dragPointBalance внутри активной drag-транзакции = одна единица undo) [CRLF]"
+      ],
+      "verify": "DONE — vue-tsc (MindWaveCore/ui typecheck, покрывает GnauralCore по алиасу) 0 ошибок; bun test ui server 290 pass / 0 fail. Флаг balanceBand добавлен во все места персиста как beatBand; setLaneBalanceBand, GTrackBalanceDragMove, dragPointBalance экспортированы из композабла.",
+      "startedAt": "2026-07-17",
+      "finishedAt": "2026-07-17",
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "VB2.1",
+      "phase": 2,
+      "title": "GTrackView.vue: проп showBalanceBand; отрисовка коридора в режиме volume (заливка volL..volR, центральная линия на V, ручки на краях, α≈0.18, у preparse-голосов ручек нет); BalanceEdgeRef + hoverEdge; balanceEdgeAtPixel (хит-тест, пропуская volL==volR); drag-стейт и обработчики down/move/up с эмитом drag-balance-move; CSS-курсор ресайза. Зеркало beat-блоков.",
+      "status": "done",
+      "dependsOn": [
+        "VB1.1",
+        "VB1.2"
+      ],
+      "artifacts": [
+        "GnauralCore/ui/components/GTrackView.vue (showBalanceBand проп; render-блок коридора в volume; BalanceEdgeRef/hoverEdge; balanceEdgeAtPixel; balanceDrag* стейт + begin/move/up; drag-balance-move emit; курсор CSS) [CRLF]"
+      ],
+      "verify": "DONE — vue-tsc 0 ошибок; quasar build успешно (exit 0); bun test ui server 290 pass / 0 fail. Визуальная проверка коридора/drag — на VB3.2 (браузер-драйвера здесь нет).",
+      "startedAt": "2026-07-17",
+      "finishedAt": "2026-07-17",
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "VB2.2",
+      "phase": 2,
+      "title": "TracksPanel.vue + i18n: проводка :show-balance-band=\"lane.balanceBand\" и @drag-balance-move=\"gtracks.dragPointBalance(...)\"; тумблер «Полоса баланса» в секции «График» диалога дорожки (v-if mode==='volume'); ключ gtrackBalanceBand в ru.json + en.json.",
+      "status": "done",
+      "dependsOn": [
+        "VB2.1"
+      ],
+      "artifacts": [
+        "GnauralCore/ui/components/TracksPanel.vue (проводка show-balance-band + drag-balance-move; q-toggle «Полоса баланса» при mode==='volume') [CRLF]",
+        "GnauralCore/ui/i18n/ru.json (gtrackBalanceBand) [CRLF]",
+        "GnauralCore/ui/i18n/en.json (gtrackBalanceBand) [CRLF]"
+      ],
+      "verify": "DONE — vue-tsc 0 ошибок; quasar build успешно. Тумблер «Полоса баланса» в секции «График» диалога дорожки под v-if mode==='volume' (зеркало «Полосы бита» под mode==='base'); проводка :show-balance-band + @drag-balance-move → gtracks.dragPointBalance; ключ gtrackBalanceBand в ru.json+en.json (JSON валиден). Визуал/поведение — на VB3.2.",
+      "startedAt": "2026-07-17",
+      "finishedAt": "2026-07-17",
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "VB3.1",
+      "phase": 3,
+      "title": "Верификация сборкой: bun test ui server (хелперы VB1.1 + флаг дорожки VB1.2), bun run typecheck, bun run build.",
+      "status": "done",
+      "dependsOn": [
+        "VB2.2"
+      ],
+      "artifacts": [],
+      "verify": "DONE — vue-tsc --noEmit exit 0; quasar build exit 0 (public пересобран); bun test ui server 290 pass / 0 fail (в т.ч. gtrack-render.test 31 pass с новым describe balanceEdgeToBalance). Регрессий нет.",
+      "startedAt": "2026-07-17",
+      "finishedAt": "2026-07-17",
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "VB3.2",
+      "phase": 3,
+      "title": "PAUSE (финальная приёмка): владелец гоняет реальное приложение — тумблер «Полоса баланса» на volume-дорожке, коридор виден вокруг линии громкости, край тянется и правит баланс, undo/redo, сохранение/перезагрузка сохраняют флаг и правки. Владельческий чекпоинт.",
+      "status": "pending",
+      "dependsOn": [
+        "VB3.1"
+      ],
+      "artifacts": [],
+      "verify": "Владелец подтвердил поведение в приложении («ok») — фича COMPLETE.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    }
+  ],
+  "log": [
+    {
+      "at": "2026-07-17",
+      "step": "VB0.1",
+      "text": "План + леджер созданы. Изучён паттерн beatBand целиком: gtrack-model.ts (pointVolume/pointBalance/valuePatchForMode), gtrack-render.ts (ось + расширение под коридор), GTrackView.vue (отрисовка полосы, beatEdgeAtPixel, drag-стейт края, эмит drag-beat-move), use-gtrack-lanes.ts (сквозной флаг + dragPointBeat), TracksPanel.vue (проводка + тумблер), i18n. Ключевой вывод: volL/volR симметричны относительно V=(volL+volR)/2 и лежат в единицах оси громкости (0..1) — коридор рисуется на месте без расширения оси."
+    },
+    {
+      "at": "2026-07-17",
+      "step": "VB0.1",
+      "text": "PAUSE VB0.1 ПРОЙДЕН. Владелец выбрал VB-D3 = вариант A (симметрично, громкость фиксирована) — точное зеркало «Полосы бита»: край меняет |balance| при фиксированной V, противоположный край едет зеркально, центр b=0 без схватываемых краёв. VB-D1 (тумблер на volume-дорожке, не новый GTrackMode) и VB-D2/D4/D5 приняты по умолчанию. Фаза 1 разблокирована; следующий шаг — VB1.1 (чистый хелпер края + тесты в gtrack-render). Реализацию не начинал — жду отмашки владельца на старт Фазы 1 (метод repo: фазы двигаются по чекпоинтам владельца)."
+    },
+    {
+      "at": "2026-07-17",
+      "step": "VB1.1",
+      "text": "Готово. Добавлен чистый хелпер balanceEdgeToBalance(volume, amplitude, sign) в gtrack-render.ts — по варианту A (VB-D3): |balance|=min(1,|amplitude−volume|/volume), знак берётся из захваченного на старте перетаскивания sign(pointBalance); silence (volume≤0) и центр (sign=0) → 0. Зеркало beat-инварианта beatFreqHalf=|value−base|. Тесты: округление, сохранение знака L/R, кламп до |1|, закрытие коридора на центральной линии, round-trip через valuePatchForMode('balance') — громкость V неизменна, край доходит до курсора, противоположный едет симметрично. bun test ui: 250 pass / 0 fail. ВАЖНО: файлы GnauralCore/ui/composables оказались pure-LF (не CRLF) — маркеры артефактов исправлены на [LF]; проверять EOL каждого файла перед правкой."
+    },
+    {
+      "at": "2026-07-17",
+      "step": "VB1.2",
+      "text": "Готово. use-gtrack-lanes.ts: сквозной пер-дорожечный флаг balanceBand — GTrackLane, ResolvedGTrackLane, StoredLane, resolveLane (?? false), storedLanesSnapshot, mapStoredLanes (=== true); операция setLaneBalanceBand (зеркало setLaneBeatBand); тип GTrackBalanceDragMove {point, balance}; операция dragPointBalance(ref, balance) — внутри активной drag-транзакции применяет valuePatchForMode(p,'balance',balance,voice.mono) через setPointFields (пустой патч при mono/silence = безопасный no-op), одна единица undo, модель — единый источник. Обе функции добавлены в return композабла. vue-tsc 0 ошибок; bun test ui server 290 pass / 0 fail. Файл CRLF — правки применены CRLF-патчером, EOL ровный."
+    },
+    {
+      "at": "2026-07-17",
+      "step": "VB2.1",
+      "text": "Готово. GTrackView.vue: проп showBalanceBand (+withDefaults false); эмит drag-balance-move; тип BalanceEdgeRef; hoverEdge переиспользован для beat+balance краёв (структурно идентичны). Рендер-блок коридора в режиме volume — заливка между max/min(volL,volR) (α 0.18) + ручки на краях (skip volL==volR и preparse). balanceEdgeAtPixel (хит-тест, зеркало beatEdgeAtPixel). Drag-стейт balanceDragRef/Start/Moved/Sign; beginBalanceEdgeDrag захватывает знак баланса на старте; onPointerDown (Ctrl в normal + plain в point-mode), onPointerMove (активный drag эмитит balanceEdgeToBalance(pointVolume(p), tv.value, balanceDragSign); hover через ?? balanceEdgeAtPixel), onPointerUp (коммит=одна единица undo, press-release→edit-point). CSS-класс --beat-edge переименован в --value-edge (курсор ns-resize для обоих; был ровно в 2 местах). vue-tsc 0; quasar build exit 0; bun test ui server 290 pass / 0 fail."
+    },
+    {
+      "at": "2026-07-17",
+      "step": "VB2.2",
+      "text": "Готово. TracksPanel.vue: импорт типа GTrackBalanceDragMove; проводка :show-balance-band=\"lane.balanceBand\" и @drag-balance-move=\"(e)=>gtracks.dragPointBalance(e.point, e.balance)\" на GTrackView; тумблер «Полоса баланса» в секции «График» под v-if gtrackSettingsLane.mode==='volume' (рядом с «Полосой бита» под mode==='base'), вызывает setLaneBalanceBand. i18n: gtrackBalanceBand — ru «Полоса баланса (L/R громкость)», en «Balance corridor (L/R volume)». vue-tsc 0; quasar build exit 0."
+    },
+    {
+      "at": "2026-07-17",
+      "step": "VB3.1",
+      "text": "Верификация сборкой пройдена: vue-tsc --noEmit exit 0, quasar build exit 0, bun test ui server 290 pass / 0 fail. Реализация фичи завершена во всех файлах (gtrack-render + use-gtrack-lanes + GTrackView + TracksPanel + i18n). Остаётся VB3.2 — финальная приёмка владельцем в реальном приложении (браузер-драйвера в этой сессии нет, канвас-взаимодействие проверяется глазами). PAUSE — стоп до отмашки владельца."
+    },
+    {
+      "at": "2026-07-18",
+      "step": "VB2.1",
+      "text": "ФИКС после приёмки (владелец 2026-07-18): «-1 не отличается от +1, коридор не меняется». Причина: коридор рисовался как заливка между Math.max(volL,volR) и Math.min(volL,volR) — множество {volL,volR} для баланса +b и -b ОДИНАКОВО (каналы меняются местами), поэтому лево-тяжёлая и право-тяжёлая точки геометрически идентичны (ширина = |volR-volL| = 2·V·|balance|, симметрична по знаку). Ширина по модулю менялась корректно, но НАПРАВЛЕНИЕ не было видно. Исправление в GTrackView.vue: коридор теперь рисует каналы L и R РАЗНЫМИ цветами (cyan=L #38bdf8, orange=R #fb923c) отдельными линиями + светлая заливка между ними (спред) + метки L/R у правого края; ручки стали ПО-КАНАЛЬНЫМИ (BalanceEdgeRef.edge: 'upper'|'lower' → 'volR'|'volL'; balanceEdgeAtPixel тестирует volR/volL напрямую). Теперь +1 (orange сверху) и -1 (cyan сверху) визуально различаются. vue-tsc 0; quasar build 0; bun test ui 251/0. Визуальное подтверждение — за владельцем."
+    },
+    {
+      "at": "2026-07-18",
+      "step": "VB2.1",
+      "text": "Владелец подтвердил фикс направленного коридора баланса («fixed»). L/R-каналы разными цветами теперь различают -1 и +1. Фича volume-balance-band полностью в рабочем состоянии."
+    }
+  ]
+}
