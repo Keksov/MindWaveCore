@@ -1,0 +1,237 @@
+{
+  "schemaVersion": 1,
+  "plan": "wave-spectrum-cache",
+  "planDoc": "docs/wave-spectrum-cache/wave-spectrum-cache-plan.md",
+  "title": "wave-spectrum-cache: персистентный дисковый кэш (по хэшу содержимого .gnaural) WAV-рендера и overview-пирамиды, чтобы повторное открытие волны/спектра неизменённого расписания (эталон ForestMeditation) не рендерилось и не считало STFT заново",
+  "status": "active",
+  "createdAt": "2026-07-19",
+  "updatedAt": "2026-07-19",
+  "decisions": [
+    {
+      "id": "WC-D1",
+      "text": "Корневая причина «каждый раз заново» (verified 2026-07-19 чтением кода, 3 explore-прохода). Волна и спектр — один и тот же движок анализа: волна = spectrogram:get-peaks, спектр = spectrogram:get-tile поверх одного анализа; оба требуют рендер .gnaural→WAV (Gnaural.exe) + декод всего WAV + STFT в воркере SpectrumCore. На пути анализа единственный кэш — in-memory и привязан к WebSocket-соединению: рефкаунт-кэш рендера (spectrogram-audio-source.ts:108-231, temp WAV удаляется при release), warm-LRU анализов ANALYSIS_CACHE_MAX=6 по mtime (spectrogram-session.ts:201-207,315-335), кэш тайлов. Всё уничтожается при закрытии сокета/reload/навигации/рестарте/вытеснении (ui-ws-handler.ts:76-80 → spectrogram-session.ts:607-619 → SpectrogramAudioSource.dispose удаляет temp). Дисковый кэш audio-cache-manifest.ts + tmp/audio-render (server.ts:203-224,269-318) переживает рестарты, но подключён только к HTTP-плееру/экспорту, а WS-путь анализа его не использует. Прогрессивная схема «грубо→детально» (spectrogram-fixes SF11.x: overview-пирамида SpectrumCoreOverview.pas + display-res STFT SpectrumCoreFftwWorkerProbe.pas:598-630 + cross-zoom fallback use-spectrogram.ts:196-213 + накопление тайлов) реальна, но снижает лишь воспринимаемую задержку внутри живой сессии и на свежем open ничего не переиспользует. Вывод: «каждый раз заново» лечится персистентностью, а не улучшением отрисовки."
+    },
+    {
+      "id": "WC-D2",
+      "text": "Ключ инвалидации кэша — sha1 СОДЕРЖИМОГО файла .gnaural (а не path+size+mtime, как текущий дисковый ключ server.ts:203-224), плюс paramsHash параметров анализа (window/hop/zeroPaddingFactor/winFunc/channel/data/fscale и т.п.). Владелец выбрал content-hash явно (2026-07-19): устойчив к пустому пересохранению и touch — mtime меняется, но при идентичном содержимом ключ тот же → кэш-хит. paramsHash обязателен, т.к. и WAV single-loop, и overview-пирамида зависят от параметров анализа (см. R2)."
+    },
+    {
+      "id": "WC-D3",
+      "text": "Объём персистентного кэша (выбор владельца, 2026-07-19): персистим (а) WAV-рендер single-loop и (б) грубые тиры overview-пирамиды. НЕ персистим декодированный PCM и высокодетальные тайлы — они остаются ленивыми (get-tile по видимой области, как сейчас). Обоснование: overview-пирамида даёт самый заметный эффект — грубая картинка почти мгновенно на холодном повторном open, опираясь на уже готовую прогрессивную схему SF11.x; PCM объёмный и даёт меньший выигрыш."
+    },
+    {
+      "id": "WC-D4",
+      "text": "Переиспользуем существующую дисковую инфраструктуру — audio-cache-manifest.ts + каталог tmp/audio-render + summary/delete-UI в Settings (GT6.2) — а не строим отдельное хранилище (память reuse-standard-forms). Ключевое отличие: WS-путь анализа (SpectrogramAudioSource в GnauralCore/server) впервые начинает потреблять этот дисковый кэш вместо собственного mkdtemp+spawn; MindWaveCore инъектирует в конструкцию SpectrogramSession колбэк acquire-cached-wav (по аналогии с уже прокидываемым resolveSource в ui-ws-handler.ts:38-64). Общий кэш-файл берётся read-only: WS-путь его не удаляет (в отличие от текущего dispose)."
+    },
+    {
+      "id": "WC-D5",
+      "text": "Персистентность overview-пирамиды — на стороне FPC-воркера (ЗАКРЫТО, владелец 2026-07-19, Q1=worker-side): при open-analysis воркер получает cache-dir + contentHash + paramsHash, грузит пирамиду с диска если ключ совпал, иначе строит (SpectrumCoreOverview.pas) и пишет на диск. Держит STFT/пирамиду в одном месте (Pascal), не гоняет большие блобы через JSON-per-line bridge дважды. Требует правки SpectrumCoreFftwWorkerProbe.pas и пересборки .exe (R1). Альтернатива TS-сериализации через протокол отклонена."
+    }
+  ],
+  "steps": [
+    {
+      "id": "WC0.1",
+      "phase": 0,
+      "title": "Инвентаризация текущего состояния (verified чтением кода) + план и леджер",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [
+        "docs/wave-spectrum-cache/wave-spectrum-cache-plan.md",
+        "docs/wave-spectrum-cache/wave-spectrum-cache-progress.json"
+      ],
+      "verify": "validate-ledger.js проходит; факты о путях open/render/STFT и кэшах подтверждены чтением кода (3 explore-прохода); префикс WC свободен (заняты AP/FB/BK/GT/R/MR/PW/PR/SF/SB/TT/RF/WS/SS/VS/VB/AC/TS).",
+      "startedAt": "2026-07-19",
+      "finishedAt": "2026-07-19",
+      "blockedReason": null,
+      "evidence": [
+        "Диагноз WC-D1: кэши на пути анализа только in-memory/per-socket; дисковый audio-cache-manifest подключён лишь к HTTP-плееру.",
+        "Прогрессивная схема SF11.x существует, но не переиспользуется на свежем open.",
+        "Владелец зафиксировал объём (WC-D3) и ключ (WC-D2)."
+      ]
+    },
+    {
+      "id": "WC1.1",
+      "phase": 1,
+      "title": "Content-hash для .gnaural (sha1 содержимого) как ключ дискового кэша WAV-рендера; вынести ключ в тестируемый модуль",
+      "status": "done",
+      "dependsOn": ["WC0.1"],
+      "artifacts": [
+        "server/audio-cache-key.ts",
+        "server/audio-cache-key.test.ts",
+        "server/server.ts"
+      ],
+      "verify": "bun test audio-cache-key.test.ts (5 pass): touch (mtime++, тот же контент) → тот же ключ; правка контента → другой ключ; discriminator (voice-mute) партиционирует; default-ветка (без fingerprint) сохраняет size+mtime поведение. Полный server suite 45 pass. tsc --noEmit (ui tsc 5.7.3 + throwaway ignoreDeprecations 5.0) чисто. paramsHash — в Phase 2 (относится к анализу/пирамиде, не к WAV-рендеру).",
+      "startedAt": "2026-07-19",
+      "finishedAt": "2026-07-19",
+      "blockedReason": null,
+      "evidence": [
+        "getAudioOutputCachePath вынесен из boot-on-import server.ts в чистый модуль server/audio-cache-key.ts (side-effect-free, тестируемый); server.ts импортирует его.",
+        "Ключ .gnaural WAV-рендера теперь content-addressed (sha1 содержимого) через новый параметр aSourceFingerprint; renderGnauralSpectrogramWav читает файл один раз и переиспользует для хэша и single-loop-трансформа.",
+        "Default-ветка (WAV/FLAC pass-through) сохраняет байт-в-байт прежний size+mtime layout (NUL-разделители как String.fromCharCode(0)) — существующие tmp/audio-render и tmp/audio-conversion не инвалидированы (WC-D4).",
+        "Побочно устранён единственный stray NUL-байт в server.ts (был в цепочке ключа); файл теперь 0 NUL, 0 lone-LF, CRLF сохранён (память crlf-scripted-edits, server-ts-nul-byte-ripgrep)."
+      ]
+    },
+    {
+      "id": "WC1.2",
+      "phase": 1,
+      "title": "MindWaveCore: acquire single-loop WAV по content-hash из tmp/audio-render; прокинуть колбэк в конструкцию SpectrogramSession",
+      "status": "pending",
+      "dependsOn": ["WC1.1"],
+      "artifacts": [
+        "server/ui-ws-handler.ts",
+        "server/server.ts"
+      ],
+      "verify": "WS open отдаёт путь к дисково-кэшированному WAV; на кэш-хите Gnaural.exe не запускается (лог).",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "WC1.3",
+      "phase": 1,
+      "title": "GnauralCore SpectrogramAudioSource: использовать инъектированный кэш-WAV вместо mkdtemp+spawn (read-only, не удалять общий файл)",
+      "status": "pending",
+      "dependsOn": ["WC1.2"],
+      "artifacts": [
+        "../GnauralCore/server/spectrogram-audio-source.ts"
+      ],
+      "verify": "dispose больше не удаляет общий кэш-файл; in-memory рефкаунт-переиспользование сохранено; bun test server.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "WC1.4",
+      "phase": 1,
+      "title": "PAUSE: владелец гоняет реальное приложение — ForestMeditation open → reload → повторный open без Gnaural-spawn",
+      "status": "pending",
+      "dependsOn": ["WC1.3"],
+      "artifacts": [],
+      "verify": "Владелец подтверждает: второй open неизменённого расписания не запускает Gnaural.exe (тайминги в var/*.log). Полный рестарт AppCore для кросс-репо серверных правок.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "WC2.1",
+      "phase": 2,
+      "title": "Формат на диске для overview-пирамиды (бинарные float32-тиры + заголовок: frameCount/tierCount/contentHash/paramsHash)",
+      "status": "pending",
+      "dependsOn": ["WC1.1"],
+      "artifacts": [
+        "../SpectrumCore/src/core/SpectrumCoreOverview.pas"
+      ],
+      "verify": "round-trip запись→чтение пирамиды даёт идентичные тиры; заголовок несёт contentHash+paramsHash для сверки.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "WC2.2",
+      "phase": 2,
+      "title": "Воркер SpectrumCoreFftwWorkerProbe.pas: на open-analysis грузить пирамиду с диска если ключ совпал, иначе строить и писать; пересобрать exe",
+      "status": "pending",
+      "dependsOn": ["WC2.1"],
+      "artifacts": [
+        "../SpectrumCore/src/apps/SpectrumCoreFftwWorkerProbe.pas"
+      ],
+      "verify": "холодный open неизменённого файла грузит пирамиду с диска (лог в var/*.log), без построения; exe пересобран (память gnaural-exe-is-ours-rebuild-it).",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "WC2.3",
+      "phase": 2,
+      "title": "Session/bridge/протокол: передать cache-dir + contentHash + paramsHash в open-analysis; инвалидация по несовпадению хэша",
+      "status": "pending",
+      "dependsOn": ["WC2.2"],
+      "artifacts": [
+        "../GnauralCore/server/spectrogram-session.ts",
+        "../GnauralCore/server/spectrogram-bridge.ts",
+        "../SharedPasCore/ts/spectrogram-protocol.ts"
+      ],
+      "verify": "bun test server; несовпадение хэша → перестроение; совпадение → загрузка с диска.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "WC2.4",
+      "phase": 2,
+      "title": "PAUSE: владелец гоняет реальное приложение — холодный (свежий сервер) повторный open ForestMeditation: грубый overview почти мгновенно, без полного STFT. Закрыть Q1 (worker-side vs TS-side)",
+      "status": "pending",
+      "dependsOn": ["WC2.3"],
+      "artifacts": [],
+      "verify": "Владелец подтверждает быстрый грубый overview на холодном сервере и корректную детализацию; фиксируется решение Q1.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "WC3.1",
+      "phase": 3,
+      "title": "Cap размера кэша + подключить новые записи к audio-cache-manifest summary/delete в Settings",
+      "status": "pending",
+      "dependsOn": ["WC1.2", "WC2.3"],
+      "artifacts": [
+        "server/audio-cache-manifest.ts",
+        "server/server.ts"
+      ],
+      "verify": "новые артефакты видны в Settings-сводке и удаляются кнопкой; cap не даёт кэшу расти бесконечно.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "WC3.2",
+      "phase": 3,
+      "title": "Корректность инвалидации: изменение содержимого → пересчёт; touch (mtime++) без изменения → кэш-хит",
+      "status": "pending",
+      "dependsOn": ["WC3.1"],
+      "artifacts": [
+        "server/audio-cache-manifest.ts"
+      ],
+      "verify": "правка расписания → новый хэш → полный пересчёт и корректная картинка; touch без правки → кэш-хит без рендера/STFT (лог).",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "WC3.3",
+      "phase": 3,
+      "title": "PAUSE: финальное подтверждение на реальном приложении (несколько больших расписаний, повторные open, правка, очистка кэша)",
+      "status": "pending",
+      "dependsOn": ["WC3.2"],
+      "artifacts": [],
+      "verify": "Владелец подтверждает ускорение повторного open и корректность инвалидации на реальных данных.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    }
+  ],
+  "log": [
+    {
+      "at": "2026-07-19",
+      "text": "Заведены план и леджер. Три explore-прохода по коду: (1) путь генерации волны, (2) путь генерации спектра, (3) поиск прогрессивной схемы. Диагноз WC-D1: волна/спектр — один движок анализа, кэши только in-memory/per-socket, персистентности нет; дисковый audio-cache-manifest живёт лишь на HTTP-плеере. Прогрессивная схема SF11.x найдена, но на свежем open не переиспользуется. Владелец зафиксировал: ключ = хэш содержимого .gnaural (WC-D2); объём = WAV-рендер + overview-пирамида (WC-D3)."
+    },
+    {
+      "at": "2026-07-19",
+      "text": "Q1 закрыт владельцем: персистентность overview-пирамиды — worker-side (FPC), TS-side отклонён (WC-D5)."
+    },
+    {
+      "at": "2026-07-19",
+      "text": "WC1.1 done. Ключ дискового кэша WAV-рендера .gnaural переведён на content-hash (sha1 содержимого, WC-D2). getAudioOutputCachePath вынесен в новый чистый модуль server/audio-cache-key.ts (server.ts бутает Bun.serve на импорте → внутренности не тестируемы), покрыт server/audio-cache-key.test.ts (5 pass). Default size+mtime ветка сохранена байт-в-байт (NUL-разделители через fromCharCode(0)) — существующие кэши валидны. Побочно убран stray NUL-байт из server.ts. Полный server suite 45 pass, typecheck чист (ui tsc 5.7.3 + throwaway ignoreDeprecations). Не коммичено (по правилам)."
+    }
+  ]
+}
