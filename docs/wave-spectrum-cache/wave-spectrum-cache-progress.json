@@ -26,6 +26,10 @@
     {
       "id": "WC-D5",
       "text": "Персистентность overview-пирамиды — на стороне FPC-воркера (ЗАКРЫТО, владелец 2026-07-19, Q1=worker-side): при open-analysis воркер получает cache-dir + contentHash + paramsHash, грузит пирамиду с диска если ключ совпал, иначе строит (SpectrumCoreOverview.pas) и пишет на диск. Держит STFT/пирамиду в одном месте (Pascal), не гоняет большие блобы через JSON-per-line bridge дважды. Требует правки SpectrumCoreFftwWorkerProbe.pas и пересборки .exe (R1). Альтернатива TS-сериализации через протокол отклонена."
+    },
+    {
+      "id": "WC-D6",
+      "text": "Единый корень кэшей (владелец, 2026-07-19): все кэш/temp-артефакты фичи живут под общим корнем %LOCALAPPDATA%\\KKSoundCore\\cache (тот же user-data root, что у projects/ и логов — resolveEffectiveUserDataRoot(), с учётом переопределения настройкой user_data_root), а не под репозиторным MindWaveCore/server/tmp. Резолвится один раз на старте сервера — смена корня применяется после рестарта (для projects/ корень ре-резолвится на каждой операции, но для кэшей startup-резолюции достаточно и она проще). Подпапки: cache/audio-render, cache/audio-conversion, cache/audio-cache-manifest.json, а overview-пирамида Фазы 2 — cache/spectrogram-overview. Старые файлы под server/tmp не мигрируются (осиротеют, безвредны). Реализовано в WC1.5."
     }
   ],
   "steps": [
@@ -126,6 +130,25 @@
       ]
     },
     {
+      "id": "WC1.5",
+      "phase": 1,
+      "title": "Единый корень кэшей: перенести audio-render/audio-conversion/manifest под %LOCALAPPDATA%\\KKSoundCore\\cache (WC-D6)",
+      "status": "done",
+      "dependsOn": ["WC1.2"],
+      "artifacts": [
+        "server/server.ts"
+      ],
+      "verify": "Резолв под реальным окружением: defaultUserDataRoot()+/cache = C:\\Users\\1\\AppData\\Local\\KKSoundCore\\cache\\audio-render (подтверждено скриптом). typecheck чист, server suite 45 pass, EOL/NUL целы.",
+      "startedAt": "2026-07-19",
+      "finishedAt": "2026-07-19",
+      "blockedReason": null,
+      "evidence": [
+        "server.ts: init переупорядочен (archiveStore + resolveEffectiveUserDataRoot подняты выше), cacheRoot = join(resolveEffectiveUserDataRoot(), \"cache\"); audioRenderCacheDir/audioConversionCacheDir/manifest теперь под cacheRoot вместо hostDir/tmp.",
+        "Startup-резолюция (не per-op) — смена user_data_root применяется на рестарте; для кэшей этого достаточно.",
+        "Фаза 2 (overview-пирамида) ляжет в cache/spectrogram-overview под тем же корнем."
+      ]
+    },
+    {
       "id": "WC2.1",
       "phase": 2,
       "title": "Формат на диске для overview-пирамиды (бинарные float32-тиры + заголовок: frameCount/tierCount/contentHash/paramsHash)",
@@ -158,15 +181,16 @@
     {
       "id": "WC2.3",
       "phase": 2,
-      "title": "Session/bridge/протокол: передать cache-dir + contentHash + paramsHash в open-analysis; инвалидация по несовпадению хэша",
+      "title": "Session/bridge/протокол: передать cache-dir (cache/spectrogram-overview под общим корнем, WC-D6) + contentHash + paramsHash в open-analysis; инвалидация по несовпадению хэша",
       "status": "pending",
-      "dependsOn": ["WC2.2"],
+      "dependsOn": ["WC2.2", "WC1.5"],
       "artifacts": [
         "../GnauralCore/server/spectrogram-session.ts",
         "../GnauralCore/server/spectrogram-bridge.ts",
-        "../SharedPasCore/ts/spectrogram-protocol.ts"
+        "../SharedPasCore/ts/spectrogram-protocol.ts",
+        "server/server.ts"
       ],
-      "verify": "bun test server; несовпадение хэша → перестроение; совпадение → загрузка с диска.",
+      "verify": "bun test server; несовпадение хэша → перестроение; совпадение → загрузка с диска. cache-dir = join(cacheRoot, 'spectrogram-overview').",
       "startedAt": null,
       "finishedAt": null,
       "blockedReason": null,
@@ -242,6 +266,10 @@
     {
       "at": "2026-07-19",
       "text": "WC1.1 done. Ключ дискового кэша WAV-рендера .gnaural переведён на content-hash (sha1 содержимого, WC-D2). getAudioOutputCachePath вынесен в новый чистый модуль server/audio-cache-key.ts (server.ts бутает Bun.serve на импорте → внутренности не тестируемы), покрыт server/audio-cache-key.test.ts (5 pass). Default size+mtime ветка сохранена байт-в-байт (NUL-разделители через fromCharCode(0)) — существующие кэши валидны. Побочно убран stray NUL-байт из server.ts. Полный server suite 45 pass, typecheck чист (ui tsc 5.7.3 + throwaway ignoreDeprecations). Закоммичено (77baa24 код + bd96ea4 docs)."
+    },
+    {
+      "at": "2026-07-19",
+      "text": "WC1.4 подтверждён владельцем на реальном приложении. Затем владелец добавил требование (WC-D6): все temp/кэш-файлы под общим корнем %LOCALAPPDATA%\\KKSoundCore\\cache. Реализовано в WC1.5: server.ts init переупорядочен, cacheRoot = resolveEffectiveUserDataRoot()+/cache; audio-render/audio-conversion/manifest переехали туда с hostDir/tmp. Резолв подтверждён под реальным окружением, 45 pass, typecheck чист. Фаза 2 (overview) ляжет в cache/spectrogram-overview."
     },
     {
       "at": "2026-07-19",

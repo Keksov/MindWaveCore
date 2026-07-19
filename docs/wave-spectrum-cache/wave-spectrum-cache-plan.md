@@ -77,6 +77,7 @@ FFT-параметры конфигурируются на `open`: [spectrogram-
 - **WC-D3** — объём: персистим **WAV-рендер + грубые тиры overview-пирамиды**; PCM и высокодетальные тайлы не персистим *(владелец)*.
 - **WC-D4** — переиспользуем существующую дисковую инфру (`audio-cache-manifest` + `tmp/audio-render`), а не строим новую; WS-путь анализа впервые начинает её использовать *(память [reuse-standard-forms])*.
 - **WC-D5** — персистентность overview — на стороне FPC-воркера (при `open-analysis` грузить/строить+писать пирамиду), ключ `contentHash+paramsHash`; требует пересборки `SpectrumCoreFftwWorkerProbe.exe`. Альтернатива (TS-сериализация через bridge) — вопрос **Q1** на PAUSE.
+- **WC-D6** — все кэш/temp-артефакты под общим корнем `%LOCALAPPDATA%\KKSoundCore\cache` (тот же `resolveEffectiveUserDataRoot()`, что у `projects/` и логов, с учётом переопределения `user_data_root`), а не под `MindWaveCore/server/tmp` *(владелец, 2026-07-19)*. Резолв на старте; подпапки `cache/audio-render`, `cache/audio-conversion`, `cache/spectrogram-overview`.
 
 ---
 
@@ -87,7 +88,7 @@ FFT-параметры конфигурируются на `open`: [spectrogram-
 **Фаза 0 — инвентаризация**: `WC0.1` план+леджер + verified-факты текущего состояния.
 
 **Фаза 1 — персист WAV-рендера (content-hash), WS-путь берёт дисковый кэш**:
-`WC1.1` content-hash `.gnaural` + расширение ключа дискового кэша · `WC1.2` MindWaveCore: acquire single-loop WAV по content-hash, прокидка в конструкцию `SpectrogramSession` · `WC1.3` `SpectrogramAudioSource` берёт инъектированный кэш-WAV вместо `mkdtemp+spawn` (read-only, не удалять общий файл) · **`WC1.4` PAUSE** — владелец гоняет реальное приложение.
+`WC1.1` content-hash `.gnaural` + расширение ключа дискового кэша · `WC1.2` MindWaveCore: acquire single-loop WAV по content-hash, прокидка в конструкцию `SpectrogramSession` · `WC1.3` `SpectrogramAudioSource` берёт инъектированный кэш-WAV вместо `mkdtemp+spawn` (read-only, не удалять общий файл) · **`WC1.4` PAUSE** — владелец гоняет реальное приложение · `WC1.5` перенос кэшей под общий корень `%LOCALAPPDATA%\KKSoundCore\cache` (WC-D6).
 
 **Фаза 2 — персист overview-пирамиды**:
 `WC2.1` формат на диске (бинарные float32-тиры + заголовок: frameCount/tierCount/contentHash/paramsHash) · `WC2.2` воркер грузит пирамиду с диска если есть, иначе строит+пишет; пересборка exe · `WC2.3` session/bridge/протокол: передать cache-dir + contentHash + paramsHash в `open-analysis`, инвалидация по несовпадению · **`WC2.4` PAUSE** — владелец гоняет реальное приложение (холодный open на свежем сервере).
