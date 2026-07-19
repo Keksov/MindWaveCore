@@ -8,9 +8,11 @@ import { isLoopbackAddress } from "./fs-browser-server"
 import type { AppSession } from "../../BodyMonitorCore/server"
 import {
   resolveAllowedAudioFilePath,
+  SpectrogramAudioSource,
   SpectrogramSession,
   type GnauralSession,
   type SpectrogramSourceResolver,
+  type SpectrogramWavCacheFn,
 } from "../../GnauralCore/server"
 import { isSpectrogramClientMessage } from "../../GnauralCore/server/protocol"
 
@@ -30,6 +32,10 @@ export interface UiWsContext {
   readonly replayManager: LogReplayManager
   readonly replayPublisher: ReplayPublisher
   readonly scheduleWatcher: { watch(filePath: string): void; unwatch(filePath: string): void }
+  // wave-spectrum-cache WC1.2 (WC-D4): the persistent (content-hash) disk render cache. Injected into
+  // each socket's SpectrogramAudioSource so the WS spectrogram/waveform path reuses cached WAVs across
+  // reloads/restarts instead of re-rendering to OS temp on every open.
+  readonly spectrogramWavCache: SpectrogramWavCacheFn
 }
 
 const socketWatchedPath = new Map<ServerWebSocket<UiSocketData>, string>()
@@ -57,7 +63,9 @@ const getSpectrogramSession = (
       }
       return { filePath: resolved.filePath, fileKind: resolved.fileKind }
     }
-    session = new SpectrogramSession({ resolveSource })
+    // wave-spectrum-cache WC1.2: give this socket's audio source the persistent disk render cache.
+    const audioSource = new SpectrogramAudioSource({ wavCache: aContext.spectrogramWavCache })
+    session = new SpectrogramSession({ resolveSource, audioSource })
     socketSpectrogram.set(aSocket, session)
   }
   return session

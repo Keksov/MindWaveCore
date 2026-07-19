@@ -15,6 +15,7 @@ import {
   resolveGnauralExecutablePath,
   resolveAllowedAudioFilePath,
   type GnauralSession,
+  type SpectrogramWavCacheFn,
 } from "../../GnauralCore/server"
 import { AudioCacheManifest } from "./audio-cache-manifest"
 import { getAudioOutputCachePath, gnauralContentFingerprint } from "./audio-cache-key"
@@ -297,6 +298,43 @@ const renderGnauralSpectrogramWav = async (aSourceFilePath: string): Promise<str
     await unlink(tempWavPath).catch(() => undefined)
   }
   await audioCacheManifest.record(cachePath, aSourceFilePath, "wav", discriminator) // GT6.1
+  return cachePath
+}
+
+// wave-spectrum-cache WC1.2 (WC-D2/WC-D4): the persistent render cache handed to the WS spectrogram
+// path (SpectrogramAudioSource) so it stops re-rendering a throwaway WAV to OS temp on every open.
+// MindWaveCore owns the cache dir + content-hash key + manifest + read-only lifetime; GnauralCore
+// owns the transform (single-loop + solo), supplied as the `render` closure and only run on a miss.
+// The key layout matches renderGnauralSpectrogramWav, so an unchanged full-mix schedule shares one
+// WAV with the HTTP audio player/export.
+const spectrogramWavCache: SpectrogramWavCacheFn = async ({ sourcePath, fingerprint, discriminator, render }) => {
+  const cachePath = await getAudioOutputCachePath(sourcePath, "wav", audioRenderCacheDir, discriminator, fingerprint)
+  if (await ensureFile(cachePath)) {
+    return cachePath
+  }
+
+  await mkdir(audioRenderCacheDir, { recursive: true })
+  const tempWavPath = join(audioRenderCacheDir, `.sp-${process.pid}-${randomUUID()}.wav`)
+  try {
+    await render(tempWavPath)
+  } catch (error) {
+    await unlink(tempWavPath).catch(() => undefined)
+    throw error
+  }
+  if (!(await ensureFile(tempWavPath))) {
+    throw new Error("spectrogram render produced no output WAV")
+  }
+
+  try {
+    await rename(tempWavPath, cachePath)
+  } catch (error) {
+    if (!(await ensureFile(cachePath))) {
+      await unlink(tempWavPath).catch(() => undefined)
+      throw error instanceof Error ? error : new Error("Failed to finalize the spectrogram render")
+    }
+    await unlink(tempWavPath).catch(() => undefined)
+  }
+  await audioCacheManifest.record(cachePath, sourcePath, "wav", discriminator)
   return cachePath
 }
 
@@ -2149,6 +2187,7 @@ server = Bun.serve<SocketData>({
         replayManager,
         replayPublisher: server,
         scheduleWatcher,
+        spectrogramWavCache,
       })
     },
     async message(aSocket, aMessage) {
@@ -2160,6 +2199,7 @@ server = Bun.serve<SocketData>({
         replayManager,
         replayPublisher: server,
         scheduleWatcher,
+        spectrogramWavCache,
       })
     },
     close(aSocket) {
@@ -2170,6 +2210,7 @@ server = Bun.serve<SocketData>({
         replayManager,
         replayPublisher: server,
         scheduleWatcher,
+        spectrogramWavCache,
       })
     }
   }
