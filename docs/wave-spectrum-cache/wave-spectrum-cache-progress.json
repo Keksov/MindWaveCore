@@ -231,33 +231,41 @@
     {
       "id": "WC3.1",
       "phase": 3,
-      "title": "Cap размера кэша + подключить новые записи к audio-cache-manifest summary/delete в Settings",
-      "status": "pending",
+      "title": "Cap размера кэша тайл-блобов + подключить spectrogram-overview к audio-cache-manifest summary/delete в Settings",
+      "status": "done",
       "dependsOn": ["WC1.2", "WC2.3"],
       "artifacts": [
         "server/audio-cache-manifest.ts",
+        "server/audio-cache-manifest.test.ts",
         "server/server.ts"
       ],
-      "verify": "новые артефакты видны в Settings-сводке и удаляются кнопкой; cap не даёт кэшу расти бесконечно.",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "pruneDirectoryToBudget тесты (evict-oldest-to-budget, no-op-under-budget, skip-dotfiles + missing-dir tolerant); MindWaveCore server suite 48 pass; typecheck чист. Settings UI уже рендерит total+orphans+clear-all — тайл-блобы видны и чистятся без правок UI.",
+      "startedAt": "2026-07-19",
+      "finishedAt": "2026-07-19",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "audio-cache-manifest.ts: exported pruneDirectoryToBudget(dir, maxBytes) — удаляет старейшие (по mtime) до бюджета, пропускает dotfiles, не бросает.",
+        "server.ts: spectrogram-overview добавлен в cacheDirs манифеста (bytes в Settings-тотале, чистится Clear-all; .tileblob как orphans — воркер пишет без provenance). Авто-cap 512 MiB на тайл-кэш (отдельно от audio-render, чтобы не вытеснять WAV плеера), прогон на старте + каждые 10 мин (.unref()).",
+        "GnauralSettingsTab.vue уже показывает cacheTotal + orphans (formatBytes) + Clear-all — UI не трогал."
+      ]
     },
     {
       "id": "WC3.2",
       "phase": 3,
       "title": "Корректность инвалидации: изменение содержимого → пересчёт; touch (mtime++) без изменения → кэш-хит",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["WC3.1"],
       "artifacts": [
-        "server/audio-cache-manifest.ts"
+        "../GnauralCore/server/spectrogram-audio-source.test.ts",
+        "server/audio-cache-key.test.ts"
       ],
-      "verify": "правка расписания → новый хэш → полный пересчёт и корректная картинка; touch без правки → кэш-хит без рендера/STFT (лог).",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "spectrogram-audio-source.test.ts WC3.2: handle.contentHash стабилен на touch (та же content → тот же хэш), меняется на правку и на другой solo. WAV-сторона покрыта audio-cache-key.test.ts (WC1.1): touch→тот же ключ, правка→другой. GnauralCore server 47 pass. Реальная картинка/лог — на WC3.3 PAUSE.",
+      "startedAt": "2026-07-19",
+      "finishedAt": "2026-07-19",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Инвалидация — by design content-addressed: tileContentHash=sha1(.gnaural+solo) в acquire; touch не меняет содержимое → тот же хэш → тайл/WAV кэш-хит; правка → новый хэш → пересчёт. Проверено юнит-тестами на обоих уровнях (identity в acquire + ключ WAV-рендера)."
+      ]
     },
     {
       "id": "WC3.3",
