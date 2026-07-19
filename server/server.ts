@@ -44,24 +44,11 @@ const workspaceRoot = resolve(import.meta.dir, "..", "..", "..")
 const runtimeDir = hostDir
 const publicDir = join(hostDir, "public")
 const uiDir = resolve(hostDir, "..", "ui")
-const audioConversionCacheDir = join(hostDir, "tmp", "audio-conversion")
-const audioRenderCacheDir = join(hostDir, "tmp", "audio-render")
-// GT6.1 (owner req. 13, GT-D11): provenance manifest for the audio output cache (render + convert).
-const audioCacheManifest = new AudioCacheManifest(
-  join(hostDir, "tmp", "audio-cache-manifest.json"),
-  [audioRenderCacheDir, audioConversionCacheDir],
-)
 const { gnauralCwd, gnauralExePath } = resolveGnauralExecutablePath()
 const processManager: AppSession = createSession("bodymonitor", workspaceRoot)
 const archiveStore = createLogArchiveStore(runtimeDir)
 const gnauralEditorStore = createGnauralEditorStore(runtimeDir)
 
-// audio-panel-cleanup AC3.1/AC-D2: audio file access is gated on the fs-browser roots (the local
-// provider's roots = the whole machine) instead of the removed presetsRoot. The byte/analysis-serving
-// endpoints are additionally restricted to loopback (AC3.2/Q2=b), so this does NOT widen LAN exposure.
-const localFsProvider = createLocalFsProvider()
-const getAudioAccessRoots = async (): Promise<readonly string[]> =>
-  (await localFsProvider.listRoots()).map((aRoot) => aRoot.path)
 // project-store PR1.4 (PR-D5/D6): per-file "Project" folders under the user-data root; the root is
 // re-resolved on every operation so a settings change needs no restart.
 const resolveEffectiveUserDataRoot = (): string => {
@@ -69,6 +56,25 @@ const resolveEffectiveUserDataRoot = (): string => {
   return configured !== "" ? configured : defaultUserDataRoot()
 }
 const projectStore = createProjectStore({ resolveUserDataRoot: resolveEffectiveUserDataRoot })
+
+// wave-spectrum-cache WC1.5 (WC-D6, owner req 2026-07-19): all cache artifacts live under the common
+// cache root %LOCALAPPDATA%\KKSoundCore\cache (honouring a user_data_root override) instead of the
+// repo's server/tmp. Resolved once at startup — a root change takes effect on the next restart.
+const cacheRoot = join(resolveEffectiveUserDataRoot(), "cache")
+const audioConversionCacheDir = join(cacheRoot, "audio-conversion")
+const audioRenderCacheDir = join(cacheRoot, "audio-render")
+// GT6.1 (owner req. 13, GT-D11): provenance manifest for the audio output cache (render + convert).
+const audioCacheManifest = new AudioCacheManifest(
+  join(cacheRoot, "audio-cache-manifest.json"),
+  [audioRenderCacheDir, audioConversionCacheDir],
+)
+
+// audio-panel-cleanup AC3.1/AC-D2: audio file access is gated on the fs-browser roots (the local
+// provider's roots = the whole machine) instead of the removed presetsRoot. The byte/analysis-serving
+// endpoints are additionally restricted to loopback (AC3.2/Q2=b), so this does NOT widen LAN exposure.
+const localFsProvider = createLocalFsProvider()
+const getAudioAccessRoots = async (): Promise<readonly string[]> =>
+  (await localFsProvider.listRoots()).map((aRoot) => aRoot.path)
 let gnauralSession: GnauralSession
 
 const MAX_RESTART_ATTEMPTS = 5
