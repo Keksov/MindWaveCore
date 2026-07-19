@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "plan": "graphs-render-placeholder",
+  "planDoc": "docs/graphs-render-placeholder/graphs-render-placeholder-plan.md",
+  "title": "graphs-render-placeholder: регрессия — при открытии больших планов (ForestMeditation) общие графики волны и спектра появляются только после серверного рендера (~26с), а до этого область под кривыми дорожками пустая. Инструментально (не по коммитам) подтверждено: общие стеки гейтятся на hasSpectrogramData (= backendAnalysis!==null), который встаёт лишь по завершении metaSpec.open(); единственный носитель часов (SpectrogramView isPreparing) до этого не смонтирован, а openStages подавлен при showGtracks. Фикс: сигнал renderPending (на базе metaRendering, сбрасывается в finally на успехе И ошибке — не как вечно-true metaSpec.preparing) + по одному плейсхолдеру-дорожке (часы q-spinner-hourglass + tracksOverall* — stageRender) на КАЖДЫЙ отображаемый график (волна/спектр), гейтинг тех же show/hidden-условий что и реальная группа. Область — только общие стеки; per-lane и WaveformView не трогаем; новых i18n нет.",
+  "status": "done",
+  "createdAt": "2026-07-19",
+  "updatedAt": "2026-07-19",
+  "decisions": [
+    {
+      "id": "GP-D1",
+      "text": "Диагностика — инструментовка рантайма (не бисект коммитов, req 2). Временные логи [REGR] в TracksPanel (таймлайн open→render→graphs) и SpectrogramView (MOUNTED/preparing). Удалить перед фикс-коммитом; результат зафиксирован в плане и GP-D2."
+    },
+    {
+      "id": "GP-D2",
+      "text": "Первопричина: общие стеки волны (TracksPanel v-if showWaveform && hasSpectrogramData …) и спектра (showSpectrogram && hasSpectrogramData …) гейтятся на hasSpectrogramData (= backendAnalysis!==null), который встаёт только по завершении metaSpec.open() (серверный рендер WAV + анализ). Носитель часов (SpectrogramView isPreparing) недостижим до монтирования; панельный openStages подавлен, т.к. он в v-else ветке showGtracks||hasSpectrogramData, а showGtracks уже true. Прогон ForestMeditation: showGtracks@+543ms (124 дорожки), hasSpectrogramData@+26353ms — ~26с без индикатора; первый spectrogram-view смонтирован @+26491ms."
+    },
+    {
+      "id": "GP-D3",
+      "text": "Сигнал renderPending = metaRendering && !hasSpectrogramData && spectrogramError===null. metaRendering (ref) выставляется на весь span metaSpec.open() и сбрасывается в finally — на успехе И на ошибке, поэтому не зависает. НЕ используем metaSpec.preparing: headless metaSpec не вызывает setView → refetch() не гасит opening → preparing = busy && !hasFrame остаётся true навсегда (в логе metaSpec.preparing=true и не гаснет)."
+    },
+    {
+      "id": "GP-D4",
+      "text": "Плейсхолдер на КАЖДЫЙ отображаемый график (req 3 + выбор владельца «Две дорожки»): отдельная дорожка в слоте волны (перед общим стеком волны) и в слоте спектра (перед общим стеком спектра). Каждая гейтится теми же show/hidden/overallMixActive условиями, что и реальная группа, минус hasSpectrogramData (инвертируется renderPending). Высота = высота первой дорожки соответствующей группы (waveformTrackHeights[0]/spectrogramTrackHeights[0] с дефолтами). Эстафета без мигания: open() резолвит analysis ПЕРЕД возвратом → в один тик hasSpectrogramData=true и metaRendering=false, плейсхолдер гаснет ровно при монтировании реального стека."
+    },
+    {
+      "id": "GP-D5",
+      "text": "Текст — существующие i18n-ключи, новых нет: заголовок группы (tracksOverallWave/tracksOverallSpectrum) + stageRender («Рендер WAV на сервере», thin-client-корректно, один источник для обеих дорожек). Часы — q-spinner-hourglass (как в SpectrogramView); стиль .tracks-panel__graphs-loading — тёмный фон дорожки #0f172a, центрированный ряд часы+подпись."
+    },
+    {
+      "id": "GP-D6",
+      "text": "Область — только ОБЩИЕ стеки. Per-lane solo-графики монтируются рано вместе с showGtracks и имеют свои часы (SpectrogramView isPreparing) — не трогаем. WaveformView собственного loading-оверлея не имеет — покрывается плейсхолдером группы волны; спиннер в сам WaveformView не добавляем (вне области)."
+    }
+  ],
+  "steps": [
+    {
+      "id": "GP0.1",
+      "phase": 0,
+      "title": "План + progress.json (docs). Требования владельца дословно, диагноз, решения GP-D1..D6, шаги, риски, проверка, раздел «вне области» (403).",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [
+        "MindWaveCore/docs/graphs-render-placeholder/graphs-render-placeholder-plan.md (новый) [LF]",
+        "MindWaveCore/docs/graphs-render-placeholder/graphs-render-placeholder-progress.json (новый) [LF]"
+      ],
+      "verify": "DONE — validate-ledger.js OK (steps/decisions, DAG ацикличен, нет stale-статусов).",
+      "startedAt": "2026-07-19",
+      "finishedAt": "2026-07-19",
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "GP1.1",
+      "phase": 1,
+      "title": "Инструментальная диагностика (req 2): временные логи [REGR] таймлайна open→render→graphs (TracksPanel) + MOUNTED/preparing (SpectrogramView); прогон ForestMeditation владельцем; подтверждение места сбоя (GP-D2). Затем удаление инструментовки.",
+      "status": "done",
+      "dependsOn": ["GP0.1"],
+      "artifacts": [
+        "GnauralCore/ui/components/TracksPanel.vue (инструментовка добавлена и УДАЛЕНА — в рабочем дереве только фикс) [LF]",
+        "GnauralCore/ui/components/SpectrogramView.vue (инструментовка добавлена и УДАЛЕНА — git diff пуст) [LF]"
+      ],
+      "verify": "DONE — таймлайн ForestMeditation (владелец, консоль): showGtracks=true @+543ms (124 дорожки), hasSpectrogramData=true @+26353ms, первый spectrogram-view MOUNTED @+26491ms — ~26с без индикатора для общих графиков. Инструментовка снята: grep REGR по ui/components пуст; SpectrogramView.vue git diff пуст.",
+      "startedAt": "2026-07-19",
+      "finishedAt": "2026-07-19",
+      "blockedReason": null,
+      "evidence": [
+        "Консоль владельца 2026-07-19: [REGR] scheduleLoading→false @+539ms; visibleLanes 124 @+543ms; hasSpectrogramData:true @+26353ms; [REGR-SV] MOUNTED @+26491ms."
+      ]
+    },
+    {
+      "id": "GP2.1",
+      "phase": 2,
+      "title": "TracksPanel.vue: metaRendering (ref, finally-сброс в openMetaAnalysis) + renderPending (computed); два плейсхолдера-дорожки (волна перед стеком волны, спектр перед стеком спектра) с q-spinner-hourglass + tracksOverall*—stageRender, гейтинг show/hidden/overallMixActive той же группы; CSS .tracks-panel__graphs-loading.",
+      "status": "done",
+      "dependsOn": ["GP1.1"],
+      "artifacts": [
+        "GnauralCore/ui/components/TracksPanel.vue (metaRendering ref + finally в openMetaAnalysis; renderPending computed; два блока .tracks-panel__graphs-loading в слотах волны и спектра; CSS-правило) [LF]"
+      ],
+      "verify": "DONE (сборка) — MindWaveCore/ui vue-tsc --noEmit exit 0; GnauralCore bun test ui server 299 pass / 0 fail; quasar build exit 0 (server/public пересобран). Новых i18n-ключей нет. Рантайм-приёмка в реальном приложении — GP3.1 (PAUSE).",
+      "startedAt": "2026-07-19",
+      "finishedAt": "2026-07-19",
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "GP3.1",
+      "phase": 3,
+      "title": "PAUSE (финальная приёмка): владелец открывает ForestMeditation — под кривыми дорожками две дорожки-плейсхолдера с песочными часами и сообщением на весь серверный рендер, затем реальные волна/спектр без мигания. После «ok» — атомарные коммиты по шагам (GnauralCore — фикс; MindWaveCore — леджер; свои файлы застейджить, server/app.cfg и docs/panel-window владельца не трогать).",
+      "status": "done",
+      "dependsOn": ["GP2.1"],
+      "artifacts": [],
+      "verify": "PASSED — владелец подтвердил приёмку в реальном приложении (AskUserQuestion 2026-07-19: «Принять, коммитить»). Фича graphs-render-placeholder COMPLETE. Атомарные коммиты: GnauralCore (TracksPanel.vue) + MindWaveCore (docs-леджер), застейджены только свои файлы; server/app.cfg, server/public, docs/panel-window владельца не тронуты.",
+      "startedAt": "2026-07-19",
+      "finishedAt": "2026-07-19",
+      "blockedReason": null,
+      "evidence": [
+        "Владелец 2026-07-19 (AskUserQuestion): «Принять, коммитить» — приёмка двух дорожек-плейсхолдеров в реальном приложении пройдена."
+      ]
+    }
+  ],
+  "log": [
+    {
+      "at": "2026-07-19",
+      "step": "GP2.1",
+      "text": "План+леджер созданы постфактум по выбору владельца (AskUserQuestion: Plan+ledger, «Две дорожки»). Диагностика (GP1.1) выполнена инструментально по требованию владельца (req 2): временные [REGR]-логи подтвердили ~26с окно без индикатора (showGtracks@+543ms vs hasSpectrogramData@+26353ms), инструментовка снята. Фикс (GP2.1): metaRendering (finally-сброс) + renderPending; два плейсхолдера-дорожки (волна/спектр) с часами и tracksOverall*—stageRender; CSS. Верификация: vue-tsc 0, bun test ui server 299/0, quasar build 0. Изначально был один общий плейсхолдер — заменён на два (по графику) после уточнения владельца «Для каждого отображаемого графика нужно сразу отобразить placeholder». Остаётся GP3.1 — PAUSE, приёмка в реальном приложении; коммиты не делал. Отдельно зафиксирован вне области баг 403 GET /api/audio/editor (.history-проверка на read-пути, gnaural-editor-store.ts:522; audio-panel-cleanup AC3.1) — предложить отдельный леджер."
+    },
+    {
+      "at": "2026-07-19",
+      "step": "GP3.1",
+      "text": "PAUSE GP3.1 ПРОЙДЕН — владелец подтвердил приёмку (AskUserQuestion «Принять, коммитить»). Фича graphs-render-placeholder COMPLETE. Атомарные коммиты: GnauralCore (ui/components/TracksPanel.vue — только свой файл) + MindWaveCore (docs/graphs-render-placeholder — леджер). server/app.cfg, server/public, docs/panel-window и прочие изменения владельца не трогал. Баг 403 вынесен в отдельный леджер editor-history-read-gate (владелец: чинить сейчас параллельно)."
+    }
+  ]
+}
