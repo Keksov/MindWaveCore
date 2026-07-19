@@ -172,22 +172,28 @@
     {
       "id": "WC2.2",
       "phase": 2,
-      "title": "Воркер WriteTileResponse: для грубых (display-res, zoom>0 lazy) тайлов сначала читать блоб с диска (hit → эмит без STFT), иначе считать и писать; пересобрать exe",
-      "status": "pending",
+      "title": "Воркер WriteTileResponse: для грубых (display-res, zoom>0 lazy) тайлов сначала читать блоб с диска (hit → эмит без STFT), иначе считать и писать; open-analysis парсит tileCacheDir/tileContentHash, paramsHash считает сам; пересобрать exe",
+      "status": "done",
       "dependsOn": ["WC2.1"],
       "artifacts": [
-        "../SpectrumCore/src/apps/SpectrumCoreFftwWorkerProbe.pas"
+        "../SpectrumCore/src/apps/SpectrumCoreFftwWorkerProbe.pas",
+        "../SpectrumCore/src/core/SpectrumCoreFftwAnalysis.pas",
+        "../GnauralCore/server/spectrogram-audio-source.test.ts"
       ],
-      "verify": "холодный open неизменённого файла: грубые тайлы грузятся с диска (лог), STFT не считается; детальные (zoom=0) считаются как раньше; exe пересобран bundled FPC 3.3.1 (память gnaural-exe-is-ours-rebuild-it).",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "worker e2e (GnauralCore spectrogram-audio-source.test.ts): холодный worker считает+пишет (diskTileCacheHit=false); СВЕЖИЙ worker (симуляция reload/restart) отдаёт тот же тайл с диска, идентичные binsB64, diskTileCacheHit=true; другой contentHash → miss. Детальные (zoom=0) не трогаются. GnauralCore server suite 44 pass. exe пересобран bundled FPC 3.3.1.",
+      "startedAt": "2026-07-19",
+      "finishedAt": "2026-07-19",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "TFftwAnalysis: поля TileCacheDir/TileContentHash/TileParamsHash (пустой dir ⇒ кэш выключен). WriteTileResponse display-res путь: ReadTileBlob перед вычислением (hit → эмит блоба без STFT), WriteTileBlob после (miss). Full-res (zoom=0) путь не тронут → детальные не персистятся (WC-D3).",
+        "HandleOpenAnalysis парсит tileCacheDir + tileContentHash от вызывающего; paramsHash считает сам (ComputeAnalysisParamsHash) только по value-affecting полям (window/hop/zeroPad/channel/overlap/winFunc/dataMode/fscale/frequencyGain), НЕ по intensity — смена яркости переиспользует блобы.",
+        "Ответ get-tile получил поле diskTileCacheHit для наблюдаемости (WC2.4 PAUSE)."
+      ]
     },
     {
       "id": "WC2.3",
       "phase": 2,
-      "title": "Session/bridge/протокол: передать cache-dir (cache/spectrogram-overview под общим корнем, WC-D6) + contentHash + paramsHash в open-analysis; инвалидация по несовпадению хэша",
+      "title": "TS-продюсеры: session/bridge отправляют tileCacheDir (cache/spectrogram-overview, WC-D6) + tileContentHash (sha1 .gnaural) в open-analysis воркера; server.ts предоставляет dir + прокидывает contentHash. (paramsHash считает воркер — WC2.2)",
       "status": "pending",
       "dependsOn": ["WC2.2", "WC1.5"],
       "artifacts": [
@@ -196,7 +202,7 @@
         "../SharedPasCore/ts/spectrogram-protocol.ts",
         "server/server.ts"
       ],
-      "verify": "bun test server; несовпадение хэша → перестроение; совпадение → загрузка с диска. cache-dir = join(cacheRoot, 'spectrogram-overview').",
+      "verify": "bun test server; реальный open ForestMeditation дважды через reload → второй раз грубые тайлы с диска (diskTileCacheHit). cache-dir = join(cacheRoot, 'spectrogram-overview'); contentHash = sha1 содержимого .gnaural (как в WC1.1).",
       "startedAt": null,
       "finishedAt": null,
       "blockedReason": null,
