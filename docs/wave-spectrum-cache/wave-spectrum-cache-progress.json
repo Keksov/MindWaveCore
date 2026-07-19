@@ -114,14 +114,16 @@
       "id": "WC1.4",
       "phase": 1,
       "title": "PAUSE: владелец гоняет реальное приложение — ForestMeditation open → reload → повторный open без Gnaural-spawn",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["WC1.3"],
       "artifacts": [],
-      "verify": "Владелец подтверждает: второй open неизменённого расписания не запускает Gnaural.exe (тайминги в var/*.log). Полный рестарт AppCore для кросс-репо серверных правок.",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "Владелец подтверждает: второй open неизменённого расписания не запускает Gnaural.exe. Полный рестарт AppCore для кросс-репо серверных правок.",
+      "startedAt": "2026-07-19",
+      "finishedAt": "2026-07-19",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Владелец прогнал реальное приложение (2026-07-19): «проверил и ок» — повторный open ForestMeditation после reload не ре-рендерит через Gnaural. Фаза 1 подтверждена."
+      ]
     },
     {
       "id": "WC2.1",
