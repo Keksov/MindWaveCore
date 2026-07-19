@@ -25,7 +25,7 @@
     },
     {
       "id": "WC-D5",
-      "text": "Персистентность overview-пирамиды — на стороне FPC-воркера (ЗАКРЫТО, владелец 2026-07-19, Q1=worker-side): при open-analysis воркер получает cache-dir + contentHash + paramsHash, грузит пирамиду с диска если ключ совпал, иначе строит (SpectrumCoreOverview.pas) и пишет на диск. Держит STFT/пирамиду в одном месте (Pascal), не гоняет большие блобы через JSON-per-line bridge дважды. Требует правки SpectrumCoreFftwWorkerProbe.pas и пересборки .exe (R1). Альтернатива TS-сериализации через протокол отклонена."
+      "text": "Персистентность на стороне FPC-воркера (worker-side, Q1=worker-side; REVISED 2026-07-19 после чтения кода воркера). ПРЕМИСА ИСПРАВЛЕНА: TOverviewPyramid — НЕ персистируемый артефакт, он создаётся и уничтожается ВНУТРИ WriteTileResponse на каждый тайл (транзиентный max-pool хелпер, SpectrumCoreFftwWorkerProbe.pas:681,740); единого per-analysis overview нет. Реально дорого и персистируемо: декод WAV→PCM (open-analysis) и результаты STFT по тайлам (get-tile, ленивые). «Грубый спектр сразу» = набор zoomed-out тайлов display-res пути (:598-629). Поэтому персистим НЕ пирамиду, а ТАЙЛ-БЛОБЫ (base64/float32 [frame][bin], как эмитится на :719-735) на стороне воркера, ключ contentHash+paramsHash+tileKey (владелец выбрал 2026-07-19, вариант «кэш тайл-блобов»). Персистим только ГРУБЫЕ тайлы — те, что идут через display-res путь (zoom>0 lazy); детальные (zoom=0 full-res) НЕ персистим (совпадает с WC-D3 «грубые тиры», не детальные). Плюс cap по размеру (WC3.1). На get-tile грубого тайла: hit → эмитим блоб с диска, STFT не считаем; miss → считаем, пишем. Требует правок SpectrumCoreFftwWorkerProbe.pas + нового FPC-юнита формата + пересборки .exe (R1). Альтернатива TS-сериализации отклонена."
     },
     {
       "id": "WC-D6",
@@ -151,28 +151,34 @@
     {
       "id": "WC2.1",
       "phase": 2,
-      "title": "Формат на диске для overview-пирамиды (бинарные float32-тиры + заголовок: frameCount/tierCount/contentHash/paramsHash)",
-      "status": "pending",
+      "title": "FPC-юнит формата дискового тайл-кэша: заголовок (magic/version/key/emitFrames/binCount) + float32 [frame][bin] блоб; write/read с валидацией ключа (WC-D5 REVISED)",
+      "status": "done",
       "dependsOn": ["WC1.1"],
       "artifacts": [
-        "../SpectrumCore/src/core/SpectrumCoreOverview.pas"
+        "../SpectrumCore/src/core/SpectrumCoreTileDiskCache.pas",
+        "../SpectrumCore/src/apps/SpectrumCoreTileDiskCacheProbe.pas",
+        "../SpectrumCore/scripts/build_tile_disk_cache_probe_x64.bat"
       ],
-      "verify": "round-trip запись→чтение пирамиды даёт идентичные тиры; заголовок несёт contentHash+paramsHash для сверки.",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "SpectrumCoreTileDiskCacheProbe (bundled FPC 3.3.1) 7/7 ok: miss-before-write, write, no-op rewrite, read-back dims+values точно, wrong-key miss.",
+      "startedAt": "2026-07-19",
+      "finishedAt": "2026-07-19",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Юнит SpectrumCoreTileDiskCache: WriteTileBlob/ReadTileBlob, имя файла = Sha256Hex(contentHash|paramsHash|tileKey), полный ключ в заголовке ре-проверяется на чтении (коллизия/протухание → miss). Content-addressed (rewrite = no-op), атомарная запись temp+rename, не бросает исключений.",
+        "Формат: magic 'STB1' + version + keyLen+key + emitFrames + binCount + float32[frame][bin] (LE, как base64-блоб воркера).",
+        "Компилируется bundled FPC 3.3.1 (исправлено: BLOB_VERSION сделан typed const для передачи по ссылке в WriteBuffer)."
+      ]
     },
     {
       "id": "WC2.2",
       "phase": 2,
-      "title": "Воркер SpectrumCoreFftwWorkerProbe.pas: на open-analysis грузить пирамиду с диска если ключ совпал, иначе строить и писать; пересобрать exe",
+      "title": "Воркер WriteTileResponse: для грубых (display-res, zoom>0 lazy) тайлов сначала читать блоб с диска (hit → эмит без STFT), иначе считать и писать; пересобрать exe",
       "status": "pending",
       "dependsOn": ["WC2.1"],
       "artifacts": [
         "../SpectrumCore/src/apps/SpectrumCoreFftwWorkerProbe.pas"
       ],
-      "verify": "холодный open неизменённого файла грузит пирамиду с диска (лог в var/*.log), без построения; exe пересобран (память gnaural-exe-is-ours-rebuild-it).",
+      "verify": "холодный open неизменённого файла: грубые тайлы грузятся с диска (лог), STFT не считается; детальные (zoom=0) считаются как раньше; exe пересобран bundled FPC 3.3.1 (память gnaural-exe-is-ours-rebuild-it).",
       "startedAt": null,
       "finishedAt": null,
       "blockedReason": null,
@@ -266,6 +272,10 @@
     {
       "at": "2026-07-19",
       "text": "WC1.1 done. Ключ дискового кэша WAV-рендера .gnaural переведён на content-hash (sha1 содержимого, WC-D2). getAudioOutputCachePath вынесен в новый чистый модуль server/audio-cache-key.ts (server.ts бутает Bun.serve на импорте → внутренности не тестируемы), покрыт server/audio-cache-key.test.ts (5 pass). Default size+mtime ветка сохранена байт-в-байт (NUL-разделители через fromCharCode(0)) — существующие кэши валидны. Побочно убран stray NUL-байт из server.ts. Полный server suite 45 pass, typecheck чист (ui tsc 5.7.3 + throwaway ignoreDeprecations). Закоммичено (77baa24 код + bd96ea4 docs)."
+    },
+    {
+      "at": "2026-07-19",
+      "text": "Старт Фазы 2. Де-риск R1: bundled FPC 3.3.1 (VendorsCore/fpc) собирает SpectrumCoreFftwWorkerProbe.exe успешно (build_fftw_worker_probe_x64.bat). Чтение воркера выявило коррекцию премисы (WC-D5 REVISED): TOverviewPyramid транзиентен per-tile (WriteTileResponse:681,740), единого persist-артефакта нет. Владелец выбрал вариант «кэш тайл-блобов в воркере»: персистим грубые (display-res, zoom>0 lazy) тайл-блобы, ключ contentHash+paramsHash+tileKey, cap по размеру; детальные (zoom=0) не персистим. Phase-2 шаги перепланированы: WC2.1 = FPC-юнит формата тайл-блоба, WC2.2 = хук в WriteTileResponse, WC2.3 = проброс cache-dir+хэшей через протокол."
     },
     {
       "at": "2026-07-19",
