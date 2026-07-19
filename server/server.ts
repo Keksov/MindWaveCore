@@ -1,6 +1,6 @@
 import { mkdir, rename, stat, unlink } from "node:fs/promises"
 import { spawn } from "node:child_process"
-import { createHash, randomUUID } from "node:crypto"
+import { randomUUID } from "node:crypto"
 import { tmpdir } from "node:os"
 import { basename, dirname, extname, isAbsolute, join, relative, resolve } from "node:path"
 import type { Server, Subprocess } from "bun"
@@ -17,6 +17,7 @@ import {
   type GnauralSession,
 } from "../../GnauralCore/server"
 import { AudioCacheManifest } from "./audio-cache-manifest"
+import { getAudioOutputCachePath, gnauralContentFingerprint } from "./audio-cache-key"
 import { createFsProviderRegistry } from "./fs-browser-provider"
 import { createLocalFsProvider } from "./fs-browser-local"
 import { startFsBrowserServer, isLoopbackAddress, ensureLoopbackNoProxy, type FsBrowserServer } from "./fs-browser-server"
@@ -200,28 +201,6 @@ const getOutputAudioFileName = (
   return `${basename(aSourceFilePath, extname(aSourceFilePath))}.${aFileKind}`
 }
 
-const getAudioOutputCachePath = async (
-  aSourceFilePath: string,
-  aTargetFileKind: LocalAudioFileKind,
-  aCacheDir: string,
-  aDiscriminator = "",
-): Promise<string> => {
-  const sourceStat = await stat(aSourceFilePath)
-  const sourceName = basename(aSourceFilePath, extname(aSourceFilePath))
-  const cacheKey = createHash("sha1")
-    .update(aSourceFilePath)
-    .update("\u0000")
-    .update(String(sourceStat.size))
-    .update("\u0000")
-    .update(String(sourceStat.mtimeMs))
-    .update("\u0000")
-    .update(aTargetFileKind)
-    .update(" ")
-    .update(aDiscriminator)
-    .digest("hex")
-
-  return join(aCacheDir, `${sourceName}-${cacheKey}.${aTargetFileKind}`)
-}
 
 // project-store PR2.4 (owner req 9): voice mute is project data. Renders must honour the
 // project's voiceState section — the file's own <voice_mute> tags are stale after migration.
@@ -270,13 +249,17 @@ const renderGnauralSpectrogramWav = async (aSourceFilePath: string): Promise<str
   const muteMap = await projectVoiceMuteMap(aSourceFilePath)
   const muteFingerprint = voiceMuteFingerprint(muteMap)
   const discriminator = muteFingerprint === "" ? "single-loop" : `single-loop|${muteFingerprint}`
-  const cachePath = await getAudioOutputCachePath(aSourceFilePath, "wav", audioRenderCacheDir, discriminator)
+  // wave-spectrum-cache WC1.1 (WC-D2): key the render on the .gnaural CONTENT (read once, reused for
+  // the single-loop transform below) so a touch / no-op re-save reuses the cached WAV. The project
+  // voice-mute set is external to the file and stays in the discriminator.
+  const original = await Bun.file(aSourceFilePath).text()
+  const sourceFingerprint = gnauralContentFingerprint(original)
+  const cachePath = await getAudioOutputCachePath(aSourceFilePath, "wav", audioRenderCacheDir, discriminator, sourceFingerprint)
   if (await ensureFile(cachePath)) {
     return cachePath
   }
 
   await mkdir(audioRenderCacheDir, { recursive: true })
-  const original = await Bun.file(aSourceFilePath).text()
   const singleLoopContent = applyVoiceMuteMap(original.replace(GNAURAL_LOOPS_TAG, "<loops>1</loops>"), muteMap)
   // GT10.11 (owner req. 59): the temp schedule copy MUST live next to the source file — Gnaural
   // resolves preparse generators AND pcm audio files relative to the schedule's own directory, so
