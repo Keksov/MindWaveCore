@@ -75,32 +75,40 @@
       "id": "WC1.2",
       "phase": 1,
       "title": "MindWaveCore: acquire single-loop WAV по content-hash из tmp/audio-render; прокинуть колбэк в конструкцию SpectrogramSession",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["WC1.1"],
       "artifacts": [
         "server/ui-ws-handler.ts",
         "server/server.ts"
       ],
-      "verify": "WS open отдаёт путь к дисково-кэшированному WAV; на кэш-хите Gnaural.exe не запускается (лог).",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "typecheck (ui tsc 5.7.3) чист; MindWaveCore server suite 45 pass, GnauralCore server suite 43 pass. Реальный e2e (WS open → reload → без Gnaural-spawn) — на PAUSE WC1.4.",
+      "startedAt": "2026-07-19",
+      "finishedAt": "2026-07-19",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "server.ts: spectrogramWavCache (SpectrogramWavCacheFn) — render-through дисковый кэш поверх tmp/audio-render + audio-cache-manifest, ключ content-hash (getAudioOutputCachePath, fingerprint-режим); finalize как в renderGnauralSpectrogramWav (render→temp→rename→record).",
+        "ui-ws-handler.ts: spectrogramWavCache прокинут через UiWsContext; каждый сокет строит SpectrogramAudioSource({ wavCache }) и передаёт как audioSource в SpectrogramSession (ownsDependencies=true сохранён — dispose не трогает cache-owned файлы, т.к. tempDir=null)."
+      ]
     },
     {
       "id": "WC1.3",
       "phase": 1,
       "title": "GnauralCore SpectrogramAudioSource: использовать инъектированный кэш-WAV вместо mkdtemp+spawn (read-only, не удалять общий файл)",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["WC1.2"],
       "artifacts": [
-        "../GnauralCore/server/spectrogram-audio-source.ts"
+        "../GnauralCore/server/spectrogram-audio-source.ts",
+        "../GnauralCore/server/spectrogram-audio-source.test.ts"
       ],
-      "verify": "dispose больше не удаляет общий кэш-файл; in-memory рефкаунт-переиспользование сохранено; bun test server.",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "bun test spectrogram-audio-source.test.ts (+3): content-sha1 ключ и не удаляется на release; переиспользование между экземплярами (симуляция reload) рендерит один раз; разные solo → разные дискриминаторы. Полный GnauralCore server suite 43 pass; typecheck чист.",
+      "startedAt": "2026-07-19",
+      "finishedAt": "2026-07-19",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Добавлен тип SpectrogramWavCacheFn + опция wavCache; createEntry(gnaural) при наличии wavCache считает fingerprint=sha1(содержимое .gnaural), discriminator=single-loop[|solo:...] и берёт cache-owned WAV (tempDir=null → не удаляется здесь); fallback на mkdtemp сохранён.",
+        "Трансформ (single-loop + GT4.3 solo-mute) вынесен в renderToWav, общий для cached и ephemeral путей — поведение сохранено (43 pass, включая старые solo/refcount тесты).",
+        "Пространство ключа single-loop совпадает с HTTP-рендером → неизменённое full-mix расписание делит один WAV с плеером/экспортом."
+      ]
     },
     {
       "id": "WC1.4",
@@ -231,7 +239,11 @@
     },
     {
       "at": "2026-07-19",
-      "text": "WC1.1 done. Ключ дискового кэша WAV-рендера .gnaural переведён на content-hash (sha1 содержимого, WC-D2). getAudioOutputCachePath вынесен в новый чистый модуль server/audio-cache-key.ts (server.ts бутает Bun.serve на импорте → внутренности не тестируемы), покрыт server/audio-cache-key.test.ts (5 pass). Default size+mtime ветка сохранена байт-в-байт (NUL-разделители через fromCharCode(0)) — существующие кэши валидны. Побочно убран stray NUL-байт из server.ts. Полный server suite 45 pass, typecheck чист (ui tsc 5.7.3 + throwaway ignoreDeprecations). Не коммичено (по правилам)."
+      "text": "WC1.1 done. Ключ дискового кэша WAV-рендера .gnaural переведён на content-hash (sha1 содержимого, WC-D2). getAudioOutputCachePath вынесен в новый чистый модуль server/audio-cache-key.ts (server.ts бутает Bun.serve на импорте → внутренности не тестируемы), покрыт server/audio-cache-key.test.ts (5 pass). Default size+mtime ветка сохранена байт-в-байт (NUL-разделители через fromCharCode(0)) — существующие кэши валидны. Побочно убран stray NUL-байт из server.ts. Полный server suite 45 pass, typecheck чист (ui tsc 5.7.3 + throwaway ignoreDeprecations). Закоммичено (77baa24 код + bd96ea4 docs)."
+    },
+    {
+      "at": "2026-07-19",
+      "text": "WC1.2 + WC1.3 done (плюмбинг и потребление неразделимы; коммичены по репозиториям). GnauralCore (a8fb23b): SpectrogramAudioSource получил инъектируемый SpectrogramWavCacheFn — при наличии createEntry(gnaural) идёт через дисковый кэш (content-hash + solo-дискриминатор, cache-owned WAV не удаляется), трансформ вынесен в renderToWav; +3 теста (43 pass). MindWaveCore (c35ac65): server.ts spectrogramWavCache (render-through поверх tmp/audio-render + manifest), прокинут через UiWsContext в ui-ws-handler → каждый сокет строит audioSource с кэшем (45 pass). Пространство ключа single-loop совпало с HTTP → дедуп WAV между анализом и плеером. Реальный e2e — PAUSE WC1.4."
     }
   ]
 }
