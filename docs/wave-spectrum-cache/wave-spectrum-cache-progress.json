@@ -286,6 +286,10 @@
     },
     {
       "at": "2026-07-19",
+      "text": "WC2.3 done — Фаза 2 доведена до PAUSE WC2.4. ВАЖНО перед PAUSE: пересобранный воркер лежал в SpectrumCore/build/win64, но AppCore предпочитает БАНДЛ-копию MindWaveCore/server/vendor/spectrumcore/win64 (resolveSpectrogramWorkerExe precedence). Обновил бандл-копию exe + manifest (bytes/sha256); прогнал disk-cache e2e против бандл-exe (pass). Иначе владелец гонял бы старый воркер. Записал в память [[worker-exe-bundled-copy-shadows-dev-build]]."
+    },
+    {
+      "at": "2026-07-19",
       "text": "Старт Фазы 2. Де-риск R1: bundled FPC 3.3.1 (VendorsCore/fpc) собирает SpectrumCoreFftwWorkerProbe.exe успешно (build_fftw_worker_probe_x64.bat). Чтение воркера выявило коррекцию премисы (WC-D5 REVISED): TOverviewPyramid транзиентен per-tile (WriteTileResponse:681,740), единого persist-артефакта нет. Владелец выбрал вариант «кэш тайл-блобов в воркере»: персистим грубые (display-res, zoom>0 lazy) тайл-блобы, ключ contentHash+paramsHash+tileKey, cap по размеру; детальные (zoom=0) не персистим. Phase-2 шаги перепланированы: WC2.1 = FPC-юнит формата тайл-блоба, WC2.2 = хук в WriteTileResponse, WC2.3 = проброс cache-dir+хэшей через протокол."
     },
     {
