@@ -36,6 +36,9 @@ export interface UiWsContext {
   // each socket's SpectrogramAudioSource so the WS spectrogram/waveform path reuses cached WAVs across
   // reloads/restarts instead of re-rendering to OS temp on every open.
   readonly spectrogramWavCache: SpectrogramWavCacheFn
+  // wave-spectrum-cache WC2.3 (WC-D5/WC-D6): directory for the worker's persistent coarse-tile disk
+  // cache; passed to each SpectrogramSession so re-opens serve the coarse overview from disk.
+  readonly spectrogramTileCacheDir: string
 }
 
 const socketWatchedPath = new Map<ServerWebSocket<UiSocketData>, string>()
@@ -63,9 +66,14 @@ const getSpectrogramSession = (
       }
       return { filePath: resolved.filePath, fileKind: resolved.fileKind }
     }
-    // wave-spectrum-cache WC1.2: give this socket's audio source the persistent disk render cache.
+    // wave-spectrum-cache WC1.2/WC2.3: give this socket's audio source the persistent disk render
+    // cache, and the session the worker's coarse-tile cache directory.
     const audioSource = new SpectrogramAudioSource({ wavCache: aContext.spectrogramWavCache })
-    session = new SpectrogramSession({ resolveSource, audioSource })
+    session = new SpectrogramSession({
+      resolveSource,
+      audioSource,
+      tileCacheDir: aContext.spectrogramTileCacheDir,
+    })
     socketSpectrogram.set(aSocket, session)
   }
   return session

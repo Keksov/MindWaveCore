@@ -63,6 +63,8 @@ const projectStore = createProjectStore({ resolveUserDataRoot: resolveEffectiveU
 const cacheRoot = join(resolveEffectiveUserDataRoot(), "cache")
 const audioConversionCacheDir = join(cacheRoot, "audio-conversion")
 const audioRenderCacheDir = join(cacheRoot, "audio-render")
+// wave-spectrum-cache WC2.3 (WC-D5/WC-D6): the worker's persistent coarse-tile disk cache lives here.
+const spectrogramTileCacheDir = join(cacheRoot, "spectrogram-overview")
 // GT6.1 (owner req. 13, GT-D11): provenance manifest for the audio output cache (render + convert).
 const audioCacheManifest = new AudioCacheManifest(
   join(cacheRoot, "audio-cache-manifest.json"),
@@ -2194,6 +2196,7 @@ server = Bun.serve<SocketData>({
         replayPublisher: server,
         scheduleWatcher,
         spectrogramWavCache,
+        spectrogramTileCacheDir,
       })
     },
     async message(aSocket, aMessage) {
@@ -2206,6 +2209,7 @@ server = Bun.serve<SocketData>({
         replayPublisher: server,
         scheduleWatcher,
         spectrogramWavCache,
+        spectrogramTileCacheDir,
       })
     },
     close(aSocket) {
@@ -2217,6 +2221,7 @@ server = Bun.serve<SocketData>({
         replayPublisher: server,
         scheduleWatcher,
         spectrogramWavCache,
+        spectrogramTileCacheDir,
       })
     }
   }
