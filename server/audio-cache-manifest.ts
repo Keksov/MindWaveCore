@@ -217,3 +217,53 @@ export class AudioCacheManifest {
     return count
   }
 }
+
+/**
+ * wave-spectrum-cache WC3.1: bound a cache directory's size. When the directory's files exceed
+ * aMaxBytes, delete the oldest (by mtime) until the total is within budget. Used for the worker's
+ * spectrogram-overview tile cache, which grows one .tileblob at a time and is not provenance-tracked.
+ * Skips dotfiles (in-progress temps), never throws (a missing dir / vanished file is a no-op).
+ */
+export async function pruneDirectoryToBudget(
+  aDir: string,
+  aMaxBytes: number,
+): Promise<{ readonly removed: number; readonly freedBytes: number }> {
+  let files: { path: string; size: number; mtimeMs: number }[]
+  try {
+    const names = await readdir(aDir)
+    files = []
+    for (const name of names) {
+      if (name.startsWith(".")) continue
+      const full = join(aDir, name)
+      try {
+        const info = await stat(full)
+        if (info.isFile()) files.push({ path: full, size: info.size, mtimeMs: info.mtimeMs })
+      } catch {
+        // vanished between readdir and stat — ignore
+      }
+    }
+  } catch {
+    return { removed: 0, freedBytes: 0 } // directory does not exist yet
+  }
+
+  let total = files.reduce((aSum, aFile) => aSum + aFile.size, 0)
+  if (total <= aMaxBytes) {
+    return { removed: 0, freedBytes: 0 }
+  }
+
+  files.sort((aLeft, aRight) => aLeft.mtimeMs - aRight.mtimeMs) // oldest first
+  let removed = 0
+  let freedBytes = 0
+  for (const file of files) {
+    if (total <= aMaxBytes) break
+    try {
+      await rm(file.path, { force: true })
+      total -= file.size
+      freedBytes += file.size
+      removed += 1
+    } catch {
+      // could not remove (locked?) — skip and keep going
+    }
+  }
+  return { removed, freedBytes }
+}

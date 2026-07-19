@@ -17,7 +17,7 @@ import {
   type GnauralSession,
   type SpectrogramWavCacheFn,
 } from "../../GnauralCore/server"
-import { AudioCacheManifest } from "./audio-cache-manifest"
+import { AudioCacheManifest, pruneDirectoryToBudget } from "./audio-cache-manifest"
 import { getAudioOutputCachePath, gnauralContentFingerprint } from "./audio-cache-key"
 import { createFsProviderRegistry } from "./fs-browser-provider"
 import { createLocalFsProvider } from "./fs-browser-local"
@@ -66,10 +66,24 @@ const audioRenderCacheDir = join(cacheRoot, "audio-render")
 // wave-spectrum-cache WC2.3 (WC-D5/WC-D6): the worker's persistent coarse-tile disk cache lives here.
 const spectrogramTileCacheDir = join(cacheRoot, "spectrogram-overview")
 // GT6.1 (owner req. 13, GT-D11): provenance manifest for the audio output cache (render + convert).
+// wave-spectrum-cache WC3.1: the spectrogram-overview tile cache is included so its size is reported
+// and it is removable via the Settings cache UI (its .tileblob files appear as "orphans" — no
+// per-source provenance, since the FPC worker writes them directly).
 const audioCacheManifest = new AudioCacheManifest(
   join(cacheRoot, "audio-cache-manifest.json"),
-  [audioRenderCacheDir, audioConversionCacheDir],
+  [audioRenderCacheDir, audioConversionCacheDir, spectrogramTileCacheDir],
 )
+// wave-spectrum-cache WC3.1: automatic size cap on the tile cache (separate from the audio-render
+// cache so pruning never evicts a WAV the player still needs). Oldest .tileblob files are dropped
+// first; a wrong eviction only costs one recompute. Pruned at startup and on a light interval.
+const SPECTROGRAM_TILE_CACHE_MAX_BYTES = 512 * 1024 * 1024
+const SPECTROGRAM_TILE_CACHE_PRUNE_INTERVAL_MS = 10 * 60 * 1000
+const pruneSpectrogramTileCache = async (): Promise<void> => {
+  const { removed, freedBytes } = await pruneDirectoryToBudget(spectrogramTileCacheDir, SPECTROGRAM_TILE_CACHE_MAX_BYTES)
+  if (removed > 0) {
+    console.log(`[spectrogram-cache] pruned ${removed} tile(s), freed ${Math.round(freedBytes / 1024)} KiB`)
+  }
+}
 
 // audio-panel-cleanup AC3.1/AC-D2: audio file access is gated on the fs-browser roots (the local
 // provider's roots = the whole machine) instead of the removed presetsRoot. The byte/analysis-serving
@@ -2251,6 +2265,12 @@ runRetentionCleanup()
 setInterval(() => {
   runRetentionCleanup()
 }, RETENTION_CLEANUP_INTERVAL_MS)
+
+// wave-spectrum-cache WC3.1: keep the spectrogram-overview tile cache within its size budget.
+void pruneSpectrogramTileCache()
+setInterval(() => {
+  void pruneSpectrogramTileCache()
+}, SPECTROGRAM_TILE_CACHE_PRUNE_INTERVAL_MS).unref()
 
 void ensureBodyMonitorRunning(server)
 

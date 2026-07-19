@@ -1,10 +1,10 @@
 import { existsSync } from "node:fs"
-import { mkdtemp, mkdir, writeFile } from "node:fs/promises"
+import { mkdtemp, mkdir, readdir, utimes, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, describe, expect, test } from "bun:test"
 
-import { AudioCacheManifest } from "./audio-cache-manifest"
+import { AudioCacheManifest, pruneDirectoryToBudget } from "./audio-cache-manifest"
 
 const roots: string[] = []
 async function makeFixture(): Promise<{ root: string; renderDir: string; convertDir: string; manifestPath: string }> {
@@ -100,5 +100,53 @@ describe("AudioCacheManifest (GT6.1 / GT-D11)", () => {
     expect(removed).toBe(1) // only b1 left
     expect(existsSync(b1)).toBe(false)
     expect((await m.summary()).totalBytes).toBe(0)
+  })
+})
+
+describe("pruneDirectoryToBudget (wave-spectrum-cache WC3.1)", () => {
+  const ageOrder = async (aDir: string, aNames: string[]): Promise<void> => {
+    // Stamp increasing mtimes so aNames[0] is the oldest.
+    for (let i = 0; i < aNames.length; i += 1) {
+      const when = new Date(1_700_000_000_000 + i * 60_000)
+      await utimes(join(aDir, aNames[i]!), when, when)
+    }
+  }
+
+  test("evicts oldest files first until within budget; leaves newer ones", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "prune-"))
+    roots.push(dir)
+    // 4 files x 100 bytes = 400; budget 250 -> must drop the 2 oldest (down to 200).
+    for (const n of ["a", "b", "c", "d"]) await writeBytes(join(dir, `${n}.tileblob`), 100)
+    await ageOrder(dir, ["a.tileblob", "b.tileblob", "c.tileblob", "d.tileblob"])
+
+    const res = await pruneDirectoryToBudget(dir, 250)
+    expect(res.removed).toBe(2)
+    expect(res.freedBytes).toBe(200)
+    const left = (await readdir(dir)).sort()
+    expect(left).toEqual(["c.tileblob", "d.tileblob"]) // oldest two gone
+  })
+
+  test("no-op when already within budget", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "prune-"))
+    roots.push(dir)
+    await writeBytes(join(dir, "only.tileblob"), 50)
+    const res = await pruneDirectoryToBudget(dir, 1000)
+    expect(res.removed).toBe(0)
+    expect(existsSync(join(dir, "only.tileblob"))).toBe(true)
+  })
+
+  test("skips dotfiles (in-progress temps) and tolerates a missing directory", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "prune-"))
+    roots.push(dir)
+    await writeBytes(join(dir, ".partial.tmp"), 100)
+    await writeBytes(join(dir, "real.tileblob"), 100)
+    // budget 0 forces eviction of everything eligible, but the dotfile is never touched.
+    const res = await pruneDirectoryToBudget(dir, 0)
+    expect(res.removed).toBe(1)
+    expect(existsSync(join(dir, ".partial.tmp"))).toBe(true)
+    expect(existsSync(join(dir, "real.tileblob"))).toBe(false)
+
+    const missing = await pruneDirectoryToBudget(join(dir, "does-not-exist"), 0)
+    expect(missing).toEqual({ removed: 0, freedBytes: 0 })
   })
 })
