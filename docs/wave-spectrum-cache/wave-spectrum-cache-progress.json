@@ -193,20 +193,25 @@
     {
       "id": "WC2.3",
       "phase": 2,
-      "title": "TS-продюсеры: session/bridge отправляют tileCacheDir (cache/spectrogram-overview, WC-D6) + tileContentHash (sha1 .gnaural) в open-analysis воркера; server.ts предоставляет dir + прокидывает contentHash. (paramsHash считает воркер — WC2.2)",
-      "status": "pending",
+      "title": "TS-продюсеры: session отправляет tileCacheDir (cache/spectrogram-overview, WC-D6) + tileContentHash (identity аудио) в open-analysis воркера; server.ts предоставляет dir + прокидывает через ui-ws-handler. (paramsHash считает воркер — WC2.2)",
+      "status": "done",
       "dependsOn": ["WC2.2", "WC1.5"],
       "artifacts": [
+        "../GnauralCore/server/spectrogram-audio-source.ts",
         "../GnauralCore/server/spectrogram-session.ts",
-        "../GnauralCore/server/spectrogram-bridge.ts",
-        "../SharedPasCore/ts/spectrogram-protocol.ts",
-        "server/server.ts"
+        "../GnauralCore/server/spectrogram-session.test.ts",
+        "server/server.ts",
+        "server/ui-ws-handler.ts"
       ],
-      "verify": "bun test server; реальный open ForestMeditation дважды через reload → второй раз грубые тайлы с диска (diskTileCacheHit). cache-dir = join(cacheRoot, 'spectrogram-overview'); contentHash = sha1 содержимого .gnaural (как в WC1.1).",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "session-тесты (мок manager): open-analysis несёт инъектированный tileCacheDir + contentHash хэндла, и '' по умолчанию. GnauralCore server 46 pass, MindWaveCore server 45 pass, typecheck чист. Реальный e2e (open ForestMeditation → reload → грубые тайлы с диска) — PAUSE WC2.4.",
+      "startedAt": "2026-07-19",
+      "finishedAt": "2026-07-19",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "SpectrogramWavHandle получил contentHash (identity аудио): .gnaural = sha1(содержимое + solo), wav/flac = sha1(kind+path+mtime); считается в acquire.",
+        "SpectrogramSession: опция tileCacheDir (пусто ⇒ выключено); оба open-analysis (open + reconfigure) шлют tileCacheDir + tileContentHash=wavHandle.contentHash. manager.send принимает Record — bridge/протокол менять не пришлось.",
+        "MindWaveCore: server.ts spectrogramTileCacheDir = join(cacheRoot,'spectrogram-overview'); прокинут через UiWsContext; ui-ws-handler строит SpectrogramSession с tileCacheDir."
+      ]
     },
     {
       "id": "WC2.4",
