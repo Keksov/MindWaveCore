@@ -109,7 +109,10 @@ export class AudioCacheManifest {
   /** Scan the cache dirs, join with the manifest, group by source; unknown files become orphans. */
   public async summary(): Promise<CacheSummary> {
     await this.ready
-    const bySource = new Map<string, CacheSummarySource & { entries: CacheSummaryEntry[] }>()
+    // The map value ACCUMULATES totalBytes (summed in the loop below), so it needs a mutable copy of
+    // the readonly CacheSummarySource DTO; a mutable object is assignable back to the readonly type on
+    // return (see `sources` below).
+    const bySource = new Map<string, { -readonly [K in keyof CacheSummarySource]: CacheSummarySource[K] }>()
     const orphans: CacheSummaryEntry[] = []
     let totalBytes = 0
     let orphanBytes = 0
