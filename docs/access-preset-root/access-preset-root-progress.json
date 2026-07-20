@@ -1,0 +1,175 @@
+{
+  "schemaVersion": 1,
+  "plan": "access-preset-root",
+  "planDoc": "docs/access-preset-root/access-preset-root-plan.md",
+  "title": "access-preset-root: главный сервер слушает только 127.0.0.1; по умолчанию чтение/запись любых файлов (права — на ОС), а если задан presetRoot — доступ к аудио/редактору/истории ограничивается этой папкой; механизм ограничения сохраняется",
+  "status": "active",
+  "createdAt": "2026-07-20",
+  "updatedAt": "2026-07-20",
+  "decisions": [
+    {
+      "id": "AR-D1",
+      "text": "Главный Bun.serve биндится на 127.0.0.1 (владелец, 2026-07-20). Сейчас он без hostname → 0.0.0.0 (LAN-facing) НАМЕРЕННО (audio-panel-cleanup AC-D6/FB-D2/AC3.2: LAN-клиент открывает UI, файловые эндпоинты ограничены loopback-ом per-IP). Владелец выбрал убрать LAN-доступ целиком → это разворот AC-D6. Per-endpoint loopback-гейты AC3.2 становятся избыточными, но ОСТАВЛЯЕМ (defense-in-depth, не churn). Риск R1: убедиться, что EEG/BodyMonitor подключаются через локальный BodyMonitor.exe (localhost), а не к главному серверу по LAN — проверка на PAUSE AR1.2."
+    },
+    {
+      "id": "AR-D2",
+      "text": "resolveAllowedAudioFilePath (GnauralCore/server/audio-file-utils.ts) получает явный режим: unrestricted (разрешён ЛЮБОЙ resolved-путь, права — на ОС) vs restricted-to-[presetRoot]. Критично убрать существующую ловушку «пустой список корней → null = запрет всего»: unrestricted — отдельный режим/сентинел (напр. roots=null), а НЕ пустой массив. Механизм ограничения (isPathInsideBase, контейнмент) сохраняется в коде (требование владельца 1) и включается, когда задан presetRoot. R2: тест на оба режима."
+    },
+    {
+      "id": "AR-D3",
+      "text": "presetRoot заводится заново как project-setting рядом с userDataRoot (log-db app settings, archiveStore.getProjectSettings/updateProjectSettings, API /api/project-settings GET/PATCH), а НЕ как удалённый AudioSettings/audio-settings (те сняты в AC3.5). Переиспользуем существующую инфру настроек (память reuse-standard-forms). UI — поле в GnauralSettingsTab.vue. Семантика: пусто ⇒ unrestricted; непусто ⇒ restrict все аудио/редактор/история к этой папке. Одна папка (Q2), не список."
+    },
+    {
+      "id": "AR-D4",
+      "text": "Единый источник режима: getAudioAccessRoots() (MindWaveCore/server) → [presetRoot] если задан, иначе unrestricted-сентинел; прокидывается во все 5 точек доступа (редактор gnaural-editor-store.ts, play gnaural-session.ts, спектрограмма ui-ws-handler.ts, /api/audio/file, /api/audio/schedule) — чтобы EH-гейт истории и все эндпоинты вели себя согласованно. Редактор (gnaural-editor-store.ts) в незакоммиченной правке владельца (EH2.1) — изменения согласуются, стейджим только свои файлы (R3)."
+    }
+  ],
+  "steps": [
+    {
+      "id": "AR0.1",
+      "phase": 0,
+      "title": "План + леджер + инвентаризация текущего состояния (bind, модель доступа, настройки)",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [
+        "docs/access-preset-root/access-preset-root-plan.md",
+        "docs/access-preset-root/access-preset-root-progress.json"
+      ],
+      "verify": "validate-ledger.js проходит; факты (bind 0.0.0.0, presetRoot удалён, 5 вызывателей, project-settings прецедент) подтверждены чтением кода + рантайм-проверкой; префикс AR свободен.",
+      "startedAt": "2026-07-20",
+      "finishedAt": "2026-07-20",
+      "blockedReason": null,
+      "evidence": [
+        "Главный Bun.serve без hostname → 0.0.0.0 (server.ts:2159-2161); LAN-facing намеренно (AC-D6).",
+        "presetRoot удалён целиком (AC3.4/AC3.5), 0 ссылок; resolveAllowedAudioFilePath пустые корни → null=запрет.",
+        "userDataRoot-прецедент: project-settings + /api/project-settings + GnauralSettingsTab.vue — переиспользуем для presetRoot."
+      ]
+    },
+    {
+      "id": "AR1.1",
+      "phase": 1,
+      "title": "Bind главного Bun.serve на 127.0.0.1 (hostname)",
+      "status": "pending",
+      "dependsOn": ["AR0.1"],
+      "artifacts": [
+        "server/server.ts"
+      ],
+      "verify": "локально http://localhost:<port> отвечает; с LAN-адреса машины — недоступно (connection refused). Полный рестарт AppCore.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "AR1.2",
+      "phase": 1,
+      "title": "PAUSE: владелец гоняет реальное приложение — AppCore и устройства BodyMonitor работают локально, LAN-доступ пропал (R1)",
+      "status": "pending",
+      "dependsOn": ["AR1.1"],
+      "artifacts": [],
+      "verify": "Владелец подтверждает: приложение и устройства работают; открыть UI с другого устройства в сети больше нельзя. Если устройства подключались по LAN к главному серверу — пересмотреть (R1).",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "AR2.1",
+      "phase": 2,
+      "title": "resolveAllowedAudioFilePath: режим unrestricted (любой resolved-путь) без ловушки пустого списка; restricted-to-roots как раньше",
+      "status": "pending",
+      "dependsOn": ["AR0.1"],
+      "artifacts": [
+        "../GnauralCore/server/audio-file-utils.ts",
+        "../GnauralCore/server/audio-file-utils.test.ts"
+      ],
+      "verify": "bun test: unrestricted → любой путь резолвится (тип файла всё ещё проверяется); restricted → только внутри корней; пустой restrict-список ≠ unrestricted.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "AR2.2",
+      "phase": 2,
+      "title": "getAudioAccessRoots → [presetRoot] если задан, иначе unrestricted; прокинуть режим во все 5 точек доступа",
+      "status": "pending",
+      "dependsOn": ["AR2.1"],
+      "artifacts": [
+        "server/server.ts",
+        "server/ui-ws-handler.ts",
+        "../GnauralCore/server/gnaural-session.ts"
+      ],
+      "verify": "bun test server; без presetRoot — доступ к любому файлу; с presetRoot — только внутри. typecheck чист.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "AR2.3",
+      "phase": 2,
+      "title": "Согласовать редактор/историю (gnaural-editor-store.ts) с моделью unrestricted/presetRoot — координация с незакоммиченным EH2.1 владельца",
+      "status": "pending",
+      "dependsOn": ["AR2.2"],
+      "artifacts": [
+        "../GnauralCore/server/gnaural-editor-store.ts"
+      ],
+      "verify": "save/autosave/history без presetRoot — любой путь; с presetRoot — только внутри. Согласовано с владельцем (его файл).",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "AR3.1",
+      "phase": 3,
+      "title": "presetRoot в project-settings (log-db) + /api/project-settings (GET/PATCH)",
+      "status": "pending",
+      "dependsOn": ["AR2.2"],
+      "artifacts": [
+        "server/log-db.ts",
+        "server/server.ts"
+      ],
+      "verify": "PATCH presetRoot сохраняется и читается; пустая строка ⇒ unrestricted. Возможен тип в SharedPasCore/ts.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "AR3.2",
+      "phase": 3,
+      "title": "Поле presetRoot в Settings UI (GnauralSettingsTab.vue) с выбором папки",
+      "status": "pending",
+      "dependsOn": ["AR3.1"],
+      "artifacts": [
+        "../GnauralCore/ui/settings/GnauralSettingsTab.vue"
+      ],
+      "verify": "ui typecheck + build; поле показывает/меняет presetRoot; очистка ⇒ снова без ограничений.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "AR3.3",
+      "phase": 3,
+      "title": "PAUSE: владелец гоняет реальное приложение — пусто ⇒ пишу/читаю где угодно; presetRoot задан ⇒ доступ только внутри него, снаружи 403",
+      "status": "pending",
+      "dependsOn": ["AR3.2"],
+      "artifacts": [],
+      "verify": "Владелец подтверждает обе ветки на реальных данных.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    }
+  ],
+  "log": [
+    {
+      "at": "2026-07-20",
+      "text": "Фича выросла из бага сохранения (403 .history). Корневой фикс isPathInsideBase (корни-диски, async realpath strips 'D:\\'→'D:') уже сделан отдельным коммитом 67fe25d и разблокировал сохранение. Владелец задал целевую модель: (1) механизм ограничения не удалять; (2) дефолт — bind 127.0.0.1 + запись любых файлов (права на ОС); (3) presetRoot задан ⇒ сузить до папки. Ответы: bind только 127.0.0.1 (убрать LAN, разворот AC-D6); presetRoot завести сейчас. Заведён план+леджер (AR0.1). Фаза 1 = bind, фаза 2 = модель доступа, фаза 3 = конфиг presetRoot + UI. Ждём go на AR1.1."
+    }
+  ]
+}
