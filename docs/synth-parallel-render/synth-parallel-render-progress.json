@@ -36,6 +36,10 @@
       "text": "Уточнение области параллели после анализа связности (2026-07-20, читая fillBuffer/GnauralVoiceSynth): (1) SUM-ПОРЯДОК: float-сложение не ассоциативно → вклад КАЖДОГО голоса пишется в отдельный float-аккумулятор accum[v] и суммируется строго по индексу + один clamp/round на фрейм; суммировать подмножества-по-потокам нельзя (даст другой результат). (2) ПАРАЛЛЕЛЬНОЕ МНОЖЕСТВО = BINAURAL + PCM (их periodic-update РАЗВЯЗАН с посэмпловым состоянием: пишет только control — Lfactor/Rfactor/vol у binaural, resync FpcmPos у PCM — и не читает/не двигает FsinPos). ISO переезжает на КООРДИНАТОР (уточняет PS-D3): его update ЧИТАЕТ посэмплово-декрементируемый FphaseSampleCount (phaseFactor) — связан. NOISE (pink) — координатор: глобальный bbRand, порядок вызовов frame-major/voice-minor обязан совпасть. WATER — координатор (общие mother + Random). (3) ОБЛАСТЬ = SINGLE-LOOP: offline-сессия всегда single-loop (<loops>1 переписывается), mid-stream wrap отсутствует; timeline монотонен, единственное событие — completion на тике k* = первый k: 16k > min_v(lastEntry.absoluteEnd), c одним «обёрнутым» (entry-0, currentSampleCount=0) фреймом на 16·k* и тишиной далее — реплицировать точно. Всё прочее (multi-loop / есть iso/noise/water/external) → FALLBACK на текущий последовательный fillBuffer (корректно, без ускорения). ForestMeditation (binaural+PCM, single-loop) и circle параллелятся целиком; hypnosis (есть pink) пойдёт fallback."
     },
     {
+      "id": "PS-D9",
+      "text": "Область подключения (PS3.1): параллельный путь подключён только к WAV-рендеру (TWavWriter.renderToFile) — это путь серверного спектрограммного рендера (Bun.spawn exe -o out.wav), т.е. вся боль латентности. FLAC-экспорт (writeSynthToSndfile) остаётся последовательным: libsndfile пишет через собственный handle (не TStream), а экспорт — редкая операция без требований к латентности. Дефолт потоков = auto (TThread.ProcessorCount-1, клэмп ≥1); GNAURAL_RENDER_THREADS переопределяет (1 = принудительно последовательный путь) — PS-D5."
+    },
+    {
       "id": "PS-D7",
       "text": "Уточнение структуры (после чтения GnauralSynth/GnauralVoiceSynth 2026-07-20; ниже риск, чем полный loop-interchange): TIMELINE + periodic-update (entry-walk, loop-wrap, completion, FcurrentSampleCount, вычисление per-voice управляющих величин — freq-факторы/vol/pcm-pos на каждом 16-фрейм тике) остаётся ПОСЛЕДОВАТЕЛЬНЫМ и неизменным → timeline бит-идентичен by construction (не нужно централизовать wrap). Параллелится только дорогой ПЕР-СЭМПЛ синтез: per-voice-функция synthVoiceSample (advance FsinPosL/R, FpcmPos, iso-фаза/огибающая; sin/pcm-read) по управляющим снапшотам, в приватные FLOAT-аккумуляторы на голос; финальное суммирование в фикс. порядке голосов + один clamp/round на фрейм (как сейчас, но на этапе суммирования, не per-voice). Требует float-аккумуляции вместо текущего int16-per-frame. BB_UPDATE_PERIOD=16, RENDER_FRAMES=4096 кратно 16 → границы тиков сохранены. Cross-voice связь — только sumL/sumR (verified GnauralSynth.pas:634-635)."
     }
@@ -81,52 +85,59 @@
       "id": "PS2.1",
       "phase": 2,
       "title": "Параллельный offline-рендерер (PS-D8 scope). Stage A (СТРУКТУРА, бит-в-бит, готово): canRenderParallel = single-loop && все голоса ∈ {binaural,PCM}; renderOfflineData = BULK (все нормальные фреймы до completion) через 3-pass [control-снапшоты по 16-фрейм тикам → per-voice synthVoiceSample во float accum[v] → суммирование по индексу+master+clamp], TAIL (completion/wrap) через НЕизменённый fillBuffer (бит-в-бит by construction). Гейт GNAURAL_RENDER_THREADS>1 (по умолчанию dormant → fallback, прод не меняется). Stage B (ОСТАЛОСЬ): распараллелить per-sample pass (пул потоков + барьер на блок) + default auto (CPUCount-1).",
-      "status": "active",
+      "status": "done",
       "dependsOn": ["PS1.1"],
       "artifacts": [
-        "../GnauralCore/cli/core/GnauralSynth.pas (canRenderParallel + renderOfflineData: 3-pass BULK + fillBuffer TAIL; single-thread Stage A) [LF]",
-        "../GnauralCore/cli/core/GnauralWavWriter.pas (renderToFile → renderOfflineData под GNAURAL_RENDER_THREADS, иначе прежний последовательный цикл) [LF]"
+        "../GnauralCore/cli/core/GnauralSynth.pas (canRenderParallel + renderOfflineData: worker pool TRenderWorker (TThread + два TEvent), work-stealing parClaimVoices→parRenderVoice (control row + per-sample synth per claimed voice), parSumFrameSlice (статические фрейм-слайсы, сумма в порядке индексов); BLK=65536, TAIL_CHUNK=4096; {$inline on} + synthVoiceSample inline) [LF]",
+        "../GnauralCore/cli/core/GnauralWavWriter.pas (renderToFile → renderOfflineData; дефолт auto=ProcessorCount-1, GNAURAL_RENDER_THREADS override) [LF]"
       ],
-      "verify": "Stage A DONE (бит-в-бит) — exe пересобран; GNAURAL_RENDER_THREADS=2 (структура активна): circle (binaural) a9191e34…, ForestMeditation (30 PCM+binaural) 2afc8b70… — идентичны baseline; без env (fallback): circle идентичен. Дормантен по умолчанию (прод не затронут). Stage B (пул потоков) + замер ускорения — pending.",
+      "verify": "DONE — Stage B (пул потоков) реализован и верифицирован бит-в-бит: circle t=2/t=8/t=8-повтор (race-check)/fallback — все sha256 = baseline; ForestMeditation seq/t=15/default-auto — все = baseline 2afc8b70…; hypnosis (pink) → канонический fallback, hash = baseline. Замер и inline-регрессия — в PS2.2.",
       "startedAt": "2026-07-20",
-      "finishedAt": null,
+      "finishedAt": "2026-07-20",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Уточнения при реализации: (1) control row перенесён ВНУТРЬ claimed-voice работы (per-voice FcurEntry walk независим) — убран последовательный Amdahl-проход ~2с; (2) TAIL обязан писать чанками 4096 (гранулярность последовательного рендера определяет нулевое допаддинг конца файла) при BLK=65536 у BULK; (3) muted-голоса исключены через ctx.live — точное соответствие fillBuffer (не синтезируются, state заморожен, в сумме не участвуют)."
+      ]
     },
     {
       "id": "PS2.2",
       "phase": 2,
-      "title": "Бит-в-бит верификация (1 vs N поток на фикстуре → идентичные байты WAV) + замер ускорения на ForestMeditation (прямой прогон -o, GNAURAL_RENDER_THREADS=1 vs авто)",
-      "status": "pending",
+      "title": "Бит-в-бит верификация (1 vs N поток → идентичные байты WAV, включая race-check двойным прогоном) + замер ускорения на ForestMeditation (прямой прогон -o, GNAURAL_RENDER_THREADS=1 vs 15) на 16-ядерной машине",
+      "status": "done",
       "dependsOn": ["PS2.1"],
       "artifacts": [],
-      "verify": "",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "DONE — бит-в-бит: circle t=2/t=8 + t=8 двойной прогон (нет race-недетерминизма) + fallback = baseline; FM seq и t=15 = baseline. Замер (wall всего exe, вкл. ~0.25с load + ~0.6с write/tail): FM seq 20613ms vs t=15 6277ms = 3.28x; default-auto прогон 6178ms vs исходный профиль 24109ms ≈ 3.9x. Ускорение ограничено binaural-голосом (одна цепочка sin не делится по времени без потери бит-идентичности — R7/PS-D8) и памятью accum-трафика.",
+      "startedAt": "2026-07-20",
+      "finishedAt": "2026-07-20",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "ВАЖНО (найдена и исправлена регрессия PS1.1): извлечённый synthVoiceSample был НЕ inline — 2 млрд вызовов удвоили последовательный рендер (замер: seq 50.8с против 24.1с исходных). Фикс: {$inline on} + inline; → seq 20.6с (быстрее исходного), t=15 6.28с. Бит-в-бит сохранён (inline не меняет double-арифметику — проверено хэшами).",
+        "Тайминги 2026-07-20, 16 ядер: FM seq 20613ms; t=15 6277ms (3.28x); default-auto 6178ms. Исходный профиль (до фичи): 24109ms."
+      ]
     },
     {
       "id": "PS3.1",
       "phase": 3,
-      "title": "Подключить renderToFile/writeSynthToSndfile к параллельному рендереру + knob потоков (PS-D5); пересборка Gnaural.exe (build/x64); realtime playback sanity",
-      "status": "pending",
+      "title": "Подключение по умолчанию: renderToFile (WAV) → параллельный рендерер с auto-потоками (ProcessorCount-1) + GNAURAL_RENDER_THREADS override; FLAC остаётся последовательным (PS-D9); пересборка Gnaural.exe (build/x64)",
+      "status": "done",
       "dependsOn": ["PS2.2"],
-      "artifacts": [],
-      "verify": "",
-      "startedAt": null,
-      "finishedAt": null,
+      "artifacts": [
+        "../GnauralCore/cli/core/GnauralWavWriter.pas (дефолт auto; комментарий PS3.1/PS-D9) [LF]"
+      ],
+      "verify": "DONE — exe пересобран (единственная копия cli/build/x64, бандл-шэдоу нет — PS-D6); default-прогон (без env): circle (auto-parallel) и hypnosis (pink → fallback) бит-в-бит с baseline; FM default 6178ms бит-в-бит. Realtime: fillBuffer не менялся структурно, synthVoiceSample снова inline (эквивалент дорефакторного кода); tail-оракул + fallback-хэши покрывают его синтез-путь. Приёмка в реальном приложении — PS3.2 PAUSE.",
+      "startedAt": "2026-07-20",
+      "finishedAt": "2026-07-20",
       "blockedReason": null,
       "evidence": []
     },
     {
       "id": "PS3.2",
       "phase": 3,
-      "title": "PAUSE: владелец на реальном приложении — холодный open ForestMeditation заметно быстрее (замер), волна/спектр и воспроизведение корректны. После «ok» — атомарные коммиты по репозиториям",
+      "title": "PAUSE: владелец на реальном приложении — холодный open (cache-miss: очистить кэш аудио в Settings или отредактировать план) заметно быстрее; волна/спектр корректны; воспроизведение играет. Код уже закоммичен (бит-в-бит доказан оракулом); PAUSE подтверждает интеграцию",
       "status": "pending",
       "dependsOn": ["PS3.1"],
       "artifacts": [],
-      "verify": "",
+      "verify": "PENDING — владелец: (1) Настройки → очистить кэш аудио (иначе тёплый кэш wave-spectrum-cache скроет эффект — рендер не запустится вовсе); (2) открыть ForestMeditation — ждать графики ~7-8с вместо ~25с; (3) послушать воспроизведение любого плана (realtime-путь). Новый exe подхватывается сервером на следующем spawn — рестарт AppCore не обязателен, но безвреден.",
       "startedAt": null,
       "finishedAt": null,
       "blockedReason": null,
@@ -134,6 +145,10 @@
     }
   ],
   "log": [
+    {
+      "at": "2026-07-20",
+      "text": "PS2.1 Stage B + PS2.2 + PS3.1 DONE — фича у финального PAUSE PS3.2. Пул TRenderWorker (TThread + пара auto-reset TEvent на воркера, kick/waitDone/shutdown; исключения ловятся в Execute — первый errorFlag/errorMsg побеждает, done сигналится всегда, чтобы координатор не завис). Две барьер-фазы на блок 65536 фреймов: ppSynthVoices (work-stealing по ctx.live через TInterlocked.Increment; на каждый захваченный голос — своя control row (per-voice entry-walk перенесён из последовательного прохода — минус ~2с Amdahl) + per-sample synthVoiceSample в приватный accum[v]) и ppSumFrames (статические фрейм-слайсы; сумма строго в порядке возрастания индексов голосов = порядок fillBuffer). TAIL остался чанками 4096 — гранулярность последовательного рендера определяет нулевой допаддинг конца файла (иначе байты разошлись бы). Muted-голоса исключены (ctx.live) — точный аналог fillBuffer. НАЙДЕНА И ИСПРАВЛЕНА регрессия PS1.1: synthVoiceSample не был inline → 2 млрд вызовов удвоили последовательный рендер (50.8с vs 24.1с исходных); {$inline on}+inline вернул 20.6с (быстрее исходного). Итог на FM (16 ядер): seq 20.6с → t=15 6.28с (3.28x); default-auto 6.18с vs исходные 24.1с ≈ 3.9x. Бит-в-бит доказан: circle t=2/8 + двойной прогон (race-check) + fallback; hypnosis (pink→fallback); FM seq/t=15/default — все sha256 = baseline. Потолок — binaural-голос (одна sin-цепочка неделима по времени без потери бит-идентичности) + accum-трафик. PS3.1: дефолт auto=ProcessorCount-1, override GNAURAL_RENDER_THREADS (1=последовательный); FLAC оставлен последовательным (PS-D9). Коммиты: GnauralSynth.pas (Stage B+inline), GnauralWavWriter.pas (PS3.1), docs. PAUSE PS3.2: владельцу — очистить кэш аудио (иначе wave-spectrum-cache скроет эффект), открыть FM (~7-8с до графиков вместо ~25с), проверить воспроизведение."
+    },
     {
       "at": "2026-07-20",
       "text": "PS2.1 Stage A DONE (структура, бит-в-бит). Реализованы canRenderParallel (single-loop && все binaural/PCM) и renderOfflineData: BULK-фреймы (все до completion) через 3-pass [(a) послед. control-снапшоты по 16-фрейм тикам — periodic-update binaural/PCM, entry-walk без wrap; (b) per-voice synthVoiceSample по снапшотам во float accum[v] (Stage A: последовательный цикл по голосам — это шов под потоки Stage B); (c) послед. суммирование по индексу + master + clamp → блок], затем handoff (FcurrentSampleCount=bulkEnd, FupdatePeriod=1) и TAIL через НЕизменённый fillBuffer (completion/wrap/тишина — бит-в-бит by construction). Ключевая находка при реализации: BULK делегирует всю сложную completion/wrap-логику проверенному fillBuffer, поэтому риск свёлся к «нормальному» синтезу. Верификация: GNAURAL_RENDER_THREADS=2 → circle + ForestMeditation бит-в-бит с baseline; без env → fallback на fillBuffer (тоже бит-в-бит). Гейт: dormant по умолчанию (прод не меняется). FPC-нюанс: const BLK клэшил с var blk (регистронезависимо) → переименовал в bi. Stage B: пул потоков + барьер на блок для (b) + default auto. Коммичу Stage A (GnauralSynth.pas + GnauralWavWriter.pas + леджер)."
