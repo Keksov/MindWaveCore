@@ -83,17 +83,20 @@
       "id": "AR2.1",
       "phase": 2,
       "title": "resolveAllowedAudioFilePath: режим unrestricted (любой resolved-путь) без ловушки пустого списка; restricted-to-roots как раньше",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["AR0.1"],
       "artifacts": [
         "../GnauralCore/server/audio-file-utils.ts",
         "../GnauralCore/server/audio-file-utils.test.ts"
       ],
-      "verify": "bun test: unrestricted → любой путь резолвится (тип файла всё ещё проверяется); restricted → только внутри корней; пустой restrict-список ≠ unrestricted.",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "audio-file-utils.test.ts +4: null → любой аудио-путь резолвится, не-аудио отвергается; [] → deny-all (НЕ unrestricted); [root] → внутри ок, снаружи null. GnauralCore server 57 pass, typecheck чист.",
+      "startedAt": "2026-07-20",
+      "finishedAt": "2026-07-20",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "aAllowedRoots: readonly string[] | null. null=unrestricted (проверяется только расширение), массив=restrict (пустой=deny-all, не unrestricted — AR-D2). fileKind проверяется в обоих режимах.",
+        "Сигнатура расширена, вызыватели пока передают массивы → поведение неизменно до AR2.2."
+      ]
     },
     {
       "id": "AR2.2",
