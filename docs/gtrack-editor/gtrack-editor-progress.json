@@ -1972,9 +1972,14 @@
       "title": "Глобальный персистентный журнал Undo (панель, 2-шаговый откат, автоочистка+закрытие проекта, размер в кэш-менеджере, гибкая git-подобная архитектура)",
       "status": "deferred",
       "dependsOn": [],
-      "artifacts": [],
+      "artifacts": [
+        "docs/undo-global-journal/undo-global-journal-plan.md (работы перенесены туда, 2026-07-20)"
+      ],
       "verify": "owner",
-      "blockedReason": "owner: после закрытия всех ошибок"
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": "ПЕРЕНЕСЕНО (2026-07-20) в отдельный план docs/undo-global-journal/ — требования процитированы там дословно, статус в его леджере",
+      "evidence": []
     },
     {
       "id": "GT10.44",

@@ -1,0 +1,249 @@
+{
+  "schemaVersion": 1,
+  "plan": "undo-global-journal",
+  "planDoc": "docs/undo-global-journal/undo-global-journal-plan.md",
+  "title": "undo-global-journal: глобальный персистентный журнал Undo (BK7 из gtrack-editor + «отдельный план версионности» из undo-command-log/project-store). История undo выносится из GTrackModel во внешний пер-файл журнал, переживающий пересоздание модели (Save/Play/mute); шаг получает метаданные {id,kind,label,atMs} (шаг ≈ коммит — задел на git-модель); панель операций (PanelWindow) с 2-шаговым откатом; персистентность undo.json v3; автоочистка в настройках; размер журнала в кэш-менеджере",
+  "status": "active",
+  "createdAt": "2026-07-20",
+  "updatedAt": "2026-07-20",
+  "decisions": [
+    {
+      "id": "UG-D1",
+      "text": "Владелец истории. Историю undo вынести из GTrackModel во внешний журнал (пер-файл, живёт в синглтоне useSharedGtrackLanes), переживающий пересоздание модели. GTrackModel остаётся транзакционным ядром (beginEdit/commit → дельта), шаги складываются наружу; rebuild модели журнал НЕ очищает. Плюс контент-гард в watch(schedule): не пересоздавать модель, когда новый объект контент-эквивалентен базе текущей."
+    },
+    {
+      "id": "UG-D2",
+      "text": "Шаг = коммит. Расширить шаг метаданными { id, kind, label, atMs }: тип операции + описание для панели (req 3), стабильный id и оформление «шаг ≈ коммит, линейная история = ветка main» — архитектурный задел на git-подобную модель версий (req 9; только дизайн, ветки/мерджи не реализуем)."
+    },
+    {
+      "id": "UG-D3",
+      "text": "Формат/персист. undo.json → v3 (v2 без метаданных при загрузке отбрасывается, как v1 в UC-D5 — история best-effort). Транспорт прежний: компактный лог целиком, debounce, last-write-wins (PR-D7). Инкрементальный append / полная версионность — вне плана."
+    },
+    {
+      "id": "UG-D4",
+      "text": "Адопция. Внутри сессии журнал передаётся новой модели напрямую из памяти (тот же файл — сигнатурный гейт не нужен). Строгая сигнатурная проверка остаётся только для cross-session адопции с диска, и при отказе пишет причину в консоль (не молча false)."
+    },
+    {
+      "id": "UG-D5",
+      "text": "Панель операций. Без bespoke-диалогов — 100% реюз канонической формы PanelWindow (@panel), как «Список треков»/«Параметры». Список шагов (тип+описание+время); клик = только подсветка/выбор; откат исключительно по кнопке «Применить» (req 8, защита от случайного клика); очистка целиком/до момента (req 7)."
+    },
+    {
+      "id": "UG-D6",
+      "text": "Настройки + кэш-менеджер. Автоочистка (req 5: по числу операций / времени / размеру / «очищать при закрытии проекта», по умолчанию хранить всегда) — в стандартном диалоге настроек (GnauralSettingsTab). Размер undo.json (req 6) — строка в существующем менеджере кэша."
+    }
+  ],
+  "steps": [
+    {
+      "id": "UG0.1",
+      "phase": 0,
+      "title": "План + леджер; пометки о переносе работ в старых местах: BK7 (gtrack-editor plan+ledger), UC-D3 (undo-command-log plan+ledger log), PR-D7/PR-D8/R3 (project-store plan).",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [
+        "docs/undo-global-journal/undo-global-journal-plan.md",
+        "docs/undo-global-journal/undo-global-journal-progress.json",
+        "docs/gtrack-editor/gtrack-editor-plan.md (BK7 → пометка о переносе)",
+        "docs/gtrack-editor/gtrack-editor-progress.json (BK7 blockedReason/artifacts → ссылка)",
+        "docs/undo-command-log/undo-command-log-plan.md (UC-D3 → ссылка на созданный план)",
+        "docs/undo-command-log/undo-command-log-progress.json (log-запись о создании плана)",
+        "docs/project-store/project-store-plan.md (PR-D7/PR-D8/R3 → ссылка на созданный план)"
+      ],
+      "verify": "validate-ledger.js OK на этом леджере и на gtrack-editor/undo-command-log; ссылки в старых местах указывают на docs/undo-global-journal/.",
+      "startedAt": "2026-07-20",
+      "finishedAt": "2026-07-20",
+      "blockedReason": null,
+      "evidence": [
+        "Диагноз (код-анализ, разд. 2 плана): история — в in-memory GTrackModel-синглтоне; watch(schedule)->buildModel пересоздаёт модель на замену объекта schedule (Ctrl+S / Play re-emit / mute / async voiceState merge) без сравнения контента; adoptUndoJournal со строгим JSON.stringify-сигнатурным гейтом молча отказывает после float/color-раундтрипа. Закрытие формы свойств точки историю не трогает — founding-факт BK7 («стек живёт в рамках формы») опровергается кодом, подтвердить наблюдением в UG1.1."
+      ]
+    },
+    {
+      "id": "UG0.2",
+      "phase": 0,
+      "title": "PAUSE: владелец подтверждает UG-D1..D6 (особенно UG-D3: v3 отбрасывает v2-журналы; и объём панели UG-D5) и порядок фаз.",
+      "status": "pending",
+      "dependsOn": [
+        "UG0.1"
+      ],
+      "artifacts": [],
+      "verify": "Владелец подтвердил решения (или скорректировал — тогда обновить план/леджер до начала Фазы 1).",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "UG1.1",
+      "phase": 1,
+      "title": "Подтверждение диагноза: инструментировать buildModel + adoptUndoJournal (кто вызвал rebuild; причина отказа адопции — версия/сигнатура), владелец воспроизводит req 1/req 10 в реальном приложении; подтверждённые триггеры зафиксировать в леджере.",
+      "status": "pending",
+      "dependsOn": [
+        "UG0.2"
+      ],
+      "artifacts": [],
+      "verify": "В консоли/логах видно: какой триггер пересоздал модель в репро владельца и почему не адоптировался журнал. Диагноз разд. 2 подтверждён или скорректирован в плане.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "UG2.1",
+      "phase": 2,
+      "title": "Ядро: история наружу из GTrackModel (UG-D1, внешний пер-файл журнал в синглтоне) + контент-гард watch(schedule); Ctrl-Z работает после закрытия формы и после Save/Play/mute. Юнит-тесты: rebuild не теряет историю; поведенческие тесты undo/redo зелёные без изменений.",
+      "status": "pending",
+      "dependsOn": [
+        "UG1.1"
+      ],
+      "artifacts": [],
+      "verify": "bun test ui зелёный (вкл. новые тесты «rebuild сохраняет историю»); vue-tsc 0.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "UG2.2",
+      "phase": 2,
+      "title": "Метаданные шага {id,kind,label,atMs} (UG-D2) + формат undo.json v3 + адопция по UG-D4 (in-memory без сигнатур; диск — сигнатурный гейт с диагностикой). Тесты формата v3 + отбрасывание v2.",
+      "status": "pending",
+      "dependsOn": [
+        "UG2.1"
+      ],
+      "artifacts": [],
+      "verify": "bun test ui server зелёный (раунд-трип v3, v2→отброшен, отказ адопции логируется); vue-tsc 0.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "UG2.3",
+      "phase": 2,
+      "title": "PAUSE: владелец в приложении — репро req 1 (свойства точки → правки → удалить/добавить точку → закрыть) и req 10 (переоткрытие) больше не воспроизводятся: Ctrl-Z отменяет, кнопки Undo активны; Save/Play/mute не стирают историю.",
+      "status": "pending",
+      "dependsOn": [
+        "UG2.2"
+      ],
+      "artifacts": [],
+      "verify": "Владелец подтвердил в приложении.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "UG3.1",
+      "phase": 3,
+      "title": "Панель «Журнал операций» (UG-D5): PanelWindow со списком шагов (тип операции + изменения + время), выбор строки = подсветка без применения, откат только по кнопке «Применить» (req 3, 8); i18n en/ru.",
+      "status": "pending",
+      "dependsOn": [
+        "UG2.3"
+      ],
+      "artifacts": [],
+      "verify": "bun test ui; vue-tsc + build; ручная проверка 2-шагового отката.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "UG3.2",
+      "phase": 3,
+      "title": "Очистка журнала из панели: целиком / до указанного момента (req 7); после отката — очистка от восстановленной точки до текущего момента (req 8, хвост).",
+      "status": "pending",
+      "dependsOn": [
+        "UG3.1"
+      ],
+      "artifacts": [],
+      "verify": "bun test ui; ручная проверка обоих режимов очистки.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "UG3.3",
+      "phase": 3,
+      "title": "PAUSE: владелец принимает панель операций (req 3, 7, 8).",
+      "status": "pending",
+      "dependsOn": [
+        "UG3.2"
+      ],
+      "artifacts": [],
+      "verify": "Владелец подтвердил в приложении.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "UG4.1",
+      "phase": 4,
+      "title": "Автоочистка (UG-D6, req 5): настройки в стандартном диалоге (число операций / время / размер журнала / «очищать при закрытии проекта»); по умолчанию — хранить всегда.",
+      "status": "pending",
+      "dependsOn": [
+        "UG2.3"
+      ],
+      "artifacts": [],
+      "verify": "bun test ui server; ручная проверка каждого критерия очистки.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "UG4.2",
+      "phase": 4,
+      "title": "Размер undo.json на диске — строка в менеджере кэша (UG-D6, req 6).",
+      "status": "pending",
+      "dependsOn": [
+        "UG2.3"
+      ],
+      "artifacts": [],
+      "verify": "Ручная проверка: размер отображается и обновляется.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "UG5.1",
+      "phase": 5,
+      "title": "Верификация сборкой: bun test ui server (GnauralCore); vue-tsc + quasar build (MindWaveCore/ui, если тронут).",
+      "status": "pending",
+      "dependsOn": [
+        "UG3.3",
+        "UG4.1",
+        "UG4.2"
+      ],
+      "artifacts": [],
+      "verify": "Все прогоны зелёные, 0 ошибок.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "UG5.2",
+      "phase": 5,
+      "title": "PAUSE (финальная приёмка): владелец в приложении — полный прогон req 1–10 (глобальный Ctrl-Z, панель, персистентность между сессиями, автоочистка, размер в кэш-менеджере).",
+      "status": "pending",
+      "dependsOn": [
+        "UG5.1"
+      ],
+      "artifacts": [],
+      "verify": "Владелец подтвердил («ok») — фича COMPLETE.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    }
+  ],
+  "log": [
+    {
+      "at": "2026-07-20",
+      "step": "UG0.1",
+      "text": "План+леджер созданы переносом BK7 (gtrack-editor, owner 2026-07-12) и «отдельного плана версионности» (undo-command-log UC-D3, project-store PR-D8/R3) в самостоятельную фичу. Триггер — репро владельца 2026-07-20: после закрытия формы свойств точки Ctrl-Z не срабатывает, после переоткрытия кнопки Undo недоступны. Код-анализ (разд. 2 плана): история в in-memory GTrackModel-синглтоне; watch(schedule)→buildModel пересоздаёт модель на замену объекта schedule (Ctrl+S / Play re-emit setGnauralSchedule / mute applyVoiceStateLocally / async applyProjectVoiceState merge) без сравнения контента; adoptUndoJournal требует строгого равенства JSON.stringify-сигнатур и после float-раундтрипа (patchGnauralXml toFixed(6) → Gnaural.exe) или color-overlay молча отказывает. Формулировка BK7 «стек живёт в рамках формы» кодом опровергается (closeInspector историю не трогает) — подтвердить наблюдением в UG1.1. В старых местах оставлены пометки со ссылкой сюда. Следующий шаг — UG0.2 PAUSE: подтверждение решений владельцем."
+    }
+  ]
+}
