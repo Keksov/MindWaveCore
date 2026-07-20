@@ -32,6 +32,10 @@
       "text": "Пересборка Gnaural.exe через build_x64.bat (память gnaural-exe-is-ours-rebuild-it). Бандл-шэдоу-копии Gnaural.exe нет (verified: MindWaveCore/server/vendor содержит только spectrumcore; единственная копия GnauralCore/cli/build/x64) — обновлять только build/x64, не как воркер SpectrumCore. Realtime playback проверить на регресс (fillBuffer переиспользует извлечённую функцию). Бэкенд без консоли — лог в var/*.log при нужде."
     },
     {
+      "id": "PS-D8",
+      "text": "Уточнение области параллели после анализа связности (2026-07-20, читая fillBuffer/GnauralVoiceSynth): (1) SUM-ПОРЯДОК: float-сложение не ассоциативно → вклад КАЖДОГО голоса пишется в отдельный float-аккумулятор accum[v] и суммируется строго по индексу + один clamp/round на фрейм; суммировать подмножества-по-потокам нельзя (даст другой результат). (2) ПАРАЛЛЕЛЬНОЕ МНОЖЕСТВО = BINAURAL + PCM (их periodic-update РАЗВЯЗАН с посэмпловым состоянием: пишет только control — Lfactor/Rfactor/vol у binaural, resync FpcmPos у PCM — и не читает/не двигает FsinPos). ISO переезжает на КООРДИНАТОР (уточняет PS-D3): его update ЧИТАЕТ посэмплово-декрементируемый FphaseSampleCount (phaseFactor) — связан. NOISE (pink) — координатор: глобальный bbRand, порядок вызовов frame-major/voice-minor обязан совпасть. WATER — координатор (общие mother + Random). (3) ОБЛАСТЬ = SINGLE-LOOP: offline-сессия всегда single-loop (<loops>1 переписывается), mid-stream wrap отсутствует; timeline монотонен, единственное событие — completion на тике k* = первый k: 16k > min_v(lastEntry.absoluteEnd), c одним «обёрнутым» (entry-0, currentSampleCount=0) фреймом на 16·k* и тишиной далее — реплицировать точно. Всё прочее (multi-loop / есть iso/noise/water/external) → FALLBACK на текущий последовательный fillBuffer (корректно, без ускорения). ForestMeditation (binaural+PCM, single-loop) и circle параллелятся целиком; hypnosis (есть pink) пойдёт fallback."
+    },
+    {
       "id": "PS-D7",
       "text": "Уточнение структуры (после чтения GnauralSynth/GnauralVoiceSynth 2026-07-20; ниже риск, чем полный loop-interchange): TIMELINE + periodic-update (entry-walk, loop-wrap, completion, FcurrentSampleCount, вычисление per-voice управляющих величин — freq-факторы/vol/pcm-pos на каждом 16-фрейм тике) остаётся ПОСЛЕДОВАТЕЛЬНЫМ и неизменным → timeline бит-идентичен by construction (не нужно централизовать wrap). Параллелится только дорогой ПЕР-СЭМПЛ синтез: per-voice-функция synthVoiceSample (advance FsinPosL/R, FpcmPos, iso-фаза/огибающая; sin/pcm-read) по управляющим снапшотам, в приватные FLOAT-аккумуляторы на голос; финальное суммирование в фикс. порядке голосов + один clamp/round на фрейм (как сейчас, но на этапе суммирования, не per-voice). Требует float-аккумуляции вместо текущего int16-per-frame. BB_UPDATE_PERIOD=16, RENDER_FRAMES=4096 кратно 16 → границы тиков сохранены. Cross-voice связь — только sumL/sumR (verified GnauralSynth.pas:634-635)."
     }
@@ -76,7 +80,7 @@
     {
       "id": "PS2.1",
       "phase": 2,
-      "title": "Параллельный offline-рендерер: пул потоков + партиция безопасных голосов + приватные accum-буферы + барьер на блок + детерминированное (фикс. порядок) суммирование; небезопасные голоса (noise/water) на координаторе (PS-D3); выбрать B (Q2)",
+      "title": "Параллельный offline-рендерер (PS-D8 scope): предикат canRenderParallel = single-loop && все голоса ∈ {binaural,PCM} && threads>1 (иначе fallback на fillBuffer). Блочно: (a) послед. control-pass — periodic-update binaural/PCM в снапшоты по 16-фрейм тикам + completion k*/обёрнутый фрейм; (b) параллельно per-voice synthVoiceSample по снапшотам во float accum[v]; (c) послед. суммирование по индексу + master + clamp/round → блок. Пул потоков + барьер; B и число потоков (Q2/PS-D5)",
       "status": "pending",
       "dependsOn": ["PS1.1"],
       "artifacts": [],
@@ -127,6 +131,10 @@
     }
   ],
   "log": [
+    {
+      "at": "2026-07-20",
+      "text": "PS2.1 — анализ связности перед реализацией дал уточнение области (PS-D8): (1) float-sum не ассоциативен → per-voice accum[v] + суммирование строго по индексу; (2) параллелить безопасно только binaural+PCM (их update развязан с посэмплом); iso/pink/water — на координатор/fallback (iso читает посэмпловый FphaseSampleCount; pink — глобальный bbRand с обязательным порядком; water — общие mother+Random); (3) область single-loop, единственное timeline-событие — completion k* с одним обёрнутым фреймом; прочее → fallback на fillBuffer. Реализация PS2.1 (control-снапшоты + пул + суммирование, предикат canRenderParallel) — следующий сфокусированный шаг: пишу single-thread-корректно с бит-в-бит на circle (binaural) и ForestMeditation (binaural+PCM), затем добавляю потоки. Не стал коммитить сырой конкурентный код в хвосте длинной сессии — риск бит-в-бит-регрессии в синтезе."
+    },
     {
       "at": "2026-07-20",
       "text": "PS1.1 DONE. synthVoiceSample извлечён verbatim из per-sample секции fillBuffer (GnauralSynth.pas) — переиспользуемая per-voice-функция (advance FsinPos/FpcmPos/iso-фаза; sin/pcm-read; единственный глобальный read = bbRand), mono/vol/accum остались в fillBuffer. Пересобрал exe; бит-в-бит подтверждено на всех целевых типах: circle (binaural), hypnosis (binaural+pink), ForestMeditation (30 PCM+binaural — refactored vs original через git stash+rebuild, идентичный sha256 2afc8b70…). PS-D7 подтверждён на практике: per-sample чисто отделяется, timeline не тронут. Дальше PS2.1: последовательный periodic-update со снапшотом per-voice control по 16-фрейм тикам + параллельные per-voice-циклы synthVoiceSample во float-аккумуляторы + суммирование в фикс. порядке. Коммичу PS1.1 (GnauralSynth.pas поведение-сохраняющий + леджер)."
