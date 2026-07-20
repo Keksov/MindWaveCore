@@ -201,16 +201,24 @@
       "id": "VL4.1",
       "phase": 4,
       "title": "Клиентский транспорт: project-api.ts/use-project.ts [CRLF] — appendUndoCommits (дебаунс 250 мс, только несинхронизированный хвост; keepalive-flush шлёт дельты, не снапшоты), putUndoRefs (дебаунс, last-write-wins), clear; чистый планировщик синхронизации (lastSyncedCid → пачка append) с тестами.",
-      "status": "pending",
+      "status": "done",
       "dependsOn": [
         "VL3.1"
       ],
-      "artifacts": [],
-      "verify": "GnauralCore: bun test ui server зелёные (новые тесты планировщика синхронизации); typecheck.",
-      "startedAt": null,
-      "finishedAt": null,
+      "artifacts": [
+        "GnauralCore ui/project-api.ts — fetchUndoLogChain / appendUndoLog (409 = тело, не исключение — S3-префикс принят) / putUndoLogRefs / clearUndoLog — коммит 4263853",
+        "GnauralCore ui/composables/undo-log-sync.ts — чистые планировщики: planKeepaliveUndoLogBatch (utf-8-байтовый префикс ≤60КБ, снапшот режет хвост), mergeUndoLogRefsPatch (last-write-wins + помёржка тегов), dropAcknowledgedUndoLogCommits (S2/S3-префикс из pending) — коммит 4263853",
+        "GnauralCore ui/composables/undo-log-sync.test.ts — 9 тестов планировщиков (вкл. unicode-байты и in-flight хвост) — коммит 4263853",
+        "GnauralCore ui/composables/use-project.ts — очередь per-project: батч с дебаунсом 250мс, inFlight-дисциплина, идемпотентный ретрай по сети, 409 → передача хендлеру (setUndoLogAppendResultHandler) без слепого ретрая; flush:true для снапшотов (пишутся сразу, вне keepalive-окна); sticky gc-политика; queueProjectUndoLogRefsFor (дебаунс, merge); readProjectUndoLogChainFor / clearProjectUndoLogFor / discardPendingUndoLogFor; flushPendingProjectWrites шлёт keepalive-ПРЕФИКС не очищая очередь (дубликаты скипаются по S2) — коммит 4263853"
+      ],
+      "verify": "PASSED — GnauralCore bun test ui server: 336 pass / 0 fail; MindWaveCore/ui bun run typecheck (vue-tsc): 0 ошибок. Уточнение фактов: project-api.ts и use-project.ts оказались LF (пометка [CRLF] в старых планах устарела; CRLF остаётся только use-gtrack-lanes.ts — проверено perl-скриптом).",
+      "startedAt": "2026-07-21",
+      "finishedAt": "2026-07-21",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Ключевое упрощение против плановой формулировки: вместо lastSyncedCid-трекинга в транспорте — pending-очередь целиком в use-project + подтверждённый префикс (appended+skipped) из ответа сервера; идемпотентность по cid (S2) делает и повторную отправку после сетевой ошибки, и двойную отправку flush-префикса безопасными. lastSyncedCid-семантика остаётся на уровне lanes (VL4.2, назначение parent).",
+        "Снапшоты пишутся flush:true (немедленно) — поэтому keepalive-flush при выходе несёт только дельты; если снапшот всё же застрял в очереди, planKeepaliveUndoLogBatch отрежет его и зависимый хвост по байтам."
+      ]
     },
     {
       "id": "VL4.2",
