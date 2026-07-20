@@ -178,16 +178,24 @@
       "id": "VL3.1",
       "phase": 3,
       "title": "Протокол: типы @protocol (SharedPasCore ts/protocol.ts) + роуты /api/projects/undo-log* в server.ts (тонкий маппинг 1:1, NUL-байт — точные Edit) + ProjectInfo.undoJournalBytes со стороны undo-log; store-уровневые контрактные тесты (роуты логики не содержат).",
-      "status": "pending",
+      "status": "done",
       "dependsOn": [
         "VL2.1"
       ],
-      "artifacts": [],
-      "verify": "bun.exe test version-log project-store зелёные; typecheck сервера (локальный tsc 5.7.3, throwaway tsconfig); строка endpoints в server.ts обновлена; ручной smoke curl по 4 endpoint'ам.",
-      "startedAt": null,
-      "finishedAt": null,
+      "artifacts": [
+        "SharedPasCore ts/protocol.ts — ProjectUndoLogCommitType/CommitInput/Commit/Refs/GcPolicy/AppendRequest/AppendResponse/ChainResponse/RefsRequest/RefsResponse/ClearRequest — коммит 1555560 (SharedPasCore)",
+        "MindWaveCore server/server.ts — GET /api/projects/undo-log (from/limit/untilType) + POST …/append (409 с телом при отсечении пачки) + POST …/refs + POST …/clear; versionLogStore-синглтон + resolveUndoLogDir (404 через getProject); isVersionLogError в mapProjectStoreError; строка endpoints обновлена — коммит e6d39fe",
+        "MindWaveCore server/project-store.ts — UNDO_LOG_DIR_NAME (владелец лейаута) + buildInfo: undoJournalBytes = Σ undo-log/* + legacy undo.json (null при нуле); version-log-store: собственная константа удалена (генерик-модуль лейаута не знает), guard не-объектов в assertValidInput (400 вместо 500) — коммит e6d39fe",
+        "MindWaveCore server/project-store.test.ts — тест «undoJournalBytes суммирует undo-log/ с legacy undo.json» — коммит e6d39fe"
+      ],
+      "verify": "PASSED — bun.exe test: 115 pass / 0 fail (сервер целиком); tsc 5.7.3 чист (server.ts, project-store.ts, protocol.ts, version-log-*); smoke на временном инстансе --port=3399: open → append 2 (200, refs.main=a) → chain untilType=snapshot (2 коммита) → refs head+метка (200) → append ghost-parent (409 c телом rejectedFrom=x) → info undoJournalBytes=243 → clear (204) → delete project (204); временный сервер остановлен.",
+      "startedAt": "2026-07-20",
+      "finishedAt": "2026-07-20",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Циклический импорт исключён сознательно: project-store владеет именем папки undo-log (лейаут — его домен), version-log-store остаётся generic и берёт только SerialQueues из project-store (однонаправленная зависимость).",
+        "Правки server.ts (NUL-байт файл) — только точечные Edit по anchors; поиск в нём — исключительно rg --text."
+      ]
     },
     {
       "id": "VL4.1",
