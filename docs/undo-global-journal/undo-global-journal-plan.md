@@ -39,7 +39,18 @@
 10. (2026-07-20) «Сейчас после закрытия формы свойств точки, в которой есть механизм Undo, не
     срабатывает Ctrl-Z, а после переоткрытия этого диалога кнопки Undo не доступны.»
 
-## 2. Диагноз (код-анализ 2026-07-20; подтвердить наблюдением — Фаза 1)
+## 2. Диагноз (код-анализ 2026-07-20; ПОДТВЕРЖДЁН наблюдением владельца — UG1.1, 2026-07-20)
+
+**Подтверждение (лог `[undo-diag]` из репро владельца, ForestMeditation):** триггер — WS-событие
+`schedule-changed` → `handleScheduleChanged` → `loadGnauralSchedule(path, force=true)`
+([audio.ts:880-882](../../../GnauralCore/ui/stores/audio.ts)) → `schedule object replaced (load fetch)`
+→ `buildModel: model rebuilt (prev: canUndo=true canRedo=false dirty=true)` → `adopt refused:
+signature mismatch`: в журнале сырые драг-значения (`"timeSec":772.5752508361204,
+"baseFreq":233.14042546357308`), в модели-из-файла — округлённые (`772.575, 233.14`), т.е. при
+dirty-модели адопция не может сработать в принципе. Стартовое `stored undo journal adopted: 0 steps`
+показывает, что диск-журнал уже был затёрт прежними rebuild'ами. Формулировка BK7 «стек живёт в
+рамках формы» опровергнута: закрытие формы ни при чём, историю убивает reload по `schedule-changed`
+(прилетает при load/play и записи файла).
 
 - История undo живёт **только в in-memory `GTrackModel`** (лог voice-дельт + курсор, формат v2 из
   undo-command-log): [gtrack-model.ts:244](../../../GnauralCore/ui/composables/gtrack-model.ts).
