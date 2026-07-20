@@ -2158,6 +2158,11 @@ const fsBrowserServer: FsBrowserServer = startFsBrowserServer(fsProviderRegistry
 
 server = Bun.serve<SocketData>({
   port: getPort(),
+  // access-preset-root AR1.1 (AR-D1): bind loopback-only. The whole-machine file access this server
+  // grants is now safe behind 127.0.0.1 — no LAN client can reach it — so "write any file by default"
+  // (AR-D2) is safe. AC3.2's per-endpoint loopback gates become redundant but are kept (defense in
+  // depth). NOTE: this removes LAN access to the UI, reversing AC-D6.
+  hostname: "127.0.0.1",
   idleTimeout: SERVER_IDLE_TIMEOUT_SEC,
   async fetch(aRequest, aServer) {
     const url = new URL(aRequest.url)
