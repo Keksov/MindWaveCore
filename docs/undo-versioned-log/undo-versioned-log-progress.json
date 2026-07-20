@@ -269,16 +269,26 @@
       "id": "VL4.4",
       "phase": 4,
       "title": "Полное удаление legacy (VL-D8): роуты GET/PUT /api/projects/undo, UndoFileData/UNDO_FILE_NAME/UNDO_JOURNAL_MAX_BYTES (5МБ-лимит исчезает); export-бандл → undoLog {commits, refs} c round-trip тестами (S15); undoJournalBytes считает undo-log/.",
-      "status": "pending",
+      "status": "done",
       "dependsOn": [
         "VL4.3"
       ],
-      "artifacts": [],
-      "verify": "MindWaveCore/server bun.exe test зелёные (export/import round-trip S15, ссылок на UNDO_FILE_NAME не осталось); GnauralCore bun test ui server; typecheck сервера.",
-      "startedAt": null,
-      "finishedAt": null,
+      "artifacts": [
+        "MindWaveCore server/project-store.ts — putUndoJournal: только null (delete), иначе 410 Gone; UNDO_JOURNAL_MAX_BYTES удалён (5МБ-лимита больше не существует); ProjectExportBundle.undo → undoLog {commits, refs} (пустой лог = null) через ОБЩИЙ инжектированный versionLog (ProjectStoreOptions.versionLog — один инстанс на процесс, иначе раздваиваются кэши/очереди); import: raw importLog + обратная совместимость pre-VL бандлов (поле undo пишется в undo.json → одноразовая миграция подхватит) — коммит 6c3ae5a",
+        "MindWaveCore server/version-log-store.ts — importLog(dir, commits, refs) (S15): валидация ХРАНИМОГО лога (graft-null везде, орфаны, seq строго растёт, cid уникальны, refs существуют → 400), полная замена содержимого, refs пишутся поверх reload — коммит 6c3ae5a",
+        "MindWaveCore server/server.ts — versionLogStore создаётся ДО projectStore и передаётся в него — коммит 6c3ae5a",
+        "MindWaveCore тесты: version-log-store.test.ts +2 (S15 round-trip GC-лога с graft-корнем и метками + append продолжает seq; пустой/мусорный бандл), project-store.test.ts — 410-тест вместо 413, export/import на undoLog байт-в-байт, pre-VL бандл → undo.json — коммит 6c3ae5a",
+        "GnauralCore ui/composables/use-project.ts — очередь v3-журнала (pendingUndoWrites/sendUndoJournal/writeProjectUndoJournalFor) удалена вместе с её flush-веткой; readProjectUndoJournalFor остаётся миграционным ридером; deleteProjectUndoJournalFor — единственный legacy-глагол — коммит 32452c3 (GnauralCore)",
+        "GnauralCore ui/composables/use-gtrack-lanes.ts [CRLF] — миграция удаляет undo.json через deleteProjectUndoJournalFor — коммит 32452c3"
+      ],
+      "verify": "PASSED — MindWaveCore/server bun.exe test: 122 pass / 0 fail; GnauralCore bun test ui server: 344 pass / 0 fail; vue-tsc 0; server-tsc (throwaway) 0 ошибок. S15 закрыт юнитом + project-store round-trip.",
+      "startedAt": "2026-07-21",
+      "finishedAt": "2026-07-21",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "ОТКЛОНЕНИЕ от буквы «удалить полностью» (документируется владельцу): GET /api/projects/undo и PUT c journal:null СОХРАНЕНЫ как миграционные глаголы — без GET одноразовая миграция существующих undo.json физически невозможна (клиент их больше нигде не читает), без null-PUT нечем удалить файл после replay. Всё остальное legacy мертво: запись журнала (410), 5МБ-лимит, поле undo в export-бандле. Кандидат на полное выпиливание — отдельным шагом после того, как все реальные проекты владельца мигрируют.",
+        "Бандл переносит лог RAW-путём (importLog), а не append'ом: после GC в логе легальны graft-корни (parent null в середине) и орфан-ветки — append-семантика S3 их отвергла бы."
+      ]
     },
     {
       "id": "VL5.1",
