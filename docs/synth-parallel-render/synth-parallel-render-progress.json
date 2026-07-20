@@ -80,12 +80,15 @@
     {
       "id": "PS2.1",
       "phase": 2,
-      "title": "Параллельный offline-рендерер (PS-D8 scope): предикат canRenderParallel = single-loop && все голоса ∈ {binaural,PCM} && threads>1 (иначе fallback на fillBuffer). Блочно: (a) послед. control-pass — periodic-update binaural/PCM в снапшоты по 16-фрейм тикам + completion k*/обёрнутый фрейм; (b) параллельно per-voice synthVoiceSample по снапшотам во float accum[v]; (c) послед. суммирование по индексу + master + clamp/round → блок. Пул потоков + барьер; B и число потоков (Q2/PS-D5)",
-      "status": "pending",
+      "title": "Параллельный offline-рендерер (PS-D8 scope). Stage A (СТРУКТУРА, бит-в-бит, готово): canRenderParallel = single-loop && все голоса ∈ {binaural,PCM}; renderOfflineData = BULK (все нормальные фреймы до completion) через 3-pass [control-снапшоты по 16-фрейм тикам → per-voice synthVoiceSample во float accum[v] → суммирование по индексу+master+clamp], TAIL (completion/wrap) через НЕизменённый fillBuffer (бит-в-бит by construction). Гейт GNAURAL_RENDER_THREADS>1 (по умолчанию dormant → fallback, прод не меняется). Stage B (ОСТАЛОСЬ): распараллелить per-sample pass (пул потоков + барьер на блок) + default auto (CPUCount-1).",
+      "status": "active",
       "dependsOn": ["PS1.1"],
-      "artifacts": [],
-      "verify": "",
-      "startedAt": null,
+      "artifacts": [
+        "../GnauralCore/cli/core/GnauralSynth.pas (canRenderParallel + renderOfflineData: 3-pass BULK + fillBuffer TAIL; single-thread Stage A) [LF]",
+        "../GnauralCore/cli/core/GnauralWavWriter.pas (renderToFile → renderOfflineData под GNAURAL_RENDER_THREADS, иначе прежний последовательный цикл) [LF]"
+      ],
+      "verify": "Stage A DONE (бит-в-бит) — exe пересобран; GNAURAL_RENDER_THREADS=2 (структура активна): circle (binaural) a9191e34…, ForestMeditation (30 PCM+binaural) 2afc8b70… — идентичны baseline; без env (fallback): circle идентичен. Дормантен по умолчанию (прод не затронут). Stage B (пул потоков) + замер ускорения — pending.",
+      "startedAt": "2026-07-20",
       "finishedAt": null,
       "blockedReason": null,
       "evidence": []
@@ -131,6 +134,10 @@
     }
   ],
   "log": [
+    {
+      "at": "2026-07-20",
+      "text": "PS2.1 Stage A DONE (структура, бит-в-бит). Реализованы canRenderParallel (single-loop && все binaural/PCM) и renderOfflineData: BULK-фреймы (все до completion) через 3-pass [(a) послед. control-снапшоты по 16-фрейм тикам — periodic-update binaural/PCM, entry-walk без wrap; (b) per-voice synthVoiceSample по снапшотам во float accum[v] (Stage A: последовательный цикл по голосам — это шов под потоки Stage B); (c) послед. суммирование по индексу + master + clamp → блок], затем handoff (FcurrentSampleCount=bulkEnd, FupdatePeriod=1) и TAIL через НЕизменённый fillBuffer (completion/wrap/тишина — бит-в-бит by construction). Ключевая находка при реализации: BULK делегирует всю сложную completion/wrap-логику проверенному fillBuffer, поэтому риск свёлся к «нормальному» синтезу. Верификация: GNAURAL_RENDER_THREADS=2 → circle + ForestMeditation бит-в-бит с baseline; без env → fallback на fillBuffer (тоже бит-в-бит). Гейт: dormant по умолчанию (прод не меняется). FPC-нюанс: const BLK клэшил с var blk (регистронезависимо) → переименовал в bi. Stage B: пул потоков + барьер на блок для (b) + default auto. Коммичу Stage A (GnauralSynth.pas + GnauralWavWriter.pas + леджер)."
+    },
     {
       "at": "2026-07-20",
       "text": "PS2.1 — анализ связности перед реализацией дал уточнение области (PS-D8): (1) float-sum не ассоциативен → per-voice accum[v] + суммирование строго по индексу; (2) параллелить безопасно только binaural+PCM (их update развязан с посэмплом); iso/pink/water — на координатор/fallback (iso читает посэмпловый FphaseSampleCount; pink — глобальный bbRand с обязательным порядком; water — общие mother+Random); (3) область single-loop, единственное timeline-событие — completion k* с одним обёрнутым фреймом; прочее → fallback на fillBuffer. Реализация PS2.1 (control-снапшоты + пул + суммирование, предикат canRenderParallel) — следующий сфокусированный шаг: пишу single-thread-корректно с бит-в-бит на circle (binaural) и ForestMeditation (binaural+PCM), затем добавляю потоки. Не стал коммитить сырой конкурентный код в хвосте длинной сессии — риск бит-в-бит-регрессии в синтезе."
