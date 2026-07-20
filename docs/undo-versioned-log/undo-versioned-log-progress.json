@@ -154,16 +154,25 @@
       "id": "VL2.1",
       "phase": 2,
       "title": "GC и лимиты: gc(policy) (орфаны → префикс до снапшот-якоря; лог никогда без якоря), санити-лимит VERSION_LOG_COMMIT_MAX_BYTES=32МБ → 413, статистика {bytes, commits, orphans}; юниты S8, S10 + gc в fuzz-операциях.",
-      "status": "pending",
+      "status": "done",
       "dependsOn": [
         "VL1.3"
       ],
-      "artifacts": [],
-      "verify": "bun.exe test version-log — S8/S10 юниты + fuzz с gc зелёные; реконструируемость до/после gc байт-в-байт (S9-generic).",
-      "startedAt": null,
-      "finishedAt": null,
+      "artifacts": [
+        "MindWaveCore server/version-log-store.ts — gc(dir, policy) + append({gc}) с триггером по нарушенным лимитам; алгоритм: орфаны → кандидаты-якоря oldest-first (самый старый, чей keep-set влезает; фолбэк — новейший, S8в) → keep-set = [якорь..main] + цепочки head/меток до собственного снапшота → GRAFT (parent удалённого → null); консолидация в seg-00000001 через atomic rename-over + удаление прочих + перечитывание с диска (load-каскад seq/chain сам примиряет крах посреди GC) — коммит f8e78fe",
+        "MindWaveCore server/version-log-gc.test.ts (11 юнитов: орфаны первыми, oldest-fitting якорь, S8д/S9-байт-в-байт, минимальная цепочка сверх лимита, head/метки-корни, maxAgeMs с nowMs, maxBytes по графт-кодировке, лог без снапшотов не режется, идемпотентность+консолидация, append-триггер, воскресший pre-GC сегмент отсекается на reload) — коммит f8e78fe",
+        "MindWaveCore server/version-log-fuzz.test.ts — операция gc (8%) со случайной политикой + Oracle.gc (зеркальная реализация S8); структурный чекер обновлён: null-parent (graft-корень) валиден в любом месте хранимого лога — коммит f8e78fe",
+        "docs/undo-versioned-log/undo-versioned-log-plan.md — S3 уточнён (append-only правило корня vs хранимый лог), S8 дополнен пунктом (е) graft — коммит вместе с этим леджером"
+      ],
+      "verify": "PASSED — bun.exe test version-log: 66 pass / 0 fail (юниты+краш+gc+fuzz с gc-операцией); полный серверный прогон: 114 pass / 0 fail (5763 expect); tsc чист. S10 (413 атомарно) покрыт юнитом ещё в VL1.1.",
+      "startedAt": "2026-07-20",
+      "finishedAt": "2026-07-20",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Ключевое проектное следствие, внесённое в спеку: отрезание префикса делает parent первого оставшегося коммита висячим — вместо ослабления загрузочной валидации ВСЕХ коммитов принят graft (parent → null, git-shallow); это единственное разрешённое изменение записанного коммита и только внутри GC (S8е).",
+        "Крах-устойчивость GC без транзакций: консолидированный сегмент пишется в seg-00000001 ЧЕРЕЗ atomic rename-over ДО удаления старых; уцелевший после краха старый сегмент отсекается на загрузке seq-monotonic-правилом (юнит «воскресший сегмент»); ошибка удаления → сброс кэша + reload, состояние сходится.",
+        "Fuzz подтвердил эквивалентность store ↔ oracle на 24 сидах с gc-операцией в пуле — включая композиции gc→crash→reopen→append."
+      ]
     },
     {
       "id": "VL3.1",
