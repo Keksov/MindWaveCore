@@ -249,16 +249,21 @@
       "id": "VL4.3",
       "phase": 4,
       "title": "Сквозной конформанс без UI (S13): скриптовые «сессии» (append дельт+снапшот → рестарт → адопция → undo/redo → checkout) поверх реального version-log-store + реальной GTrack-реконструкции; хвост читается байт-в-байт, undo/redo между сессиями — только движение head.",
-      "status": "pending",
+      "status": "done",
       "dependsOn": [
         "VL4.2"
       ],
-      "artifacts": [],
-      "verify": "Конформанс-сьют зелёный: MindWaveCore/server bun.exe test + GnauralCore bun test ui server. Полное соответствие S1..S15 достигнуто автотестами (req 1) — фиксируется в evidence со списком инвариант→тест.",
-      "startedAt": null,
-      "finishedAt": null,
+      "artifacts": [
+        "MindWaveCore server/version-log-conformance.test.ts — 4 сценария кросс-репо (реальная GTrackModel из GnauralCore/ui + реальные планировщики undo-log-adoption поверх реального стора): (1) правки→Save→несохранённый хвост→рестарт: окно 3 undo + 2 redo, redo восстанавливает финальную сигнатуру байт-в-байт, undo до базы, коммитов не прибавилось (head-only); (2) checkout: payload снапшота реконструирует сохранённое состояние (сигнатура сходится); (3) S14 e2e: v3 (cursor 2/3) → миграционная цепочка → рестарт → нормальная адопция (redo вернулся), двойной прогон = 0 appended / все skipped; (4) VL-D2: undo→новая правка = fork, брошенный хвост жив орфаном и читается по cid — коммит 747123f"
+      ],
+      "verify": "PASSED — MindWaveCore/server bun.exe test: 119 pass / 0 fail (весь сервер, вкл. 4 конформанс-сценария); GnauralCore bun test ui server: 344 pass / 0 fail; tsc с @protocol-алиасом в throwaway tsconfig — 0 ошибок по файлам фичи. Соответствие спеке автотестами (req 1): S1–S5,S7,S10,S12 — version-log-store.test.ts (28); S6 — version-log-crash.test.ts (полный побайтовый перебор); S8,S9-generic — version-log-gc.test.ts (11) + fuzz; S11 — fuzz+юнит; S1–S9,S11,S12 композиции — version-log-fuzz.test.ts (24 сида × 220 операций с оракулом); S13,S14,S9-GTrack — version-log-conformance.test.ts (4); S15 — VL4.4 (бандл ещё не переведён).",
+      "startedAt": "2026-07-21",
+      "finishedAt": "2026-07-21",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Кросс-репо импорт в тесте (server → GnauralCore/ui) работает: bun резолвит @protocol внутри GnauralCore-файлов по их ближайшему tsconfig; gtrack-model чист (единственный импорт — типы @protocol).",
+        "SessionSync в тесте — крошечная переимплементация ПРОВОДНОГО поведения lanes-движка (positions+parents), сознательно без Vue: сьют проверяет контракт стор↔модель, а не синглтон."
+      ]
     },
     {
       "id": "VL4.4",
