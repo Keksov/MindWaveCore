@@ -183,14 +183,21 @@
       "id": "UG3.1",
       "phase": 3,
       "title": "Панель «Журнал операций» (UG-D5): PanelWindow со списком шагов (тип операции + изменения + время), выбор строки = подсветка без применения, откат только по кнопке «Применить» (req 3, 8); i18n en/ru.",
-      "status": "pending",
+      "status": "done",
       "dependsOn": [
         "UG2.3"
       ],
-      "artifacts": [],
-      "verify": "bun test ui; vue-tsc + build; ручная проверка 2-шагового отката.",
-      "startedAt": null,
-      "finishedAt": null,
+      "artifacts": [
+        "GnauralCore ui/components/UndoJournalDialog.vue (PanelWindow-хром, allow-detach=false — отдельное окно держало бы чужой пустой синглтон; true-detach = remote-control как PW5.7, по запросу) — коммит 202cb45",
+        "GnauralCore ui/components/UndoJournalPanel.vue (лог: строка 0 «Исходное состояние», kind-иконка+название, имена голосов, время; redo-хвост затемнён; маркер «текущее»; клик = только выделение; «Применить» = rollbackToCursor) — коммит 202cb45",
+        "GnauralCore ui/stores/undo-journal-panel.ts (usePanelWindowState('undo-journal'), floating по умолчанию) — коммит 202cb45",
+        "GnauralCore ui/pages/AudioPage.vue (хостинг в общем dock-wrap + reflow) + ui/components/TracksPanel.vue (кнопка history в тулбаре, только gnaural) — коммит 202cb45",
+        "GnauralCore ui/composables/use-gtrack-lanes.ts (undoSteps/undoCursor зеркало + rollbackToCursor) + gtrack-model.ts (historySteps/historyCursor) — коммит 202cb45",
+        "GnauralCore ui/i18n/en.json + ru.json (undoJournal* + undoKind_*) — коммит 202cb45"
+      ],
+      "verify": "DONE — bun test ui server 322/0; vue-tsc 0; quasar build OK. Ручная проверка 2-шагового отката — на UG3.3 PAUSE.",
+      "startedAt": "2026-07-20",
+      "finishedAt": "2026-07-20",
       "blockedReason": null,
       "evidence": []
     },
@@ -198,14 +205,18 @@
       "id": "UG3.2",
       "phase": 3,
       "title": "Очистка журнала из панели: целиком / до указанного момента (req 7); после отката — очистка от восстановленной точки до текущего момента (req 8, хвост).",
-      "status": "pending",
+      "status": "done",
       "dependsOn": [
         "UG3.1"
       ],
-      "artifacts": [],
-      "verify": "bun test ui; ручная проверка обоих режимов очистки.",
-      "startedAt": null,
-      "finishedAt": null,
+      "artifacts": [
+        "GnauralCore ui/composables/gtrack-model.ts (clearHistory: all / before(cursorPos) / redo-tail; состояние не трогается) + тест 3 режимов — коммит f2dc0ee",
+        "GnauralCore ui/composables/use-gtrack-lanes.ts (clearUndoHistory → refreshEditState: дисковый журнал пере-персистится и уменьшается) — коммит f2dc0ee",
+        "GnauralCore ui/components/UndoJournalPanel.vue (дропдаун «Очистить»: всю историю / старше выделенного / отменённые шаги) + i18n en/ru — коммит f2dc0ee"
+      ],
+      "verify": "DONE — bun test ui server 323 pass / 0 fail; vue-tsc 0; quasar build OK. Ручная проверка обоих режимов — на UG3.3 PAUSE.",
+      "startedAt": "2026-07-20",
+      "finishedAt": "2026-07-20",
       "blockedReason": null,
       "evidence": []
     },
@@ -317,6 +328,11 @@
       "at": "2026-07-20",
       "step": "UG2.2b",
       "text": "Новое требование владельца (req 11): «Ctrl-Z должен срабатывать, даже если у меня выбрана русская раскладка клавиатуры». Причина: хоткеи сравнивали только event.key, а в русской раскладке Z/Y/S дают 'я'/'н'/'ы'. Фикс (GnauralCore f057d2c): isHotkeyLetter — матч по букве ИЛИ по физической клавише event.code (KeyZ/KeyY/KeyS, не зависит от раскладки; буква оставлена ради семантической позиции на AZERTY-подобных раскладках). Покрыты Ctrl+S (save), Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y (undo/redo) в TracksPanel и Ctrl+S (квик-фильтр) в FileOpenDialog. vue-tsc 0, build OK. По-прежнему стоп на UG2.3 PAUSE — теперь включая проверку в русской раскладке."
+    },
+    {
+      "at": "2026-07-20",
+      "step": "UG3.2",
+      "text": "UG2.3 PASSED («Fixed. UG2.3 проверен») — ядро принято. Фаза 3 реализована: UG3.1 (202cb45) — панель «Журнал операций» на стандартном @panel (float/dock, detach выключен: отдельное окно держало бы чужой gtracks-синглтон; true-detach = remote-control по образцу PW5.7, если владелец попросит), хостинг в AudioPage dock-wrap, кнопка history в тулбаре Треков; список: «Исходное состояние» + шаги (kind-иконка, названия голосов, время), redo-хвост затемнён, маркер «текущее»; клик = только выделение, откат исключительно по «Применить» (rollbackToCursor — серия undo/redo одним обновлением). UG3.2 (f2dc0ee) — очистка: всю историю / старше выделенного / отменённые шаги (clearHistory в модели, состояние не трогается; журнал пере-персистится). Верификация: bun test ui server 323/0, vue-tsc 0, quasar build OK. Стоп на UG3.3 PAUSE — владелец принимает панель (req 3, 7, 8): откат в два шага, случайный клик ничего не меняет, очистка в трёх режимах."
     }
   ]
 }
