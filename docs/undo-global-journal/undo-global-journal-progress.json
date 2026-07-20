@@ -144,12 +144,31 @@
       ]
     },
     {
-      "id": "UG2.3",
+      "id": "UG2.2b",
       "phase": 2,
-      "title": "PAUSE: владелец в приложении — репро req 1 (свойства точки → правки → удалить/добавить точку → закрыть) и req 10 (переоткрытие) больше не воспроизводятся: Ctrl-Z отменяет, кнопки Undo активны; Save/Play/mute не стирают историю.",
-      "status": "pending",
+      "title": "Хоткеи Ctrl+Z/Ctrl+Y/Ctrl+S не зависят от раскладки клавиатуры (req 11, owner 2026-07-20): матч по физической клавише event.code (KeyZ/KeyY/KeyS) в дополнение к букве (в русской раскладке event.key='я'/'н'/'ы' — сравнение по букве глохло).",
+      "status": "done",
       "dependsOn": [
         "UG2.2"
+      ],
+      "artifacts": [
+        "GnauralCore ui/components/TracksPanel.vue (isHotkeyLetter: key ИЛИ code; Ctrl+S save, Ctrl+Z/Ctrl+Shift+Z/Ctrl+Y undo/redo) — коммит f057d2c",
+        "GnauralCore ui/components/FileOpenDialog.vue (Ctrl+S квик-фильтр — тот же фикс) — коммит f057d2c"
+      ],
+      "verify": "DONE — vue-tsc 0; quasar build OK. Ручная проверка в русской раскладке — на UG2.3 PAUSE.",
+      "startedAt": "2026-07-20",
+      "finishedAt": "2026-07-20",
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "UG2.3",
+      "phase": 2,
+      "title": "PAUSE: владелец в приложении — репро req 1 (свойства точки → правки → удалить/добавить точку → закрыть) и req 10 (переоткрытие) больше не воспроизводятся: Ctrl-Z отменяет, кнопки Undo активны; Save/Play/mute не стирают историю; Ctrl-Z работает в русской раскладке (req 11).",
+      "status": "pending",
+      "dependsOn": [
+        "UG2.2",
+        "UG2.2b"
       ],
       "artifacts": [],
       "verify": "Владелец подтвердил в приложении.",
@@ -291,6 +310,11 @@
       "at": "2026-07-20",
       "step": "UG2.2",
       "text": "UG2.2 готов (GnauralCore 127d800). Шаг истории оформлен как коммит (UG-D2): {id (session-уникальный, base36 время+счётчик), kind, label (имена изменённых голосов — считается автоматически в commitEdit), atMs}. beginEdit/edit принимают kind; размечены все операции: point-edit/point-move/point-insert/point-remove/fix-preparse/lint-fix. Журнал undo.json → v3 (UG-D3): v1/v2 отбрасываются при загрузке (лог причины в консоль — не молча), isGTrackUndoJournal требует метаданные. Сервер не менялся. Верификация: bun test ui server 322/0, vue-tsc 0, quasar build OK. Фаза 2 кода завершена — стоп на UG2.3 PAUSE: владелец проверяет в приложении репро req 1/req 10 + Save/Play/mute (нужна пересборка UI или dev-запуск)."
+    },
+    {
+      "at": "2026-07-20",
+      "step": "UG2.2b",
+      "text": "Новое требование владельца (req 11): «Ctrl-Z должен срабатывать, даже если у меня выбрана русская раскладка клавиатуры». Причина: хоткеи сравнивали только event.key, а в русской раскладке Z/Y/S дают 'я'/'н'/'ы'. Фикс (GnauralCore f057d2c): isHotkeyLetter — матч по букве ИЛИ по физической клавише event.code (KeyZ/KeyY/KeyS, не зависит от раскладки; буква оставлена ради семантической позиции на AZERTY-подобных раскладках). Покрыты Ctrl+S (save), Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y (undo/redo) в TracksPanel и Ctrl+S (квик-фильтр) в FileOpenDialog. vue-tsc 0, build OK. По-прежнему стоп на UG2.3 PAUSE — теперь включая проверку в русской раскладке."
     }
   ]
 }
