@@ -59,15 +59,19 @@
     {
       "id": "PS1.1",
       "phase": 1,
-      "title": "Рефактор без смены поведения: вынести per-voice block-synth из fillBuffer в переиспользуемую процедуру (позиция сэмпла + фаза periodic-update — входные, а не общие мутабельные поля); single-thread путь зовёт её; бит-в-бит фикстур-тест (выход WAV не изменился vs baseline)",
-      "status": "pending",
+      "title": "Рефактор без смены поведения (PS-D7 scope): вынести дорогой ПЕР-СЭМПЛ синтез из fillBuffer в переиспользуемую процедуру synthVoiceSample(var st; voiceType; out sL,sR) — её будет звать и single-thread fillBuffer, и параллельный рендерер; timeline/periodic-update остаются последовательными (PS-D7). Бит-в-бит vs baseline.",
+      "status": "done",
       "dependsOn": ["PS0.1"],
-      "artifacts": [],
-      "verify": "",
-      "startedAt": null,
-      "finishedAt": null,
+      "artifacts": [
+        "../GnauralCore/cli/core/GnauralSynth.pas (synthVoiceSample извлечён verbatim из per-sample секции fillBuffer; fillBuffer зовёт его; mono/vol/accum остались в вызывающем) [LF]"
+      ],
+      "verify": "DONE (бит-в-бит) — Gnaural.exe пересобран (build_x64.bat); рендер sha256-идентичен baseline на ВСЕХ целевых типах голосов: circle (2 binaural) a9191e34…, hypnosis (3 binaural+pink) dc8f33de…, ForestMeditation (30 PCM + binaural, проверено refactored-exe vs original через git stash+rebuild) 2afc8b70…. Детерминизм подтверждён (bbRand фикс. сид 3677/127, без Randomize). Автотест 1-vs-N потоков — в PS2.2 (в репо нет CLI-харнесса для хранимого single baseline; 1-vs-N самодостаточен и покрывает все типы).",
+      "startedAt": "2026-07-20",
+      "finishedAt": "2026-07-20",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Бит-в-бит: refactored vs original ForestMeditation (30 PCM + binaural) → идентичные sha256 2afc8b70c677c7b8cc4d47fb5156684ab028eec331b7a5027423dac5ad26672d; circle/hypnosis против заранее снятых baseline-хэшей."
+      ]
     },
     {
       "id": "PS2.1",
@@ -123,6 +127,10 @@
     }
   ],
   "log": [
+    {
+      "at": "2026-07-20",
+      "text": "PS1.1 DONE. synthVoiceSample извлечён verbatim из per-sample секции fillBuffer (GnauralSynth.pas) — переиспользуемая per-voice-функция (advance FsinPos/FpcmPos/iso-фаза; sin/pcm-read; единственный глобальный read = bbRand), mono/vol/accum остались в fillBuffer. Пересобрал exe; бит-в-бит подтверждено на всех целевых типах: circle (binaural), hypnosis (binaural+pink), ForestMeditation (30 PCM+binaural — refactored vs original через git stash+rebuild, идентичный sha256 2afc8b70…). PS-D7 подтверждён на практике: per-sample чисто отделяется, timeline не тронут. Дальше PS2.1: последовательный periodic-update со снапшотом per-voice control по 16-фрейм тикам + параллельные per-voice-циклы synthVoiceSample во float-аккумуляторы + суммирование в фикс. порядке. Коммичу PS1.1 (GnauralSynth.pas поведение-сохраняющий + леджер)."
+    },
     {
       "at": "2026-07-20",
       "text": "PS1.1 стартовал: заложен safety net. Рендер детерминирован (bbRand — фикс. сид 3677/127 без Randomize; sin детерминирован): circle (2 binaural) и hypnosis (3 binaural + 1 pink) рендерятся БИТ-ИДЕНТИЧНО между прогонами → bit-compare пригоден. Baseline-хэши захвачены (clean exe): circle sha256 a9191e347b8c2900cf31ef18b3384db4683ffd90acf592f219e9586355d747ba (10600492 B); hypnosis dc8f33de37f995f6ccb06934b0d0db684e1d4142939bcb55c5f04b5434a66812 (31752236 B). Фикстуры — GnauralCore/examples/{circle,hypnosis}/*.gnaural (self-contained, no ext audio). Прочитаны GnauralVoiceSynth (TVoiceSynthState, BB_UPDATE_PERIOD=16) + GnauralSynth.fillBuffer. Уточнена структура (PS-D7): последовательный timeline/periodic-update (бит-идентичен by construction) + параллельный per-sample synthVoiceSample во float-аккумуляторы. Дальше: извлечь synthVoiceSample (пер-сэмпл, переиспользуемый), проверить бит-идентичность на baseline'ах (+ ForestMeditation для PCM, ISO-пресет для iso), затем control-снапшоты + пул потоков. Код ещё не менял — PS1.1 остаётся pending."
