@@ -132,16 +132,23 @@
       "id": "VL1.3",
       "phase": 1,
       "title": "Fuzz с in-memory оракулом (version-log-fuzz.test.ts): PRNG mulberry32, ≥20 сидов × ≥200 операций {append с дубликатами/чужими parent, putRef, gc со случайной политикой, clear, reopen, crash-truncate}; сравнение полного состояния после каждой операции; сид печатается при падении. Покрытие S1–S9 (generic), S11.",
-      "status": "pending",
+      "status": "done",
       "dependsOn": [
         "VL1.2"
       ],
-      "artifacts": [],
-      "verify": "bun.exe test version-log — fuzz зелёный на всех сидах; параллельные append сериализуются (S11-тест на Promise.all).",
-      "startedAt": null,
-      "finishedAt": null,
+      "artifacts": [
+        "MindWaveCore server/version-log-fuzz.test.ts (Oracle — чистая эталонная реализация спеки; 24 сида × 220 операций: append 55% с дубликатами/ghost-parent/вторыми корнями, putRefs 15% вкл. невалидные (сверка статусов ошибок), reopen 10%, crash-truncate 10% (S6 prefix-property + adopt), clear 5%, readChain-verify 5%; структурные инварианты S2/S3/S4/S5 проверяются на сторе независимо от оракула; S11 — залп из 20 конкурентных append == последовательная симуляция) — коммит 411a644",
+        "MindWaveCore server/version-log-store.ts — 2 фикса, найденных фуззом — коммит 411a644"
+      ],
+      "verify": "PASSED — bun.exe test version-log: 55 pass / 0 fail (5570 expect; юниты+краш+fuzz); полный серверный прогон bun.exe test: 103 pass / 0 fail; tsc чист. gc-операция добавится в пул на VL2.1 (по плану).",
+      "startedAt": "2026-07-20",
+      "finishedAt": "2026-07-20",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Находка 1 (сид 1119): отсутствующий refs.json трактовался как повреждённый — загрузка изобретала main/head=новейший, ломая легитимное состояние «null-refs при непустом логе» (clear → append без advanceMain → reopen). Фикс: нет файла → refs остаются null; битый файл → best-effort newest; валидный файл с отрезанным cid → newest survivor (S7).",
+        "Находка 2 (сид 1042): ремонт refs при загрузке не персистился — при повторном reload ремонт повторялся относительно УЖЕ ДРУГОГО «новейшего» (лог дописан) и refs дрейфовали. Фикс: loadRefs возвращает repaired-флаг, loadState немедленно пишет отремонтированные refs на диск.",
+        "Обе находки — ровно тот класс ошибок, ради которого владелец требовал спеку-как-тесты: юниты и краш-перебор их не ловили (нужна ДЛИННАЯ случайная композиция операций)."
+      ]
     },
     {
       "id": "VL2.1",
