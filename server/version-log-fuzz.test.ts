@@ -17,6 +17,7 @@ import {
   type VersionLogAppendResult,
   type VersionLogCommit,
   type VersionLogCommitInput,
+  type VersionLogGcPolicy,
   type VersionLogRefs,
   type VersionLogRefsPatch,
   type VersionLogStore,
@@ -158,6 +159,111 @@ class Oracle {
     this.refs = { main: null, head: null, tags: {} }
   }
 
+  /** S8, mirrored: orphans first, oldest fitting anchor, protected chains, grafting. */
+  public gc(aPolicy: VersionLogGcPolicy): void {
+    if (this.commits.length === 0) {
+      return
+    }
+
+    const reachable = new Set<string>()
+    for (const root of [this.refs.main, this.refs.head, ...Object.values(this.refs.tags)]) {
+      let cid = root
+      while (cid !== null && !reachable.has(cid)) {
+        const commit = this.byCid.get(cid)
+        if (commit === undefined) {
+          break
+        }
+        reachable.add(cid)
+        cid = commit.parent
+      }
+    }
+
+    const mainChain: VersionLogCommit[] = []
+    for (let cid = this.refs.main; cid !== null; ) {
+      const commit = this.byCid.get(cid)
+      if (commit === undefined) {
+        break
+      }
+      mainChain.push(commit)
+      cid = commit.parent
+    }
+    const anchors = mainChain.filter((aCommit) => aCommit.type === "snapshot")
+
+    const keepFor = (aAnchor: VersionLogCommit): Set<string> => {
+      const keep = new Set<string>()
+      for (let cid = this.refs.main; cid !== null; ) {
+        const commit = this.byCid.get(cid)!
+        keep.add(cid)
+        if (cid === aAnchor.cid) {
+          break
+        }
+        cid = commit.parent
+      }
+      for (const root of [this.refs.head, ...Object.values(this.refs.tags)]) {
+        for (let cid = root; cid !== null && !keep.has(cid); ) {
+          const commit = this.byCid.get(cid)
+          if (commit === undefined) {
+            break
+          }
+          keep.add(cid)
+          if (commit.type === "snapshot") {
+            break
+          }
+          cid = commit.parent
+        }
+      }
+      return keep
+    }
+
+    const graft = (aCommit: VersionLogCommit, aKeep: Set<string>): VersionLogCommit => {
+      return aCommit.parent !== null && !aKeep.has(aCommit.parent) ? { ...aCommit, parent: null } : aCommit
+    }
+
+    const fits = (aKeep: Set<string>, aAnchor: VersionLogCommit): boolean => {
+      if (aPolicy.maxCommits !== undefined && aPolicy.maxCommits > 0 && aKeep.size > aPolicy.maxCommits) {
+        return false
+      }
+      if (aPolicy.maxAgeMs !== undefined && aPolicy.maxAgeMs > 0 && aAnchor.atMs < (aPolicy.nowMs ?? 0) - aPolicy.maxAgeMs) {
+        return false
+      }
+      if (aPolicy.maxBytes !== undefined && aPolicy.maxBytes > 0) {
+        let bytes = 0
+        for (const cid of aKeep) {
+          bytes += Buffer.byteLength(`${JSON.stringify(graft(this.byCid.get(cid)!, aKeep))}\n`, "utf8")
+        }
+        if (bytes > aPolicy.maxBytes) {
+          return false
+        }
+      }
+      return true
+    }
+
+    let keepSet: Set<string> | undefined
+    if (anchors.length === 0) {
+      keepSet = reachable
+    } else {
+      for (let index = anchors.length - 1; index >= 0; index -= 1) {
+        const candidate = anchors[index]!
+        const candidateKeep = keepFor(candidate)
+        if (fits(candidateKeep, candidate)) {
+          keepSet = candidateKeep
+          break
+        }
+      }
+      keepSet ??= keepFor(anchors[0]!)
+    }
+
+    const kept = this.commits.filter((aCommit) => keepSet.has(aCommit.cid))
+    if (kept.length === this.commits.length) {
+      return
+    }
+
+    this.commits = kept.map((aCommit) => graft(aCommit, keepSet))
+    this.byCid = new Map(this.commits.map((aCommit) => [aCommit.cid, aCommit]))
+    // The store reloads after a GC rewrite, so its nextSeq re-derives from the kept maximum.
+    this.nextSeq = this.commits.length === 0 ? 1 : this.commits[this.commits.length - 1]!.seq + 1
+  }
+
   /** After a crash-truncate the oracle adopts the store's surviving state (S6 keeps it a prefix). */
   public adopt(aCommits: readonly VersionLogCommit[], aRefs: VersionLogRefs): void {
     this.commits = [...aCommits]
@@ -177,16 +283,14 @@ class Oracle {
 const assertStructuralInvariants = (aCommits: readonly VersionLogCommit[], aRefs: VersionLogRefs): void => {
   const seen = new Set<string>()
   let previousSeq = 0
-  for (const [index, commit] of aCommits.entries()) {
+  for (const commit of aCommits) {
     if (commit.seq <= previousSeq) {
       throw new Error(`S4 violated: seq ${commit.seq} after ${previousSeq}`)
     }
     previousSeq = commit.seq
-    if (commit.parent === null) {
-      if (index !== 0) {
-        throw new Error(`S3 violated: null parent at index ${index}`)
-      }
-    } else if (!seen.has(commit.parent)) {
+    // A null parent is a root: the original one or a GC graft (S8е) — valid anywhere in a
+    // stored log. Appending a second root is still rejected, but that is append-level S3.
+    if (commit.parent !== null && !seen.has(commit.parent)) {
       throw new Error(`S3 violated: unknown parent ${commit.parent} of ${commit.cid}`)
     }
     if (seen.has(commit.cid)) {
@@ -343,11 +447,20 @@ const runFuzzSeed = async (aSeed: number, aOperations: number): Promise<void> =>
       if (actualStatus !== expectedStatus) {
         throw new Error(`${where}: putRefs status diverged (store ${actualStatus}, oracle ${expectedStatus}) patch=${JSON.stringify(patch)}`)
       }
-    } else if (roll < 0.8) {
+    } else if (roll < 0.78) {
       context.store.forget(context.dir)
-    } else if (roll < 0.9) {
+    } else if (roll < 0.86) {
       await crashTruncate(context, where)
-    } else if (roll < 0.95) {
+    } else if (roll < 0.93) {
+      const policy: VersionLogGcPolicy = {
+        maxCommits: context.random() < 0.5 ? 1 + Math.floor(context.random() * 20) : 0,
+        maxBytes: context.random() < 0.3 ? 300 + Math.floor(context.random() * 3000) : 0,
+        maxAgeMs: context.random() < 0.3 ? 1 + Math.floor(context.random() * 200) : 0,
+        nowMs: 1_000 + context.cidCounter,
+      }
+      await context.store.gc(context.dir, policy)
+      context.oracle.gc(policy)
+    } else if (roll < 0.96) {
       await context.store.clear(context.dir)
       context.oracle.clear()
     } else {

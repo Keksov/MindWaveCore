@@ -57,9 +57,20 @@ export interface VersionLogRefsPatch {
   readonly tags?: Readonly<Record<string, string | null>>
 }
 
+export interface VersionLogGcPolicy {
+  /** 0 or absent = unlimited (the VL-D6 settings semantics). */
+  readonly maxCommits?: number
+  readonly maxAgeMs?: number
+  readonly maxBytes?: number
+  /** Age reference point; tests pass it for determinism, callers may omit (Date.now()). */
+  readonly nowMs?: number
+}
+
 export interface VersionLogAppendOptions {
   /** Move refs.main to the last batch commit present in the log after the call (S5). */
   readonly advanceMain?: boolean
+  /** Run GC after the append when any of these limits is violated (VL-D6). */
+  readonly gc?: VersionLogGcPolicy
 }
 
 export interface VersionLogAppendResult {
@@ -122,6 +133,10 @@ export interface VersionLogStore {
   getRefs(aLogDir: string): Promise<VersionLogRefs>
   putRefs(aLogDir: string, aPatch: VersionLogRefsPatch): Promise<VersionLogRefs>
   stats(aLogDir: string): Promise<VersionLogStats>
+  /** S8: orphans first, then the main-chain prefix above the newest snapshot anchor that fits
+   *  the policy; protected chains (head, tags) survive; kept commits whose parent was removed
+   *  are grafted to parent=null. Never leaves a snapshot-anchored log without its anchor. */
+  gc(aLogDir: string, aPolicy: VersionLogGcPolicy): Promise<VersionLogStats>
   /** S12: back to the initial state — segments and refs removed, next append starts a new root. */
   clear(aLogDir: string): Promise<void>
   /** Drop the in-memory cache for a dir (tests use it to simulate a process restart). */
@@ -326,6 +341,10 @@ class VersionLogStoreImpl implements VersionLogStore {
         await this.writeRefs(dir, state)
       }
 
+      if (aOptions.gc !== undefined && this.gcTriggered(state, aOptions.gc)) {
+        state = await this.runGc(dir, state, aOptions.gc)
+      }
+
       return {
         appended: stamped.length,
         skipped,
@@ -333,6 +352,13 @@ class VersionLogStoreImpl implements VersionLogStore {
         rejectedReason: rejectedFrom === null ? null : "unknown-parent",
         refs: cloneRefs(state.refs),
       }
+    })
+  }
+
+  public async gc(aLogDir: string, aPolicy: VersionLogGcPolicy): Promise<VersionLogStats> {
+    return this.withDir(aLogDir, async (dir, state) => {
+      const fresh = await this.runGc(dir, state, aPolicy)
+      return this.buildStats(fresh)
     })
   }
 
@@ -429,13 +455,7 @@ class VersionLogStoreImpl implements VersionLogStore {
 
   public async stats(aLogDir: string): Promise<VersionLogStats> {
     return this.withDir(aLogDir, async (_dir, state) => {
-      const reachable = this.collectReachable(state)
-      return {
-        commits: state.order.length,
-        bytes: state.segments.reduce((aSum, aSegment) => aSum + aSegment.bytes, 0),
-        segments: state.segments.length,
-        orphans: state.order.length - reachable.size,
-      }
+      return this.buildStats(state)
     })
   }
 
@@ -492,6 +512,175 @@ class VersionLogStoreImpl implements VersionLogStore {
       return aState.refs.head
     }
     return aFrom
+  }
+
+  private buildStats(aState: LogState): VersionLogStats {
+    const reachable = this.collectReachable(aState)
+    return {
+      commits: aState.order.length,
+      bytes: aState.segments.reduce((aSum, aSegment) => aSum + aSegment.bytes, 0),
+      segments: aState.segments.length,
+      orphans: aState.order.length - reachable.size,
+    }
+  }
+
+  // --- GC (VL2.1, S8) -----------------------------------------------------------------------
+
+  /** Append-time trigger (VL-D6): GC runs only when a set limit is actually violated. */
+  private gcTriggered(aState: LogState, aPolicy: VersionLogGcPolicy): boolean {
+    const bytes = aState.segments.reduce((aSum, aSegment) => aSum + aSegment.bytes, 0)
+    const oldest = aState.order[0]
+    const nowMs = aPolicy.nowMs ?? Date.now()
+
+    return (
+      (aPolicy.maxCommits !== undefined && aPolicy.maxCommits > 0 && aState.order.length > aPolicy.maxCommits) ||
+      (aPolicy.maxBytes !== undefined && aPolicy.maxBytes > 0 && bytes > aPolicy.maxBytes) ||
+      (aPolicy.maxAgeMs !== undefined && aPolicy.maxAgeMs > 0 && oldest !== undefined && oldest.atMs < nowMs - aPolicy.maxAgeMs)
+    )
+  }
+
+  /** The kept-and-grafted log under a policy, or null when GC would change nothing. */
+  private computeGcKeep(aState: LogState, aPolicy: VersionLogGcPolicy): VersionLogCommit[] | null {
+    if (aState.order.length === 0) {
+      return null
+    }
+
+    const reachable = this.collectReachable(aState)
+
+    // Anchor candidates: snapshots on the main chain, oldest-first — the oldest anchor whose
+    // kept set fits the limits keeps the most history; the newest one is the fallback (S8в:
+    // the minimal chain survives even when it exceeds the limits).
+    const mainChain: VersionLogCommit[] = []
+    for (let cid = aState.refs.main; cid !== null; ) {
+      const commit = aState.commits.get(cid)
+      if (commit === undefined) {
+        break
+      }
+      mainChain.push(commit)
+      cid = commit.parent
+    }
+    const anchors = mainChain.filter((aCommit) => aCommit.type === "snapshot")
+
+    let keepSet: Set<string> | undefined
+    if (anchors.length === 0) {
+      // No snapshot anchor to cut at — orphan removal only (the log is never left anchorless).
+      keepSet = reachable
+    } else {
+      for (let index = anchors.length - 1; index >= 0; index -= 1) {
+        const candidate = anchors[index]!
+        const candidateKeep = this.computeKeepFor(aState, candidate)
+        if (this.gcFits(aState, candidateKeep, candidate, aPolicy)) {
+          keepSet = candidateKeep
+          break
+        }
+      }
+      // Nothing fits: the minimal chain from the NEWEST anchor stays anyway (S8в).
+      keepSet ??= this.computeKeepFor(aState, anchors[0]!)
+    }
+
+    const kept = aState.order.filter((aCommit) => keepSet.has(aCommit.cid))
+    if (kept.length === aState.order.length) {
+      return null
+    }
+
+    // Graft: a kept commit whose parent was removed becomes a root (git shallow semantics) —
+    // otherwise the surviving chain would dangle and the next load would cut it as corrupt.
+    return kept.map((aCommit) => {
+      return aCommit.parent !== null && !keepSet.has(aCommit.parent) ? { ...aCommit, parent: null } : aCommit
+    })
+  }
+
+  /** Kept set for an anchor: [anchor..main] + every protected chain (head, tags) down to its
+   *  own snapshot/root or the first commit already kept. */
+  private computeKeepFor(aState: LogState, aAnchor: VersionLogCommit): Set<string> {
+    const keep = new Set<string>()
+
+    for (let cid = aState.refs.main; cid !== null; ) {
+      const commit = aState.commits.get(cid)
+      if (commit === undefined) {
+        break
+      }
+      keep.add(cid)
+      if (cid === aAnchor.cid) {
+        break
+      }
+      cid = commit.parent
+    }
+
+    const protectedRoots = [aState.refs.head, ...Object.values(aState.refs.tags)]
+    for (const root of protectedRoots) {
+      for (let cid = root; cid !== null && !keep.has(cid); ) {
+        const commit = aState.commits.get(cid)
+        if (commit === undefined) {
+          break
+        }
+        keep.add(cid)
+        if (commit.type === "snapshot") {
+          break
+        }
+        cid = commit.parent
+      }
+    }
+
+    return keep
+  }
+
+  private gcFits(aState: LogState, aKeep: Set<string>, aAnchor: VersionLogCommit, aPolicy: VersionLogGcPolicy): boolean {
+    if (aPolicy.maxCommits !== undefined && aPolicy.maxCommits > 0 && aKeep.size > aPolicy.maxCommits) {
+      return false
+    }
+
+    if (aPolicy.maxAgeMs !== undefined && aPolicy.maxAgeMs > 0) {
+      const nowMs = aPolicy.nowMs ?? Date.now()
+      if (aAnchor.atMs < nowMs - aPolicy.maxAgeMs) {
+        return false
+      }
+    }
+
+    if (aPolicy.maxBytes !== undefined && aPolicy.maxBytes > 0) {
+      let bytes = 0
+      for (const cid of aKeep) {
+        const commit = aState.commits.get(cid)!
+        const grafted = commit.parent !== null && !aKeep.has(commit.parent) ? { ...commit, parent: null } : commit
+        bytes += Buffer.byteLength(encodeCommitLine(grafted), "utf8")
+      }
+      if (bytes > aPolicy.maxBytes) {
+        return false
+      }
+    }
+
+    return true
+  }
+
+  /** Consolidate the kept log into seg-00000001.jsonl (atomic rename-over), drop the rest, then
+   *  reload from disk — the load path is the single source of truth for state construction, and
+   *  its repair logic also reconciles any crash that interrupts this very method. */
+  private async runGc(aDir: string, aState: LogState, aPolicy: VersionLogGcPolicy): Promise<LogState> {
+    const kept = this.computeGcKeep(aState, aPolicy)
+    if (kept === null) {
+      return aState
+    }
+
+    const key = this.stateKey(aDir)
+    try {
+      const tempPath = join(aDir, `.seg-gcnew-${randomUUID()}`)
+      await writeFile(tempPath, kept.map(encodeCommitLine).join(""), "utf8")
+      await rename(tempPath, join(aDir, segmentFileName(1)))
+
+      for (const segment of aState.segments) {
+        if (segment.name !== segmentFileName(1)) {
+          await rm(join(aDir, segment.name), { force: true })
+        }
+      }
+    } finally {
+      // Success or failure alike: drop the cache so the next access rebuilds from disk; the
+      // consolidated segment + the load-time seq/chain cuts converge to the post-GC state.
+      this.states.delete(key)
+    }
+
+    const fresh = await this.loadState(aDir)
+    this.states.set(key, fresh)
+    return fresh
   }
 
   private collectReachable(aState: LogState): Set<string> {
@@ -630,11 +819,13 @@ class VersionLogStoreImpl implements VersionLogStore {
           continue
         }
 
-        // S3 re-checked on load: the parent chain must be intact (null parent = only for the
-        // very first commit) and seq strictly increasing (S4) — a violation means corruption.
+        // S3 re-checked on load: a non-null parent must be present (null = a root, possibly a
+        // GC graft — valid anywhere in a stored log, unlike on append) and seq strictly
+        // increasing (S4) — a violation means corruption. The seq rule is also what cleanly
+        // cuts a stale pre-GC segment surviving next to the consolidated one after a crash.
         const chainOk =
           commit !== null &&
-          (commit.parent === null ? state.commits.size === 0 : state.commits.has(commit.parent)) &&
+          (commit.parent === null || state.commits.has(commit.parent)) &&
           (state.order.length === 0 || commit.seq > state.order[state.order.length - 1]!.seq)
 
         if (commit !== null && chainOk) {
