@@ -644,6 +644,12 @@ class ProjectStoreImpl implements ProjectStore {
       .exists()
       .catch(() => false)
 
+    // undo-global-journal UG4.2 (req 6): report the on-disk undo.json size so the settings pane can
+    // show it next to the rest of the project's temp-file info.
+    const undoJournalBytes = await stat(join(aDir, UNDO_FILE_NAME))
+      .then((s) => (s.isFile() ? s.size : null))
+      .catch(() => null)
+
     return {
       id: aProjectId,
       dir: aDir,
@@ -652,6 +658,7 @@ class ProjectStoreImpl implements ProjectStore {
       createdAt: aData.createdAt,
       updatedAt: aData.updatedAt,
       sections: Object.keys(aData.sections),
+      undoJournalBytes,
     }
   }
 }
