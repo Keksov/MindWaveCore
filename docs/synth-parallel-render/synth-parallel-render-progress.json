@@ -3,7 +3,7 @@
   "plan": "synth-parallel-render",
   "planDoc": "docs/synth-parallel-render/synth-parallel-render-plan.md",
   "title": "synth-parallel-render: распараллелить offline-синтез Gnaural.exe (voice-parallel, блочно) — самый дорогой этап генерации (профиль: fillBuffer = 98% рендера, 23.7с/24.1с). Только offline-путь (renderToFile/writeSynthToSndfile), realtime fillBuffer не трогаем; безопасные голоса (binaural/PCM/iso) в пул, небезопасные (noise bbRand / water mother) на координаторе; бит-в-бит идентичный выход (фикс. порядок суммирования). Ортогонально wave-spectrum-cache: кеш убирает повторные open, потоки ускоряют cache-miss (первый open / после правок / новый solo).",
-  "status": "active",
+  "status": "done",
   "createdAt": "2026-07-20",
   "updatedAt": "2026-07-20",
   "decisions": [
@@ -134,17 +134,23 @@
       "id": "PS3.2",
       "phase": 3,
       "title": "PAUSE: владелец на реальном приложении — холодный open (cache-miss: очистить кэш аудио в Settings или отредактировать план) заметно быстрее; волна/спектр корректны; воспроизведение играет. Код уже закоммичен (бит-в-бит доказан оракулом); PAUSE подтверждает интеграцию",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["PS3.1"],
       "artifacts": [],
-      "verify": "PENDING — владелец: (1) Настройки → очистить кэш аудио (иначе тёплый кэш wave-spectrum-cache скроет эффект — рендер не запустится вовсе); (2) открыть ForestMeditation — ждать графики ~7-8с вместо ~25с; (3) послушать воспроизведение любого плана (realtime-путь). Новый exe подхватывается сервером на следующем spawn — рестарт AppCore не обязателен, но безвреден.",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "PASSED — владелец подтвердил на реальном приложении (2026-07-20): «Огонь! Можно закрывать». Фича synth-parallel-render COMPLETE.",
+      "startedAt": "2026-07-20",
+      "finishedAt": "2026-07-20",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Владелец 2026-07-20: «Огонь! Можно закрывать» — приёмка ускоренного рендера в реальном приложении пройдена."
+      ]
     }
   ],
   "log": [
+    {
+      "at": "2026-07-20",
+      "text": "PS3.2 PAUSE ПРОЙДЕН — владелец подтвердил на реальном приложении («Огонь! Можно закрывать»). Фича synth-parallel-render COMPLETE: offline-рендер ForestMeditation 24.1с → 6.2с (~3.9x, 16 ядер), бит-в-бит; дефолт auto, GNAURAL_RENDER_THREADS override; FLAC последовательный (PS-D9). Код закоммичен ранее (GnauralCore 03aa8cb PS1.1, d19df30 Stage A, 8c75d85 Stage B+inline, ffe18fc PS3.1); этот коммит — закрытие леджера. Открытым остаётся только editor-history-read-gate EH3.1 (некоммиченный фикс 403 в GnauralCore/server/gnaural-editor-store.ts — ждёт проверки владельцем после рестарта AppCore)."
+    },
     {
       "at": "2026-07-20",
       "text": "PS2.1 Stage B + PS2.2 + PS3.1 DONE — фича у финального PAUSE PS3.2. Пул TRenderWorker (TThread + пара auto-reset TEvent на воркера, kick/waitDone/shutdown; исключения ловятся в Execute — первый errorFlag/errorMsg побеждает, done сигналится всегда, чтобы координатор не завис). Две барьер-фазы на блок 65536 фреймов: ppSynthVoices (work-stealing по ctx.live через TInterlocked.Increment; на каждый захваченный голос — своя control row (per-voice entry-walk перенесён из последовательного прохода — минус ~2с Amdahl) + per-sample synthVoiceSample в приватный accum[v]) и ppSumFrames (статические фрейм-слайсы; сумма строго в порядке возрастания индексов голосов = порядок fillBuffer). TAIL остался чанками 4096 — гранулярность последовательного рендера определяет нулевой допаддинг конца файла (иначе байты разошлись бы). Muted-голоса исключены (ctx.live) — точный аналог fillBuffer. НАЙДЕНА И ИСПРАВЛЕНА регрессия PS1.1: synthVoiceSample не был inline → 2 млрд вызовов удвоили последовательный рендер (50.8с vs 24.1с исходных); {$inline on}+inline вернул 20.6с (быстрее исходного). Итог на FM (16 ядер): seq 20.6с → t=15 6.28с (3.28x); default-auto 6.18с vs исходные 24.1с ≈ 3.9x. Бит-в-бит доказан: circle t=2/8 + двойной прогон (race-check) + fallback; hypnosis (pink→fallback); FM seq/t=15/default — все sha256 = baseline. Потолок — binaural-голос (одна sin-цепочка неделима по времени без потери бит-идентичности) + accum-трафик. PS3.1: дефолт auto=ProcessorCount-1, override GNAURAL_RENDER_THREADS (1=последовательный); FLAC оставлен последовательным (PS-D9). Коммиты: GnauralSynth.pas (Stage B+inline), GnauralWavWriter.pas (PS3.1), docs. PAUSE PS3.2: владельцу — очистить кэш аудио (иначе wave-spectrum-cache скроет эффект), открыть FM (~7-8с до графиков вместо ~25с), проверить воспроизведение."
