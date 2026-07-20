@@ -1,0 +1,135 @@
+{
+  "schemaVersion": 1,
+  "plan": "synth-parallel-render",
+  "planDoc": "docs/synth-parallel-render/synth-parallel-render-plan.md",
+  "title": "synth-parallel-render: распараллелить offline-синтез Gnaural.exe (voice-parallel, блочно) — самый дорогой этап генерации (профиль: fillBuffer = 98% рендера, 23.7с/24.1с). Только offline-путь (renderToFile/writeSynthToSndfile), realtime fillBuffer не трогаем; безопасные голоса (binaural/PCM/iso) в пул, небезопасные (noise bbRand / water mother) на координаторе; бит-в-бит идентичный выход (фикс. порядок суммирования). Ортогонально wave-spectrum-cache: кеш убирает повторные open, потоки ускоряют cache-miss (первый open / после правок / новый solo).",
+  "status": "active",
+  "createdAt": "2026-07-20",
+  "updatedAt": "2026-07-20",
+  "decisions": [
+    {
+      "id": "PS-D1",
+      "text": "Ось параллелизма — по ГОЛОСАМ (voice-parallel), блочно; время параллелить нельзя (посэмпловые фазовые аккумуляторы FsinPosL/R, PCM-позиция FpcmPos, entry-walk FcurEntry строго последовательны). Блок B фреймов: T потоков синтезируют свои голоса в приватные accum-буферы (float L/R), барьер, координатор суммирует по фикс. порядку голосов → мастер-гейн FmasterVolLeft/Right → клип → int16 → пишет. Память ограничена блоком (B×2×4×T). Verified: голоса взаимодействуют только в sumL/sumR (GnauralSynth.pas:634-635)."
+    },
+    {
+      "id": "PS-D2",
+      "text": "Правим только OFFLINE-путь (TWavWriter.renderToFile WAV + writeSynthToSndfile FLAC). Realtime fillBuffer (PortAudio callback, 4096-блок) НЕ трогаем — накладные потоков на маленьком блоке не окупятся и у rt свои ограничения. Чтобы DSP-логика не разошлась между single-thread и параллельным путём, per-voice синтез одного блока выносится в переиспользуемую процедуру — единственный источник истины, её зовут и fillBuffer, и параллельный рендерер."
+    },
+    {
+      "id": "PS-D3",
+      "text": "Безопасное к параллели множество = binaural/PCM/iso/isoAlt (чисто per-voice state). Небезопасные: pink noise (глобальный bbRand, :560-561) и waterdrops/rain (общие mother-буферы getDropMother/getRainMother, :521/531) — исполняются на КООРДИНАТОРЕ (main-поток), не в пуле, чтобы не было гонок по общему состоянию. ForestMeditation (binaural+PCM) параллелится целиком; noise/rain-планы получают частичный параллелизм. Альтернатива (per-voice RNG для шума + доказать read-only mother) — будущее уточнение (Q1)."
+    },
+    {
+      "id": "PS-D4",
+      "text": "Бит-в-бит идентичный выход vs текущий single-thread — железный критерий приёмки. Обеспечивается: (а) суммирование вкладов голосов в ФИКСИРОВАННОМ порядке (по индексу голоса, не по порядку завершения потоков) — сложение float не ассоциативно, порядок обязан совпасть; (б) извлечённая процедура (PS-D2) выполняет ту же арифметику, что и текущий inline-код. Тест: малое фикстур-расписание рендерится 1-поток и N-поток → идентичные байты WAV."
+    },
+    {
+      "id": "PS-D5",
+      "text": "Число потоков = авто (CPUCount-1, клэмп ≥1); override через env GNAURAL_RENDER_THREADS (1 = точный старый single-thread путь) — для тестов, детерминизма и аварийной деградации. Пул — fpThreadPool или свои TThread + барьер (SyncObjs); выбор в PS2.1."
+    },
+    {
+      "id": "PS-D6",
+      "text": "Пересборка Gnaural.exe через build_x64.bat (память gnaural-exe-is-ours-rebuild-it). Бандл-шэдоу-копии Gnaural.exe нет (verified: MindWaveCore/server/vendor содержит только spectrumcore; единственная копия GnauralCore/cli/build/x64) — обновлять только build/x64, не как воркер SpectrumCore. Realtime playback проверить на регресс (fillBuffer переиспользует извлечённую функцию). Бэкенд без консоли — лог в var/*.log при нужде."
+    },
+    {
+      "id": "PS-D7",
+      "text": "Уточнение структуры (после чтения GnauralSynth/GnauralVoiceSynth 2026-07-20; ниже риск, чем полный loop-interchange): TIMELINE + periodic-update (entry-walk, loop-wrap, completion, FcurrentSampleCount, вычисление per-voice управляющих величин — freq-факторы/vol/pcm-pos на каждом 16-фрейм тике) остаётся ПОСЛЕДОВАТЕЛЬНЫМ и неизменным → timeline бит-идентичен by construction (не нужно централизовать wrap). Параллелится только дорогой ПЕР-СЭМПЛ синтез: per-voice-функция synthVoiceSample (advance FsinPosL/R, FpcmPos, iso-фаза/огибающая; sin/pcm-read) по управляющим снапшотам, в приватные FLOAT-аккумуляторы на голос; финальное суммирование в фикс. порядке голосов + один clamp/round на фрейм (как сейчас, но на этапе суммирования, не per-voice). Требует float-аккумуляции вместо текущего int16-per-frame. BB_UPDATE_PERIOD=16, RENDER_FRAMES=4096 кратно 16 → границы тиков сохранены. Cross-voice связь — только sumL/sumR (verified GnauralSynth.pas:634-635)."
+    }
+  ],
+  "steps": [
+    {
+      "id": "PS0.1",
+      "phase": 0,
+      "title": "План + progress.json + verified premises (voice-independence, shared-state voices, offline vs realtime path, exe shadowing, FPC threading primitives)",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [
+        "docs/synth-parallel-render/synth-parallel-render-plan.md",
+        "docs/synth-parallel-render/synth-parallel-render-progress.json"
+      ],
+      "verify": "validate-ledger.js проходит. Премисы подтверждены чтением кода 2026-07-20: cross-voice только sumL/sumR (GnauralSynth.pas:634-635); shared globals только bbRand (noise) + mother-буферы (water); offline=renderToFile/writeSynthToSndfile, realtime=callback; Gnaural.exe без бандл-шэдоу; FPC bundled имеет fpThreadPool/TThread/SyncObjs. Префикс PS свободен.",
+      "startedAt": "2026-07-20",
+      "finishedAt": "2026-07-20",
+      "blockedReason": null,
+      "evidence": [
+        "Кеш wave-spectrum-cache проверен: WC-шаги закоммичены (3 репо), кеш населён на диске (…/KKSoundCore/cache/audio-render/ForestMeditation-*.wav + spectrogram-overview/*.tileblob); только WC3.3 (финальный PAUSE) открыт. Ускорение синтеза — ортогонально, бьёт по cache-miss.",
+        "Профиль генерации: fillBuffer 23734 мс = 98% рендера 24109 мс; parse 0, PCM-load 234, write 375."
+      ]
+    },
+    {
+      "id": "PS1.1",
+      "phase": 1,
+      "title": "Рефактор без смены поведения: вынести per-voice block-synth из fillBuffer в переиспользуемую процедуру (позиция сэмпла + фаза periodic-update — входные, а не общие мутабельные поля); single-thread путь зовёт её; бит-в-бит фикстур-тест (выход WAV не изменился vs baseline)",
+      "status": "pending",
+      "dependsOn": ["PS0.1"],
+      "artifacts": [],
+      "verify": "",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PS2.1",
+      "phase": 2,
+      "title": "Параллельный offline-рендерер: пул потоков + партиция безопасных голосов + приватные accum-буферы + барьер на блок + детерминированное (фикс. порядок) суммирование; небезопасные голоса (noise/water) на координаторе (PS-D3); выбрать B (Q2)",
+      "status": "pending",
+      "dependsOn": ["PS1.1"],
+      "artifacts": [],
+      "verify": "",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PS2.2",
+      "phase": 2,
+      "title": "Бит-в-бит верификация (1 vs N поток на фикстуре → идентичные байты WAV) + замер ускорения на ForestMeditation (прямой прогон -o, GNAURAL_RENDER_THREADS=1 vs авто)",
+      "status": "pending",
+      "dependsOn": ["PS2.1"],
+      "artifacts": [],
+      "verify": "",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PS3.1",
+      "phase": 3,
+      "title": "Подключить renderToFile/writeSynthToSndfile к параллельному рендереру + knob потоков (PS-D5); пересборка Gnaural.exe (build/x64); realtime playback sanity",
+      "status": "pending",
+      "dependsOn": ["PS2.2"],
+      "artifacts": [],
+      "verify": "",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PS3.2",
+      "phase": 3,
+      "title": "PAUSE: владелец на реальном приложении — холодный open ForestMeditation заметно быстрее (замер), волна/спектр и воспроизведение корректны. После «ok» — атомарные коммиты по репозиториям",
+      "status": "pending",
+      "dependsOn": ["PS3.1"],
+      "artifacts": [],
+      "verify": "",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    }
+  ],
+  "log": [
+    {
+      "at": "2026-07-20",
+      "text": "PS1.1 стартовал: заложен safety net. Рендер детерминирован (bbRand — фикс. сид 3677/127 без Randomize; sin детерминирован): circle (2 binaural) и hypnosis (3 binaural + 1 pink) рендерятся БИТ-ИДЕНТИЧНО между прогонами → bit-compare пригоден. Baseline-хэши захвачены (clean exe): circle sha256 a9191e347b8c2900cf31ef18b3384db4683ffd90acf592f219e9586355d747ba (10600492 B); hypnosis dc8f33de37f995f6ccb06934b0d0db684e1d4142939bcb55c5f04b5434a66812 (31752236 B). Фикстуры — GnauralCore/examples/{circle,hypnosis}/*.gnaural (self-contained, no ext audio). Прочитаны GnauralVoiceSynth (TVoiceSynthState, BB_UPDATE_PERIOD=16) + GnauralSynth.fillBuffer. Уточнена структура (PS-D7): последовательный timeline/periodic-update (бит-идентичен by construction) + параллельный per-sample synthVoiceSample во float-аккумуляторы. Дальше: извлечь synthVoiceSample (пер-сэмпл, переиспользуемый), проверить бит-идентичность на baseline'ах (+ ForestMeditation для PCM, ISO-пресет для iso), затем control-снапшоты + пул потоков. Код ещё не менял — PS1.1 остаётся pending."
+    },
+    {
+      "at": "2026-07-20",
+      "text": "План+леджер заведены по выбору владельца (AskUserQuestion 2026-07-20: «Многопоточность синтеза»). Предыстория: профиль Gnaural.exe показал синтез fillBuffer = 98% рендера (23.7с/24.1с); проверена уже готовая фича wave-spectrum-cache (персистентный дисковый кеш WAV+грубых тайлов, закоммичена в 3 репо, населена на диске, PAUSE WC1.4/WC2.4 пройдены владельцем, открыт лишь WC3.3) — она убрала ПОВТОРНЫЕ open'ы, поэтому синтез-ускорение перенацелено на cache-miss (первый open / после правок / новый solo) и ортогонально кешу. Дизайн: voice-parallel блочно, только offline-путь, безопасные голоса (binaural/PCM/iso) в пул, небезопасные (noise/water) на координаторе, бит-в-бит через фикс. порядок суммирования. Реализация не начата — PS1.1..PS3.2 pending. Открыты Q1 (noise/water: координатор vs per-voice-RNG) и Q2 (размер блока)."
+    }
+  ]
+}
