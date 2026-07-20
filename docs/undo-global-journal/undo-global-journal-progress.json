@@ -60,28 +60,34 @@
       "id": "UG0.2",
       "phase": 0,
       "title": "PAUSE: владелец подтверждает UG-D1..D6 (особенно UG-D3: v3 отбрасывает v2-журналы; и объём панели UG-D5) и порядок фаз.",
-      "status": "pending",
+      "status": "done",
       "dependsOn": [
         "UG0.1"
       ],
       "artifacts": [],
-      "verify": "Владелец подтвердил решения (или скорректировал — тогда обновить план/леджер до начала Фазы 1).",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "PASSED — владелец подтвердил (2026-07-20) все три пункта дословно: «UG-D3: undo.json переходит на v3, старые v2-журналы при загрузке отбрасываются», «UG-D5: панель операций — PanelWindow (как „Список треков“), клик = только выбор, откат по „Применить“», «Порядок фаз: сначала ядро (Ctrl-Z после закрытия формы), панель и автоочистка после. Ок!».",
+      "startedAt": "2026-07-20",
+      "finishedAt": "2026-07-20",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Владелец 2026-07-20: подтверждены UG-D3 (v3, v2 отбрасываются), UG-D5 (PanelWindow, выбор кликом, откат по «Применить»), порядок фаз (ядро → панель → автоочистка). UG-D1/UG-D2/UG-D4/UG-D6 возражений не вызвали."
+      ]
     },
     {
       "id": "UG1.1",
       "phase": 1,
       "title": "Подтверждение диагноза: инструментировать buildModel + adoptUndoJournal (кто вызвал rebuild; причина отказа адопции — версия/сигнатура), владелец воспроизводит req 1/req 10 в реальном приложении; подтверждённые триггеры зафиксировать в леджере.",
-      "status": "pending",
+      "status": "active",
       "dependsOn": [
         "UG0.2"
       ],
-      "artifacts": [],
+      "artifacts": [
+        "GnauralCore ui/stores/audio.ts ([undo-diag] источник каждой замены объекта schedule: load fetch / ws schedule-loaded / voiceState merge / voice-state patch) — коммит bca9d67",
+        "GnauralCore ui/composables/use-gtrack-lanes.ts (buildModel: что теряется; restoreFromProject: исход адопции) — коммит bca9d67",
+        "GnauralCore ui/composables/gtrack-model.ts (adoptUndoJournal: причина отказа — версия / позиция первого расхождения сигнатур) — коммит bca9d67"
+      ],
       "verify": "В консоли/логах видно: какой триггер пересоздал модель в репро владельца и почему не адоптировался журнал. Диагноз разд. 2 подтверждён или скорректирован в плане.",
-      "startedAt": null,
+      "startedAt": "2026-07-20",
       "finishedAt": null,
       "blockedReason": null,
       "evidence": []
@@ -244,6 +250,11 @@
       "at": "2026-07-20",
       "step": "UG0.1",
       "text": "План+леджер созданы переносом BK7 (gtrack-editor, owner 2026-07-12) и «отдельного плана версионности» (undo-command-log UC-D3, project-store PR-D8/R3) в самостоятельную фичу. Триггер — репро владельца 2026-07-20: после закрытия формы свойств точки Ctrl-Z не срабатывает, после переоткрытия кнопки Undo недоступны. Код-анализ (разд. 2 плана): история в in-memory GTrackModel-синглтоне; watch(schedule)→buildModel пересоздаёт модель на замену объекта schedule (Ctrl+S / Play re-emit setGnauralSchedule / mute applyVoiceStateLocally / async applyProjectVoiceState merge) без сравнения контента; adoptUndoJournal требует строгого равенства JSON.stringify-сигнатур и после float-раундтрипа (patchGnauralXml toFixed(6) → Gnaural.exe) или color-overlay молча отказывает. Формулировка BK7 «стек живёт в рамках формы» кодом опровергается (closeInspector историю не трогает) — подтвердить наблюдением в UG1.1. В старых местах оставлены пометки со ссылкой сюда. Следующий шаг — UG0.2 PAUSE: подтверждение решений владельцем."
+    },
+    {
+      "at": "2026-07-20",
+      "step": "UG1.1",
+      "text": "UG0.2 PASSED (владелец подтвердил UG-D3/UG-D5/порядок фаз дословно). UG1.1: диагностика внесена (GnauralCore bca9d67) — [undo-diag]-логи на всех четырёх точках замены объекта schedule (load fetch / ws schedule-loaded event / voiceState merge / voice-state patch), в buildModel (что теряется: canUndo/canRedo/dirty прежней модели) и в adoptUndoJournal (причина отказа: версия или расхождение сигнатур с позицией и контекстом первого отличия). bun test ui server 316/0 (новый sig-mismatch-лог виден в прогоне), vue-tsc 0. Осталось: владелец воспроизводит req 1/req 10 с открытой консолью (нужен dev-запуск UI или пересборка bun run build — логи в бандл иначе не попадут) и присылает [undo-diag]-строки; по ним фиксируем подтверждённые триггеры и закрываем шаг."
     }
   ]
 }
