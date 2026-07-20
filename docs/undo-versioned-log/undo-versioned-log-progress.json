@@ -90,16 +90,23 @@
       "id": "VL1.1",
       "phase": 1,
       "title": "version-log-store.ts: типы, сегментная запись/чтение (NDJSON, ротация), append/readChain/refs (main/head/метки), ленивый индекс, tolerant read (.broken-*); юниты S1–S5, S7, S12 на временных папках.",
-      "status": "pending",
+      "status": "done",
       "dependsOn": [
         "VL0.2"
       ],
-      "artifacts": [],
-      "verify": "MindWaveCore/server: bun.exe test version-log — юниты S1–S5, S7, S12 зелёные; bun.exe test project-store без регрессий.",
-      "startedAt": null,
-      "finishedAt": null,
+      "artifacts": [
+        "MindWaveCore server/version-log-store.ts (createVersionLogStore: append/readChain/listCommits/getRefs/putRefs/stats/clear/forget; SerialQueues per-dir; сегменты seg-NNNNNNNN.jsonl + refs.json atomic; torn-tail truncate + mid-log cut в .broken-<ts>) — коммит 3e19dd0",
+        "MindWaveCore server/version-log-store.test.ts (28 тестов: S1 append/immutability/reopen, S2 идемпотентность, S3 префикс-отсечение/второй корень/in-batch parents, S4 seq через reopen, S5 refs/теги/атомарность патча, S7 середина/первая строка/поздние сегменты, S6-smoke torn tail, ротация, S12 clear, S10 413 атомарно, readChain limit/untilType, 400-валидация, S11-smoke, чужой refs.json) — коммит 3e19dd0"
+      ],
+      "verify": "PASSED — bun.exe test version-log: 28 pass / 0 fail (132 expect); bun.exe test project-store: 26 pass / 0 fail (без регрессий); tsc 5.7.3 (throwaway tsconfig, memory-правило) — 0 ошибок в version-log*.",
+      "startedAt": "2026-07-20",
+      "finishedAt": "2026-07-20",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Дизайн-инварианты в коде: запись строк по одной с мутацией in-memory состояния только ПОСЛЕ успешного appendFile (I/O-сбой посреди пачки оставляет ровно персистентный префикс — та же семантика, что S3); parent=null валиден только для первого коммита лога (и при загрузке); seq строго возрастает и проверяется при загрузке — нарушение = corruption-cut (S7).",
+        "advanceMain двигает main на последний ПРИСУТСТВУЮЩИЙ cid пачки (включая полностью skipped-повтор) — ретрай после краха между записью сегмента и refs идемпотентно доводит main (S2).",
+        "Инцидент при написании тестов: Write-инструмент вставил байт 0x01 внутрь строки ('bad\\x01name') — ровно ловушка server-ts-nul-byte; вычищен perl-заменой, оба файла проверены на управляющие байты (0 вхождений)."
+      ]
     },
     {
       "id": "VL1.2",
