@@ -100,16 +100,25 @@
       "id": "UG2.1",
       "phase": 2,
       "title": "Ядро: история наружу из GTrackModel (UG-D1, внешний пер-файл журнал в синглтоне) + контент-гард watch(schedule); Ctrl-Z работает после закрытия формы и после Save/Play/mute. Юнит-тесты: rebuild не теряет историю; поведенческие тесты undo/redo зелёные без изменений.",
-      "status": "pending",
+      "status": "done",
       "dependsOn": [
         "UG1.1"
       ],
-      "artifacts": [],
-      "verify": "bun test ui зелёный (вкл. новые тесты «rebuild сохраняет историю»); vue-tsc 0.",
-      "startedAt": null,
-      "finishedAt": null,
+      "artifacts": [
+        "GnauralCore ui/composables/gtrack-model.ts (GTrackHistory-контейнер вне модели; createGTrackHistory/scheduleContentSignature/savedSignature/currentSignature; публичный API не изменён) — коммит e617389 [LF]",
+        "GnauralCore ui/composables/use-gtrack-lanes.ts (контент-гард buildModel: skip при контенте==базе; markSaved при контенте==правленому; post-save rebase с переносом истории; postSaveReloadPath взводится в saveEdits) — коммит e617389 [CRLF]",
+        "GnauralCore ui/components/TracksPanel.vue (saveGtrackEdits → gtracks.saveEdits(), единый save-путь; убраны импорты audioApi/gtrack-xml) — коммит e617389",
+        "GnauralCore ui/composables/gtrack-model.test.ts (5 новых тестов UG2.1) — коммит e617389 [LF]"
+      ],
+      "verify": "DONE — bun test ui server 321 pass / 0 fail (поведенческие тесты undo/redo зелёные без изменений; 5 новых тестов контейнера/сигнатур/rebase); vue-tsc 0; quasar build OK. Реальный прогон репро — UG2.3 PAUSE (после UG2.2).",
+      "startedAt": "2026-07-20",
+      "finishedAt": "2026-07-20",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Кейс владельца (UG1.1) закрывается контент-гардом: re-emit неизменённого файла по ws schedule-changed теперь даёт «buildModel: skip — content equals the model base» — модель, несохранённые правки и история остаются на месте.",
+        "Ctrl+S: TracksPanel шёл через СВОЮ инлайн-копию save (без post-save-флага) — история терялась бы на каждом сохранении; переведён на gtracks.saveEdits(). Post-save reload с float-дрейфом дампа перестраивает модель на дампе, но переносит контейнер истории (in-memory, без сигнатурного гейта — UG-D4) и пере-персистит журнал с подписью дампа (переживает и рестарт сессии).",
+        "Известное ограничение (в UG2.2): смена ЦВЕТА голоса меняет editable-сигнатуру → полный rebuild со сбросом истории (кандидат: исключить color из сигнатуры в v3); mute/hidden в сигнатуру не входят — mute-патч теперь попадает в skip-ветку и модель не трогает."
+      ]
     },
     {
       "id": "UG2.2",
@@ -264,6 +273,11 @@
       "at": "2026-07-20",
       "step": "UG1.1",
       "text": "UG1.1 PASSED — владелец прислал [undo-diag]-лог с репро на ForestMeditation. Подтверждено: (1) историю убивает НЕ закрытие формы, а reload по WS schedule-changed (handleScheduleChanged → loadGnauralSchedule(force) → замена объекта → buildModel); прилетает при load/play и при записи файла; (2) на момент rebuild модель была canUndo=true dirty=true — reload привёз файл БЕЗ несохранённых правок; (3) адопция журнала отказала по сигнатуре ровно на драг-значениях (журнал 772.5752508361204/233.14042546357308 vs файл 772.575/233.14) — при dirty-модели диск-адопция не может сработать в принципе; (4) стартовое «adopted: 0 steps» — диск-журнал уже был затёрт прежними rebuild'ами. План разд. 2 дополнен подтверждением. Переход к UG2.1: контент-гард по savedSignature (re-emit того же файла не должен пересоздавать модель — это и есть кейс владельца) + внешний контейнер истории, переживающий rebuild + post-save rebase с переносом истории (float-дрейф дампа делает сигнатурное равенство недостижимым)."
+    },
+    {
+      "at": "2026-07-20",
+      "step": "UG2.1",
+      "text": "UG2.1 готов (GnauralCore e617389). Реализация UG-D1 в три эшелона: (1) контент-гард в buildModel — если пришедший контент == savedSignature модели (re-emit неизменённого файла: подтверждённый киллер из UG1.1), модель НЕ пересоздаётся — правки и история живы; (2) контент == currentSignature (сейв без float-дрейфа) → markSaved без rebuild; (3) post-save reload с дрейфом (saveEdits взводит postSaveReloadPath) → rebuild на дампе с ПЕРЕНОСОМ внешнего GTrackHistory-контейнера (in-memory адопция без сигнатурного гейта, UG-D4) и пере-персистом журнала под подпись дампа. Попутно: TracksPanel.saveGtrackEdits переведён с инлайн-копии save на gtracks.saveEdits() (иначе Ctrl+S обходил перенос); mute-патчи перестали пересоздавать модель (muted не входит в editable-сигнатуру). Ограничение → в UG2.2: смена цвета голоса всё ещё сбрасывает историю (color в сигнатуре; кандидат — исключить в v3). Верификация: bun test ui server 321/0 (в т.ч. 5 новых тестов), vue-tsc 0, quasar build OK. Следующий шаг — UG2.2 (метаданные шага + v3 + адопция UG-D4), затем UG2.3 PAUSE."
     }
   ]
 }
