@@ -10,6 +10,7 @@ import {
   SerialQueues,
   UNDO_FILE_NAME,
   UNDO_JOURNAL_MAX_BYTES,
+  UNDO_LOG_DIR_NAME,
   copyProjectsTree,
   createProjectFileData,
   createProjectStore,
@@ -287,6 +288,29 @@ describe("ProjectStore core API (PR1.3 / PR-D5, PR-D8)", () => {
 
     const huge = { blob: "x".repeat(UNDO_JOURNAL_MAX_BYTES) }
     await expectStoreError(store.putUndoJournal(info.id, huge), 413)
+  })
+
+  test("undoJournalBytes sums the undo-log folder with the legacy undo.json (VL3.1 / VL-D8)", async () => {
+    const { root, sourceDir, store } = await makeStoreFixture()
+    const source = await makeSourceFile(sourceDir, "footprint.gnaural")
+    const opened = await store.openProject(source)
+    expect(opened.undoJournalBytes).toBeNull()
+
+    await store.putUndoJournal(opened.id, { entries: ["legacy"] })
+    const legacyOnly = (await store.getProject(opened.id))?.undoJournalBytes ?? 0
+    expect(legacyOnly).toBeGreaterThan(0)
+
+    const logDir = join(root, PROJECTS_DIR_NAME, opened.id, UNDO_LOG_DIR_NAME)
+    const { mkdir } = await import("node:fs/promises")
+    await mkdir(logDir, { recursive: true })
+    await writeFile(join(logDir, "seg-00000001.jsonl"), "x".repeat(100))
+    await writeFile(join(logDir, "refs.json"), "y".repeat(20))
+
+    const combined = (await store.getProject(opened.id))?.undoJournalBytes ?? 0
+    expect(combined).toBe(legacyOnly + 120)
+
+    await store.putUndoJournal(opened.id, null)
+    expect((await store.getProject(opened.id))?.undoJournalBytes).toBe(120)
   })
 
   test("deleteProject removes only a real project folder; evil ids are rejected", async () => {

@@ -17,7 +17,6 @@ import { join, resolve } from "node:path"
 
 import { SerialQueues } from "./project-store"
 
-export const VERSION_LOG_DIR_NAME = "undo-log"
 export const VERSION_LOG_REFS_FILE_NAME = "refs.json"
 /** S10: the log itself is unbounded — only a single commit has a sanity cap. */
 export const VERSION_LOG_COMMIT_MAX_BYTES = 32 * 1024 * 1024
@@ -493,6 +492,9 @@ class VersionLogStoreImpl implements VersionLogStore {
   }
 
   private assertValidInput(aInput: VersionLogCommitInput): void {
+    if (!isRecordValue(aInput)) {
+      throw new VersionLogError(400, "Invalid commit shape")
+    }
     if (
       !isValidCid(aInput.cid) ||
       !(aInput.parent === null || isValidCid(aInput.parent)) ||

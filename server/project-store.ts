@@ -19,6 +19,8 @@ export type { ProjectInfo, ProjectSourceInfo } from "./protocol"
 export const PROJECTS_DIR_NAME = "projects"
 export const PROJECT_FILE_NAME = "project.scp.json"
 export const UNDO_FILE_NAME = "undo.json"
+/** undo-versioned-log VL3.1: the per-project append-only commit log folder (version-log-store). */
+export const UNDO_LOG_DIR_NAME = "undo-log"
 export const PROJECT_KIND = "SoundCoreProject"
 
 const SLUG_MAX_LENGTH = 40
@@ -644,11 +646,27 @@ class ProjectStoreImpl implements ProjectStore {
       .exists()
       .catch(() => false)
 
-    // undo-global-journal UG4.2 (req 6): report the on-disk undo.json size so the settings pane can
-    // show it next to the rest of the project's temp-file info.
-    const undoJournalBytes = await stat(join(aDir, UNDO_FILE_NAME))
-      .then((s) => (s.isFile() ? s.size : null))
-      .catch(() => null)
+    // undo-global-journal UG4.2 (req 6) + undo-versioned-log VL3.1 (VL-D8): one number for the
+    // project's undo footprint — the version log folder plus the legacy undo.json while it still
+    // exists (pre-migration).
+    const legacyUndoBytes = await stat(join(aDir, UNDO_FILE_NAME))
+      .then((s) => (s.isFile() ? s.size : 0))
+      .catch(() => 0)
+    let undoLogBytes = 0
+    try {
+      const logDir = join(aDir, UNDO_LOG_DIR_NAME)
+      for (const entry of await readdir(logDir, { withFileTypes: true })) {
+        if (entry.isFile()) {
+          undoLogBytes += await stat(join(logDir, entry.name))
+            .then((s) => s.size)
+            .catch(() => 0)
+        }
+      }
+    } catch {
+      // The project has no undo-log folder yet.
+    }
+    const undoTotalBytes = legacyUndoBytes + undoLogBytes
+    const undoJournalBytes = undoTotalBytes === 0 ? null : undoTotalBytes
 
     return {
       id: aProjectId,

@@ -24,9 +24,10 @@ import { createLocalFsProvider } from "./fs-browser-local"
 import { startFsBrowserServer, isLoopbackAddress, ensureLoopbackNoProxy, type FsBrowserServer } from "./fs-browser-server"
 import { createLogArchiveStore } from "./log-db"
 import { createLogReplayManager } from "./log-replay"
-import { copyProjectsTree, createProjectStore, defaultUserDataRoot, isProjectStoreError, type ProjectsMigrationSummary } from "./project-store"
+import { UNDO_LOG_DIR_NAME, copyProjectsTree, createProjectStore, defaultUserDataRoot, isProjectStoreError, type ProjectsMigrationSummary } from "./project-store"
+import { createVersionLogStore, isVersionLogError, type VersionLogCommitInput, type VersionLogGcPolicy, type VersionLogRefsPatch } from "./version-log-store"
 import { createPublishCallbacks } from "./publish"
-import type { AudioFileKind, AudioServerEvent, AudioVoiceMuteItem, AudioVoiceMuteResponse, GnauralScheduleData, ProjectListResponse, ProjectSectionResponse, ProjectSettingsResponse, ProjectUndoResponse } from "./protocol"
+import type { AudioFileKind, AudioServerEvent, AudioVoiceMuteItem, AudioVoiceMuteResponse, GnauralScheduleData, ProjectListResponse, ProjectSectionResponse, ProjectSettingsResponse, ProjectUndoLogAppendResponse, ProjectUndoLogChainResponse, ProjectUndoLogRefsResponse, ProjectUndoResponse } from "./protocol"
 import { isRecord, toJson } from "./protocol"
 import { handleUiClose, handleUiMessage, handleUiOpen, type UiSocketData } from "./ui-ws-handler"
 import { createScheduleWatcher } from "../../GnauralCore/server/schedule-watcher"
@@ -56,6 +57,15 @@ const resolveEffectiveUserDataRoot = (): string => {
   return configured !== "" ? configured : defaultUserDataRoot()
 }
 const projectStore = createProjectStore({ resolveUserDataRoot: resolveEffectiveUserDataRoot })
+
+// undo-versioned-log VL3.1: the per-project append-only commit log (VL-D1/VL-D4). The log folder
+// lives inside the project dir; resolving through getProject also 404s unknown ids first.
+const versionLogStore = createVersionLogStore()
+
+const resolveUndoLogDir = async (aProjectId: string): Promise<string | null> => {
+  const info = await projectStore.getProject(aProjectId)
+  return info === null ? null : join(info.dir, UNDO_LOG_DIR_NAME)
+}
 
 // wave-spectrum-cache WC1.5 (WC-D6, owner req 2026-07-19): all cache artifacts live under the common
 // cache root %LOCALAPPDATA%\KKSoundCore\cache (honouring a user_data_root override) instead of the
@@ -701,6 +711,10 @@ const mapGnauralEditorError = (aError: unknown): Response => {
 
 const mapProjectStoreError = (aError: unknown): Response => {
   if (isProjectStoreError(aError)) {
+    return errorResponse(aError.status, aError.message)
+  }
+
+  if (isVersionLogError(aError)) {
     return errorResponse(aError.status, aError.message)
   }
 
@@ -1452,6 +1466,135 @@ const handleApiRequest = async (aRequest: Request): Promise<Response | null> => 
     }
 
     return errorResponse(405, "Method not allowed")
+  }
+
+  // undo-versioned-log VL3.1 (VL-D4): the append-only commit log. Thin 1:1 mapping onto
+  // version-log-store — the routes validate transport shapes only, all semantics live (and are
+  // spec-tested) in the store.
+  if (segments.length === 3 && segments[1] === "projects" && segments[2] === "undo-log") {
+    if (aRequest.method !== "GET") {
+      return errorResponse(405, "Method not allowed")
+    }
+
+    try {
+      const id = url.searchParams.get("id") ?? ""
+      const logDir = await resolveUndoLogDir(id)
+      if (logDir === null) {
+        return errorResponse(404, "Project not found")
+      }
+
+      const from = url.searchParams.get("from") ?? "main"
+      const limitRaw = url.searchParams.get("limit")
+      const limit = limitRaw === null ? undefined : Number(limitRaw)
+      if (limit !== undefined && (!Number.isFinite(limit) || limit < 0)) {
+        return errorResponse(400, "limit must be a non-negative number")
+      }
+
+      const untilTypeRaw = url.searchParams.get("untilType")
+      if (untilTypeRaw !== null && untilTypeRaw !== "snapshot" && untilTypeRaw !== "delta" && untilTypeRaw !== "meta") {
+        return errorResponse(400, "untilType must be snapshot, delta or meta")
+      }
+
+      const chain = await versionLogStore.readChain(logDir, {
+        from,
+        ...(limit === undefined ? {} : { limit }),
+        ...(untilTypeRaw === null ? {} : { untilType: untilTypeRaw }),
+      })
+      const payload: ProjectUndoLogChainResponse = { id, commits: chain.commits, refs: chain.refs, hasMore: chain.hasMore }
+      return jsonResponse(payload)
+    } catch (error) {
+      return mapProjectStoreError(error)
+    }
+  }
+
+  if (segments.length === 4 && segments[1] === "projects" && segments[2] === "undo-log") {
+    if (aRequest.method !== "POST") {
+      return errorResponse(405, "Method not allowed")
+    }
+
+    try {
+      const body = await parseJsonBody(aRequest)
+      if (!isRecord(body) || typeof body.id !== "string") {
+        return errorResponse(400, "id must be provided as a string")
+      }
+
+      const logDir = await resolveUndoLogDir(body.id)
+      if (logDir === null) {
+        return errorResponse(404, "Project not found")
+      }
+
+      if (segments[3] === "append") {
+        if (!Array.isArray(body.commits)) {
+          return errorResponse(400, "commits must be an array")
+        }
+
+        const gcRaw = body.gc
+        const gcPolicy: VersionLogGcPolicy | undefined = isRecord(gcRaw)
+          ? {
+              ...(typeof gcRaw.maxCommits === "number" ? { maxCommits: gcRaw.maxCommits } : {}),
+              ...(typeof gcRaw.maxAgeMs === "number" ? { maxAgeMs: gcRaw.maxAgeMs } : {}),
+              ...(typeof gcRaw.maxBytes === "number" ? { maxBytes: gcRaw.maxBytes } : {}),
+            }
+          : undefined
+
+        const result = await versionLogStore.append(logDir, body.commits as VersionLogCommitInput[], {
+          advanceMain: body.advanceMain === true,
+          ...(gcPolicy === undefined ? {} : { gc: gcPolicy }),
+        })
+        const payload: ProjectUndoLogAppendResponse = {
+          id: body.id,
+          appended: result.appended,
+          skipped: result.skipped,
+          rejectedFrom: result.rejectedFrom,
+          refs: result.refs,
+        }
+        // S3: the accepted prefix IS persisted — a cut batch answers 409 with the same body.
+        return jsonResponse(payload, result.rejectedFrom === null ? 200 : 409)
+      }
+
+      if (segments[3] === "refs") {
+        const mainPresent = "main" in body
+        const headPresent = "head" in body
+        if (mainPresent && body.main !== null && typeof body.main !== "string") {
+          return errorResponse(400, "main must be a cid string or null")
+        }
+        if (headPresent && body.head !== null && typeof body.head !== "string") {
+          return errorResponse(400, "head must be a cid string or null")
+        }
+
+        let tags: Record<string, string | null> | undefined
+        if (body.tags !== undefined) {
+          if (!isRecord(body.tags)) {
+            return errorResponse(400, "tags must be an object of name -> cid|null")
+          }
+          tags = {}
+          for (const [name, cid] of Object.entries(body.tags)) {
+            if (cid !== null && typeof cid !== "string") {
+              return errorResponse(400, "tags must be an object of name -> cid|null")
+            }
+            tags[name] = cid
+          }
+        }
+
+        const patch: VersionLogRefsPatch = {
+          ...(mainPresent ? { main: body.main as string | null } : {}),
+          ...(headPresent ? { head: body.head as string | null } : {}),
+          ...(tags === undefined ? {} : { tags }),
+        }
+        const refs = await versionLogStore.putRefs(logDir, patch)
+        const payload: ProjectUndoLogRefsResponse = { id: body.id, refs }
+        return jsonResponse(payload)
+      }
+
+      if (segments[3] === "clear") {
+        await versionLogStore.clear(logDir)
+        return new Response(null, { status: 204 })
+      }
+
+      return errorResponse(404, "Unknown undo-log operation")
+    } catch (error) {
+      return mapProjectStoreError(error)
+    }
   }
 
   if (segments.length === 3 && segments[1] === "projects" && segments[2] === "relink") {
@@ -2251,7 +2394,7 @@ registerShutdownHandlers()
 console.log(`[server] listening on http://localhost:${server.port}`)
 console.log(`[server] file-browse (loopback-only): ${fsBrowserServer.url}`)
 console.log(`[server] static files: ${publicDir}`)
-console.log(`[server] endpoints: /ws/ui, /api/logs, /api/log-settings, /api/audio/file, /api/audio/schedule, /api/audio/schedule/voice-state, /api/audio/voice-mute, /api/audio/editor, /api/audio/editor/save, /api/audio/editor/autosave, /api/audio/editor/history, /api/project-settings, /api/projects, /api/projects/{open,info,section,undo,relink}`)
+console.log(`[server] endpoints: /ws/ui, /api/logs, /api/log-settings, /api/audio/file, /api/audio/schedule, /api/audio/schedule/voice-state, /api/audio/voice-mute, /api/audio/editor, /api/audio/editor/save, /api/audio/editor/autosave, /api/audio/editor/history, /api/project-settings, /api/projects, /api/projects/{open,info,section,undo,undo-log,undo-log/{append,refs,clear},relink}`)
 if (isUiOnlyMode) {
   console.log("[server] UI-only mode: BodyMonitor.exe autostart disabled")
 }
