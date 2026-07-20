@@ -136,6 +136,10 @@ export interface VersionLogStore {
    *  the policy; protected chains (head, tags) survive; kept commits whose parent was removed
    *  are grafted to parent=null. Never leaves a snapshot-anchored log without its anchor. */
   gc(aLogDir: string, aPolicy: VersionLogGcPolicy): Promise<VersionLogStats>
+  /** S15: raw restore of an exported log (bundle import). Unlike append, STORED-log rules apply:
+   *  graft roots (null parent) are valid anywhere and original seqs are preserved byte-for-byte;
+   *  the previous content of the dir is replaced. */
+  importLog(aLogDir: string, aCommits: readonly VersionLogCommit[], aRefs: VersionLogRefs): Promise<void>
   /** S12: back to the initial state — segments and refs removed, next append starts a new root. */
   clear(aLogDir: string): Promise<void>
   /** Drop the in-memory cache for a dir (tests use it to simulate a process restart). */
@@ -455,6 +459,62 @@ class VersionLogStoreImpl implements VersionLogStore {
   public async stats(aLogDir: string): Promise<VersionLogStats> {
     return this.withDir(aLogDir, async (_dir, state) => {
       return this.buildStats(state)
+    })
+  }
+
+  public async importLog(aLogDir: string, aCommits: readonly VersionLogCommit[], aRefs: VersionLogRefs): Promise<void> {
+    return this.withDir(aLogDir, async (dir) => {
+      // Stored-log validation (S15): seq strictly increasing, cids unique, a non-null parent
+      // must appear earlier (listCommits order guarantees it for orphans too), null parents are
+      // legal anywhere (graft roots after GC).
+      const seen = new Set<string>()
+      let previousSeq = 0
+      for (const commit of aCommits) {
+        if (
+          !isStoredCommit(commit) ||
+          seen.has(commit.cid) ||
+          commit.seq <= previousSeq ||
+          (commit.parent !== null && !seen.has(commit.parent))
+        ) {
+          throw new VersionLogError(400, "Invalid undo-log bundle")
+        }
+        seen.add(commit.cid)
+        previousSeq = commit.seq
+      }
+
+      const assertRef = (aCid: string | null): void => {
+        if (aCid !== null && !seen.has(aCid)) {
+          throw new VersionLogError(400, "Invalid undo-log bundle refs")
+        }
+      }
+      assertRef(aRefs.main)
+      assertRef(aRefs.head)
+      for (const [name, cid] of Object.entries(aRefs.tags ?? {})) {
+        if (!isValidTagName(name)) {
+          throw new VersionLogError(400, "Invalid undo-log bundle refs")
+        }
+        assertRef(cid)
+      }
+
+      await rm(dir, { recursive: true, force: true })
+      const key = this.stateKey(dir)
+      this.states.delete(key)
+      if (aCommits.length === 0 && aRefs.main === null && aRefs.head === null && Object.keys(aRefs.tags ?? {}).length === 0) {
+        return // an empty bundle restores to the pristine no-log state
+      }
+
+      await mkdir(dir, { recursive: true })
+      const lines = aCommits
+        .map((aCommit) => encodeCommitLine({ ...aCommit, payload: aCommit.payload ?? null }))
+        .join("")
+      await writeFile(join(dir, segmentFileName(1)), lines, "utf8")
+
+      const fresh = await this.loadState(dir)
+      fresh.refs.main = aRefs.main
+      fresh.refs.head = aRefs.head
+      fresh.refs.tags = { ...(aRefs.tags ?? {}) }
+      await this.writeRefs(dir, fresh)
+      this.states.set(key, fresh)
     })
   }
 

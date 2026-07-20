@@ -13,6 +13,8 @@ import { copyFile, mkdir, readFile, readdir, rename, rm, stat } from "node:fs/pr
 import { homedir } from "node:os"
 import { basename, extname, join, resolve, sep } from "node:path"
 import type { ProjectInfo, ProjectSourceInfo } from "./protocol"
+// Type-only (no runtime cycle: version-log-store imports SerialQueues from this module).
+import type { VersionLogCommit, VersionLogRefs, VersionLogStore } from "./version-log-store"
 
 export type { ProjectInfo, ProjectSourceInfo } from "./protocol"
 
@@ -258,6 +260,10 @@ export class SerialQueues {
 
 export interface ProjectStoreOptions {
   readonly resolveUserDataRoot: () => string | Promise<string>
+  /** undo-versioned-log VL4.4: the SHARED version-log store (one instance per process — its
+   *  per-dir caches and write queues must not be duplicated). Powers the export/import bundle;
+   *  when absent, bundles carry undoLog: null. */
+  readonly versionLog?: VersionLogStore
 }
 
 export interface ProjectStore {
@@ -274,13 +280,22 @@ export interface ProjectStore {
   importProject(aBundle: unknown, aOverwrite: boolean): Promise<ProjectInfo>
 }
 
-/** PR5.1 (PR-D10): a single text bundle — the whole project as one portable JSON document. */
+export interface ProjectUndoLogBundle {
+  readonly commits: readonly VersionLogCommit[]
+  readonly refs: VersionLogRefs
+}
+
+/** PR5.1 (PR-D10): a single text bundle — the whole project as one portable JSON document.
+ *  undo-versioned-log VL4.4 (VL-D8): the journal side is now the whole commit log (S15). */
 export interface ProjectExportBundle {
   readonly schemaVersion: number
   readonly kind: "SoundCoreProjectExport"
   readonly exportedAt: string
   readonly project: ProjectFileData
-  readonly undo: unknown | null
+  readonly undoLog: ProjectUndoLogBundle | null
+  /** Legacy v3 journal of pre-VL bundles: accepted on import (written back to undo.json so the
+   *  one-time client migration picks it up), never produced by export anymore. */
+  readonly undo?: unknown
 }
 
 const EXPORT_BUNDLE_KIND = "SoundCoreProjectExport"
@@ -293,8 +308,6 @@ const isProjectExportBundle = (aValue: unknown): aValue is ProjectExportBundle =
     isProjectFileData(aValue.project)
   )
 }
-
-export const UNDO_JOURNAL_MAX_BYTES = 5 * 1024 * 1024
 
 const SECTION_NAME_PATTERN = /^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/
 const PROJECT_ID_HASH_SUFFIX = /-[0-9a-f]{8}$/
@@ -477,26 +490,16 @@ class ProjectStoreImpl implements ProjectStore {
 
   public async putUndoJournal(aProjectId: string, aJournal: unknown): Promise<void> {
     assertSafeProjectId(aProjectId)
+    // undo-versioned-log VL4.4 (VL-D8): the v3 journal is write-dead — the only surviving write
+    // is the migration's `null` (delete undo.json after a confirmed replay into the log). The
+    // 5 MB cap died with the writes.
+    if (aJournal !== null && aJournal !== undefined) {
+      throw new ProjectStoreError(410, "Legacy undo.json writes are gone; the undo history lives at /api/projects/undo-log")
+    }
 
     await this.queues.run(aProjectId, async () => {
       const { dir } = await this.requireProjectData(aProjectId)
-
-      if (aJournal === null || aJournal === undefined) {
-        await rm(join(dir, UNDO_FILE_NAME), { force: true }).catch(() => undefined)
-        return
-      }
-
-      const payload: UndoFileData = {
-        schemaVersion: PROJECT_SCHEMA_VERSION,
-        updatedAt: new Date().toISOString(),
-        journal: aJournal,
-      }
-      const encoded = JSON.stringify(payload, null, 2)
-      if (Buffer.byteLength(encoded, "utf8") > UNDO_JOURNAL_MAX_BYTES) {
-        throw new ProjectStoreError(413, "Undo journal exceeds the size limit; trim it client-side before persisting")
-      }
-
-      await writeJsonFileAtomic(dir, UNDO_FILE_NAME, payload)
+      await rm(join(dir, UNDO_FILE_NAME), { force: true }).catch(() => undefined)
     })
   }
 
@@ -520,14 +523,24 @@ class ProjectStoreImpl implements ProjectStore {
 
   public async exportProject(aProjectId: string): Promise<ProjectExportBundle> {
     const { dir, data } = await this.requireProjectData(aProjectId)
-    const undoParsed = await readJsonFileTolerant(dir, UNDO_FILE_NAME, isUndoFileData, false)
+
+    // VL4.4 (S15): the bundle carries the whole commit log; an empty log exports as null.
+    let undoLog: ProjectUndoLogBundle | null = null
+    const versionLog = this.options.versionLog
+    if (versionLog !== undefined) {
+      const logDir = join(dir, UNDO_LOG_DIR_NAME)
+      const commits = await versionLog.listCommits(logDir)
+      const refs = await versionLog.getRefs(logDir)
+      const empty = commits.length === 0 && refs.main === null && refs.head === null && Object.keys(refs.tags).length === 0
+      undoLog = empty ? null : { commits, refs }
+    }
 
     return {
       schemaVersion: PROJECT_SCHEMA_VERSION,
       kind: EXPORT_BUNDLE_KIND,
       exportedAt: new Date().toISOString(),
       project: data,
-      undo: undoParsed === null ? null : (undoParsed as UndoFileData).journal,
+      undoLog,
     }
   }
 
@@ -554,6 +567,26 @@ class ProjectStoreImpl implements ProjectStore {
       }
       await writeProjectFile(dir, imported)
 
+      // VL4.4 (S15): restore the commit log byte-for-byte (raw import — GC graft roots and
+      // orphan branches are legal in a STORED log, so append semantics do not apply here).
+      const versionLog = this.options.versionLog
+      if (versionLog !== undefined) {
+        const logDir = join(dir, UNDO_LOG_DIR_NAME)
+        const rawLog = aBundle.undoLog
+        if (isRecordValue(rawLog) && Array.isArray(rawLog.commits) && isRecordValue(rawLog.refs)) {
+          const refs = rawLog.refs as { main?: unknown; head?: unknown; tags?: unknown }
+          await versionLog.importLog(logDir, rawLog.commits as VersionLogCommit[], {
+            main: typeof refs.main === "string" ? refs.main : null,
+            head: typeof refs.head === "string" ? refs.head : null,
+            tags: isRecordValue(refs.tags) ? (refs.tags as Record<string, string>) : {},
+          })
+        } else {
+          await versionLog.clear(logDir)
+        }
+      }
+
+      // A pre-VL bundle carries a legacy v3 `undo` journal: write it back to undo.json so the
+      // one-time client migration converts it on the next open.
       if (aBundle.undo !== null && aBundle.undo !== undefined) {
         const payload: UndoFileData = {
           schemaVersion: PROJECT_SCHEMA_VERSION,

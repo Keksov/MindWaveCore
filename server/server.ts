@@ -56,11 +56,12 @@ const resolveEffectiveUserDataRoot = (): string => {
   const configured = archiveStore.getProjectSettings().userDataRoot
   return configured !== "" ? configured : defaultUserDataRoot()
 }
-const projectStore = createProjectStore({ resolveUserDataRoot: resolveEffectiveUserDataRoot })
-
-// undo-versioned-log VL3.1: the per-project append-only commit log (VL-D1/VL-D4). The log folder
-// lives inside the project dir; resolving through getProject also 404s unknown ids first.
+// undo-versioned-log VL3.1: the per-project append-only commit log (VL-D1/VL-D4). ONE instance
+// per process — project-store shares it for the export/import bundle (VL4.4), the routes below
+// use it directly; duplicating it would split the per-dir caches and write queues.
 const versionLogStore = createVersionLogStore()
+
+const projectStore = createProjectStore({ resolveUserDataRoot: resolveEffectiveUserDataRoot, versionLog: versionLogStore })
 
 const resolveUndoLogDir = async (aProjectId: string): Promise<string | null> => {
   const info = await projectStore.getProject(aProjectId)

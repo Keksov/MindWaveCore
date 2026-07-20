@@ -456,6 +456,50 @@ describe("serialization smoke (S11 — the full check is the VL1.3 fuzz)", () =>
   })
 })
 
+describe("importLog (S15)", () => {
+  test("a gc'd log (graft root, orphan, tags) round-trips byte-for-byte and stays appendable", async () => {
+    const store = createVersionLogStore()
+    const dirA = await makeLogDir()
+    await store.append(
+      dirA,
+      [snapshot("s0", null), delta("a", "s0"), snapshot("s1", "a"), delta("b", "s1")],
+      { advanceMain: true },
+    )
+    await store.append(dirA, [delta("orphan", "s1")], {})
+    await store.putRefs(dirA, { head: "b", tags: { pin: "b" } })
+    await store.gc(dirA, { maxCommits: 3 }) // removes the unprotected orphan, cuts s0/a, grafts s1
+    const commits = await store.listCommits(dirA)
+    const refs = await store.getRefs(dirA)
+    expect(commits[0]).toMatchObject({ cid: "s1", parent: null }) // the graft root is in the bundle
+
+    const dirB = await makeLogDir()
+    await store.importLog(dirB, [...commits], refs)
+    expect(await store.listCommits(dirB)).toEqual(commits)
+    expect(await store.getRefs(dirB)).toEqual(refs)
+
+    store.forget(dirB)
+    const next = await store.append(dirB, [delta("c", "b")], { advanceMain: true })
+    expect(next.appended).toBe(1)
+    const all = await store.listCommits(dirB)
+    expect(all[all.length - 1]!.seq).toBeGreaterThan(commits[commits.length - 1]!.seq)
+  })
+
+  test("an empty bundle restores the pristine state; junk is rejected with 400", async () => {
+    const store = createVersionLogStore()
+    const dir = await makeLogDir()
+    await seedThree(store, dir)
+
+    await store.importLog(dir, [], { main: null, head: null, tags: {} })
+    expect(await store.listCommits(dir)).toEqual([])
+    expect(await store.getRefs(dir)).toEqual({ main: null, head: null, tags: {} })
+
+    const good = { cid: "r", parent: null, type: "delta", atMs: 1, payload: null, seq: 1 } as const
+    await expectLogError(store.importLog(dir, [good, { ...good, cid: "x", seq: 1 }], { main: null, head: null, tags: {} }), 400)
+    await expectLogError(store.importLog(dir, [{ ...good, parent: "ghost" }], { main: null, head: null, tags: {} }), 400)
+    await expectLogError(store.importLog(dir, [good], { main: "ghost", head: null, tags: {} }), 400)
+  })
+})
+
 describe("foreign refs.json content", () => {
   test("an unreadable refs.json falls back to the newest commit", async () => {
     const store = createVersionLogStore()
