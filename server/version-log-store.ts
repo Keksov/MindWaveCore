@@ -665,7 +665,12 @@ class VersionLogStoreImpl implements VersionLogStore {
       }
     }
 
-    await this.loadRefs(aDir, state)
+    const repaired = await this.loadRefs(aDir, state)
+    if (repaired) {
+      // Persist the repair immediately: a re-derived ref must not drift on the NEXT reload when
+      // "newest survivor" has moved on (found by the VL1.3 fuzz, seed 1042).
+      await this.writeRefs(aDir, state)
+    }
     return state
   }
 
@@ -684,15 +689,27 @@ class VersionLogStoreImpl implements VersionLogStore {
     }
   }
 
-  private async loadRefs(aDir: string, aState: LogState): Promise<void> {
+  /** Returns true when the loaded refs had to be repaired (S7) and must be re-persisted. */
+  private async loadRefs(aDir: string, aState: LogState): Promise<boolean> {
+    let text: string | null
+    try {
+      text = await readFile(join(aDir, VERSION_LOG_REFS_FILE_NAME), "utf8")
+    } catch {
+      // No refs.json = refs were never written — main/head stay null. Deliberately-null refs
+      // (commits appended without advanceMain) must survive a reload unchanged; inventing
+      // "newest" here is only justified when a refs FILE existed but its content was lost.
+      return false
+    }
+
     let parsed: unknown = null
     try {
-      parsed = JSON.parse(await readFile(join(aDir, VERSION_LOG_REFS_FILE_NAME), "utf8")) as unknown
+      parsed = JSON.parse(text) as unknown
     } catch {
-      // Missing or unreadable refs.json — derived defaults below.
+      // Unreadable content — best-effort derived defaults below.
     }
 
     const newest = aState.order.length === 0 ? null : aState.order[aState.order.length - 1]!.cid
+    let repaired = false
     const resolveRef = (aValue: unknown): string | null => {
       if (typeof aValue === "string" && aState.commits.has(aValue)) {
         return aValue
@@ -700,7 +717,8 @@ class VersionLogStoreImpl implements VersionLogStore {
       if (aValue === null) {
         return null
       }
-      // Unknown/cut cid (S7) or a missing refs file: fall back to the newest surviving commit.
+      // Unknown/cut cid (S7): fall back to the newest surviving commit.
+      repaired = true
       return newest
     }
 
@@ -711,14 +729,17 @@ class VersionLogStoreImpl implements VersionLogStore {
         for (const [name, cid] of Object.entries(parsed.tags)) {
           if (isValidTagName(name) && typeof cid === "string" && aState.commits.has(cid)) {
             aState.refs.tags[name] = cid
+          } else {
+            repaired = true
           }
         }
       }
-      return
+      return repaired
     }
 
     aState.refs.main = newest
     aState.refs.head = newest
+    return true
   }
 }
 
