@@ -300,14 +300,19 @@
       "id": "UG4.1",
       "phase": 4,
       "title": "Автоочистка (UG-D6, req 5): настройки в стандартном диалоге (число операций / время / размер журнала / «очищать при закрытии проекта»); по умолчанию — хранить всегда.",
-      "status": "pending",
+      "status": "done",
       "dependsOn": [
         "UG2.3"
       ],
-      "artifacts": [],
-      "verify": "bun test ui server; ручная проверка каждого критерия очистки.",
-      "startedAt": null,
-      "finishedAt": null,
+      "artifacts": [
+        "GnauralCore ui/composables/use-undo-journal-settings.ts (localStorage-синглтон: maxSteps/maxAgeDays/maxSizeKb/clearOnClose; дефолты 0/0/0/false = хранить всегда) — коммит bffcdd2",
+        "GnauralCore ui/composables/gtrack-model.ts (trimUndoJournal — чистый трим по возрасту/байтам с коррекцией cursor/baseCursor) + тест — коммит bffcdd2 [LF]",
+        "GnauralCore ui/composables/use-gtrack-lanes.ts (persistUndoJournal применяет настройки; фикс. кэп 50 заменён настройкой; clearOnClose = не-персист + непрерывный вайп) — коммит bffcdd2 [CRLF]",
+        "GnauralCore ui/settings/GnauralSettingsTab.vue (секция «Журнал Undo»: 3 числовых поля + чекбокс) + i18n en/ru — коммит bffcdd2"
+      ],
+      "verify": "DONE — bun test ui server 327 pass / 0 fail (вкл. trimUndoJournal); vue-tsc 0; quasar build OK. Ручная проверка критериев — на UG5.2 PAUSE.",
+      "startedAt": "2026-07-20",
+      "finishedAt": "2026-07-20",
       "blockedReason": null,
       "evidence": []
     },
@@ -315,14 +320,18 @@
       "id": "UG4.2",
       "phase": 4,
       "title": "Размер undo.json на диске — строка в менеджере кэша (UG-D6, req 6).",
-      "status": "pending",
+      "status": "done",
       "dependsOn": [
         "UG2.3"
       ],
-      "artifacts": [],
-      "verify": "Ручная проверка: размер отображается и обновляется.",
-      "startedAt": null,
-      "finishedAt": null,
+      "artifacts": [
+        "SharedPasCore ts/protocol.ts (ProjectInfo.undoJournalBytes: number | null) — коммит d1fd04a",
+        "MindWaveCore server/project-store.ts (buildInfo: stat undo.json) — коммит 2e9cc83; ТРЕБУЕТ полного рестарта AppCore",
+        "GnauralCore ui/settings/GnauralSettingsTab.vue (строка «Журнал undo: <size>» в списке проектов, рядом с прочей информацией о временных файлах) — коммит bffcdd2"
+      ],
+      "verify": "DONE — MindWaveCore bun test project-store 26 pass / 0 fail; vue-tsc 0; build OK. Отображение вживую — на UG5.2 PAUSE (после рестарта AppCore).",
+      "startedAt": "2026-07-20",
+      "finishedAt": "2026-07-20",
       "blockedReason": null,
       "evidence": []
     },
@@ -330,16 +339,16 @@
       "id": "UG5.1",
       "phase": 5,
       "title": "Верификация сборкой: bun test ui server (GnauralCore); vue-tsc + quasar build (MindWaveCore/ui, если тронут).",
-      "status": "pending",
+      "status": "done",
       "dependsOn": [
         "UG3.3",
         "UG4.1",
         "UG4.2"
       ],
       "artifacts": [],
-      "verify": "Все прогоны зелёные, 0 ошибок.",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "DONE — GnauralCore bun test ui server 327 pass / 0 fail; MindWaveCore bun test project-store 26 pass / 0 fail; vue-tsc --noEmit 0; quasar build exit 0. Регрессий нет.",
+      "startedAt": "2026-07-20",
+      "finishedAt": "2026-07-20",
       "blockedReason": null,
       "evidence": []
     },
@@ -404,6 +413,11 @@
       "at": "2026-07-20",
       "step": "UG3.2c",
       "text": "Замечания владельца на приёмке UG3.3: (1) после выхода из программы и возвращения журнал в панели пуст; (2) тултип не вмещает информацию — нужен прямоугольный, свой формат под тип действия. Анализ (1): три реальных дыры — debounce-хвост журнала (1.5с) терялся при закрытии AppCore (beforeunload в WebView2 не гарантирован, flush висел только на нём); выход через меню (__appcoreExit) вообще не флашил; при выходе с несохранёнными правками сигнатурная адопция не могла сработать в принципе (журнал подписан правленым состоянием — файл его не содержит). Фиксы (91e39a1): дебаунс 250мс + pagehide-flush + явный flush в exitApp; v3-журнал расширен baseSig/baseCursor (позиция сохранённого состояния в логе, ведётся в модели через savedCursor) — при рестарте адопция через базу, несохранённый хвост становится REDO (Ctrl+Y возвращает потерянные правки!). Семантика «чужой журнал отвергается» сохранена (не совпал ни currentSig, ни baseSig → false + диагностика). (2) — UG3.2d: структурный тултип с per-type форматами (таблица Было/Стало для правок и перемещений; таблица значений для добавленных/удалённых). bun test 326/0, vue-tsc 0, build OK. Снова стоп на UG3.3 PAUSE: проверить выход/возврат (и с сохранёнными, и с несохранёнными правками — во втором случае правки вернутся через Ctrl+Y/панель) и новые тултипы."
+    },
+    {
+      "at": "2026-07-20",
+      "step": "UG5.1",
+      "text": "UG3.3 PASSED («Проверил, всё работает»). Фаза 4 реализована: UG4.1 (GnauralCore bffcdd2) — секция «Журнал Undo» в диалоге настроек: макс. операций / хранить не дольше N дней / макс. размер КБ (0 = без ограничения; дефолт — хранить всегда, req 5) + «очищать при закрытии проекта» (= не-персист + непрерывный вайп диска: история живёт только в сессии); настройки в localStorage-синглтоне, применяются в persistUndoJournal (фиксированный кэп 50 шагов из UC2.1 заменён настройкой); trimUndoJournal — чистый трим по возрасту/байтам с коррекцией cursor/baseCursor. UG4.2 — размер undo.json в списке проектов настроек (req 6): ProjectInfo.undoJournalBytes (SharedPasCore d1fd04a) + stat в buildInfo (MindWaveCore 2e9cc83, нужен ПОЛНЫЙ РЕСТАРТ AppCore) + строка в GnauralSettingsTab. UG5.1 — верификация: GnauralCore bun test ui server 327/0; MindWaveCore bun test project-store 26/0; vue-tsc 0; quasar build 0. Остался UG5.2 — финальная приёмка владельцем (полный прогон req 1-12)."
     }
   ]
 }
