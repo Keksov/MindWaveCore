@@ -5,7 +5,7 @@
   "title": "gtrack editor: new gnaural-track editor on one form with wave + spectrum",
   "status": "in-progress",
   "createdAt": "2026-07-08T02:30:00Z",
-  "updatedAt": "2026-07-16",
+  "updatedAt": "2026-07-20",
   "decisions": [
     {
       "id": "GT-D1",
@@ -92,8 +92,8 @@
       "text": "Visually group a voice's lanes + 'show all modes per voice' (owner req. 38, 2026-07-10). A button in the voices panel: 'Show all modes for each voice' mass-spreads every parameter (base/beat/volume/balance) across lanes for each voice (generalizes the GT-D15 bulk spread / all-in-mode). Lanes belonging to one voice are grouped visually. Styling variants (proposed, owner picks): (a) LEFT COLOUR STRIPE on the lane in the voice colour (thin accent border at the left edge) - recommended: least noise, distinguishes multiple voices, reuses the existing per-voice colour; (b) shared background tint (voice colour, translucent) - more obvious but noisier on the canvas; (c) lane title in the voice colour - cheap but weak at small text; (d) a group bracket/badge on the left joining adjacent same-voice lanes - clearest but needs the voice's lanes to be contiguous. OWNER CHOICE (2026-07-10): (a) left stripe + (c) coloured title. (d) optional if lanes are sorted by voice after the spread. GT3.18 implements a+c."
     },
     {
-      "id": "GT-D21",
-      "text": "Base-frequency axis and the value 0 (owner 2026-07-15/16). A .gnaural may legitimately carry baseFreq 0 — it is how a noise voice is expressed, and a schedule can be hand-edited — but a log axis cannot place 0 (log10(0) = -Inf), so the old code dropped such points from the range and clamped them onto the axis minimum, making an edit-to-zero invisible. Options offered: (A) switch the base axis to LINEAR whenever any value <= 0 (simple, ~10 lines, but the axis type flips with the data and the classic log look is lost); (B) forbid 0 in the editor, minimum 1 Hz (rejected: 0 arrives from the file regardless, so rendering must cope); (C) SYMLOG — linear from 0 to a threshold, logarithmic above it (keeps the log character always AND places 0 exactly; costs a piecewise map plus its inverse for drag, labels and grid). OWNER CHOICE (2026-07-15): (C) symlog. Threshold 1 Hz, linear segment 12% of the axis height. A voice whose base is non-positive throughout stays EXCLUDED from the range (noise has no carrier to plot and would drag the axis off the real frequencies) — symlog engages only for a voice that mixes real frequencies with 0."
+      "id": "GT-D22",
+      "text": "Base-frequency axis and the value 0 (owner 2026-07-15/16). A .gnaural may legitimately carry baseFreq 0 — it is how a noise voice is expressed, and a schedule can be hand-edited — but a log axis cannot place 0 (log10(0) = -Inf), so the old code dropped such points from the range and clamped them onto the axis minimum, making an edit-to-zero invisible. Options offered: (A) switch the base axis to LINEAR whenever any value <= 0 (simple, ~10 lines, but the axis type flips with the data and the classic log look is lost); (B) forbid 0 in the editor, minimum 1 Hz (rejected: 0 arrives from the file regardless, so rendering must cope); (C) SYMLOG — linear from 0 to a threshold, logarithmic above it (keeps the log character always AND places 0 exactly; costs a piecewise map plus its inverse for drag, labels and grid). OWNER CHOICE (2026-07-15): (C) symlog. Threshold 1 Hz, linear segment 12% of the axis height. A voice whose base is non-positive throughout stays EXCLUDED from the range (noise has no carrier to plot and would drag the axis off the real frequencies) — symlog engages only for a voice that mixes real frequencies with 0. [id переименован 2026-07-20: было записано вторым дубликатом GT-D21 — тот id принадлежит решению про lint расписаний]"
     }
   ],
   "steps": [
@@ -915,7 +915,7 @@
       "id": "GT5.2",
       "phase": 5,
       "title": "Live re-render (I1): edit-pause/explicit, scoped to visible window / soloed voice",
-      "status": "not-started",
+      "status": "pending",
       "dependsOn": [
         "GT5.1"
       ],
@@ -934,7 +934,7 @@
       "id": "GT5.3",
       "phase": 5,
       "title": "Pointwise / partial sync (research + impl): re-render only affected fragments",
-      "status": "not-started",
+      "status": "pending",
       "dependsOn": [
         "GT5.2"
       ],
@@ -1068,7 +1068,7 @@
         "frozen tab still renders"
       ],
       "verify": "overlay matches; frozen Spectrogram tab unaffected; vue-tsc+build",
-      "startedAt": null,
+      "startedAt": "2026-07-13",
       "finishedAt": "2026-07-13",
       "blockedReason": null,
       "evidence": [
@@ -1079,7 +1079,7 @@
       "id": "GT7.4",
       "phase": 7,
       "title": "Cleanup: remove the Tracks WAV decode/fetch-for-display path",
-      "status": "in-progress",
+      "status": "blocked",
       "dependsOn": [
         "GT7.2",
         "GT7.3"
@@ -1088,9 +1088,9 @@
         "no decodeAudioData on the Tracks path"
       ],
       "verify": "no client decode for Tracks; vue-tsc+build+tests",
-      "startedAt": null,
+      "startedAt": "2026-07-13",
       "finishedAt": null,
-      "blockedReason": null,
+      "blockedReason": "Part2 (удаление store-decode) — после BK8b: main-tab prepare flow остаётся последним потребителем",
       "evidence": [
         "Part1: Tracks spectrogramBuffer refs removed. R2 closed via reloadKey re-open (replaces after-save ensureGnauralSpectrogram). Store decode removal deferred to BK8.",
         "Part2 (remove store-decode: ensureGnauralSpectrogram/spectrogramBuffer/decode + AudioPage dead computeds/prepare gate) sequenced after BK8b, when the last consumer (the main tab prepare flow) is gone."
@@ -1622,7 +1622,7 @@
         "explicit column widths + matching text-align for header/cells (checkbox, voice, numeric columns)"
       ],
       "verify": "headers sit exactly over their values",
-      "startedAt": null,
+      "startedAt": "2026-07-12",
       "finishedAt": "2026-07-12",
       "blockedReason": null,
       "evidence": [
@@ -1743,6 +1743,7 @@
       "verify": "owner",
       "startedAt": "2026-07-12",
       "finishedAt": "2026-07-12",
+      "blockedReason": null,
       "evidence": [
         "TracksPanel.vue/GTrackView.vue: fixed-frame inspector; onAddPoint opens dialog; onClick no seek; deleteCurrentPointFromDialog refocuses. tsc 0, 157 tests, build OK."
       ]
@@ -1757,6 +1758,7 @@
       "verify": "owner",
       "startedAt": "2026-07-12",
       "finishedAt": "2026-07-12",
+      "blockedReason": null,
       "evidence": [
         "TracksPanel.vue/GTrackView.vue: fixed-frame inspector; onAddPoint opens dialog; onClick no seek; deleteCurrentPointFromDialog refocuses. tsc 0, 157 tests, build OK."
       ]
@@ -1771,6 +1773,7 @@
       "verify": "owner",
       "startedAt": "2026-07-12",
       "finishedAt": "2026-07-12",
+      "blockedReason": null,
       "evidence": [
         "TracksPanel.vue/GTrackView.vue: fixed-frame inspector; onAddPoint opens dialog; onClick no seek; deleteCurrentPointFromDialog refocuses. tsc 0, 157 tests, build OK."
       ]
@@ -1785,6 +1788,7 @@
       "verify": "owner",
       "startedAt": "2026-07-12",
       "finishedAt": "2026-07-12",
+      "blockedReason": null,
       "evidence": [
         "TracksPanel.vue/GTrackView.vue: fixed-frame inspector; onAddPoint opens dialog; onClick no seek; deleteCurrentPointFromDialog refocuses. tsc 0, 157 tests, build OK."
       ]
@@ -1799,6 +1803,7 @@
       "verify": "owner",
       "startedAt": "2026-07-12",
       "finishedAt": "2026-07-12",
+      "blockedReason": null,
       "evidence": [
         "gtrack-model.ts/TracksPanel.vue/GTrackView.vue. 157 ui tests, tsc 0, build OK."
       ]
@@ -1813,6 +1818,7 @@
       "verify": "owner",
       "startedAt": "2026-07-12",
       "finishedAt": "2026-07-12",
+      "blockedReason": null,
       "evidence": [
         "gtrack-model.ts/TracksPanel.vue/GTrackView.vue. 157 ui tests, tsc 0, build OK.",
         "Re-fix: clamp vertex dot centre to canvas (margin alone insufficient — out-of-range/edge values). Verified on wakeup.gnaural.",
@@ -1832,6 +1838,7 @@
       "verify": "owner",
       "startedAt": "2026-07-12",
       "finishedAt": "2026-07-12",
+      "blockedReason": null,
       "evidence": [
         "gtrack-model.ts/TracksPanel.vue/GTrackView.vue. 157 ui tests, tsc 0, build OK."
       ]
@@ -1846,6 +1853,7 @@
       "verify": "owner",
       "startedAt": "2026-07-12",
       "finishedAt": "2026-07-12",
+      "blockedReason": null,
       "evidence": [
         "gtrack-model.ts/TracksPanel.vue/GTrackView.vue. 157 ui tests, tsc 0, build OK.",
         "Re-fix: focus the CHANGED point via before/after time diff (handles deleted-right + click-elsewhere-then-undo)."
@@ -1861,6 +1869,7 @@
       "verify": "owner",
       "startedAt": "2026-07-12",
       "finishedAt": "2026-07-12",
+      "blockedReason": null,
       "evidence": [
         "gtrack-model.ts/TracksPanel.vue/GTrackView.vue. 157 ui tests, tsc 0, build OK."
       ]
@@ -1875,6 +1884,7 @@
       "verify": "owner",
       "startedAt": "2026-07-12",
       "finishedAt": "2026-07-12",
+      "blockedReason": null,
       "evidence": [
         "gtrack-model.ts/TracksPanel.vue/GTrackView.vue. 157 ui tests, tsc 0, build OK."
       ]
@@ -1889,6 +1899,7 @@
       "verify": "owner",
       "startedAt": "2026-07-12",
       "finishedAt": "2026-07-12",
+      "blockedReason": null,
       "evidence": [
         "GTrackView.onClick: restored seek on empty-space click (node click still opens dialog).",
         "Re-fix: persistent local playhead in TracksPanel (survives idle transport); curve lanes always seekable.",
@@ -1905,6 +1916,7 @@
       "verify": "owner",
       "startedAt": "2026-07-12",
       "finishedAt": "2026-07-12",
+      "blockedReason": null,
       "evidence": [
         "gtrackAxis(editable): base log-headroom x1.15/x1.5(flat), beat +25%; GTrackView passes pointMode. Flat wakeup voice now draggable. 158 tests, build OK.",
         "Extended: reactive dragging flag makes axis editable during a normal-mode Ctrl-drag too (headroom while pulling a vertex)."
@@ -1920,6 +1932,7 @@
       "verify": "owner",
       "startedAt": "2026-07-12",
       "finishedAt": "2026-07-12",
+      "blockedReason": null,
       "evidence": [
         "TracksPanel.vue/use-gtrack-lanes.ts. 159 tests, tsc 0, build OK."
       ]
@@ -1934,6 +1947,7 @@
       "verify": "owner",
       "startedAt": "2026-07-12",
       "finishedAt": "2026-07-12",
+      "blockedReason": null,
       "evidence": [
         "TracksPanel.vue/use-gtrack-lanes.ts. 159 tests, tsc 0, build OK."
       ]
@@ -1948,6 +1962,7 @@
       "verify": "owner",
       "startedAt": "2026-07-12",
       "finishedAt": "2026-07-12",
+      "blockedReason": null,
       "evidence": [
         "TracksPanel.vue/use-gtrack-lanes.ts. 159 tests, tsc 0, build OK."
       ]
@@ -1962,6 +1977,7 @@
       "verify": "owner",
       "startedAt": "2026-07-12",
       "finishedAt": "2026-07-12",
+      "blockedReason": null,
       "evidence": [
         "TracksPanel.vue: # column (row.pointIndex), colspan 6->7. 159 tests, build OK."
       ]
@@ -1991,6 +2007,7 @@
       "verify": "owner",
       "startedAt": "2026-07-13",
       "finishedAt": "2026-07-13",
+      "blockedReason": null,
       "evidence": [
         "GTrackView side-actions: delete btn -> emit remove-lane -> gtracks.removeLane. 159 tests, build OK.",
         "removeLane returns {lane,index}; onRemoveLane shows notify with Undo -> restoreLane at prior position. No confirm."
@@ -2006,6 +2023,7 @@
       "verify": "owner",
       "startedAt": "2026-07-13",
       "finishedAt": "2026-07-13",
+      "blockedReason": null,
       "evidence": [
         "AudioPage: Edit q-btn-dropdown, Ctrl+P handler (preventDefault Print), two-pane dialog (subsystem list Cache | GnauralSettingsTab). 159 tests, build OK."
       ]
@@ -2018,7 +2036,9 @@
       "dependsOn": [],
       "artifacts": [],
       "verify": "owner",
+      "startedAt": "2026-07-13",
       "finishedAt": "2026-07-13",
+      "blockedReason": null,
       "evidence": [
         "AudioPage: removed spectrogram sub-tab + panel; retype activePlayerViewTab main|tracks; redirects -> tracks. tsc 0, 159 tests, build OK."
       ]
@@ -2027,10 +2047,13 @@
       "id": "BK8",
       "phase": "backlog",
       "title": "Удалить вкладку Воспроизведение",
-      "status": "in-progress",
+      "status": "active",
       "dependsOn": [],
       "artifacts": [],
       "verify": "owner",
+      "startedAt": "2026-07-13",
+      "finishedAt": null,
+      "blockedReason": null,
       "evidence": [
         "Owner decision 2026-07-13 (Option A): migrate per-voice mute into Треки FIRST, then remove the tab. Scouted: Треки already has full transport + waveform + spectrum + wav/flac; the tab-unique feature was GnauralScheduleView per-voice mute (persisted voice_mute).",
         "Decomposed: BK8a (mute in Треки) DONE; BK8b (remove Воспроизведение sub-tab + collapse selector) pending; then GT7.4 part2 (remove dead store-decode)."
@@ -2058,7 +2081,7 @@
       "id": "BK8b",
       "phase": "backlog",
       "title": "Remove the Воспроизведение (main) sub-tab + collapse the single-tab selector",
-      "status": "not-started",
+      "status": "pending",
       "dependsOn": [
         "BK8a"
       ],
@@ -2077,7 +2100,9 @@
       "dependsOn": [],
       "artifacts": [],
       "verify": "owner",
+      "startedAt": "2026-07-13",
       "finishedAt": "2026-07-13",
+      "blockedReason": null,
       "evidence": [
         "Round 1 (insufficient): added reloadKey prop -> client close+open after Save. Owner: no reaction.",
         "Root cause: server SpectrogramSession warm-analysis LRU keyed by path+params+solo but NOT mtime, so re-opening an edited+saved file returned the stale warm analysis AND its cached tiles (render layer, which IS mtime-keyed, was never reached).",
@@ -2177,18 +2202,18 @@
       "id": "GT11.6",
       "phase": 11,
       "title": "Рефакторинг иконок дорожки: mute→мини-тулбар [Глаз,Mute]; спектр→мини-тулбар [участие в миксе, индив.волна, индив.спектр]; грип 6 точек → 3 точки в цветной полоске",
-      "status": "not-started",
+      "status": "pending",
       "dependsOn": [
         "GT11.2"
       ],
-      "artifacts": [],
+      "artifacts": [
+        "[перенесено из evidence — контекст/дизайн, работа не начата] Owner 'Добавь в план' #3 (2026-07-14): (a) the mute icon becomes a toggle that opens a horizontal mini-toolbar [Eye, Mute]; (b) the spectrum icon becomes a toggle that opens a mini-toolbar [include-in-overall-mix, show individual wave, show individual spectrum]; (c) the drag grip (six dots) is shown as three dots centred in the track's left colour stripe."
+      ],
       "verify": "owner",
       "startedAt": null,
       "finishedAt": null,
       "blockedReason": null,
-      "evidence": [
-        "Owner 'Добавь в план' #3 (2026-07-14): (a) the mute icon becomes a toggle that opens a horizontal mini-toolbar [Eye, Mute]; (b) the spectrum icon becomes a toggle that opens a mini-toolbar [include-in-overall-mix, show individual wave, show individual spectrum]; (c) the drag grip (six dots) is shown as three dots centred in the track's left colour stripe."
-      ]
+      "evidence": []
     },
     {
       "id": "GT11.7",
@@ -2388,16 +2413,16 @@
       "dependsOn": [
         "GT3.12"
       ],
-      "artifacts": [],
+      "artifacts": [
+        "[перенесено из evidence — контекст/дизайн, работа не начата] Owner 2026-07-15: «В режиме автосохранения реальное изменение становится видимым только, если фокус покидает поле ввода».",
+        "[перенесено из evidence — контекст/дизайн, работа не начата] GT3.12 намеренно выбрал blur/Enter как триггер автосохранения — комментарий в TracksPanel: «not every keystroke/drag pixel, to avoid one undo entry per character». Прямое «сохранять на каждое изменение» сделало бы Ctrl+Z бесполезным (набор «92» → записи «9» и «92»).",
+        "[перенесено из evidence — контекст/дизайн, работа не начата] Решение (owner одобрил оба предложения): разделить ВИДИМОСТЬ и UNDO-ЕДИНИЦУ. Видимость — обновлять модель по @update:model-value. Undo — коммит на blur/Enter либо схлопывание серии правок одного поля одной точки в одну запись (debounce ~400 мс + слияние с предыдущей записью при совпадении поля и точки)."
+      ],
       "verify": "owner: набор в поле двигает кривую сразу (без ухода фокуса); Ctrl+Z откатывает серию правок одного поля одной точки ОДНИМ шагом, а не по символу; правки разных полей/точек — отдельные записи undo",
       "startedAt": null,
       "finishedAt": null,
       "blockedReason": null,
-      "evidence": [
-        "Owner 2026-07-15: «В режиме автосохранения реальное изменение становится видимым только, если фокус покидает поле ввода».",
-        "GT3.12 намеренно выбрал blur/Enter как триггер автосохранения — комментарий в TracksPanel: «not every keystroke/drag pixel, to avoid one undo entry per character». Прямое «сохранять на каждое изменение» сделало бы Ctrl+Z бесполезным (набор «92» → записи «9» и «92»).",
-        "Решение (owner одобрил оба предложения): разделить ВИДИМОСТЬ и UNDO-ЕДИНИЦУ. Видимость — обновлять модель по @update:model-value. Undo — коммит на blur/Enter либо схлопывание серии правок одного поля одной точки в одну запись (debounce ~400 мс + слияние с предыдущей записью при совпадении поля и точки)."
-      ]
+      "evidence": []
     },
     {
       "id": "GT11.17",
