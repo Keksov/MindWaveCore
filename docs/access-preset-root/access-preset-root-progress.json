@@ -49,16 +49,20 @@
       "id": "AR1.1",
       "phase": 1,
       "title": "Bind главного Bun.serve на 127.0.0.1 (hostname)",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["AR0.1"],
       "artifacts": [
         "server/server.ts"
       ],
-      "verify": "локально http://localhost:<port> отвечает; с LAN-адреса машины — недоступно (connection refused). Полный рестарт AppCore.",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "Standalone-проба: bind 127.0.0.1 доступен через 127.0.0.1 (200), но ОТКАЗ через LAN-IP машины (192.168.56.1, ECONNRESET). typecheck чист, EOL/NUL целы. Реальный AppCore + устройства — на PAUSE AR1.2.",
+      "startedAt": "2026-07-20",
+      "finishedAt": "2026-07-20",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "server.ts: добавлен hostname: '127.0.0.1' в главный Bun.serve (был без hostname → 0.0.0.0).",
+        "Проба на этой машине: 127.0.0.1 → reachable (200); LAN-IP → REFUSED (ECONNRESET). AC3.2 per-endpoint гейты оставлены (избыточны, безвредны).",
+        "WATCH на AR1.2: IPv6 — bind только IPv4 loopback (127.0.0.1); если AppCore ходит на 'localhost'→::1, может не достучаться (тогда bind 'localhost' или оба)."
+      ]
     },
     {
       "id": "AR1.2",
