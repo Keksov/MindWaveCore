@@ -1,0 +1,240 @@
+{
+  "schemaVersion": 1,
+  "plan": "undo-versioned-log",
+  "planDoc": "docs/undo-versioned-log/undo-versioned-log-plan.md",
+  "title": "undo-versioned-log: версионный append-only лог undo на сервере (UC-D3 + UG-D2/req 9 BK7 + PR-D8). Инкрементальный append вместо отправки журнала целиком; безлимитный серверный лог коммитов (сегментный NDJSON + refs), снапшот-якоря, GC по настройкам, миграция undo.json v3, глубокий checkout из панели. Приёмка фаз 1–4 — только автотестами по формальной спецификации S1..S14 (req 1: без участия владельца до полного соответствия)",
+  "status": "active",
+  "createdAt": "2026-07-20",
+  "updatedAt": "2026-07-20",
+  "decisions": [
+    {
+      "id": "VL-D1",
+      "text": "Границы: сервер generic, семантика у клиента. Новый модуль MindWaveCore/server/version-log-store.ts — универсальный append-only лог коммитов с opaque payload; GTrack-семантика (voice-дельты, снапшоты расписания, реконструкция) остаётся в gtrack-model.ts. Хранение в <projectDir>/undo-log/; id-валидация, SerialQueues и projectsRoot переиспользуются из project-store."
+    },
+    {
+      "id": "VL-D2",
+      "text": "Модель данных. Коммит {seq, cid, parent, type: snapshot|delta|meta, atMs, payload}; cid — клиентский стабильный id (= GTrackUndoStep.id), parent — cid родителя (null у корня), seq — серверный монотонный. Лог append-only; линейная история = parent-цепочка от ref main; позиция курсора undo = ref head. Правка после undo НЕ обрезает хвост: новый коммит с parent=head, main переезжает, старый хвост остаётся орфаном до GC. Линейный undo — частный случай git-модели (UG-D2); ветки/метки/мерджи не реализуем, модель их допускает (req 9)."
+    },
+    {
+      "id": "VL-D3",
+      "text": "Хранение. NDJSON-сегменты undo-log/seg-NNNNNNNN.jsonl (строка = коммит; ротация ~4 МБ) + refs.json (atomic-rewrite). Без манифеста: состояние восстанавливается сканом, ленивый in-memory индекс. Восстановление: torn-tail отбрасывается и затирается следующим append; битая строка в середине — усечение до последней валидной, остаток в .broken-<ts>. Отклонено: bun:sqlite (бинарный, чужд JSON-философии store), единый файл без сегментов (дорогой GC/скан)."
+    },
+    {
+      "id": "VL-D4",
+      "text": "Протокол. REST /api/projects/undo-log*, типы в @protocol: POST append {id, commits[], advanceMain, gc?} (идемпотентно по cid, дубликат = skip; неизвестный parent → 409, применяется атомарный префикс пачки), GET ?id&from&limit&untilType (цепочка от cid|main|head назад), POST refs {id, main?, head?} (404 на неизвестный cid; last-write-wins), POST clear {id}. Лимит 5 МБ на лог НЕ применяется; санити-лимит VERSION_LOG_COMMIT_MAX_BYTES = 32 МБ на один коммит → 413. GC-политику передаёт клиент в append.gc (настройки в localStorage, сервер stateless)."
+    },
+    {
+      "id": "VL-D5",
+      "text": "Снапшоты и адопция. Снапшот-коммит (payload = полное расписание + сигнатура) пишет клиент при каждом Save и каждые K=50 дельт без Save. Адопция на старте = GET untilType=snapshot → реконструкция окна; сигнатурный гейт (currentSig/baseSig-семантика) сверяет снапшот с файлом. Несовпадение сигнатур ≠ потеря: лог остаётся целиком, панель может показать прошлые версии и восстановить любую (checkout)."
+    },
+    {
+      "id": "VL-D6",
+      "text": "GC. Политика — существующие настройки «Журнал Undo» (maxSteps/maxAgeDays/maxSizeKb; 0 = хранить всегда; clearOnClose → clear). Порядок: сначала орфаны (недостижимые от main и head), затем префикс main-цепочки старше самого нового снапшот-якоря, укладывающего [якорь..main] в лимиты; GC никогда не оставляет лог без якоря. Запускается сервером после append при переданной и нарушенной политике."
+    },
+    {
+      "id": "VL-D7",
+      "text": "Спека-как-тесты (req 1). Раздел 4 плана (S1..S14) — единственный критерий приёмки фаз 1–4: каждый инвариант закрыт автотестом (юниты + полный побайтовый краш-перебор хвоста + fuzz с in-memory оракулом на детерминированных сидах mulberry32, ≥20 сидов × ≥200 операций). Фазы 1–4 закрываются зелёным bun test без участия владельца; владелец смотрит только VL5.2. Нетестируемое (Vue-синглтоны, fetch) выносится в чистые функции-планировщики с тестами. Инвариант без теста = инварианта нет; тест вне bun test = теста нет."
+    },
+    {
+      "id": "VL-D8",
+      "text": "Миграция. Одноразовая, клиентская: лог пуст + валидный undo.json v3 → адоптировать v3 в память, первый persist пишет снапшот текущего состояния + дельты + meta imported-v3; после подтверждённого append клиент удаляет undo.json (PUT journal:null). PUT целого журнала прекращается; GET/PUT /api/projects/undo остаются legacy (export-бандл, откат UI), 5МБ-лимит остаётся только там. ProjectInfo.undoJournalBytes отражает undo-log/ (+ legacy undo.json, пока жив) для кэш-менеджера UG4.2."
+    }
+  ],
+  "steps": [
+    {
+      "id": "VL0.1",
+      "phase": 0,
+      "title": "План + формальная спецификация (S1..S14) + леджер; пометки о начале работ в старых местах: UC-D3 (undo-command-log plan), PR-D7/PR-D8 (project-store plan), UG-D3 (undo-global-journal plan).",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [
+        "docs/undo-versioned-log/undo-versioned-log-plan.md",
+        "docs/undo-versioned-log/undo-versioned-log-progress.json",
+        "docs/undo-command-log/undo-command-log-plan.md (UC-D3 → ссылка на этот план)",
+        "docs/project-store/project-store-plan.md (PR-D7/PR-D8 → ссылка на этот план)",
+        "docs/undo-global-journal/undo-global-journal-plan.md (UG-D3 «вне плана» → ссылка на этот план)"
+      ],
+      "verify": "validate-ledger.js OK на этом леджере; ссылки в старых планах указывают на docs/undo-versioned-log/.",
+      "startedAt": "2026-07-20",
+      "finishedAt": "2026-07-20",
+      "blockedReason": null,
+      "evidence": [
+        "Изучено текущее состояние: project-store.ts (putUndoJournal :476, 5МБ-лимит :295/:493, SerialQueues :233, tolerant read :163, writeJsonFileAtomic :197), server.ts роут /api/projects/undo :1429 (NUL-байт файл), use-project.ts (writeProjectUndoJournalFor :222, дебаунс 250мс, keepalive-flush), gtrack-model.ts (GTrackUndoStep :218 c cid-заделом UG-D2, exportUndoJournal :769).",
+        "Ключевое противоречие прошлого решения снято: append отклоняли на UC2.1 из-за несовместимости с ОГРАНИЧЕННЫМ окном undo (индексы расходятся); в этом плане окно не ограничено (безлимитный лог), append становится естественным транспортом.",
+        "Семантика «правка после undo» решена без обрезки хвоста: новый коммит с parent=head, старый хвост — орфан (git-семантика detached head); линейный undo = частный случай, как и заложено UG-D2."
+      ]
+    },
+    {
+      "id": "VL0.2",
+      "phase": 0,
+      "title": "PAUSE: владелец подтверждает VL-D1..D8, трактовку объёма (checkout из панели — да; ветки/метки/мерджи — нет) и спецификацию S1..S14 как единственный критерий приёмки фаз 1–4.",
+      "status": "active",
+      "dependsOn": [
+        "VL0.1"
+      ],
+      "artifacts": [],
+      "verify": "Владелец подтвердил решения (или дал правки — план/леджер обновлены до начала Фазы 1).",
+      "startedAt": "2026-07-20",
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "VL1.1",
+      "phase": 1,
+      "title": "version-log-store.ts: типы, сегментная запись/чтение (NDJSON, ротация), append/readChain/refs, ленивый индекс, tolerant read (.broken-*); юниты S1–S5, S7, S12 на временных папках.",
+      "status": "pending",
+      "dependsOn": [
+        "VL0.2"
+      ],
+      "artifacts": [],
+      "verify": "MindWaveCore/server: bun.exe test version-log — юниты S1–S5, S7, S12 зелёные; bun.exe test project-store без регрессий.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "VL1.2",
+      "phase": 1,
+      "title": "Краш-харнесс S6: полный ПОбайтовый перебор усечений последнего сегмента (каждый префикс → reopen → инварианты, потерян максимум оборванный хвост, append продолжает лог); починка найденного.",
+      "status": "pending",
+      "dependsOn": [
+        "VL1.1"
+      ],
+      "artifacts": [],
+      "verify": "bun.exe test version-log — S6-перебор зелёный на логах с несколькими сегментами и снапшотами.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "VL1.3",
+      "phase": 1,
+      "title": "Fuzz с in-memory оракулом (version-log-fuzz.test.ts): PRNG mulberry32, ≥20 сидов × ≥200 операций {append с дубликатами/чужими parent, putRef, gc со случайной политикой, clear, reopen, crash-truncate}; сравнение полного состояния после каждой операции; сид печатается при падении. Покрытие S1–S9 (generic), S11.",
+      "status": "pending",
+      "dependsOn": [
+        "VL1.2"
+      ],
+      "artifacts": [],
+      "verify": "bun.exe test version-log — fuzz зелёный на всех сидах; параллельные append сериализуются (S11-тест на Promise.all).",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "VL2.1",
+      "phase": 2,
+      "title": "GC и лимиты: gc(policy) (орфаны → префикс до снапшот-якоря; лог никогда без якоря), санити-лимит VERSION_LOG_COMMIT_MAX_BYTES=32МБ → 413, статистика {bytes, commits, orphans}; юниты S8, S10 + gc в fuzz-операциях.",
+      "status": "pending",
+      "dependsOn": [
+        "VL1.3"
+      ],
+      "artifacts": [],
+      "verify": "bun.exe test version-log — S8/S10 юниты + fuzz с gc зелёные; реконструируемость до/после gc байт-в-байт (S9-generic).",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "VL3.1",
+      "phase": 3,
+      "title": "Протокол: типы @protocol (SharedPasCore ts/protocol.ts) + роуты /api/projects/undo-log* в server.ts (тонкий маппинг 1:1, NUL-байт — точные Edit) + ProjectInfo.undoJournalBytes со стороны undo-log; store-уровневые контрактные тесты (роуты логики не содержат).",
+      "status": "pending",
+      "dependsOn": [
+        "VL2.1"
+      ],
+      "artifacts": [],
+      "verify": "bun.exe test version-log project-store зелёные; typecheck сервера (локальный tsc 5.7.3, throwaway tsconfig); строка endpoints в server.ts обновлена; ручной smoke curl по 4 endpoint'ам.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "VL4.1",
+      "phase": 4,
+      "title": "Клиентский транспорт: project-api.ts/use-project.ts [CRLF] — appendUndoCommits (дебаунс 250 мс, только несинхронизированный хвост; keepalive-flush шлёт дельты, не снапшоты), putUndoRefs (дебаунс, last-write-wins), clear; чистый планировщик синхронизации (lastSyncedCid → пачка append) с тестами.",
+      "status": "pending",
+      "dependsOn": [
+        "VL3.1"
+      ],
+      "artifacts": [],
+      "verify": "GnauralCore: bun test ui server зелёные (новые тесты планировщика синхронизации); typecheck.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "VL4.2",
+      "phase": 4,
+      "title": "lanes/gtrack-model: снапшот-политика (Save + каждые 50 дельт), адопция из лога вместо undo.json (сигнатурный гейт на снапшоте; несовпадение ≠ потеря), head-синк при undo/redo, миграция v3 (S14 — чистый планировщик + тесты; удаление undo.json после подтверждённого append).",
+      "status": "pending",
+      "dependsOn": [
+        "VL4.1"
+      ],
+      "artifacts": [],
+      "verify": "GnauralCore: bun test ui server зелёные, включая S14-тесты миграции (двойной запуск не дублирует историю); PUT целого журнала из клиента удалён.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "VL4.3",
+      "phase": 4,
+      "title": "Сквозной конформанс без UI (S13): скриптовые «сессии» (append дельт+снапшот → рестарт → адопция → undo/redo → checkout) поверх реального version-log-store + реальной GTrack-реконструкции; хвост читается байт-в-байт, undo/redo между сессиями — только движение head.",
+      "status": "pending",
+      "dependsOn": [
+        "VL4.2"
+      ],
+      "artifacts": [],
+      "verify": "Конформанс-сьют зелёный: MindWaveCore/server bun.exe test + GnauralCore bun test ui server. Полное соответствие S1..S14 достигнуто автотестами (req 1) — фиксируется в evidence со списком инвариант→тест.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "VL5.1",
+      "phase": 5,
+      "title": "Панель: ленивая подгрузка глубокой истории из лога (страницами, ниже in-memory окна) + «Применить» на глубокой строке = checkout-коммит (kind=checkout, parent=head — откат сам в истории и обратим); disabled для коммитов с несовместимым составом голосов.",
+      "status": "pending",
+      "dependsOn": [
+        "VL4.3"
+      ],
+      "artifacts": [],
+      "verify": "GnauralCore bun test ui server; MindWaveCore/ui bun run typecheck + bun run build; поведение панели проверено в реальном приложении (самопроверка, без владельца).",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "VL5.2",
+      "phase": 5,
+      "title": "PAUSE: финальная приёмка владельцем в приложении — глубокая история, checkout, рост без 5МБ-потолка, миграция реального проекта (undo.json исчез, undo-log/ появился, размер виден в кэш-менеджере).",
+      "status": "pending",
+      "dependsOn": [
+        "VL5.1"
+      ],
+      "artifacts": [],
+      "verify": "Владелец принял фичу.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    }
+  ],
+  "log": [
+    {
+      "at": "2026-07-20",
+      "step": "VL0.1",
+      "note": "Старт плана по req 1 владельца («Приступаем к планированию и реализации пунктов UC-D3 и UG-D2… автоматически тестировать без моего участия до достижения полного соответствия спецификации»). Написана формальная спецификация S1..S14 (раздел 4 плана) — единственный критерий приёмки фаз 1–4; тестовая инфраструктура: юниты + полный побайтовый краш-перебор + fuzz с оракулом на детерминированных сидах. Ожидается подтверждение решений на VL0.2."
+    }
+  ]
+}

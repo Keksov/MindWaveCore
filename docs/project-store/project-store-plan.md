@@ -168,7 +168,9 @@ in-memory кеша расписаний (`GnauralCore/ui/stores/audio.ts:133`), 
   целиком, KБ) — снапшоты заменены на action-лог voice-дельт (см. PR-D8). Инкрементальный append был
   рассмотрен, но несовместим с ограниченным окном undo (индексы клиент/сервер расходятся) → отложен в
   отдельный план версионности — **создан (2026-07-20):
-  [undo-global-journal](../undo-global-journal/undo-global-journal-plan.md)**.
+  [undo-global-journal](../undo-global-journal/undo-global-journal-plan.md)**; версионная часть
+  (append-only лог) **начата (2026-07-20):
+  [undo-versioned-log](../undo-versioned-log/undo-versioned-log-plan.md)**.
 - **PR-D8 — Undo-журнал (req 1).** Снапшоты `GTrackSchedule` уже JSON-сериализуемы (`signature()` =
   `JSON.stringify`) — журнал пишется в `undo.json` с лимитами (последние ~50 записей и/или ~5 МБ),
   запись отложенная (по паузе активности), восстановление при открытии файла. Ядро даёт транспорт
@@ -179,7 +181,8 @@ in-memory кеша расписаний (`GnauralCore/ui/stores/audio.ts:133`), 
   отбрасывается; keepalive убран из обычной записи (только на выгрузке). Инкрементальный append + полная
   версионность (unbounded log, компакция, checkout) — отдельный будущий план — **создан (2026-07-20):
   [undo-global-journal](../undo-global-journal/undo-global-journal-plan.md)** (глобальный журнал BK7;
-  туда же перенесён вынос истории из модели и формат v3).
+  туда же перенесён вынос истории из модели и формат v3); сама версионность **начата (2026-07-20):
+  [undo-versioned-log](../undo-versioned-log/undo-versioned-log-plan.md)**.
 - **PR-D9 — Кеши — централизованно (ПЕРЕСМОТРЕНО owner 2026-07-15, req 11).** ~~Кеш в `cache/`
   проекта~~ — owner: кеши храним центрально (в `tmp/` + манифест), иначе UI может о них не узнать,
   когда проекты лежат в произвольных местах. У сущности «Проект» кеш-API **нет**; per-file кеши
@@ -317,7 +320,10 @@ in-memory кеша расписаний (`GnauralCore/ui/stores/audio.ts:133`), 
   — **`undo-command-log` (2026-07-18):** action-лог снял раздувание снапшотами; журнал остаётся
   ОГРАНИЧЕННЫМ окном (~50 шагов) и шлётся целиком. Неограниченная история правок (версионность) —
   отдельный будущий план (append-only log + компакция + снапшот-якоря + checkout) — **создан
-  (2026-07-20): [undo-global-journal](../undo-global-journal/undo-global-journal-plan.md)**.
+  (2026-07-20): [undo-global-journal](../undo-global-journal/undo-global-journal-plan.md)**;
+  версионность **начата (2026-07-20):
+  [undo-versioned-log](../undo-versioned-log/undo-versioned-log-plan.md)** (5МБ-лимит у
+  undo-log отменяется, остаётся только у legacy undo.json).
 - **R4 — Windows-пути:** длина (MAX_PATH), запрещённые символы, регистронезависимость, кириллица.
   **Митигация:** короткий санитизированный slug + hash8 от lowercase-пути; тесты в PR1.1.
 - **R5 — Миграция из localStorage:** расхождение форматов/потеря при откате. **Митигация:**

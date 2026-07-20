@@ -78,6 +78,9 @@
   — **Отдельный план создан (2026-07-20): [undo-global-journal](../undo-global-journal/undo-global-journal-plan.md)**
   (глобальный персистентный журнал Undo = BK7 из gtrack-editor: вынос истории из модели, панель операций,
   undo.json v3; git-подобная версионность заложена там архитектурно, UG-D2).
+  — **Append + версионность: работы начаты (2026-07-20) —
+  [undo-versioned-log](../undo-versioned-log/undo-versioned-log-plan.md)** (безлимитный серверный
+  append-only лог, снапшот-якоря, GC, checkout).
 - **UC-D4 (keepalive).** `keepalive:true` оставить ТОЛЬКО во флаше на выгрузку (`flushPendingProjectWrites`),
   убрать из обычной дебаунс-записи `putSection`/`putUndoJournal`. Это чинит `Failed to fetch` независимо.
 - **UC-D5 (миграция формата).** Бамп версии `undo.json` до 2; старые снапшотные журналы (без `version` /
