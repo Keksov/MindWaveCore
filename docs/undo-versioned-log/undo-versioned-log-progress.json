@@ -224,16 +224,26 @@
       "id": "VL4.2",
       "phase": 4,
       "title": "lanes/gtrack-model: снапшот-политика (Save + каждые 50 дельт), адопция из лога вместо undo.json (сигнатурный гейт на снапшоте; несовпадение ≠ потеря), head-синк при undo/redo, миграция v3 (S14 — чистый планировщик + тесты; удаление undo.json после подтверждённого append); сброс старых лимитов настроек в 0 с предупреждением (VL-D6).",
-      "status": "pending",
+      "status": "done",
       "dependsOn": [
         "VL4.1"
       ],
-      "artifacts": [],
-      "verify": "GnauralCore: bun test ui server зелёные, включая S14-тесты миграции (двойной запуск не дублирует историю); PUT целого журнала из клиента удалён.",
-      "startedAt": null,
-      "finishedAt": null,
+      "artifacts": [
+        "GnauralCore ui/composables/undo-log-adoption.ts — чистый модуль: словарь ПОЗИЦИЙ (позиция↔верхний cid; дельта двигает позицию, снапшот/meta переподписывает); stepToCommitInput/commitToStep; planUndoLogAdoption (якорь = снапшот с sig файла, дельты ниже = undo, выше = redo-хвост прошлой сессии — обобщение v3 baseSig/baseCursor; чужой payload → отказ целиком); planV3Migration ([дельты ниже курсора → снапшот файла → redo-хвост → meta imported-v3] от корня пустого лога) — коммит 77f66f3",
+        "GnauralCore ui/composables/undo-log-adoption.test.ts — 8 тестов (раунд-трип шаг↔коммит, якорь в середине, отказ без якоря, graft-граница, миграционная цепочка, cursor 0) — коммит 77f66f3",
+        "GnauralCore ui/composables/use-gtrack-lanes.ts [CRLF] — sync-движок: undoLogPositions + дифф по общему префиксу в refreshEditState (перезапись persistUndoJournal), baseline-снапшот при первом коммите, снапшоты на markSaved/post-save rebase (flush) и каждые 50 дельт, head-ref по курсору, GC-политика из настроек в каждом append, 409-хендлер (discard+re-anchor), clearUndoHistory 'all' → серверный clear + re-root, 'before' → перебазирование позиции 0; restoreFromProject → chain GET (head, limit 300) + адопция/миграция/clearOnClose-ветки; миграция сбрасывает лимиты в 0 с console.warn (VL-D6) — коммит 77f66f3",
+        "GnauralCore ui/composables/use-project.ts — appendProjectUndoLogNowFor (await-путь миграции) — коммит 77f66f3"
+      ],
+      "verify": "PASSED — GnauralCore bun test ui server: 344 pass / 0 fail; MindWaveCore/ui vue-tsc: 0 ошибок; CRLF lanes цел (0 LF-строк). PUT целого журнала из клиента удалён (writeProjectUndoJournalFor остаётся только как null-delete в миграции — уходит на VL4.4). S14-свойство «двойной запуск не дублирует» здесь закрыто конструкцией (миграция только при ПУСТОМ логе) + S2-идемпотентностью стора; сквозная проверка на реальном сторе — VL4.3.",
+      "startedAt": "2026-07-21",
+      "finishedAt": "2026-07-21",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Словарь позиций решает главную тонкость маппинга: снапшот НЕ двигает позицию (состояние то же), но следующая дельта обязана цепляться к нему — поэтому positionCids хранит верхний cid позиции, а не последнюю дельту.",
+        "Vue ref<GTrackModel> структурно разворачивает класс (приватные поля выпадают из прокси-типа) — sync-движок типизирован Pick-view публичной поверхности (UndoLogModelView), а не классом.",
+        "Ограничение зафиксировано: undo ниже graft/fetch-границы с последующей правкой не синхронизируется (unsynced-position warn) до следующего rebuild — цена обрезанного окна выборки (limit 300); лог не портится.",
+        "Сетевой сбой chain-GET на restore оставляет undoLogReady=false: лучше не слать дельты с неверными parent, чем испортить цепочку; синк вернётся при следующем открытии файла."
+      ]
     },
     {
       "id": "VL4.3",
