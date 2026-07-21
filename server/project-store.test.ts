@@ -272,52 +272,24 @@ describe("ProjectStore core API (PR1.3 / PR-D5, PR-D8)", () => {
     await expectStoreError(store.getSection(info.id, "bad name!"), 400)
   })
 
-  test("legacy undo journal is write-dead (VL4.4): null deletes, anything else is 410", async () => {
-    const { root, sourceDir, store } = await makeStoreFixture()
-    const source = await makeSourceFile(sourceDir, "undo.gnaural")
-    const info = await store.openProject(source)
-
-    expect(await store.getUndoJournal(info.id)).toBeNull()
-
-    // Writes are gone with the 5 MB cap — the migration's delete is the only surviving verb.
-    await expectStoreError(store.putUndoJournal(info.id, { entries: ["one"] }), 410)
-
-    // A pre-existing undo.json (the pre-migration state) still READS, and null deletes it.
-    const dir = join(root, PROJECTS_DIR_NAME, info.id)
-    await writeFile(
-      join(dir, UNDO_FILE_NAME),
-      `${JSON.stringify({ schemaVersion: 1, updatedAt: "x", journal: { entries: ["legacy"] } })}\n`,
-    )
-    expect(await store.getUndoJournal(info.id)).toEqual({ entries: ["legacy"] })
-
-    await store.putUndoJournal(info.id, null)
-    expect(existsSync(join(dir, UNDO_FILE_NAME))).toBe(false)
-  })
-
-  test("undoJournalBytes sums the undo-log folder with the legacy undo.json (VL3.1 / VL-D8)", async () => {
+  test("undoJournalBytes counts only the undo-log folder (UR-D3): a stray undo.json is invisible", async () => {
     const { root, sourceDir, store } = await makeStoreFixture()
     const source = await makeSourceFile(sourceDir, "footprint.gnaural")
     const opened = await store.openProject(source)
     expect(opened.undoJournalBytes).toBeNull()
 
-    // A leftover pre-migration undo.json (created directly — the legacy write verb is 410 now).
+    // A stray legacy undo.json (nothing produces these anymore) is not counted.
     await writeFile(
       join(root, PROJECTS_DIR_NAME, opened.id, UNDO_FILE_NAME),
       `${JSON.stringify({ schemaVersion: 1, updatedAt: "x", journal: { entries: ["legacy"] } })}\n`,
     )
-    const legacyOnly = (await store.getProject(opened.id))?.undoJournalBytes ?? 0
-    expect(legacyOnly).toBeGreaterThan(0)
+    expect((await store.getProject(opened.id))?.undoJournalBytes).toBeNull()
 
     const logDir = join(root, PROJECTS_DIR_NAME, opened.id, UNDO_LOG_DIR_NAME)
     const { mkdir } = await import("node:fs/promises")
     await mkdir(logDir, { recursive: true })
     await writeFile(join(logDir, "seg-00000001.jsonl"), "x".repeat(100))
     await writeFile(join(logDir, "refs.json"), "y".repeat(20))
-
-    const combined = (await store.getProject(opened.id))?.undoJournalBytes ?? 0
-    expect(combined).toBe(legacyOnly + 120)
-
-    await store.putUndoJournal(opened.id, null)
     expect((await store.getProject(opened.id))?.undoJournalBytes).toBe(120)
   })
 
@@ -422,19 +394,26 @@ describe("export/import bundle (PR5.1+PR5.2 / PR-D10)", () => {
     expect(await versionLogB.getRefs(logDirB)).toEqual(sourceRefs)
   })
 
-  test("a pre-VL bundle with a legacy `undo` journal lands in undo.json for the client migration", async () => {
+  test("a pre-VL bundle's legacy `undo` journal is ignored on import (UR-D2): no undo.json, empty log", async () => {
     const root = await makeFixtureDir()
     const sourceDir = await makeFixtureDir()
     const source = join(sourceDir, "old-bundle.gnaural")
     await writeFile(source, "<gnaural/>")
 
-    const store = createProjectStore({ resolveUserDataRoot: () => root, versionLog: createVersionLogStore() })
+    const versionLog = createVersionLogStore()
+    const store = createProjectStore({ resolveUserDataRoot: () => root, versionLog })
     const info = await store.openProject(source)
     const bundle = await store.exportProject(info.id)
     const legacyBundle = { ...JSON.parse(JSON.stringify(bundle)), undo: { version: 3, steps: [] } }
 
+    // Overwrite-import over a dir still holding a stale undo.json: swept, never read back.
+    await writeFile(
+      join(root, PROJECTS_DIR_NAME, info.id, UNDO_FILE_NAME),
+      `${JSON.stringify({ schemaVersion: 1, updatedAt: "x", journal: { version: 3, steps: [] } })}\n`,
+    )
     const imported = await store.importProject(legacyBundle, true)
-    expect(await store.getUndoJournal(imported.id)).toEqual({ version: 3, steps: [] })
+    expect(existsSync(join(root, PROJECTS_DIR_NAME, imported.id, UNDO_FILE_NAME))).toBe(false)
+    expect(await versionLog.listCommits(join(root, PROJECTS_DIR_NAME, imported.id, UNDO_LOG_DIR_NAME))).toEqual([])
   })
 
   test("import conflicts with 409 unless overwrite; junk bundles are rejected with 400", async () => {

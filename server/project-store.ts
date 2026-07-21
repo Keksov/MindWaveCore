@@ -1,7 +1,7 @@
 // project-store (PR1.1, plan docs/project-store): identity + folder layout for the "Project" entity.
 //
 // A project is a per-source-file folder under <userDataRoot>/projects/ holding everything the
-// editor knows about that file (project.scp.json sections, undo.json; caches stay central, PR-D9).
+// editor knows about that file (project.scp.json sections, the undo-log/ commit log; caches stay central, PR-D9).
 // Identity (PR-D2): the normalized absolute source path, case-folded like the editor-store write
 // locks, hashed to 8 hex chars and prefixed with a sanitized basename slug: <slug>-<hash8>. The
 // folder name is deterministic — opening the same file always lands in the same project folder;
@@ -20,6 +20,8 @@ export type { ProjectInfo, ProjectSourceInfo } from "./protocol"
 
 export const PROJECTS_DIR_NAME = "projects"
 export const PROJECT_FILE_NAME = "project.scp.json"
+/** Legacy v3 journal file — dead since undo-legacy-removal; the name survives only for the
+ *  import-time sweep of old project folders. */
 export const UNDO_FILE_NAME = "undo.json"
 /** undo-versioned-log VL3.1: the per-project append-only commit log folder (version-log-store). */
 export const UNDO_LOG_DIR_NAME = "undo-log"
@@ -272,8 +274,6 @@ export interface ProjectStore {
   listProjects(): Promise<readonly ProjectInfo[]>
   getSection(aProjectId: string, aSectionName: string): Promise<unknown>
   putSection(aProjectId: string, aSectionName: string, aValue: unknown): Promise<ProjectInfo>
-  getUndoJournal(aProjectId: string): Promise<unknown>
-  putUndoJournal(aProjectId: string, aJournal: unknown): Promise<void>
   deleteProject(aProjectId: string): Promise<void>
   relinkProject(aProjectId: string, aNewSourcePath: string): Promise<ProjectInfo>
   exportProject(aProjectId: string): Promise<ProjectExportBundle>
@@ -293,8 +293,8 @@ export interface ProjectExportBundle {
   readonly exportedAt: string
   readonly project: ProjectFileData
   readonly undoLog: ProjectUndoLogBundle | null
-  /** Legacy v3 journal of pre-VL bundles: accepted on import (written back to undo.json so the
-   *  one-time client migration picks it up), never produced by export anymore. */
+  /** Legacy v3 journal of pre-VL bundles: present in old files, IGNORED on import with a console
+   *  warning (undo-legacy-removal UR-D2) — the client migration path is gone. */
   readonly undo?: unknown
 }
 
@@ -311,16 +311,6 @@ const isProjectExportBundle = (aValue: unknown): aValue is ProjectExportBundle =
 
 const SECTION_NAME_PATTERN = /^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/
 const PROJECT_ID_HASH_SUFFIX = /-[0-9a-f]{8}$/
-
-interface UndoFileData {
-  readonly schemaVersion: number
-  readonly updatedAt: string
-  readonly journal: unknown
-}
-
-const isUndoFileData = (aValue: unknown): aValue is UndoFileData => {
-  return isRecordValue(aValue) && aValue.schemaVersion === PROJECT_SCHEMA_VERSION && "journal" in aValue
-}
 
 const isInsideDir = (aBaseDir: string, aTarget: string): boolean => {
   const base = resolve(aBaseDir)
@@ -479,30 +469,6 @@ class ProjectStoreImpl implements ProjectStore {
     })
   }
 
-  public async getUndoJournal(aProjectId: string): Promise<unknown> {
-    assertSafeProjectId(aProjectId)
-    const projectsRoot = await this.projectsRoot()
-    const dir = join(projectsRoot, aProjectId)
-    const parsed = await readJsonFileTolerant(dir, UNDO_FILE_NAME, isUndoFileData, true)
-
-    return parsed === null ? null : (parsed as UndoFileData).journal
-  }
-
-  public async putUndoJournal(aProjectId: string, aJournal: unknown): Promise<void> {
-    assertSafeProjectId(aProjectId)
-    // undo-versioned-log VL4.4 (VL-D8): the v3 journal is write-dead — the only surviving write
-    // is the migration's `null` (delete undo.json after a confirmed replay into the log). The
-    // 5 MB cap died with the writes.
-    if (aJournal !== null && aJournal !== undefined) {
-      throw new ProjectStoreError(410, "Legacy undo.json writes are gone; the undo history lives at /api/projects/undo-log")
-    }
-
-    await this.queues.run(aProjectId, async () => {
-      const { dir } = await this.requireProjectData(aProjectId)
-      await rm(join(dir, UNDO_FILE_NAME), { force: true }).catch(() => undefined)
-    })
-  }
-
   public async deleteProject(aProjectId: string): Promise<void> {
     assertSafeProjectId(aProjectId)
     const projectsRoot = await this.projectsRoot()
@@ -585,18 +551,14 @@ class ProjectStoreImpl implements ProjectStore {
         }
       }
 
-      // A pre-VL bundle carries a legacy v3 `undo` journal: write it back to undo.json so the
-      // one-time client migration converts it on the next open.
+      // undo-legacy-removal (UR-D2): the legacy v3 `undo` journal of pre-VL bundles is ignored —
+      // the migration verbs are gone. Loud skip; any stale undo.json in the target dir is swept.
       if (aBundle.undo !== null && aBundle.undo !== undefined) {
-        const payload: UndoFileData = {
-          schemaVersion: PROJECT_SCHEMA_VERSION,
-          updatedAt: new Date().toISOString(),
-          journal: aBundle.undo,
-        }
-        await writeJsonFileAtomic(dir, UNDO_FILE_NAME, payload)
-      } else {
-        await rm(join(dir, UNDO_FILE_NAME), { force: true }).catch(() => undefined)
+        console.warn(
+          `[project-store] import ${id}: legacy \`undo\` journal ignored (${JSON.stringify(aBundle.undo).length} bytes) — the v3 migration path was removed (undo-legacy-removal)`,
+        )
       }
+      await rm(join(dir, UNDO_FILE_NAME), { force: true }).catch(() => undefined)
 
       return this.buildInfo(id, dir, imported)
     })
@@ -680,11 +642,8 @@ class ProjectStoreImpl implements ProjectStore {
       .catch(() => false)
 
     // undo-global-journal UG4.2 (req 6) + undo-versioned-log VL3.1 (VL-D8): one number for the
-    // project's undo footprint — the version log folder plus the legacy undo.json while it still
-    // exists (pre-migration).
-    const legacyUndoBytes = await stat(join(aDir, UNDO_FILE_NAME))
-      .then((s) => (s.isFile() ? s.size : 0))
-      .catch(() => 0)
+    // project's undo footprint — the undo-log/ folder alone (legacy undo.json is dead and
+    // uncounted, undo-legacy-removal UR-D3).
     let undoLogBytes = 0
     try {
       const logDir = join(aDir, UNDO_LOG_DIR_NAME)
@@ -698,8 +657,7 @@ class ProjectStoreImpl implements ProjectStore {
     } catch {
       // The project has no undo-log folder yet.
     }
-    const undoTotalBytes = legacyUndoBytes + undoLogBytes
-    const undoJournalBytes = undoTotalBytes === 0 ? null : undoTotalBytes
+    const undoJournalBytes = undoLogBytes === 0 ? null : undoLogBytes
 
     return {
       id: aProjectId,

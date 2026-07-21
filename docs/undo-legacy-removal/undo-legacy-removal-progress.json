@@ -49,18 +49,23 @@
       "id": "UR1.1",
       "phase": 1,
       "title": "Сервер: снять роут /api/projects/undo (GET+POST) + импорт ProjectUndoResponse; project-store — удалить getUndoJournal/putUndoJournal/UndoFileData/isUndoFileData, импорт бандла: warning вместо записи undo.json (rm-гигиена остаётся), buildInfo без legacyUndoBytes; переписать тесты project-store (410/чтение — удалить; undoJournalBytes — только undo-log; pre-VL бандл — undo игнорируется).",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["UR0.1"],
       "artifacts": [
         "server/server.ts",
         "server/project-store.ts",
         "server/project-store.test.ts"
       ],
-      "verify": "MindWaveCore/server ./bun.exe test — 0 fail (конформанс ещё зелёный: planV3Migration жив до UR1.2); tsc сервера через throwaway tsconfig — 0 ошибок.",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "PASSED: MindWaveCore/server ./bun.exe test — 124 pass / 0 fail (конформанс зелёный: planV3Migration жив до UR1.2); tsc 5.7.3 через throwaway tsconfig — exit 0.",
+      "startedAt": "2026-07-21",
+      "finishedAt": "2026-07-21",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "server.ts: роут /api/projects/undo (GET+POST) снят целиком, ProjectUndoResponse из импорта убран.",
+        "project-store.ts: getUndoJournal/putUndoJournal (интерфейс+импл), UndoFileData/isUndoFileData удалены; импорт бандла — console.warn с размером проигнорированного undo + безусловный rm undo.json; buildInfo — только undo-log/ (UR-D3); UNDO_FILE_NAME остался для rm-гигиены.",
+        "project-store.test.ts: тест 410/чтения удалён; undoJournalBytes — stray undo.json невидим (toBeNull), лог = 120 байт; pre-VL бандл — undo.json не создаётся (существовавший выметается), лог пуст.",
+        "124 pass (было 125: −2 legacy-теста, +1 переписанный в каждом из двух мест = чистое −1)."
+      ]
     },
     {
       "id": "UR1.2",

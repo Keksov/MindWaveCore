@@ -27,7 +27,7 @@ import { createLogReplayManager } from "./log-replay"
 import { UNDO_LOG_DIR_NAME, copyProjectsTree, createProjectStore, defaultUserDataRoot, isProjectStoreError, type ProjectsMigrationSummary } from "./project-store"
 import { createVersionLogStore, isVersionLogError, type VersionLogCommitInput, type VersionLogGcPolicy, type VersionLogRefsPatch } from "./version-log-store"
 import { createPublishCallbacks } from "./publish"
-import type { AudioFileKind, AudioServerEvent, AudioVoiceMuteItem, AudioVoiceMuteResponse, GnauralScheduleData, ProjectListResponse, ProjectSectionResponse, ProjectSettingsResponse, ProjectUndoLogAppendResponse, ProjectUndoLogChainResponse, ProjectUndoLogRefsResponse, ProjectUndoResponse } from "./protocol"
+import type { AudioFileKind, AudioServerEvent, AudioVoiceMuteItem, AudioVoiceMuteResponse, GnauralScheduleData, ProjectListResponse, ProjectSectionResponse, ProjectSettingsResponse, ProjectUndoLogAppendResponse, ProjectUndoLogChainResponse, ProjectUndoLogRefsResponse } from "./protocol"
 import { isRecord, toJson } from "./protocol"
 import { handleUiClose, handleUiMessage, handleUiOpen, type UiSocketData } from "./ui-ws-handler"
 import { createScheduleWatcher } from "../../GnauralCore/server/schedule-watcher"
@@ -1433,34 +1433,6 @@ const handleApiRequest = async (aRequest: Request): Promise<Response | null> => 
         }
 
         return jsonResponse(await projectStore.putSection(body.id, body.name, body.value ?? null))
-      } catch (error) {
-        return mapProjectStoreError(error)
-      }
-    }
-
-    return errorResponse(405, "Method not allowed")
-  }
-
-  if (segments.length === 3 && segments[1] === "projects" && segments[2] === "undo") {
-    if (aRequest.method === "GET") {
-      try {
-        const id = url.searchParams.get("id") ?? ""
-        const payload: ProjectUndoResponse = { id, journal: await projectStore.getUndoJournal(id) }
-        return jsonResponse(payload)
-      } catch (error) {
-        return mapProjectStoreError(error)
-      }
-    }
-
-    if (aRequest.method === "POST") {
-      try {
-        const body = await parseJsonBody(aRequest)
-        if (!isRecord(body) || typeof body.id !== "string") {
-          return errorResponse(400, "id must be provided as a string")
-        }
-
-        await projectStore.putUndoJournal(body.id, body.journal ?? null)
-        return new Response(null, { status: 204 })
       } catch (error) {
         return mapProjectStoreError(error)
       }
