@@ -71,7 +71,7 @@
       "id": "UR1.2",
       "phase": 1,
       "title": "Клиент + протокол: protocol.ts — удалить ProjectUndoResponse/ProjectUndoPutRequest + комментарии; project-api — fetchUndoJournal/putUndoJournal; use-project — readProjectUndoJournalFor/deleteProjectUndoJournalFor + комментарии (:57/:192); use-gtrack-lanes [CRLF] — migrateLegacyV3Journal + вызов + isGTrackUndoJournal из импорта + комментарий :633; undo-log-adoption — planV3Migration/UndoLogMigrationPlan + describe-блок тестов; use-undo-journal-settings — комментарий про 5МБ.",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["UR1.1"],
       "artifacts": [
         "SharedPasCore/ts/protocol.ts",
@@ -82,11 +82,16 @@
         "GnauralCore/ui/composables/undo-log-adoption.test.ts",
         "GnauralCore/ui/composables/use-undo-journal-settings.ts"
       ],
-      "verify": "GnauralCore: bun test ui server — 0 fail; perl-проверка use-gtrack-lanes.ts — 0 LF-only строк.",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "PASSED: GnauralCore bun test ui server — 347 pass / 0 fail (было 349: −2 теста planV3Migration); perl-проверка use-gtrack-lanes.ts — 0 LF-only строк; rg по всем репо — ссылок на удалённые символы не осталось (кроме version-log-conformance.test.ts → UR1.3).",
+      "startedAt": "2026-07-21",
+      "finishedAt": "2026-07-21",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "use-gtrack-lanes.ts: ветка «пустой лог → миграция» схлопнута в «commits.length > 0 → адопция» (пустой лог = свежая история, baseline-снапшот создаст первый же коммит); migrateLegacyV3Journal удалена целиком вместе с VL-D6-сбросом лимитов (он был одноразовой гигиеной миграции).",
+        "use-project.ts: читалка и удалялка undo.json сняты; appendProjectUndoLogNowFor остался (side-снапшот), jsdoc очищен от S14.",
+        "project-api.ts / protocol.ts: глаголы и типы ProjectUndoResponse/ProjectUndoPutRequest удалены; undoJournalBytes задокументирован как размер undo-log/.",
+        "undo-log-adoption.ts: planV3Migration/UndoLogMigrationPlan удалены (+2 теста); UndoLogSnapshotPayload/stepToCommitInput живут — ими пользуется боевой sync."
+      ]
     },
     {
       "id": "UR1.3",
