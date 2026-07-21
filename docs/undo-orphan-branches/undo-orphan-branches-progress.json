@@ -99,16 +99,20 @@
       "id": "OB1.3",
       "phase": 1,
       "title": "version-log-fuzz: зеркало веток в оракуле (разбиение B1/B2 после каждой операции) + случайная операция deleteBranch с зеркалом; все 24 сида зелёные (B8).",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["OB1.2"],
       "artifacts": [
         "server/version-log-fuzz.test.ts"
       ],
-      "verify": "MindWaveCore/server ./bun.exe test — 0 fail; fuzz-сиды прежние + ветко-инварианты.",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "PASSED: ./bun.exe test version-log-fuzz.test.ts — 25 pass / 0 fail (24 сида × 220 операций + S11-burst), 18.2s.",
+      "startedAt": "2026-07-21",
+      "finishedAt": "2026-07-21",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Oracle.listBranches/deleteBranch — чистые зеркала спеки; после КАЖДОЙ операции сверка listBranches store↔oracle + независимый от оракула assertBranchInvariants (B1 разбиение, B2 верхушки, B3 forkParent, B4 длина цепочки).",
+        "Пул операций перебалансирован (append .5 / refs .16 / forget .06 / crash .08 / gc .07 / clear .03 / deleteBranch .06 / chainRead .04): удаление 85% по реальной верхушке, остальное — случайный cid/ghost на 404/409-семантику.",
+        "Ни одного расхождения на первом же прогоне — B8 закрыт."
+      ]
     },
     {
       "id": "OB2.1",

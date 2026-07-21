@@ -5,7 +5,9 @@
 // state. A failing seed prints in the test name — rerun is exact.
 //
 // Covered here: S1–S5, S7 (agreement after repair), S11 (call-order serialization), S12.
-// The gc operation joins the pool in VL2.1.
+// The gc operation joined the pool in VL2.1; undo-orphan-branches (B8) adds the deleteBranch
+// operation plus a listBranches comparison and an oracle-independent B1–B4 partition check
+// after EVERY operation.
 import { mkdtemp, readdir, readFile, stat, truncate } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -15,6 +17,7 @@ import {
   createVersionLogStore,
   isVersionLogError,
   type VersionLogAppendResult,
+  type VersionLogBranch,
   type VersionLogCommit,
   type VersionLogCommitInput,
   type VersionLogGcPolicy,
@@ -264,6 +267,139 @@ class Oracle {
     this.nextSeq = this.commits.length === 0 ? 1 : this.commits[this.commits.length - 1]!.seq + 1
   }
 
+  /** B1..B4, mirrored: flat tips of {main, head}-unreachable chains, newest tip first. */
+  public listBranches(): VersionLogBranch[] {
+    const line = new Set<string>()
+    for (const root of [this.refs.main, this.refs.head]) {
+      let cid = root
+      while (cid !== null && !line.has(cid)) {
+        const commit = this.byCid.get(cid)
+        if (commit === undefined) {
+          break
+        }
+        line.add(cid)
+        cid = commit.parent
+      }
+    }
+
+    const childCount = new Map<string, number>()
+    for (const commit of this.commits) {
+      if (commit.parent !== null) {
+        childCount.set(commit.parent, (childCount.get(commit.parent) ?? 0) + 1)
+      }
+    }
+    const tagsByCid = new Map<string, string[]>()
+    for (const [name, cid] of Object.entries(this.refs.tags)) {
+      const names = tagsByCid.get(cid)
+      if (names === undefined) {
+        tagsByCid.set(cid, [name])
+      } else {
+        names.push(name)
+      }
+    }
+
+    const branches: VersionLogBranch[] = []
+    for (let index = this.commits.length - 1; index >= 0; index -= 1) {
+      const tip = this.commits[index]!
+      if (line.has(tip.cid) || (childCount.get(tip.cid) ?? 0) > 0) {
+        continue
+      }
+
+      let commits = 0
+      let exclusiveCommits = 0
+      let exclusiveEnded = false
+      let fromMs = tip.atMs
+      let toMs = tip.atMs
+      let snapshots = 0
+      let forkParent: string | null = null
+      const tags: string[] = []
+      let current: VersionLogCommit = tip
+      for (;;) {
+        commits += 1
+        fromMs = Math.min(fromMs, current.atMs)
+        toMs = Math.max(toMs, current.atMs)
+        if (current.type === "snapshot") {
+          snapshots += 1
+        }
+        tags.push(...(tagsByCid.get(current.cid) ?? []))
+        if (!exclusiveEnded && (childCount.get(current.cid) ?? 0) <= 1) {
+          exclusiveCommits += 1
+        } else {
+          exclusiveEnded = true
+        }
+        if (current.parent === null) {
+          break
+        }
+        const parent = this.byCid.get(current.parent)
+        if (parent === undefined) {
+          break
+        }
+        if (line.has(parent.cid)) {
+          forkParent = parent.cid
+          break
+        }
+        current = parent
+      }
+      branches.push({ tip: tip.cid, forkParent, commits, exclusiveCommits, fromMs, toMs, snapshots, tags })
+    }
+
+    return branches
+  }
+
+  /** B5/B6, mirrored: exclusive-suffix removal with the store's 404/409 semantics. */
+  public deleteBranch(aTip: string): number {
+    const tip = this.byCid.get(aTip)
+    if (tip === undefined) {
+      throw { status: 404 } satisfies OracleError
+    }
+
+    const line = new Set<string>()
+    for (const root of [this.refs.main, this.refs.head]) {
+      let cid = root
+      while (cid !== null && !line.has(cid)) {
+        const commit = this.byCid.get(cid)
+        if (commit === undefined) {
+          break
+        }
+        line.add(cid)
+        cid = commit.parent
+      }
+    }
+    const childCount = new Map<string, number>()
+    for (const commit of this.commits) {
+      if (commit.parent !== null) {
+        childCount.set(commit.parent, (childCount.get(commit.parent) ?? 0) + 1)
+      }
+    }
+    if (line.has(tip.cid) || (childCount.get(tip.cid) ?? 0) > 0) {
+      throw { status: 409 } satisfies OracleError
+    }
+
+    const tagged = new Set(Object.values(this.refs.tags))
+    const doomed = new Set<string>()
+    let current: VersionLogCommit = tip
+    for (;;) {
+      if (tagged.has(current.cid)) {
+        throw { status: 409 } satisfies OracleError
+      }
+      doomed.add(current.cid)
+      if (current.parent === null) {
+        break
+      }
+      const parent = this.byCid.get(current.parent)
+      if (parent === undefined || line.has(parent.cid) || (childCount.get(parent.cid) ?? 0) > 1) {
+        break
+      }
+      current = parent
+    }
+
+    this.commits = this.commits.filter((aCommit) => !doomed.has(aCommit.cid))
+    this.byCid = new Map(this.commits.map((aCommit) => [aCommit.cid, aCommit]))
+    // The store reloads after the rewrite, so its nextSeq re-derives from the kept maximum.
+    this.nextSeq = this.commits.length === 0 ? 1 : this.commits[this.commits.length - 1]!.seq + 1
+    return doomed.size
+  }
+
   /** After a crash-truncate the oracle adopts the store's surviving state (S6 keeps it a prefix). */
   public adopt(aCommits: readonly VersionLogCommit[], aRefs: VersionLogRefs): void {
     this.commits = [...aCommits]
@@ -302,6 +438,80 @@ const assertStructuralInvariants = (aCommits: readonly VersionLogCommit[], aRefs
   for (const [name, cid] of [["main", aRefs.main], ["head", aRefs.head], ...Object.entries(aRefs.tags)] as const) {
     if (cid !== null && !seen.has(cid)) {
       throw new Error(`S5 violated: ref ${name} points at unknown ${cid}`)
+    }
+  }
+}
+
+/** B1–B4, independent of the oracle: the branches list partitions the store's own state. */
+const assertBranchInvariants = (
+  aCommits: readonly VersionLogCommit[],
+  aRefs: VersionLogRefs,
+  aBranches: readonly VersionLogBranch[],
+): void => {
+  const byCid = new Map(aCommits.map((aCommit) => [aCommit.cid, aCommit]))
+  const childCount = new Map<string, number>()
+  for (const commit of aCommits) {
+    if (commit.parent !== null) {
+      childCount.set(commit.parent, (childCount.get(commit.parent) ?? 0) + 1)
+    }
+  }
+  const line = new Set<string>()
+  for (const root of [aRefs.main, aRefs.head]) {
+    let cid = root
+    while (cid !== null && !line.has(cid)) {
+      const commit = byCid.get(cid)
+      if (commit === undefined) {
+        break
+      }
+      line.add(cid)
+      cid = commit.parent
+    }
+  }
+
+  const tips = new Set<string>()
+  const covered = new Set<string>()
+  for (const branch of aBranches) {
+    if (tips.has(branch.tip)) {
+      throw new Error(`B2 violated: duplicate tip ${branch.tip}`)
+    }
+    tips.add(branch.tip)
+    if ((childCount.get(branch.tip) ?? 0) > 0) {
+      throw new Error(`B2 violated: tip ${branch.tip} has children`)
+    }
+    if (line.has(branch.tip)) {
+      throw new Error(`B1 violated: line commit ${branch.tip} listed as a tip`)
+    }
+
+    let cid: string | null = branch.tip
+    let count = 0
+    let fork: string | null = null
+    while (cid !== null) {
+      const commit = byCid.get(cid)
+      if (commit === undefined) {
+        break
+      }
+      if (line.has(cid)) {
+        fork = cid
+        break
+      }
+      covered.add(cid)
+      count += 1
+      cid = commit.parent
+    }
+    if (count !== branch.commits) {
+      throw new Error(`B4 violated: tip ${branch.tip} chain length ${count} != reported ${branch.commits}`)
+    }
+    if (fork !== branch.forkParent) {
+      throw new Error(`B3 violated: tip ${branch.tip} fork ${fork} != reported ${branch.forkParent}`)
+    }
+  }
+
+  for (const commit of aCommits) {
+    if (!line.has(commit.cid) && !covered.has(commit.cid)) {
+      throw new Error(`B1 violated: orphan ${commit.cid} not covered by any branch`)
+    }
+    if (!line.has(commit.cid) && (childCount.get(commit.cid) ?? 0) === 0 && !tips.has(commit.cid)) {
+      throw new Error(`B2 violated: childless orphan ${commit.cid} missing from the tips`)
     }
   }
 }
@@ -407,6 +617,16 @@ const compareStates = async (aContext: FuzzContext, aWhere: string): Promise<voi
       `${aWhere}: store diverged from oracle\nstore:  ${JSON.stringify(actual)}\noracle: ${JSON.stringify(expected)}`,
     )
   }
+
+  // B8: the branches view agrees with the oracle AND partitions the store state on its own.
+  const branches = await aContext.store.listBranches(aContext.dir)
+  assertBranchInvariants(commits, refs, branches)
+  const expectedBranches = aContext.oracle.listBranches()
+  if (JSON.stringify(branches) !== JSON.stringify(expectedBranches)) {
+    throw new Error(
+      `${aWhere}: listBranches diverged\nstore:  ${JSON.stringify(branches)}\noracle: ${JSON.stringify(expectedBranches)}`,
+    )
+  }
 }
 
 const runFuzzSeed = async (aSeed: number, aOperations: number): Promise<void> => {
@@ -422,7 +642,7 @@ const runFuzzSeed = async (aSeed: number, aOperations: number): Promise<void> =>
     const where = `seed=${aSeed} op#${step}`
     const roll = context.random()
 
-    if (roll < 0.55) {
+    if (roll < 0.5) {
       const batch = buildAppendBatch(context)
       const advanceMain = context.random() < 0.8
       const actual = await context.store.append(context.dir, batch, { advanceMain })
@@ -430,7 +650,7 @@ const runFuzzSeed = async (aSeed: number, aOperations: number): Promise<void> =>
       if (JSON.stringify(actual) !== JSON.stringify(expected)) {
         throw new Error(`${where}: append result diverged\nstore:  ${JSON.stringify(actual)}\noracle: ${JSON.stringify(expected)}`)
       }
-    } else if (roll < 0.7) {
+    } else if (roll < 0.66) {
       const patch = buildRefsPatch(context)
       let actualStatus = 0
       let expectedStatus = 0
@@ -447,11 +667,11 @@ const runFuzzSeed = async (aSeed: number, aOperations: number): Promise<void> =>
       if (actualStatus !== expectedStatus) {
         throw new Error(`${where}: putRefs status diverged (store ${actualStatus}, oracle ${expectedStatus}) patch=${JSON.stringify(patch)}`)
       }
-    } else if (roll < 0.78) {
+    } else if (roll < 0.72) {
       context.store.forget(context.dir)
-    } else if (roll < 0.86) {
+    } else if (roll < 0.8) {
       await crashTruncate(context, where)
-    } else if (roll < 0.93) {
+    } else if (roll < 0.87) {
       const policy: VersionLogGcPolicy = {
         maxCommits: context.random() < 0.5 ? 1 + Math.floor(context.random() * 20) : 0,
         maxBytes: context.random() < 0.3 ? 300 + Math.floor(context.random() * 3000) : 0,
@@ -460,9 +680,37 @@ const runFuzzSeed = async (aSeed: number, aOperations: number): Promise<void> =>
       }
       await context.store.gc(context.dir, policy)
       context.oracle.gc(policy)
-    } else if (roll < 0.96) {
+    } else if (roll < 0.9) {
       await context.store.clear(context.dir)
       context.oracle.clear()
+    } else if (roll < 0.96) {
+      // B8: delete a real branch tip most of the time, a random/ghost cid to exercise 404/409.
+      const knownBranches = context.oracle.listBranches()
+      const tip =
+        context.random() < 0.85 && knownBranches.length > 0
+          ? pick(context.random, knownBranches).tip
+          : context.random() < 0.5
+            ? randomExistingCid(context) ?? `ghost-${Math.floor(context.random() * 1000)}`
+            : `ghost-${Math.floor(context.random() * 1000)}`
+      let actualStatus = 0
+      let actualDeleted = -1
+      let expectedStatus = 0
+      let expectedDeleted = -1
+      try {
+        actualDeleted = await context.store.deleteBranch(context.dir, tip)
+      } catch (error) {
+        actualStatus = isVersionLogError(error) ? error.status : -1
+      }
+      try {
+        expectedDeleted = context.oracle.deleteBranch(tip)
+      } catch (error) {
+        expectedStatus = (error as OracleError).status
+      }
+      if (actualStatus !== expectedStatus || actualDeleted !== expectedDeleted) {
+        throw new Error(
+          `${where}: deleteBranch diverged (store ${actualDeleted}/${actualStatus}, oracle ${expectedDeleted}/${expectedStatus}) tip=${tip}`,
+        )
+      }
     } else {
       await verifyChainRead(context, where)
     }
