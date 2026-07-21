@@ -28,6 +28,10 @@
       "text": "Транспорт: GET /api/projects/undo-log/branches?id → {id, branches[]}; POST /api/projects/undo-log/delete-branch {id, tip} → {id, deleted} | 404 | 409. Сводка ProjectUndoLogBranch = {tip, forkParent: cid|null, commits (длина цепочки над forkParent), exclusiveCommits, fromMs, toMs, snapshots, tags[]}. Просмотр шагов ветки — существующий GET from=tip&limit=commits, нового чтения не нужно."
     },
     {
+      "id": "OB-D7",
+      "text": "Inline-режим (req 5, владелец 2026-07-22 при приёмке OB3.2). Тоггл слева от кнопки сортировки (account_tree, подсветка primary; persisted в localStorage, по умолчанию выкл = ветки внизу как раньше). При включении нижняя секция скрывается, блок каждой ветки вставляется в хронологию журнала по fromMs (момент рождения ветки — её первая запись) как ЕДИНЫЙ элемент списка: глобальный reverse «новые сверху» переносит блок целиком, аккордеон не разрывается; порядок шагов внутри раскрытого блока следует сортировке. Раскрытие/выбор/«Применить»/метки/удаление — те же механизмы (pendingDeepCid → checkout VL5.1)."
+    },
+    {
       "id": "OB-D6",
       "text": "Спека-как-тесты (стиль VL-D7): раздел 4 плана (B1..B9) — критерий приёмки фаз 1–2 (юниты + расширение fuzz-оракула операцией deleteBranch и сверкой разбиения + конформанс E2E). UI (фаза 3) принимает владелец на живом wakeup — PAUSE OB3.2; там уже 21 орфан в 4 группах для проверки."
     }
@@ -164,8 +168,41 @@
       "id": "OB3.2",
       "phase": 3,
       "title": "PAUSE: приёмка владельцем на живом wakeup — видны 4 ветки (21 коммит), просмотр шагов, «Применить» восстанавливает и откатывается Ctrl-Z, метка защищает (удаление помеченной — отказ), «Удалить ветку» убирает эксклюзивный суффикс.",
-      "status": "active",
+      "status": "done",
       "dependsOn": ["OB3.1"],
+      "artifacts": [],
+      "verify": "PASSED: владелец 2026-07-22 — «1. ОК 2. ОК 3. ОК 4. ОК»; пожелание (inline-режим веток) зафиксировано как req 5 → OB-D7/OB3.3.",
+      "startedAt": "2026-07-22",
+      "finishedAt": "2026-07-22",
+      "blockedReason": null,
+      "evidence": [
+        "Все 4 пункта чек-листа приняты с первого раунда: список 7 верхушек, checkout+Ctrl-Z, защита меткой (409) и снятие, удаление с подтверждением, сохранность после перезапуска.",
+        "Пожелание владельца — режим отображения веток в хронологии журнала с тогглом слева от сортировки — процитировано дословно в плане (req 5)."
+      ]
+    },
+    {
+      "id": "OB3.3",
+      "phase": 3,
+      "title": "Inline-режим веток (req 5 / OB-D7): тоггл в тулбаре слева от сортировки (persisted, по умолчанию выкл), блок ветки в хронологии по fromMs единым элементом списка (аккордеон переживает reverse сортировки), нижняя секция скрыта при включённом тоггле; i18n ru/en.",
+      "status": "pending",
+      "dependsOn": ["OB3.2"],
+      "artifacts": [
+        "GnauralCore/ui/components/UndoJournalPanel.vue",
+        "GnauralCore/ui/i18n/ru.json",
+        "GnauralCore/ui/i18n/en.json"
+      ],
+      "verify": "GnauralCore bun test ui server — 0 fail; MindWaveCore/ui bun run typecheck + bun run build — 0 ошибок.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "OB3.4",
+      "phase": 3,
+      "title": "PAUSE: приёмка inline-режима владельцем (тоггл, хронологическое положение блоков, аккордеон, обе сортировки, checkout/метки/удаление из inline-блока).",
+      "status": "pending",
+      "dependsOn": ["OB3.3"],
       "artifacts": [],
       "verify": "Владелец подтверждает; каждый репорт о проблеме превращается в регрессионный тест.",
       "startedAt": null,
