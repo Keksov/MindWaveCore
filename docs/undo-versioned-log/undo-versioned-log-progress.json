@@ -294,28 +294,37 @@
       "id": "VL5.1",
       "phase": 5,
       "title": "Панель: ленивая подгрузка глубокой истории из лога (страницами, ниже in-memory окна) + «Применить» на глубокой строке = checkout-коммит (kind=checkout, parent=head — откат сам в истории и обратим); disabled для коммитов с несовместимым составом голосов; метки (VL-D9): создать/удалить на строке, список, переход = выбор + «Применить».",
-      "status": "pending",
+      "status": "done",
       "dependsOn": [
         "VL4.4"
       ],
-      "artifacts": [],
-      "verify": "GnauralCore bun test ui server; MindWaveCore/ui bun run typecheck + bun run build; поведение панели проверено в реальном приложении (самопроверка, без владельца).",
-      "startedAt": null,
-      "finishedAt": null,
+      "artifacts": [
+        "GnauralCore ui/composables/gtrack-model.ts — replaceVoicePoints (checkout-примитив: подмена точек голоса внутри обычной транзакции; валидация ≥2 точек/конечность) + 3 теста (обратимость, пустой дифф не коммитится, отбраковка мусора) — коммит 040dc86",
+        "GnauralCore ui/composables/use-gtrack-lanes.ts [CRLF] — deepUndoRows/loadDeepUndoHistory (пагинация по 50 от позиции 0 вниз по parent-цепочке), checkoutUndoCommit (снапшот-якорь по untilType → temp-модель → adopt+redo дельт → сверка sig → voice-гейт (состав/preparse) → live.edit(replaceVoicePoints…, 'checkout') — одна обратимая правка, дифф-синк сам кладёт её в лог), undoTags/setUndoTag/deleteUndoTag (VL-D9, через queueRefs), undoLogCidAt; сброс deep/tags на rebuild и «Очистить всё» — коммит 040dc86",
+        "GnauralCore ui/components/UndoJournalPanel.vue — секция глубокой истории (строки с синей-серой полоской ниже окна при сортировке «новые сверху», пейджер «Ранняя история…»), выбор deep-строки + «Применить»=checkout c Notify-исходами, бейджи меток на строках, меню меток выделенной строки (список/удалить/добавить), иконки snapshot/meta/checkout — коммит 040dc86",
+        "GnauralCore ui/i18n/ru.json + en.json — undoKind_checkout, undoJournalDeepLoad/Snapshot/Imported/Tags/TagAdd/TagName/Checkout* — коммит 040dc86"
+      ],
+      "verify": "PASSED — GnauralCore bun test ui server: 347 pass / 0 fail (+3 модельных); MindWaveCore/ui: vue-tsc 0 ошибок, bun run build — Build succeeded (server/public). ОТКЛОНЕНИЕ от verify-формулировки: «проверено в реальном приложении» не выполнялось — сервер требует полного рестарта AppCore (изменён server.ts), а кликовая самопроверка вне моих возможностей; поведенческое покрытие дано тестами (реконструкция checkout — конформанс VL4.3, применение — модельные тесты), визуальная проверка совмещается с приёмкой VL5.2.",
+      "startedAt": "2026-07-21",
+      "finishedAt": "2026-07-21",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Checkout реализован БЕЗ спец-механики в истории: восстановленное состояние применяется обычной транзакцией kind='checkout' (новый мутатор replaceVoicePoints), поэтому откат отменяем Ctrl-Z, попадает в лог как обычная дельта, а redo-хвост, отброшенный им, остаётся орфан-веткой (VL-D2).",
+        "Несовместимость голосов (состав/preparse-блокировка) проверяется на этапе применения с Notify-сообщением — вместо предвычисленного disabled (состав известен только после fetch снапшота).",
+        "Метка на строке окна = метка на cid её дельты; строка «Исходное состояние» метится через undoLogCidAt(0); глубокие строки — напрямую по cid."
+      ]
     },
     {
       "id": "VL5.2",
       "phase": 5,
       "title": "PAUSE: финальная приёмка владельцем в приложении — глубокая история, checkout, метки, рост без 5МБ-потолка, миграция реального проекта (undo.json исчез, undo-log/ появился, размер виден в кэш-менеджере).",
-      "status": "pending",
+      "status": "active",
       "dependsOn": [
         "VL5.1"
       ],
       "artifacts": [],
-      "verify": "Владелец принял фичу.",
-      "startedAt": null,
+      "verify": "Владелец принял фичу. Перед проверкой ОБЯЗАТЕЛЕН полный перезапуск AppCore (изменён server.ts; bun --watch кросс-репо серверные правки не подхватывает).",
+      "startedAt": "2026-07-21",
       "finishedAt": null,
       "blockedReason": null,
       "evidence": []
