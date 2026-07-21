@@ -5,7 +5,7 @@
   "title": "undo-orphan-branches: просмотр, восстановление (checkout) и ручное удаление орфан-веток версионного лога из панели журнала — кандидат №2 из финального отчёта undo-versioned-log. Плоский список верхушек, «Применить» = checkout VL5.1, «Удалить ветку» = эксклюзивный суффикс через GC-перезапись (помеченная — отказ). Спека B1..B9 как тесты (фазы 1–2), UI — приёмка владельцем (PAUSE OB3.2).",
   "status": "active",
   "createdAt": "2026-07-21",
-  "updatedAt": "2026-07-21",
+  "updatedAt": "2026-07-22",
   "decisions": [
     {
       "id": "OB-D1",
@@ -141,7 +141,7 @@
       "id": "OB3.1",
       "phase": 3,
       "title": "UI: lanes-состояние веток (список/раскрытие/загрузка, сбросы) + UndoJournalPanel секция «Отменённые ветки (N)» (ленивая загрузка, строка: диапазон/шаги/снапшоты/метки; раскрытие шагов deepRow-стилем; «Применить» = checkout; метка; «Удалить ветку» с подтверждением, 409 → notify) + i18n ru/en; CRLF-чек lanes.",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["OB2.1"],
       "artifacts": [
         "GnauralCore/ui/composables/use-gtrack-lanes.ts",
@@ -149,17 +149,22 @@
         "GnauralCore/ui/i18n/ru.json",
         "GnauralCore/ui/i18n/en.json"
       ],
-      "verify": "GnauralCore bun test ui server — 0 fail; MindWaveCore/ui bun run typecheck + bun run build — 0 ошибок; perl CRLF-чек lanes — 0 LF-only строк.",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "PASSED: GnauralCore bun test ui server — 347/0; vue-tsc — exit 0; quasar build — exit 0; perl CRLF-чек lanes — 0 LF-only строк.",
+      "startedAt": "2026-07-22",
+      "finishedAt": "2026-07-22",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "lanes: undoBranches/Loaded/Loading + undoBranchRowsByTip; loadUndoBranches (ленивая, с гонкозащитой по filePath), loadUndoBranchSteps (GET from=tip&limit=commits → deepRowOfCommit), deleteUndoBranch ('ok'|'tagged'|'failed', после ok — перезагрузка списка); сбросы в resetUndoLogSync и clearUndoHistory('all').",
+        "Панель: секция q-expansion-item «Отменённые ветки (N)» между списком и действиями (ленивая загрузка через v-model+watch — переживает смену файла); строка ветки = диапазон времени (день, если не сегодня) + «Шагов/снапшотов» + бейджи меток + кнопка удаления с q-popup-proxy-подтверждением (без Dialog-плагина); раскрытие — шаги deepRow-стилем, выбор шага переиспользует pendingDeepCid → существующий «Применить»-checkout и меню меток работают без изменений (OB-D2).",
+        "Удаление: notify positive/warning(«защищена меткой»)/negative; после ok сбрасываются раскрытие и выбор.",
+        "i18n ru/en: undoBranchesTitle/Empty/Subtitle/Delete/DeleteConfirm/DeleteCancel/Deleted/Tagged/DeleteFailed."
+      ]
     },
     {
       "id": "OB3.2",
       "phase": 3,
       "title": "PAUSE: приёмка владельцем на живом wakeup — видны 4 ветки (21 коммит), просмотр шагов, «Применить» восстанавливает и откатывается Ctrl-Z, метка защищает (удаление помеченной — отказ), «Удалить ветку» убирает эксклюзивный суффикс.",
-      "status": "pending",
+      "status": "active",
       "dependsOn": ["OB3.1"],
       "artifacts": [],
       "verify": "Владелец подтверждает; каждый репорт о проблеме превращается в регрессионный тест.",
