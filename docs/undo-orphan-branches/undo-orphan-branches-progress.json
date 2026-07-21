@@ -1,0 +1,161 @@
+{
+  "schemaVersion": 1,
+  "plan": "undo-orphan-branches",
+  "planDoc": "docs/undo-orphan-branches/undo-orphan-branches-plan.md",
+  "title": "undo-orphan-branches: просмотр, восстановление (checkout) и ручное удаление орфан-веток версионного лога из панели журнала — кандидат №2 из финального отчёта undo-versioned-log. Плоский список верхушек, «Применить» = checkout VL5.1, «Удалить ветку» = эксклюзивный суффикс через GC-перезапись (помеченная — отказ). Спека B1..B9 как тесты (фазы 1–2), UI — приёмка владельцем (PAUSE OB3.2).",
+  "status": "active",
+  "createdAt": "2026-07-21",
+  "updatedAt": "2026-07-21",
+  "decisions": [
+    {
+      "id": "OB-D1",
+      "text": "Плоский список верхушек (владелец, квиз 2026-07-21). Ветка = орфан-коммит без детей (tip); строка списка = tip; цепочка ветки = tip→…→forkParent (не включая), общий префикс под-веток входит в каждую. Сортировка — новые сверху (по seq верхушки). Отклонены: дерево с раскрытием (сложный UI), только корневые (прячет под-ветки)."
+    },
+    {
+      "id": "OB-D2",
+      "text": "«Применить» = существующий checkoutUndoCommit(cid) (VL5.1) без изменений (владелец, квиз): восстановленное состояние ложится новым обычным коммитом kind='checkout' на текущую линию, откатывается Ctrl-Z; лог и ветка не переписываются. Отклонено: переключение main/head НА ветку (git-checkout) — сильнее, но опасно и требует новой adoption-логики."
+    },
+    {
+      "id": "OB-D3",
+      "text": "Ручное удаление в этой фиче (владелец, квиз — «Сделать в этой фиче»). deleteBranch(tip): удаляется ровно эксклюзивный суффикс — walk от tip вниз, пока коммит line-недостижим И единственный ребёнок; стоп на fork-коммите (≥2 детей) или line-достижимом. Метка на коммите эксклюзивного суффикса → 409, лог не тронут. Графтов не возникает по построению (удаляемое множество замкнуто по детям) — assert. Механика — общий с GC хелпер атомарной перезаписи (temp → rename-over → drop cache → reload), сериализация SerialQueues (S11)."
+    },
+    {
+      "id": "OB-D4",
+      "text": "Две достижимости. Список веток считается от {main, head} БЕЗ меток — иначе помеченная ветка исчезала бы из списка в момент пометки. Защита от GC не меняется ({main, head, tags} — S8 как был). Метки на коммитах ветки показываются бейджами и блокируют удаление их эксклюзивной части."
+    },
+    {
+      "id": "OB-D5",
+      "text": "Транспорт: GET /api/projects/undo-log/branches?id → {id, branches[]}; POST /api/projects/undo-log/delete-branch {id, tip} → {id, deleted} | 404 | 409. Сводка ProjectUndoLogBranch = {tip, forkParent: cid|null, commits (длина цепочки над forkParent), exclusiveCommits, fromMs, toMs, snapshots, tags[]}. Просмотр шагов ветки — существующий GET from=tip&limit=commits, нового чтения не нужно."
+    },
+    {
+      "id": "OB-D6",
+      "text": "Спека-как-тесты (стиль VL-D7): раздел 4 плана (B1..B9) — критерий приёмки фаз 1–2 (юниты + расширение fuzz-оракула операцией deleteBranch и сверкой разбиения + конформанс E2E). UI (фаза 3) принимает владелец на живом wakeup — PAUSE OB3.2; там уже 21 орфан в 4 группах для проверки."
+    }
+  ],
+  "steps": [
+    {
+      "id": "OB0.1",
+      "phase": 0,
+      "title": "План + леджер + квиз-решения (под-ветки/восстановление/чистка); разведка store (collectReachable, runGc-перезапись), роутов и checkoutUndoCommit; диск-доказательство на wakeup (45 коммитов / 21 орфан / 4 группы).",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [
+        "docs/undo-orphan-branches/undo-orphan-branches-plan.md",
+        "docs/undo-orphan-branches/undo-orphan-branches-progress.json"
+      ],
+      "verify": "validate-ledger.js OK на этом леджере.",
+      "startedAt": "2026-07-21",
+      "finishedAt": "2026-07-21",
+      "blockedReason": null,
+      "evidence": [
+        "Квиз владельца 2026-07-21: «Плоский список верхушек» (OB-D1), «Checkout на текущую линию» (OB-D2), «Сделать в этой фиче» — ручное удаление (OB-D3).",
+        "Разведка: collectReachable :748 и runGc :720 переиспользуемы; checkoutUndoCommit :855 работает от любого cid (untilType=snapshot пройдёт развилку вниз); роуты undo-log :1447/:1483.",
+        "Скрипт find-orphans.js по живому wakeup: 45 коммитов, reachable 24, орфанов 21; 4 верхушечные группы, внутри Б3 — три под-ветки от общего снапшота (материал для B2/B5-тестов и приёмки)."
+      ]
+    },
+    {
+      "id": "OB1.1",
+      "phase": 1,
+      "title": "version-log-store: listBranches (line-достижимость {main, head}, карта детей, верхушки, сводки с tags-бейджами) + типы VersionLogBranch; юниты B1–B4, включая топологию wakeup (под-ветки от общего снапшота, graft-корни).",
+      "status": "pending",
+      "dependsOn": ["OB0.1"],
+      "artifacts": [
+        "server/version-log-store.ts",
+        "server/version-log-store.test.ts"
+      ],
+      "verify": "MindWaveCore/server ./bun.exe test — 0 fail; новые B1–B4 юниты зелёные.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "OB1.2",
+      "phase": 1,
+      "title": "version-log-store: deleteBranch (эксклюзивный суффикс, 404/409-семантика, метка → 409, assert отсутствия графтов) + выделение общего rewrite-хелпера из runGc; юниты B5–B7 (эксклюзивность, префикс становится новой верхушкой, delete→forget→reload сходится).",
+      "status": "pending",
+      "dependsOn": ["OB1.1"],
+      "artifacts": [
+        "server/version-log-store.ts",
+        "server/version-log-store.test.ts",
+        "server/version-log-gc.test.ts"
+      ],
+      "verify": "MindWaveCore/server ./bun.exe test — 0 fail (включая все прежние GC/краш-тесты — перезапись общая).",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "OB1.3",
+      "phase": 1,
+      "title": "version-log-fuzz: зеркало веток в оракуле (разбиение B1/B2 после каждой операции) + случайная операция deleteBranch с зеркалом; все 24 сида зелёные (B8).",
+      "status": "pending",
+      "dependsOn": ["OB1.2"],
+      "artifacts": [
+        "server/version-log-fuzz.test.ts"
+      ],
+      "verify": "MindWaveCore/server ./bun.exe test — 0 fail; fuzz-сиды прежние + ветко-инварианты.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "OB2.1",
+      "phase": 2,
+      "title": "Транспорт: @protocol типы (ProjectUndoLogBranch/BranchesResponse/DeleteBranchRequest/Response); server.ts — GET /undo-log/branches + POST /undo-log/delete-branch; project-api fetchUndoLogBranches/deleteUndoLogBranch; use-project обёртки; конформанс E2E B9 (форк-сессия: listBranches видит хвост, checkout верхушки восстанавливает, delete убирает).",
+      "status": "pending",
+      "dependsOn": ["OB1.3"],
+      "artifacts": [
+        "SharedPasCore/ts/protocol.ts",
+        "server/server.ts",
+        "server/version-log-conformance.test.ts",
+        "GnauralCore/ui/project-api.ts",
+        "GnauralCore/ui/composables/use-project.ts"
+      ],
+      "verify": "MindWaveCore/server ./bun.exe test — 0 fail (включая B9); server tsc throwaway — 0; GnauralCore bun test ui server — 0 fail.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "OB3.1",
+      "phase": 3,
+      "title": "UI: lanes-состояние веток (список/раскрытие/загрузка, сбросы) + UndoJournalPanel секция «Отменённые ветки (N)» (ленивая загрузка, строка: диапазон/шаги/снапшоты/метки; раскрытие шагов deepRow-стилем; «Применить» = checkout; метка; «Удалить ветку» с подтверждением, 409 → notify) + i18n ru/en; CRLF-чек lanes.",
+      "status": "pending",
+      "dependsOn": ["OB2.1"],
+      "artifacts": [
+        "GnauralCore/ui/composables/use-gtrack-lanes.ts",
+        "GnauralCore/ui/components/UndoJournalPanel.vue",
+        "GnauralCore/ui/i18n/ru.json",
+        "GnauralCore/ui/i18n/en.json"
+      ],
+      "verify": "GnauralCore bun test ui server — 0 fail; MindWaveCore/ui bun run typecheck + bun run build — 0 ошибок; perl CRLF-чек lanes — 0 LF-only строк.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "OB3.2",
+      "phase": 3,
+      "title": "PAUSE: приёмка владельцем на живом wakeup — видны 4 ветки (21 коммит), просмотр шагов, «Применить» восстанавливает и откатывается Ctrl-Z, метка защищает (удаление помеченной — отказ), «Удалить ветку» убирает эксклюзивный суффикс.",
+      "status": "pending",
+      "dependsOn": ["OB3.1"],
+      "artifacts": [],
+      "verify": "Владелец подтверждает; каждый репорт о проблеме превращается в регрессионный тест.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    }
+  ],
+  "log": [
+    {
+      "at": "2026-07-21",
+      "text": "OB0.1: старт по «go 2.». Квиз: плоские верхушки / checkout / удаление в этой фиче. Ключевое решение OB-D4 — две достижимости: список веток от {main, head} без меток (иначе пометка прятала бы ветку из списка), GC-защита прежняя. Диск-доказательство: в wakeup 21 орфан из 45 коммитов, 4 группы — готовый материал для тестов и приёмки."
+    }
+  ]
+}
