@@ -184,24 +184,30 @@
       "id": "OB3.3",
       "phase": 3,
       "title": "Inline-режим веток (req 5 / OB-D7): тоггл в тулбаре слева от сортировки (persisted, по умолчанию выкл), блок ветки в хронологии по fromMs единым элементом списка (аккордеон переживает reverse сортировки), нижняя секция скрыта при включённом тоггле; i18n ru/en.",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["OB3.2"],
       "artifacts": [
         "GnauralCore/ui/components/UndoJournalPanel.vue",
         "GnauralCore/ui/i18n/ru.json",
         "GnauralCore/ui/i18n/en.json"
       ],
-      "verify": "GnauralCore bun test ui server — 0 fail; MindWaveCore/ui bun run typecheck + bun run build — 0 ошибок.",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "PASSED: GnauralCore bun test ui server — 347/0; vue-tsc — exit 0; quasar build — exit 0.",
+      "startedAt": "2026-07-22",
+      "finishedAt": "2026-07-22",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Тоггл account_tree слева от сортировки (подсветка primary; localStorage 'mindwave-undo-journal-branches-inline', по умолчанию выкл); при включении нижняя секция и её разделитель скрыты.",
+        "displayItems: блоки веток вливаются в хронологию по fromMs (вставка перед первой строкой с atMs ≥ fromMs; ветки моложе всех строк — в конец), блок = единый DisplayItem kind='branch' — глобальный reverse «новые сверху» переносит его целиком, аккордеон не рвётся; JournalRow получил сырой atMs (initial = 0).",
+        "Внутренние шаги раскрытого блока следуют сортировке (branchStepRows: newest-first = верхушка сверху, oldest-first = разворот); раскрытие/выбор/«Применить»/метки/удаление — общие с нижней секцией (expandedBranchTip, pendingDeepCid, deleteBranch).",
+        "Загрузка сводок: watch с immediate на [branchesOpen, inlineBranches, loaded, undoTags] — включённый тоггл грузит без открытия нижней секции, а undoTags-зависимость повторяет попытку после завершения адопции/смены файла.",
+        "Пустой журнал с ветками при включённом тоггле не показывает заглушку «пусто» — блоки видны."
+      ]
     },
     {
       "id": "OB3.4",
       "phase": 3,
       "title": "PAUSE: приёмка inline-режима владельцем (тоггл, хронологическое положение блоков, аккордеон, обе сортировки, checkout/метки/удаление из inline-блока).",
-      "status": "pending",
+      "status": "active",
       "dependsOn": ["OB3.3"],
       "artifacts": [],
       "verify": "Владелец подтверждает; каждый репорт о проблеме превращается в регрессионный тест.",
