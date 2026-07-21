@@ -15,7 +15,6 @@ import {
 } from "../../GnauralCore/ui/composables/gtrack-model"
 import {
   planUndoLogAdoption,
-  planV3Migration,
   stepToCommitInput,
 } from "../../GnauralCore/ui/composables/undo-log-adoption"
 import { createVersionLogStore, type VersionLogStore } from "./version-log-store"
@@ -231,45 +230,8 @@ describe("S13: session round-trips over the real store", () => {
     expect(payload.sig).toBe(savedSig)
   })
 
-  test("S14 e2e: v3 migration replays into an empty log once; a re-run changes nothing", async () => {
-    const dir = await makeLogDir()
-    const store = createVersionLogStore()
-    const fileData = fixture()
-
-    // A legacy session: 3 edits, one undo — the exported v3 journal has cursor 2 of 3.
-    const legacyModel = new GTrackModel(fileData, [], createGTrackHistory())
-    editPoint(legacyModel, 0, 210)
-    editPoint(legacyModel, 1, 220)
-    editPoint(legacyModel, 2, 230)
-    legacyModel.undo()
-    const legacy = legacyModel.exportUndoJournal()
-    const legacyFileData = legacyModel.toSchedule() // undo.json chains to the CURRENT (cursor) state
-
-    // Restart into the new world: empty log -> migrate.
-    const model = new GTrackModel(legacyFileData, [], createGTrackHistory())
-    expect(model.adoptUndoJournal(legacy)).toBe(true)
-    const plan = planV3Migration(legacy, legacyFileData, 5_000)
-    const first = await store.append(dir, plan.commits, { advanceMain: true })
-    expect(first.rejectedFrom).toBeNull()
-    expect(first.appended).toBe(plan.commits.length)
-
-    // The migrated window survives the NEXT restart through the normal adoption path.
-    store.forget(dir)
-    const chain = await store.readChain(dir, { from: "main", limit: 300 })
-    const model2 = new GTrackModel(legacyFileData, [], createGTrackHistory())
-    const adoption = planUndoLogAdoption(chain.commits, model2.currentSignature)
-    expect(adoption).not.toBeNull()
-    expect(model2.adoptUndoJournal(adoption!.journal)).toBe(true)
-    expect(model2.historyCursor).toBe(2)
-    expect(model2.historySteps.length).toBe(3)
-    expect(model2.canRedo).toBe(true) // the undone step came back as redo
-
-    // Double-run safety (S2/S14): replaying the same migration is a pure no-op.
-    const second = await store.append(dir, plan.commits, { advanceMain: true })
-    expect(second.appended).toBe(0)
-    expect(second.skipped).toBe(plan.commits.length)
-    expect((await store.stats(dir)).commits).toBe(plan.commits.length)
-  })
+  // S14 (v3 migration) retired at undo-legacy-removal: the client migration path is gone; the
+  // pre-VL bundle `undo` field is now ignored on import (covered in project-store.test.ts).
 
   test("VL5.2 regression: save then EXIT (no further edits) — the window adopts from main", async () => {
     const dir = await makeLogDir()

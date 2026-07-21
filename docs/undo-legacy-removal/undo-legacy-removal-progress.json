@@ -97,16 +97,18 @@
       "id": "UR1.3",
       "phase": 1,
       "title": "Конформанс: снять импорт planV3Migration и S14-тест миграции из version-log-conformance.test.ts.",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["UR1.2"],
       "artifacts": [
         "server/version-log-conformance.test.ts"
       ],
-      "verify": "MindWaveCore/server ./bun.exe test — полный сьют 0 fail.",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "PASSED: MindWaveCore/server ./bun.exe test — 123 pass / 0 fail (−1 S14-тест); tsc 5.7.3 throwaway — exit 0.",
+      "startedAt": "2026-07-21",
+      "finishedAt": "2026-07-21",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "S14-тест «v3 migration replays into an empty log once» удалён, на его месте комментарий-отметка об отставке S14 со ссылкой на замещающий негативный тест в project-store.test.ts; шесть VL5.2/E2E-тестов конформанса не тронуты."
+      ]
     },
     {
       "id": "UR2.1",
