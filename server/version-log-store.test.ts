@@ -11,6 +11,7 @@ import {
   VERSION_LOG_REFS_FILE_NAME,
   createVersionLogStore,
   isVersionLogError,
+  type VersionLogCommit,
   type VersionLogCommitInput,
   type VersionLogStore,
 } from "./version-log-store"
@@ -512,5 +513,84 @@ describe("foreign refs.json content", () => {
     expect(refs.main).toBe("b")
     expect(refs.head).toBe("b")
     expect(refs.tags).toEqual({})
+  })
+})
+
+describe("listBranches (undo-orphan-branches B1–B4)", () => {
+  test("a linear log has no branches; an edit-after-undo fork lists the abandoned tail (B1)", async () => {
+    const store = createVersionLogStore()
+    const dir = await makeLogDir()
+    await seedThree(store, dir) // root -> a -> b, main=b
+    expect(await store.listBranches(dir)).toEqual([])
+
+    // Undo to `a`, edit anew: c forks off a, main moves — b becomes an abandoned tip.
+    await store.append(dir, [delta("c", "a")], { advanceMain: true })
+    const branches = await store.listBranches(dir)
+    expect(branches.length).toBe(1)
+    expect(branches[0]).toMatchObject({ tip: "b", forkParent: "a", commits: 1, exclusiveCommits: 1, snapshots: 0, tags: [] })
+
+    // B1 partition + OB-D5: the branch view IS the existing chain read from its tip.
+    const branchChain = await store.readChain(dir, { from: "b", limit: branches[0]!.commits })
+    expect(branchChain.commits.map((aCommit) => aCommit.cid)).toEqual(["b"])
+    expect((await store.listCommits(dir)).length).toBe(4) // line (3) + branch (1)
+  })
+
+  test("sub-branches of a shared prefix: flat tips each carry the prefix, exclusivity stops at the fork (B2, OB-D1)", async () => {
+    const store = createVersionLogStore()
+    const dir = await makeLogDir()
+    await seedThree(store, dir) // root -> a -> b (main=b)
+    // Abandoned subtree off `a`: shared prefix c, then two sub-tips d and e (the wakeup Б3 shape).
+    await store.append(dir, [delta("c", "a"), delta("d", "c")])
+    await store.append(dir, [delta("e", "c")])
+
+    const branches = await store.listBranches(dir)
+    expect(branches.map((aBranch) => aBranch.tip)).toEqual(["e", "d"]) // newest tip first
+    const byTip = new Map(branches.map((aBranch) => [aBranch.tip, aBranch]))
+    expect(byTip.get("d")).toMatchObject({ forkParent: "a", commits: 2, exclusiveCommits: 1 })
+    expect(byTip.get("e")).toMatchObject({ forkParent: "a", commits: 2, exclusiveCommits: 1 })
+  })
+
+  test("time range, snapshot count and tag badges summarize the chain; a tagged branch stays listed (B4, OB-D4)", async () => {
+    const store = createVersionLogStore()
+    const dir = await makeLogDir()
+    await seedThree(store, dir) // main=b
+    await store.append(dir, [snapshot("s1", "b"), delta("x", "s1")]) // abandoned continuation of b
+    await store.putRefs(dir, { tags: { keep: "s1" } })
+
+    const branches = await store.listBranches(dir)
+    expect(branches.length).toBe(1)
+    expect(branches[0]).toMatchObject({ tip: "x", forkParent: "b", commits: 2, exclusiveCommits: 2, snapshots: 1, tags: ["keep"] })
+
+    const all = await store.listCommits(dir)
+    const s1 = all.find((aCommit) => aCommit.cid === "s1")!
+    const x = all.find((aCommit) => aCommit.cid === "x")!
+    expect(branches[0]!.fromMs).toBe(s1.atMs)
+    expect(branches[0]!.toMs).toBe(x.atMs)
+  })
+
+  test("a graft-rooted orphan chain forks from null (B3)", async () => {
+    const store = createVersionLogStore()
+    const dir = await makeLogDir()
+    const stored = (aCid: string, aParent: string | null, aSeq: number): VersionLogCommit => {
+      return { cid: aCid, parent: aParent, type: "delta", atMs: aSeq * 10, payload: { v: aCid }, seq: aSeq }
+    }
+    await store.importLog(
+      dir,
+      [stored("A", null, 1), stored("B", "A", 2), stored("C", null, 3), stored("D", "C", 4)],
+      { main: "B", head: null, tags: {} },
+    )
+
+    const branches = await store.listBranches(dir)
+    expect(branches.length).toBe(1)
+    expect(branches[0]).toMatchObject({ tip: "D", forkParent: null, commits: 2, exclusiveCommits: 2 })
+  })
+
+  test("a side snapshot reachable via head belongs to the line, not to a branch (OB-D4)", async () => {
+    const store = createVersionLogStore()
+    const dir = await makeLogDir()
+    await seedThree(store, dir) // main=b
+    await store.append(dir, [snapshot("side", "a")]) // mid-history save snapshot off the line
+    await store.putRefs(dir, { head: "side" })
+    expect(await store.listBranches(dir)).toEqual([])
   })
 })

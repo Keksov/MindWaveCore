@@ -57,17 +57,21 @@
       "id": "OB1.1",
       "phase": 1,
       "title": "version-log-store: listBranches (line-достижимость {main, head}, карта детей, верхушки, сводки с tags-бейджами) + типы VersionLogBranch; юниты B1–B4, включая топологию wakeup (под-ветки от общего снапшота, graft-корни).",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["OB0.1"],
       "artifacts": [
         "server/version-log-store.ts",
         "server/version-log-store.test.ts"
       ],
-      "verify": "MindWaveCore/server ./bun.exe test — 0 fail; новые B1–B4 юниты зелёные.",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "PASSED: ./bun.exe test version-log-store.test.ts — 35 pass / 0 fail (30 прежних + 5 новых B1–B4).",
+      "startedAt": "2026-07-21",
+      "finishedAt": "2026-07-21",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "VersionLogBranch {tip, forkParent, commits, exclusiveCommits, fromMs, toMs, snapshots, tags}; computeBranches: карта детей за один проход, верхушки = line-недостижимые без детей, новые сверху (обход order с конца).",
+        "collectReachable отрефакторен в walkReachable + два набора корней: GC {main,head,tags} (S8 как был) и line {main,head} (OB-D4).",
+        "Тесты: линейный лог пуст / форк после undo (B1 + просмотр через GET from=tip&limit=commits — OB-D5) / плоские под-ветки общего префикса с exclusive-стопом на форке (B2, топология wakeup Б3) / сводка+бейджи меток (B4, помеченная ветка остаётся в списке) / graft-корень forkParent=null (B3, через importLog) / side-снапшот от head — не ветка (OB-D4)."
+      ]
     },
     {
       "id": "OB1.2",

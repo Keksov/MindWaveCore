@@ -103,6 +103,26 @@ export interface VersionLogStats {
   readonly orphans: number
 }
 
+/** undo-orphan-branches (OB-D1/OB-D4): one abandoned line of history. A branch is identified by
+ *  its TIP — a commit unreachable from {main, head} with no children. Tags deliberately do NOT
+ *  count as line roots here (or tagging a branch would hide it from the list); they still protect
+ *  chains from GC as before. Sub-branches of a shared prefix each carry the prefix in their own
+ *  chain (flat-tips semantics). */
+export interface VersionLogBranch {
+  readonly tip: string
+  /** Nearest line-reachable ancestor, or null (graft/cut root) — not part of the chain itself. */
+  readonly forkParent: string | null
+  /** Chain length above forkParent: GET from=tip&limit=commits returns exactly the branch. */
+  readonly commits: number
+  /** The suffix owned by this tip alone — what deleteBranch(tip) removes (OB-D3). */
+  readonly exclusiveCommits: number
+  readonly fromMs: number
+  readonly toMs: number
+  readonly snapshots: number
+  /** Tag names pointing at commits of this chain (GC-protection badges). */
+  readonly tags: readonly string[]
+}
+
 export class VersionLogError extends Error {
   public readonly status: number
 
@@ -132,6 +152,8 @@ export interface VersionLogStore {
   getRefs(aLogDir: string): Promise<VersionLogRefs>
   putRefs(aLogDir: string, aPatch: VersionLogRefsPatch): Promise<VersionLogRefs>
   stats(aLogDir: string): Promise<VersionLogStats>
+  /** B1..B4: flat list of abandoned-line tips, newest-first (line-reachability = {main, head}). */
+  listBranches(aLogDir: string): Promise<readonly VersionLogBranch[]>
   /** S8: orphans first, then the main-chain prefix above the newest snapshot anchor that fits
    *  the policy; protected chains (head, tags) survive; kept commits whose parent was removed
    *  are grafted to parent=null. Never leaves a snapshot-anchored log without its anchor. */
@@ -462,6 +484,12 @@ class VersionLogStoreImpl implements VersionLogStore {
     })
   }
 
+  public async listBranches(aLogDir: string): Promise<readonly VersionLogBranch[]> {
+    return this.withDir(aLogDir, async (_dir, state) => {
+      return this.computeBranches(state)
+    })
+  }
+
   public async importLog(aLogDir: string, aCommits: readonly VersionLogCommit[], aRefs: VersionLogRefs): Promise<void> {
     return this.withDir(aLogDir, async (dir) => {
       // Stored-log validation (S15): seq strictly increasing, cids unique, a non-null parent
@@ -745,11 +773,21 @@ class VersionLogStoreImpl implements VersionLogStore {
     return fresh
   }
 
+  /** GC-reachability (S8): {main, head, tags} — what survives a policy sweep. */
   private collectReachable(aState: LogState): Set<string> {
-    const roots: (string | null)[] = [aState.refs.main, aState.refs.head, ...Object.values(aState.refs.tags)]
+    return this.walkReachable(aState, [aState.refs.main, aState.refs.head, ...Object.values(aState.refs.tags)])
+  }
+
+  /** Line-reachability (OB-D4): {main, head} only — tags kept out so a tagged branch stays in
+   *  the branches list (protected and badged) instead of vanishing the moment it is tagged. */
+  private collectLineReachable(aState: LogState): Set<string> {
+    return this.walkReachable(aState, [aState.refs.main, aState.refs.head])
+  }
+
+  private walkReachable(aState: LogState, aRoots: readonly (string | null)[]): Set<string> {
     const reachable = new Set<string>()
 
-    for (const root of roots) {
+    for (const root of aRoots) {
       let cid = root
       while (cid !== null && !reachable.has(cid)) {
         const commit = aState.commits.get(cid)
@@ -762,6 +800,89 @@ class VersionLogStoreImpl implements VersionLogStore {
     }
 
     return reachable
+  }
+
+  /** undo-orphan-branches B1..B4 (OB-D1): every childless line-unreachable commit is a tip; its
+   *  chain runs down to (not including) the nearest line-reachable ancestor. `exclusiveCommits`
+   *  counts the suffix this tip owns alone — the walk stays exclusive while each commit is the
+   *  only child of its parent link; the first commit with a second child (a shared sub-branch
+   *  prefix) ends it. */
+  private computeBranches(aState: LogState): VersionLogBranch[] {
+    const line = this.collectLineReachable(aState)
+
+    const childCount = new Map<string, number>()
+    for (const commit of aState.order) {
+      if (commit.parent !== null) {
+        childCount.set(commit.parent, (childCount.get(commit.parent) ?? 0) + 1)
+      }
+    }
+
+    const tagsByCid = new Map<string, string[]>()
+    for (const [name, cid] of Object.entries(aState.refs.tags)) {
+      const names = tagsByCid.get(cid)
+      if (names === undefined) {
+        tagsByCid.set(cid, [name])
+      } else {
+        names.push(name)
+      }
+    }
+
+    const branches: VersionLogBranch[] = []
+    for (let index = aState.order.length - 1; index >= 0; index -= 1) {
+      const tip = aState.order[index]!
+      if (line.has(tip.cid) || (childCount.get(tip.cid) ?? 0) > 0) {
+        continue
+      }
+
+      let commits = 0
+      let exclusiveCommits = 0
+      let exclusiveEnded = false
+      let fromMs = tip.atMs
+      let toMs = tip.atMs
+      let snapshots = 0
+      let forkParent: string | null = null
+      const tags: string[] = []
+
+      let current: VersionLogCommit = tip
+      for (;;) {
+        commits += 1
+        if (current.atMs < fromMs) {
+          fromMs = current.atMs
+        }
+        if (current.atMs > toMs) {
+          toMs = current.atMs
+        }
+        if (current.type === "snapshot") {
+          snapshots += 1
+        }
+        const tagNames = tagsByCid.get(current.cid)
+        if (tagNames !== undefined) {
+          tags.push(...tagNames)
+        }
+        if (!exclusiveEnded && (childCount.get(current.cid) ?? 0) <= 1) {
+          exclusiveCommits += 1
+        } else {
+          exclusiveEnded = true
+        }
+
+        if (current.parent === null) {
+          break // graft/cut root — forkParent stays null (B3)
+        }
+        const parent = aState.commits.get(current.parent)
+        if (parent === undefined) {
+          break // missing parent = load-cut boundary; behaves like a root
+        }
+        if (line.has(parent.cid)) {
+          forkParent = parent.cid
+          break
+        }
+        current = parent
+      }
+
+      branches.push({ tip: tip.cid, forkParent, commits, exclusiveCommits, fromMs, toMs, snapshots, tags })
+    }
+
+    return branches
   }
 
   /** Persist commits one line at a time, mutating in-memory state only AFTER each successful
