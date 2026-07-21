@@ -27,7 +27,7 @@ import { createLogReplayManager } from "./log-replay"
 import { UNDO_LOG_DIR_NAME, copyProjectsTree, createProjectStore, defaultUserDataRoot, isProjectStoreError, type ProjectsMigrationSummary } from "./project-store"
 import { createVersionLogStore, isVersionLogError, type VersionLogCommitInput, type VersionLogGcPolicy, type VersionLogRefsPatch } from "./version-log-store"
 import { createPublishCallbacks } from "./publish"
-import type { AudioFileKind, AudioServerEvent, AudioVoiceMuteItem, AudioVoiceMuteResponse, GnauralScheduleData, ProjectListResponse, ProjectSectionResponse, ProjectSettingsResponse, ProjectUndoLogAppendResponse, ProjectUndoLogChainResponse, ProjectUndoLogRefsResponse } from "./protocol"
+import type { AudioFileKind, AudioServerEvent, AudioVoiceMuteItem, AudioVoiceMuteResponse, GnauralScheduleData, ProjectListResponse, ProjectSectionResponse, ProjectSettingsResponse, ProjectUndoLogAppendResponse, ProjectUndoLogBranchesResponse, ProjectUndoLogChainResponse, ProjectUndoLogDeleteBranchResponse, ProjectUndoLogRefsResponse } from "./protocol"
 import { isRecord, toJson } from "./protocol"
 import { handleUiClose, handleUiMessage, handleUiOpen, type UiSocketData } from "./ui-ws-handler"
 import { createScheduleWatcher } from "../../GnauralCore/server/schedule-watcher"
@@ -1481,6 +1481,26 @@ const handleApiRequest = async (aRequest: Request): Promise<Response | null> => 
   }
 
   if (segments.length === 4 && segments[1] === "projects" && segments[2] === "undo-log") {
+    // undo-orphan-branches (OB-D5): the abandoned-branches listing is the one GET sub-verb.
+    if (segments[3] === "branches") {
+      if (aRequest.method !== "GET") {
+        return errorResponse(405, "Method not allowed")
+      }
+
+      try {
+        const id = url.searchParams.get("id") ?? ""
+        const logDir = await resolveUndoLogDir(id)
+        if (logDir === null) {
+          return errorResponse(404, "Project not found")
+        }
+
+        const payload: ProjectUndoLogBranchesResponse = { id, branches: await versionLogStore.listBranches(logDir) }
+        return jsonResponse(payload)
+      } catch (error) {
+        return mapProjectStoreError(error)
+      }
+    }
+
     if (aRequest.method !== "POST") {
       return errorResponse(405, "Method not allowed")
     }
@@ -1562,6 +1582,17 @@ const handleApiRequest = async (aRequest: Request): Promise<Response | null> => 
       if (segments[3] === "clear") {
         await versionLogStore.clear(logDir)
         return new Response(null, { status: 204 })
+      }
+
+      if (segments[3] === "delete-branch") {
+        if (typeof body.tip !== "string") {
+          return errorResponse(400, "tip must be provided as a string")
+        }
+
+        // OB-D3: 409 when the tip is not a branch tip or a tag protects its exclusive suffix.
+        const deleted = await versionLogStore.deleteBranch(logDir, body.tip)
+        const payload: ProjectUndoLogDeleteBranchResponse = { id: body.id, deleted }
+        return jsonResponse(payload)
       }
 
       return errorResponse(404, "Unknown undo-log operation")
@@ -2367,7 +2398,7 @@ registerShutdownHandlers()
 console.log(`[server] listening on http://localhost:${server.port}`)
 console.log(`[server] file-browse (loopback-only): ${fsBrowserServer.url}`)
 console.log(`[server] static files: ${publicDir}`)
-console.log(`[server] endpoints: /ws/ui, /api/logs, /api/log-settings, /api/audio/file, /api/audio/schedule, /api/audio/schedule/voice-state, /api/audio/voice-mute, /api/audio/editor, /api/audio/editor/save, /api/audio/editor/autosave, /api/audio/editor/history, /api/project-settings, /api/projects, /api/projects/{open,info,section,undo,undo-log,undo-log/{append,refs,clear},relink}`)
+console.log(`[server] endpoints: /ws/ui, /api/logs, /api/log-settings, /api/audio/file, /api/audio/schedule, /api/audio/schedule/voice-state, /api/audio/voice-mute, /api/audio/editor, /api/audio/editor/save, /api/audio/editor/autosave, /api/audio/editor/history, /api/project-settings, /api/projects, /api/projects/{open,info,section,undo-log,undo-log/{append,refs,clear,branches,delete-branch},relink}`)
 if (isUiOnlyMode) {
   console.log("[server] UI-only mode: BodyMonitor.exe autostart disabled")
 }

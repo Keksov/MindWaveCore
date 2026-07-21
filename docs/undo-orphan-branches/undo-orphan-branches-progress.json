@@ -118,7 +118,7 @@
       "id": "OB2.1",
       "phase": 2,
       "title": "Транспорт: @protocol типы (ProjectUndoLogBranch/BranchesResponse/DeleteBranchRequest/Response); server.ts — GET /undo-log/branches + POST /undo-log/delete-branch; project-api fetchUndoLogBranches/deleteUndoLogBranch; use-project обёртки; конформанс E2E B9 (форк-сессия: listBranches видит хвост, checkout верхушки восстанавливает, delete убирает).",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["OB1.3"],
       "artifacts": [
         "SharedPasCore/ts/protocol.ts",
@@ -127,11 +127,15 @@
         "GnauralCore/ui/project-api.ts",
         "GnauralCore/ui/composables/use-project.ts"
       ],
-      "verify": "MindWaveCore/server ./bun.exe test — 0 fail (включая B9); server tsc throwaway — 0; GnauralCore bun test ui server — 0 fail.",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "PASSED: MindWaveCore/server ./bun.exe test — 133 pass / 0 fail (B9 внутри); tsc throwaway — exit 0; GnauralCore bun test ui server — 347/0.",
+      "startedAt": "2026-07-22",
+      "finishedAt": "2026-07-22",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "GET /undo-log/branches — единственный GET-подглагол 4-сегментного блока; POST /undo-log/delete-branch в общей POST-цепочке; endpoints-строка консоли обновлена (заодно вычищено залежавшееся «undo» — недочистка UR1.1).",
+        "B9 e2e: реальная GTrackModel-сессия (baseline + 3 правки, undo×2, форк-правка) → listBranches видит ровно одну ветку {tip, commits:2, exclusive:2, forkParent=выживший шаг} → checkout-реплей от верхушки через развилку до baseline-снапшота восстанавливает сигнатуру заброшенного состояния → deleteBranch(2) → линия [d4,d1,base] нетронута.",
+        "Клиентские обёртки: readProjectUndoLogBranchesFor (null-мягкая), deleteProjectUndoLogBranchFor ({deleted}|{error} — текст серверного 409 доходит до notify панели)."
+      ]
     },
     {
       "id": "OB3.1",

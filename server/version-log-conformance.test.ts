@@ -14,6 +14,7 @@ import {
   createGTrackHistory,
 } from "../../GnauralCore/ui/composables/gtrack-model"
 import {
+  commitToStep,
   planUndoLogAdoption,
   stepToCommitInput,
 } from "../../GnauralCore/ui/composables/undo-log-adoption"
@@ -382,6 +383,65 @@ describe("S13: session round-trips over the real store", () => {
     // The orphan is still readable by cid — history is genuinely never lost (until GC).
     const orphanChain = await store.readChain(dir, { from: abandonedCid, limit: 1 })
     expect(orphanChain.commits[0]!.cid).toBe(abandonedCid)
+  })
+
+  test("B9 e2e (undo-orphan-branches): the forked-off tail is listed, checkout restores it, delete removes it", async () => {
+    const dir = await makeLogDir()
+    const store = createVersionLogStore()
+    const fileData = fixture()
+
+    // A session: baseline + 3 edits, then undo×2 and a different edit — the log forks.
+    const model = new GTrackModel(fileData, [], createGTrackHistory())
+    const sync = new SessionSync(store, dir, null)
+    await sync.pushBaseline(model.savedSignature, fileData)
+    editPoint(model, 0, 210)
+    editPoint(model, 1, 220)
+    editPoint(model, 2, 230)
+    await sync.pushDeltas(model, 0)
+    await sync.syncHead(model)
+    const abandonedTip = model.historySteps[2]!.id
+    const abandonedSig = model.currentSignature
+
+    model.undo()
+    model.undo()
+    editPoint(model, 0, 260)
+    sync.positions.length = 2
+    await sync.pushDeltas(model, 1)
+    await sync.syncHead(model)
+
+    // B1/B4: exactly one branch — the two abandoned deltas, forking off the surviving step.
+    const branches = await store.listBranches(dir)
+    expect(branches.length).toBe(1)
+    expect(branches[0]).toMatchObject({ tip: abandonedTip, commits: 2, exclusiveCommits: 2, snapshots: 0, tags: [] })
+    expect(branches[0]!.forkParent).toBe(model.historySteps[0]!.id)
+
+    // OB-D2 (the VL5.1 checkout path): the chain from the tip crosses the fork down to the
+    // baseline snapshot; replaying it restores the abandoned state signature-exact.
+    const chain = await store.readChain(dir, { from: abandonedTip, untilType: "snapshot", limit: 300 })
+    const anchor = chain.commits[chain.commits.length - 1]!
+    expect(anchor.type).toBe("snapshot")
+    const anchorPayload = anchor.payload as { sig: string; schedule: GnauralScheduleData }
+    const temp = new GTrackModel(anchorPayload.schedule, [], createGTrackHistory())
+    expect(temp.currentSignature).toBe(anchorPayload.sig)
+    const steps = [...chain.commits]
+      .reverse()
+      .filter((aCommit) => aCommit.type === "delta")
+      .map((aCommit) => commitToStep(aCommit)!)
+    expect(temp.adoptUndoJournal({ version: 3, currentSig: temp.currentSignature, cursor: 0, steps })).toBe(true)
+    while (temp.canRedo) {
+      expect(temp.redo()).toBe(true)
+    }
+    expect(temp.currentSignature).toBe(abandonedSig)
+
+    // B5: deleting the branch removes exactly the two abandoned commits; the line survives.
+    expect(await store.deleteBranch(dir, abandonedTip)).toBe(2)
+    expect(await store.listBranches(dir)).toEqual([])
+    const line = await store.readChain(dir, { from: "main" })
+    expect(line.commits.map((aCommit) => aCommit.cid)).toEqual([
+      model.historySteps[1]!.id,
+      model.historySteps[0]!.id,
+      anchor.cid,
+    ])
   })
 })
 
