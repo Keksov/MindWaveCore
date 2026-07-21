@@ -339,6 +339,59 @@ describe("S13: session round-trips over the real store", () => {
     expect(reopened.schedule.voices[0]!.points[1]!.baseFreq).toBe(225)
   })
 
+  test("VL5.2 round 2 regression: undo x3 -> SAVE mid-history -> restart keeps the redo tail (owner repro)", async () => {
+    const dir = await makeLogDir()
+    const store = createVersionLogStore()
+    const fileData = fixture()
+
+    // Session: 4 edits, undo 3 of them, Save at position 1, exit.
+    const model = new GTrackModel(fileData, [], createGTrackHistory())
+    const sync = new SessionSync(store, dir, null)
+    await sync.pushBaseline(model.savedSignature, fileData)
+    editPoint(model, 0, 210)
+    editPoint(model, 1, 220)
+    editPoint(model, 2, 230)
+    editPoint(model, 0, 240)
+    await sync.pushDeltas(model, 0)
+    const tipSig = model.currentSignature
+    model.undo()
+    model.undo()
+    model.undo()
+
+    // The mid-history save: a SIDE snapshot off position 1, advanceMain FALSE (main must stay
+    // on the line tip — hijacking it is exactly what lost the grey rows), head -> the snapshot.
+    const savedData = model.toSchedule()
+    const midCid = "s-mid-save"
+    const parent = sync.positions[model.historyCursor]!
+    const appended = await store.append(
+      dir,
+      [{ cid: midCid, parent, type: "snapshot", atMs: 9, payload: { sig: model.currentSignature, schedule: savedData } }],
+      { advanceMain: false },
+    )
+    expect(appended.rejectedFrom).toBeNull()
+    await store.putRefs(dir, { head: midCid })
+    expect((await store.getRefs(dir)).main).not.toBe(midCid) // main still the line tip
+
+    // Restart: main chain has no matching anchor -> the head chain supplies the side one.
+    store.forget(dir)
+    const mainChain = await store.readChain(dir, { from: "main", limit: 300 })
+    const reopened = new GTrackModel(savedData, [], createGTrackHistory())
+    expect(planUndoLogAdoption(mainChain.commits, reopened.currentSignature)).toBeNull()
+
+    const headChain = await store.readChain(dir, { from: "head", limit: 50 })
+    const plan = planUndoLogAdoption(mainChain.commits, reopened.currentSignature, headChain.commits)
+    expect(plan).not.toBeNull()
+    expect(plan!.anchorCid).toBe(midCid)
+    expect(reopened.adoptUndoJournal(plan!.journal)).toBe(true)
+
+    // The owner's «три серые строчки»: cursor at the saved position, the redo tail alive.
+    expect(reopened.historyCursor).toBe(1)
+    expect(reopened.historySteps.length).toBe(4)
+    expect(reopened.canRedo).toBe(true)
+    expect(reopened.redo() && reopened.redo() && reopened.redo()).toBe(true)
+    expect(reopened.currentSignature).toBe(tipSig)
+  })
+
   test("undo -> new edit forks the chain: the old tail survives as an orphan branch (VL-D2)", async () => {
     const dir = await makeLogDir()
     const store = createVersionLogStore()
