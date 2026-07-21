@@ -594,3 +594,94 @@ describe("listBranches (undo-orphan-branches B1–B4)", () => {
     expect(await store.listBranches(dir)).toEqual([])
   })
 })
+
+describe("deleteBranch (undo-orphan-branches B5–B7)", () => {
+  /** root -> a -> b (main=b) + abandoned subtree off `a`: shared prefix c with sub-tips d, e. */
+  const seedForked = async (aStore: VersionLogStore, aDir: string): Promise<void> => {
+    await seedThree(aStore, aDir)
+    await aStore.append(aDir, [delta("c", "a"), delta("d", "c")])
+    await aStore.append(aDir, [delta("e", "c")])
+  }
+
+  test("deletes exactly the exclusive suffix; the shared prefix goes to the last sub-branch (B5)", async () => {
+    const store = createVersionLogStore()
+    const dir = await makeLogDir()
+    await seedForked(store, dir)
+    const seqBefore = new Map((await store.listCommits(dir)).map((aCommit) => [aCommit.cid, aCommit.seq]))
+
+    // d shares c with e — only d itself goes.
+    expect(await store.deleteBranch(dir, "d")).toBe(1)
+    const afterD = await store.listBranches(dir)
+    expect(afterD.map((aBranch) => aBranch.tip)).toEqual(["e"])
+    expect(afterD[0]).toMatchObject({ forkParent: "a", commits: 2, exclusiveCommits: 2 })
+
+    // The line and the surviving branch are untouched, seqs preserved byte-for-byte.
+    const chain = await store.readChain(dir, { from: "main" })
+    expect(chain.commits.map((aCommit) => aCommit.cid)).toEqual(["b", "a", "root"])
+    for (const commit of await store.listCommits(dir)) {
+      expect(commit.seq).toBe(seqBefore.get(commit.cid)!)
+    }
+
+    // e is now the only child of c — deleting it takes the prefix along.
+    expect(await store.deleteBranch(dir, "e")).toBe(2)
+    expect(await store.listBranches(dir)).toEqual([])
+    expect((await store.listCommits(dir)).map((aCommit) => aCommit.cid)).toEqual(["root", "a", "b"])
+  })
+
+  test("404 for an unknown cid, 409 for a line commit or a mid-branch commit (B5)", async () => {
+    const store = createVersionLogStore()
+    const dir = await makeLogDir()
+    await seedForked(store, dir)
+
+    await expectLogError(store.deleteBranch(dir, "ghost"), 404)
+    await expectLogError(store.deleteBranch(dir, "b"), 409) // line tip
+    await expectLogError(store.deleteBranch(dir, "c"), 409) // has children — not a tip
+    expect((await store.listCommits(dir)).length).toBe(6)
+  })
+
+  test("a tag inside the exclusive suffix refuses the deletion; a tag on the shared prefix does not (B6)", async () => {
+    const store = createVersionLogStore()
+    const dir = await makeLogDir()
+    await seedForked(store, dir)
+    await store.putRefs(dir, { tags: { pin: "c" } })
+
+    // c is SHARED between d and e — it is not in d's exclusive suffix, so d deletes fine.
+    expect(await store.deleteBranch(dir, "d")).toBe(1)
+
+    // Now c is exclusive to e and tagged: the whole deletion is refused, nothing changes.
+    const before = (await store.listCommits(dir)).map((aCommit) => aCommit.cid)
+    await expectLogError(store.deleteBranch(dir, "e"), 409)
+    expect((await store.listCommits(dir)).map((aCommit) => aCommit.cid)).toEqual(before)
+    expect((await store.listBranches(dir)).map((aBranch) => aBranch.tip)).toEqual(["e"])
+
+    // Untag — the deletion goes through and takes the prefix.
+    await store.putRefs(dir, { tags: { pin: null } })
+    expect(await store.deleteBranch(dir, "e")).toBe(2)
+    expect(await store.listBranches(dir)).toEqual([])
+  })
+
+  test("the deletion survives a reopen and can empty a refs-less log entirely (B7)", async () => {
+    const store = createVersionLogStore()
+    const dir = await makeLogDir()
+    await seedForked(store, dir)
+    expect(await store.deleteBranch(dir, "d")).toBe(1)
+
+    store.forget(dir)
+    expect((await store.listCommits(dir)).map((aCommit) => aCommit.cid)).toEqual(["root", "a", "b", "c", "e"])
+    expect((await store.listBranches(dir)).map((aBranch) => aBranch.tip)).toEqual(["e"])
+    const refs = await store.getRefs(dir)
+    expect(refs.main).toBe("b")
+
+    // A detached pair with no refs at all deletes down to an empty log that accepts a new root.
+    const dir2 = await makeLogDir()
+    const stored = (aCid: string, aParent: string | null, aSeq: number): VersionLogCommit => {
+      return { cid: aCid, parent: aParent, type: "delta", atMs: aSeq * 10, payload: { v: aCid }, seq: aSeq }
+    }
+    await store.importLog(dir2, [stored("C", null, 1), stored("D", "C", 2)], { main: null, head: null, tags: {} })
+    expect(await store.deleteBranch(dir2, "D")).toBe(2)
+    expect(await store.listCommits(dir2)).toEqual([])
+    const reborn = await store.append(dir2, [delta("fresh", null)], { advanceMain: true })
+    expect(reborn.appended).toBe(1)
+    expect(reborn.rejectedFrom).toBeNull()
+  })
+})

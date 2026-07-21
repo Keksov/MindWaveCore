@@ -154,6 +154,10 @@ export interface VersionLogStore {
   stats(aLogDir: string): Promise<VersionLogStats>
   /** B1..B4: flat list of abandoned-line tips, newest-first (line-reachability = {main, head}). */
   listBranches(aLogDir: string): Promise<readonly VersionLogBranch[]>
+  /** B5..B7 (OB-D3): physically delete the exclusive suffix of a branch tip — the only targeted
+   *  mutation besides GC. 404 unknown cid; 409 not-a-tip or a tag inside the exclusive suffix.
+   *  Returns the number of deleted commits. */
+  deleteBranch(aLogDir: string, aTip: string): Promise<number>
   /** S8: orphans first, then the main-chain prefix above the newest snapshot anchor that fits
    *  the policy; protected chains (head, tags) survive; kept commits whose parent was removed
    *  are grafted to parent=null. Never leaves a snapshot-anchored log without its anchor. */
@@ -490,6 +494,63 @@ class VersionLogStoreImpl implements VersionLogStore {
     })
   }
 
+  public async deleteBranch(aLogDir: string, aTip: string): Promise<number> {
+    return this.withDir(aLogDir, async (dir, state) => {
+      const tip = state.commits.get(aTip)
+      if (tip === undefined) {
+        throw new VersionLogError(404, `Unknown commit: ${aTip}`)
+      }
+
+      const line = this.collectLineReachable(state)
+      const childCount = new Map<string, number>()
+      for (const commit of state.order) {
+        if (commit.parent !== null) {
+          childCount.set(commit.parent, (childCount.get(commit.parent) ?? 0) + 1)
+        }
+      }
+      if (line.has(tip.cid) || (childCount.get(tip.cid) ?? 0) > 0) {
+        throw new VersionLogError(409, `Not a branch tip: ${aTip}`)
+      }
+
+      // The exclusive suffix (OB-D3): walk down while each commit is the only child of its
+      // parent link; a second child (a shared sub-branch prefix) or the line stops the walk.
+      // A tag anywhere inside the suffix refuses the whole deletion (B6).
+      const tagged = new Set(Object.values(state.refs.tags))
+      const doomed = new Set<string>()
+      let current: VersionLogCommit = tip
+      for (;;) {
+        if (tagged.has(current.cid)) {
+          throw new VersionLogError(409, `Branch is tagged at ${current.cid}; remove the tag first`)
+        }
+        doomed.add(current.cid)
+        if (current.parent === null) {
+          break
+        }
+        const parent = state.commits.get(current.parent)
+        if (parent === undefined || line.has(parent.cid) || (childCount.get(parent.cid) ?? 0) > 1) {
+          break
+        }
+        current = parent
+      }
+
+      // B5: the doomed set is child-closed by construction, so no kept commit can lose its
+      // parent — deleteBranch never grafts. Guarded, not assumed.
+      const kept: VersionLogCommit[] = []
+      for (const commit of state.order) {
+        if (doomed.has(commit.cid)) {
+          continue
+        }
+        if (commit.parent !== null && doomed.has(commit.parent)) {
+          throw new VersionLogError(500, "deleteBranch invariant violated: a kept child of a deleted commit")
+        }
+        kept.push(commit)
+      }
+
+      await this.rewriteLog(dir, state, kept)
+      return doomed.size
+    })
+  }
+
   public async importLog(aLogDir: string, aCommits: readonly VersionLogCommit[], aRefs: VersionLogRefs): Promise<void> {
     return this.withDir(aLogDir, async (dir) => {
       // Stored-log validation (S15): seq strictly increasing, cids unique, a non-null parent
@@ -742,19 +803,23 @@ class VersionLogStoreImpl implements VersionLogStore {
     return true
   }
 
-  /** Consolidate the kept log into seg-00000001.jsonl (atomic rename-over), drop the rest, then
-   *  reload from disk — the load path is the single source of truth for state construction, and
-   *  its repair logic also reconciles any crash that interrupts this very method. */
   private async runGc(aDir: string, aState: LogState, aPolicy: VersionLogGcPolicy): Promise<LogState> {
     const kept = this.computeGcKeep(aState, aPolicy)
     if (kept === null) {
       return aState
     }
 
+    return this.rewriteLog(aDir, aState, kept)
+  }
+
+  /** Consolidate the kept log into seg-00000001.jsonl (atomic rename-over), drop the rest, then
+   *  reload from disk — shared by GC and deleteBranch. The load path is the single source of
+   *  truth for state construction, and its repair logic also reconciles any crash inside here. */
+  private async rewriteLog(aDir: string, aState: LogState, aKept: readonly VersionLogCommit[]): Promise<LogState> {
     const key = this.stateKey(aDir)
     try {
       const tempPath = join(aDir, `.seg-gcnew-${randomUUID()}`)
-      await writeFile(tempPath, kept.map(encodeCommitLine).join(""), "utf8")
+      await writeFile(tempPath, aKept.map(encodeCommitLine).join(""), "utf8")
       await rename(tempPath, join(aDir, segmentFileName(1)))
 
       for (const segment of aState.segments) {
@@ -764,7 +829,7 @@ class VersionLogStoreImpl implements VersionLogStore {
       }
     } finally {
       // Success or failure alike: drop the cache so the next access rebuilds from disk; the
-      // consolidated segment + the load-time seq/chain cuts converge to the post-GC state.
+      // consolidated segment + the load-time seq/chain cuts converge to the rewritten state.
       this.states.delete(key)
     }
 

@@ -77,18 +77,23 @@
       "id": "OB1.2",
       "phase": 1,
       "title": "version-log-store: deleteBranch (эксклюзивный суффикс, 404/409-семантика, метка → 409, assert отсутствия графтов) + выделение общего rewrite-хелпера из runGc; юниты B5–B7 (эксклюзивность, префикс становится новой верхушкой, delete→forget→reload сходится).",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["OB1.1"],
       "artifacts": [
         "server/version-log-store.ts",
         "server/version-log-store.test.ts",
         "server/version-log-gc.test.ts"
       ],
-      "verify": "MindWaveCore/server ./bun.exe test — 0 fail (включая все прежние GC/краш-тесты — перезапись общая).",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "PASSED: ./bun.exe test store+gc+crash — 52 pass / 0 fail (39 store [4 новых B5–B7] + 11 gc + 2 crash-свипа поверх общего rewrite-хелпера).",
+      "startedAt": "2026-07-21",
+      "finishedAt": "2026-07-21",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "runGc разделён: computeGcKeep + общий rewriteLog(dir, state, kept) (temp .seg-gcnew- → rename-over → rm остальных → drop cache → reload); deleteBranch переиспользует его — краш-сходимость покрыта прежними S6/S7/S8-тестами.",
+        "deleteBranch: 404 неизвестный cid; 409 line-коммит или не-верхушка; 409 метка в эксклюзивном суффиксе (лог не тронут, снятие метки разблокирует); guard 500 на нарушение child-closure (графт невозможен по построению).",
+        "Уточнение B5 по факту (план поправлен): общий префикс не может стать отдельной верхушкой — при удалении последней под-ветки он входит в её эксклюзив и уходит вместе с ней (тест: delete d → 1, delete e → 2 с префиксом c).",
+        "B7-край: лог без refs удаляется до пустого и принимает новый null-parent корень."
+      ]
     },
     {
       "id": "OB1.3",
