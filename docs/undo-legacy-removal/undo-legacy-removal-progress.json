@@ -3,7 +3,7 @@
   "plan": "undo-legacy-removal",
   "planDoc": "docs/undo-legacy-removal/undo-legacy-removal-plan.md",
   "title": "undo-legacy-removal: полное выпиливание миграционных глаголов undo.json (GET/POST /api/projects/undo) и клиентского пути миграции v3 — кандидат №1 из финального отчёта undo-versioned-log. Журнал forestmeditation списан владельцем («Журнал не жалко»); поле undo старых бандлов при импорте игнорируется с предупреждением.",
-  "status": "active",
+  "status": "done",
   "createdAt": "2026-07-21",
   "updatedAt": "2026-07-21",
   "decisions": [
@@ -114,22 +114,30 @@
       "id": "UR2.1",
       "phase": 2,
       "title": "Сквозной verify + чистка диска (удалить forestmeditation/undo.json по UR-D1 с проверкой фактического состояния) + финальный отчёт владельцу.",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["UR1.3"],
       "artifacts": [
-        "%LOCALAPPDATA%\\KKSoundCore\\projects\\forestmeditation-7550d1c2\\undo.json — удалён"
+        "%LOCALAPPDATA%\\KKSoundCore\\projects\\forestmeditation-7550d1c2\\undo.json — удалён (312 598 байт)",
+        "%LOCALAPPDATA%\\KKSoundCore\\projects\\forestmeditation-7550d1c2\\undo.json.1 — удалён (101 857 байт, осиротевший temp атомарной записи от 2026-07-20 17:08 с тем же legacy-журналом)"
       ],
-      "verify": "MindWaveCore/server ./bun.exe test — 0 fail; GnauralCore bun test ui server — 0 fail; MindWaveCore/ui bun run typecheck + bun run build — 0 ошибок; в projects-корне не осталось ни одного undo.json.",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "PASSED: MindWaveCore/server ./bun.exe test — 123/0; GnauralCore bun test ui server — 347/0; MindWaveCore/ui vue-tsc — exit 0, quasar build — exit 0; server tsc 5.7.3 throwaway — exit 0; find projects-корня по undo.json* — 0 файлов.",
+      "startedAt": "2026-07-21",
+      "finishedAt": "2026-07-21",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Перед удалением проверено фактическое состояние: undo.json ещё лежал (владелец проект не открывал) — удалён по UR-D1; рядом обнаружен и удалён undo.json.1 (тот же списанный журнал, недописанный atomic-temp).",
+        "Итоговое состояние projects-корня: forestmeditation — только project.scp.json; tibetanbowls — только project.scp.json; wakeup — project.scp.json + undo-log/ (мигрированный лог живёт)."
+      ]
     }
   ],
   "log": [
     {
       "at": "2026-07-21",
       "text": "UR0.1: старт по «go 1.». Скан реального корня выявил немигрированный forestmeditation (312 КБ, 9 шагов, вчерашний) — предусловие кандидата №1 не выполнено; квиз владельцу. Ответы: «Журнал не жалко» (UR-D1), «Игнорировать с warning» (UR-D2). Скоуп упростился: серверная конверсия бандлов не нужна, planV3Migration умирает целиком."
+    },
+    {
+      "at": "2026-07-21",
+      "text": "FEATURE COMPLETE — 5/5 шагов за один сеанс. Итог: /api/projects/undo не существует (GET и POST сняты), весь клиентский путь миграции v3 удалён (−193 строки в GnauralCore), протокол очищен, undoJournalBytes = только undo-log/, импорт pre-VL бандла игнорирует undo с console.warn (негативный тест), S14 отставлена (конформанс −1 тест, замещающий негатив в project-store.test.ts). Диск: undo.json (312 КБ) + осиротевший undo.json.1 (102 КБ) forestmeditation удалены по UR-D1; во всех проектах undo.json* = 0, лог wakeup цел. Метрики: сервер 123/0, клиент 347/0, vue-tsc 0, quasar build 0, server-tsc 0, CRLF lanes цел. Коммиты: MindWaveCore c423342/017b1f3/9c14231(+финальный docs), GnauralCore 7a18ce4, SharedPasCore 53ff10d. undo.json как понятие полностью исчез из кодовой базы — остался только UNDO_FILE_NAME для rm-гигиены импорта."
     }
   ]
 }
