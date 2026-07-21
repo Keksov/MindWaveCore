@@ -177,9 +177,10 @@ describe("S13: session round-trips over the real store", () => {
     await sync.pushDeltas(modelA, 3)
     await sync.syncHead(modelA)
 
-    // --- restart ---
+    // --- restart --- (adoption reads from MAIN — the ref that moves atomically with appends;
+    // the VL5.2 acceptance bug was reading from the laggy head ref instead)
     store.forget(dir)
-    const chain = await store.readChain(dir, { from: "head", limit: 300 })
+    const chain = await store.readChain(dir, { from: "main", limit: 300 })
     expect(chain.commits.length).toBe(7) // baseline + 3 deltas + save snapshot + 2 deltas
 
     const modelB = new GTrackModel(savedData, [], createGTrackHistory())
@@ -268,6 +269,74 @@ describe("S13: session round-trips over the real store", () => {
     expect(second.appended).toBe(0)
     expect(second.skipped).toBe(plan.commits.length)
     expect((await store.stats(dir)).commits).toBe(plan.commits.length)
+  })
+
+  test("VL5.2 regression: save then EXIT (no further edits) — the window adopts from main", async () => {
+    const dir = await makeLogDir()
+    const store = createVersionLogStore()
+    const fileData = fixture()
+
+    // Session: edits -> Save -> exit. The save snapshot is a CHILD of the last delta, and the
+    // head ref deliberately stays STALE on that delta (the debounced refs write may lose the
+    // race or never fire) — exactly the owner's acceptance repro.
+    const model = new GTrackModel(fileData, [], createGTrackHistory())
+    const sync = new SessionSync(store, dir, null)
+    await sync.pushBaseline(model.savedSignature, fileData)
+    editPoint(model, 0, 210)
+    editPoint(model, 1, 220)
+    await sync.pushDeltas(model, 0)
+    await store.putRefs(dir, { head: model.historySteps[1]!.id }) // stale: BEFORE the snapshot
+    const savedData = model.toSchedule()
+    await sync.pushSaveSnapshot(model)
+
+    store.forget(dir)
+    const chain = await store.readChain(dir, { from: "main", limit: 300 })
+    const reopened = new GTrackModel(savedData, [], createGTrackHistory())
+    const plan = planUndoLogAdoption(chain.commits, reopened.currentSignature)
+    expect(plan).not.toBeNull()
+    expect(reopened.adoptUndoJournal(plan!.journal)).toBe(true)
+    expect(reopened.historySteps.length).toBe(2)
+    expect(reopened.historyCursor).toBe(2)
+    expect(reopened.canUndo).toBe(true)
+    expect(reopened.canRedo).toBe(false)
+
+    // The head-based read (the pre-fix behaviour) really does miss the anchor — the regression
+    // this test pins down.
+    const headChain = await store.readChain(dir, { from: "head", limit: 300 })
+    expect(planUndoLogAdoption(headChain.commits, reopened.currentSignature)).toBeNull()
+  })
+
+  test("VL5.2 regression: an unsaved last edit with a STALE head still adopts as redo from main", async () => {
+    const dir = await makeLogDir()
+    const store = createVersionLogStore()
+    const fileData = fixture()
+
+    const model = new GTrackModel(fileData, [], createGTrackHistory())
+    const sync = new SessionSync(store, dir, null)
+    await sync.pushBaseline(model.savedSignature, fileData)
+    editPoint(model, 0, 210)
+    await sync.pushDeltas(model, 0)
+    const savedData = model.toSchedule()
+    await sync.pushSaveSnapshot(model)
+
+    // The unsaved last action: its append lands (advanceMain moves main atomically), but the
+    // debounced head update is LOST (races its own append -> 404) — the owner's repro.
+    editPoint(model, 1, 225)
+    await sync.pushDeltas(model, 1)
+    const lastActionId = model.historySteps[1]!.id
+
+    store.forget(dir)
+    const chain = await store.readChain(dir, { from: "main", limit: 300 })
+    const reopened = new GTrackModel(savedData, [], createGTrackHistory())
+    const plan = planUndoLogAdoption(chain.commits, reopened.currentSignature)
+    expect(plan).not.toBeNull()
+    expect(reopened.adoptUndoJournal(plan!.journal)).toBe(true)
+    // The last action is present — as the redo tail above the saved anchor.
+    expect(reopened.historySteps.map((s) => s.id)).toContain(lastActionId)
+    expect(reopened.historyCursor).toBe(1)
+    expect(reopened.canRedo).toBe(true)
+    expect(reopened.redo()).toBe(true)
+    expect(reopened.schedule.voices[0]!.points[1]!.baseFreq).toBe(225)
   })
 
   test("undo -> new edit forks the chain: the old tail survives as an orphan branch (VL-D2)", async () => {
