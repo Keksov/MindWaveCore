@@ -101,24 +101,30 @@
       "id": "BM1.3",
       "phase": 1,
       "title": "Транспорт/лог: stepToCommitInput/commitToStep обеих форм дельт; конформанс на смешанной цепочке (старые voice-дельты + новые point-дельты: undo/redo/checkout/adoption/deep/ветки); полные сьюты + vue-tsc + build; CRLF lanes.",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["BM1.2"],
       "artifacts": [
         "GnauralCore/ui/composables/undo-log-adoption.ts",
         "GnauralCore/ui/composables/undo-log-adoption.test.ts",
         "MindWaveCore/server/version-log-conformance.test.ts"
       ],
-      "verify": "MindWaveCore/server ./bun.exe test — 0 fail; GnauralCore bun test ui server — 0 fail; vue-tsc + build — 0; perl CRLF-чек lanes — 0.",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "PASSED: MindWaveCore/server 133/0; GnauralCore 354/0; vue-tsc 0; build 0; CRLF lanes 0 LF-строк.",
+      "startedAt": "2026-07-22",
+      "finishedAt": "2026-07-22",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Все снапшот-payload'ы переведены на id-несущую форму: периодический (был m.schedule — заодно закрыт скрытый баг points-формы), save-снапшоты (:1067/:1082 — toScheduleWithIds), baseline (id-аннотированный двойник сохранённого состояния undoLogBaseScheduleWithIds, захват при построении/сейве/ребейзе, сброс в resetUndoLogSync).",
+        "Restore: ребейз id модели с якоря (anchorPool = main+head цепочки) перед адопцией; id-less legacy-якорь → форс id-несущего периодического снапшота на первой же правке (re-anchor).",
+        "Post-save rebase: новая модель перенимает id прежней позиционно (adoptPointIdsFrom) — перенесённая история с point-дельтами остаётся применимой при float-дрейфе дампа.",
+        "checkoutUndoCommit: normalizeScheduleData принимает обе формы снапшота (entries и старую points-форму) — checkout через старый периодический якорь больше не падает молча.",
+        "stepToCommitInput/commitToStep не менялись — обе формы дельт проходят провод как opaque payload (валидация формы — в isGTrackUndoJournal)."
+      ]
     },
     {
       "id": "BM1.4",
       "phase": 1,
       "title": "PAUSE: приёмка фазы 1 владельцем — редактор/журнал/checkout/ветки на живом wakeup (старые дельты) и на свежих правках (новые point-дельты); диффы в панели точные; файл сохраняется байт-идентично.",
-      "status": "pending",
+      "status": "active",
       "dependsOn": ["BM1.3"],
       "artifacts": [],
       "verify": "Владелец подтверждает; каждый репорт — регрессионный тест.",
