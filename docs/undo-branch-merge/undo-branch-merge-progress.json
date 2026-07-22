@@ -56,18 +56,24 @@
       "id": "BM1.1",
       "phase": 1,
       "title": "Id в ядре модели: GTrackPoint.id + генерация (segmentsToPoints/insertPoint/fix-preparse), id-less сигнатуры (model.signature + scheduleContentSignature), toSchedule() с id через опциональные поля протокола (GnauralScheduleEntry.pointId + lastPointId голоса), XML-путь не затронут. Юниты P1/P2/P5.",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["BM0.1"],
       "artifacts": [
         "GnauralCore/ui/composables/gtrack-model.ts",
         "GnauralCore/ui/composables/gtrack-model.test.ts",
         "SharedPasCore/ts/protocol.ts"
       ],
-      "verify": "GnauralCore bun test ui server — 0 fail (52 модельных теста зелёные или осознанно обновлены + новые P1/P2/P5).",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "PASSED: GnauralCore bun test ui server — 352/0 (52 старых модельных зелёные, 1 осознанно переведён на сигнатурное сравнение, +5 новых P-тестов); конформанс 7/0; vue-tsc 0; build 0.",
+      "startedAt": "2026-07-22",
+      "finishedAt": "2026-07-22",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "GTrackPoint.id обязателен; newPointId() с сессионной энтропией (идиома step-id); segmentsToPoints читает опциональные entry.pointId/endPointId (снапшоты) либо генерирует свежие (файл); insertPoint даёт новый id; все мутации сохраняют id спредом.",
+        "signature() — явная id-less проекция точек в 5 полей в прежнем порядке ключей: байт-в-байт совпадает со старым форматом (P2-тесты: две сборки одних данных = одна сигнатура = scheduleContentSignature; в JSON сигнатуры нет point-id).",
+        "toScheduleWithIds()/editableToSchedule(withPointIds)/pointsToSegmentsWithIds — id только для снапшот-payload'ов; обычная сериализация байт-идентична (P5-тест: strip(withIds) === plain).",
+        "adoptUndoJournal нормализует legacy-шаги (id-less точки получают свежие id — BM-D4-тест); протокол: GnauralScheduleEntry.pointId/endPointId опциональны, сервер не затронут.",
+        "Единственный правленый старый тест сравнивал расписания JSON'ом — переведён на сигнатуры (ровно семантика BM-D3); компонентные литералы точек оказались вне GTrackPoint-типизации (vue-tsc чист без правок)."
+      ]
     },
     {
       "id": "BM1.2",
