@@ -273,6 +273,23 @@
       "finishedAt": "2026-07-22T00:00:00Z",
       "blockedReason": null,
       "evidence": ["Фаза 3 (detach) принята owner («ок»). Фича point-inspector-panel полностью завершена."]
+    },
+    {
+      "id": "PI4.1",
+      "phase": "4. Пост-приёмка cleanup",
+      "title": "Dedup: удалить инертный старый буфер из use-point-inspector (по запросу owner); auto-close вынесен в closeIfPointGone",
+      "status": "done",
+      "dependsOn": ["PI3.5"],
+      "artifacts": ["GnauralCore/ui/composables/use-point-inspector.ts"],
+      "verify": "bun run typecheck + build; bun test ui server; поведение (retarget/auto-close/undo-focus) не изменилось",
+      "startedAt": "2026-07-22T00:00:00Z",
+      "finishedAt": "2026-07-22T00:00:00Z",
+      "blockedReason": null,
+      "evidence": [
+        "auto-close side-effect syncPointFormFromModel вынесен в отдельный closeIfPointGone(); selection-follow watch сохраняет retarget + вызывает guard; setTarget/deleteCurrentPointFromDialog больше не дёргают sync",
+        "удалён мёртвый буфер: pointForm/multiForm/derived(volume,balance)/setters/reconcile+watch/modelRow/rowPatch/multiRowVoiceName/collapsedGroups/toggleGroup/groupedMultiForm/altBigStep/fieldStep/applyFieldBigStep/applyPointDialog/maybeAutosave/removeCheckedRows/applyAllMultiRows + MultiFormRow/Group + reactive/ctrlStepValue импорты (463→~230 строк)",
+        "поведение-сохраняюще; vue-tsc 0, build ok, bun test ui server 373/0"
+      ]
     }
   ],
   "log": [
