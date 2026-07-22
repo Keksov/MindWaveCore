@@ -32,6 +32,10 @@
       "text": "Тесты/verify: MindWaveCore/ui — bun run typecheck (vue-tsc) + bun run build (quasar). Поднятый общий композабл (PI1.1) держать Pinia-free при создании (useAudioStore читать в момент ВЫЗОВА, как PW5.6b), чтобы покрывался юнит-тестами GnauralCore (bun test ui server). Перед каждым docs(point-inspector-panel)-коммитом леджера — MindWaveCore/server/bun.exe run ../validate-ledger.js docs/point-inspector-panel/point-inspector-panel-progress.json. Мульти-репо: код — GnauralCore (AudioPage/TracksPanel/новые компоненты/стор/module.ts), леджер+план — MindWaveCore/docs; ставить в индекс только свои файлы, коммиты по репам раздельно (см. multi-repo правило)."
     },
     {
+      "id": "PI-D8",
+      "text": "Архитектура detach (Фаза 3, зеркалит track-list PW5.7). Новые файлы: point-inspector-model.ts (PointInspectorSnapshot + PointInspectorAction, всё JSON-сериализуемо), point-inspector-actions.ts (applyPointInspectorAction(action, api) — чистый side-effect applier поверх структурного PointInspectorApi), use-point-inspector-snapshot.ts (реактивный snapshot из singletons, значения формы/таблицы — МОДЕЛЬНЫЕ, не буфер). PointInspectorView.vue — ЧИСТЫЙ view: рендерит snapshot, эмитит один action на жест; ВЛАДЕЕТ локальным input-буфером (single-форма + строки таблицы + collapse/checked + производные volume/balance + автосейв-решение по snapshot.autosave + Alt-стрелки big-step через свой window-listener) — буфер ПЕРЕЕЗЖАЕТ из композабла в view. PointInspectorPanel.vue становится in-window адаптером (snapshot из композабла + View + applyPointInspectorAction локально). PointInspectorRemote.vue (дочернее окно, module.ts) — рендерит bridge-snapshot, эмитит actions. PointInspectorDialog — :bridge-state=snapshot + @panel-event→applyPointInspectorAction, allowDetach снова true. Композабл use-point-inspector теряет буфер (pointForm/multiForm/derived/setters/reconcile/fieldStep/applyFieldBigStep/altBigStep) и получает value-берущие commitForm/commitRow/commitAllRows/removeChecked/setAutosave; TracksPanel.handleTracksKeyDown теряет ветку Alt-стрелок инспектора (ушла в View), сохраняет Escape/Ctrl+S/Ctrl+Z/Delete. Риск: не регрессировать принятое in-window поведение — View воспроизводит ту же разметку+буфер-логику."
+    },
+    {
       "id": "PI-D7",
       "text": "Развязать panel.open от выделения — модель IDE properties-panel (owner 2026-07-22). panel.open УПРАВЛЯЕТСЯ ПОЛЬЗОВАТЕЛЕМ (тумблер в тулбаре TracksPanel + кнопка close панели), НЕ выделением. Содержимое по выделению: 1 вершина → single-форма; 2+ → bulk-таблица; 0 → плейсхолдер «выберите точку» (inspectorMode='none', но панель ОСТАЁТСЯ открытой/в доке). GTrackView @edit-point АВТО-ОТКРЫВАЕТ панель, если закрыта (сохраняя текущее удобство «клик по точке → редактор»). Тумблер: только там, где точки существуют (gnaural-редактор) — в отличие от track-list он НЕ un-gated. Следствие: closeInspector больше НЕ трогает panel.open (только сбрасывает выделение при нужде); panel.open персистится штатно per-panelId."
     }
@@ -183,50 +187,66 @@
       "id": "PI3.1",
       "phase": "3. Detach (remote-control) — gated",
       "title": "Сериализуемый snapshot (target/form/mode/selection/mono) + каталог serializable actions (apply-field/autosave/delete/add-node/undo/redo/select) для bridge",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["PI2.6"],
       "artifacts": [
-        "GnauralCore/ui/composables/point-inspector-snapshot.ts",
-        "GnauralCore/ui/composables/point-inspector-actions.ts"
+        "GnauralCore/ui/composables/point-inspector-model.ts",
+        "GnauralCore/ui/composables/point-inspector-actions.ts",
+        "GnauralCore/ui/composables/point-inspector-actions.test.ts",
+        "GnauralCore/ui/composables/use-point-inspector-snapshot.ts"
       ],
       "verify": "bun run typecheck; bun test ui server",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-22T00:00:00Z",
+      "finishedAt": "2026-07-22T00:00:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "point-inspector-model.ts (PointInspectorSnapshot + PointInspectorAction, JSON-сериализуемо), point-inspector-actions.ts (applyPointInspectorAction поверх структурного PointInspectorApi), use-point-inspector-snapshot.ts (модельные значения формы/таблицы из singletons)",
+        "юнит applier 9/9 (recording-double как track-list-actions.test); vue-tsc 0"
+      ]
     },
     {
       "id": "PI3.2",
       "phase": "3. Detach (remote-control) — gated",
       "title": "Pure view (рендер из snapshot, один @action на жест) + in-window адаптер + remote-адаптер (дочернее окно); зарегистрировать в GnauralCore/ui/module.ts panels[] {id:'point-inspector', titleKey, icon, component, events:['action']}",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["PI3.1"],
       "artifacts": [
         "GnauralCore/ui/components/PointInspectorView.vue",
+        "GnauralCore/ui/components/PointInspectorPanel.vue",
         "GnauralCore/ui/components/PointInspectorRemote.vue",
-        "GnauralCore/ui/module.ts"
+        "GnauralCore/ui/composables/use-point-inspector.ts",
+        "GnauralCore/ui/module.ts",
+        "GnauralCore/ui/components/TracksPanel.vue"
       ],
       "verify": "bun run typecheck + build; дочернее окно рендерит панель (нет 'Неизвестная панель')",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-22T00:00:00Z",
+      "finishedAt": "2026-07-22T00:00:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "PointInspectorView.vue — чистый view: рендерит snapshot, эмитит action; ВЛАДЕЕТ input-буфером (single-форма + reconcile строк таблицы + collapse/checked + derived volume/balance + автосейв по snapshot.autosave + Alt-стрелки big-step через свой window-listener + undo/redo в тулбаре)",
+        "PointInspectorPanel.vue → in-window адаптер (snapshot из композабла + applyPointInspectorAction поверх composable commit-методов); PointInspectorRemote.vue (bridge-snapshot → View → @action); зарегистрирован в module.ts {id:'point-inspector'}",
+        "composable получил commitForm/setAutosave/commitRow/commitAllRows/removeChecked; TracksPanel потерял ветку Alt-стрелок инспектора (ушла в View) + syncAltBigStep/clearAltBigStep",
+        "in-window рефактор поведение-сохраняющий; vue-tsc 0, build ok, bun test ui server 373/0. Мёртвый буфер в композабле пока инертен — dedupe в PI3.3"
+      ]
     },
     {
       "id": "PI3.3",
       "phase": "3. Detach (remote-control) — gated",
       "title": "Parent action applier поверх authoritative gtracks; :bridge-state=snapshot в PointInspectorDialog; @panel-event → apply; снять allowDetach=false (стало true)",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["PI3.2"],
       "artifacts": [
-        "GnauralCore/ui/components/PointInspectorDialog.vue",
-        "GnauralCore/ui/composables/use-point-inspector.ts"
+        "GnauralCore/ui/components/PointInspectorDialog.vue"
       ],
       "verify": "bun run typecheck + build",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-22T00:00:00Z",
+      "finishedAt": "2026-07-22T00:00:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "PointInspectorDialog: :bridge-state=usePointInspectorSnapshot(), @panel-event→applyPointInspectorAction поверх composable commit-методов, allowDetach снова true (убран :allow-detach=false), undo/redo из titlebar убраны (теперь в View)",
+        "vue-tsc 0, build ok. Инертный буфер в use-point-inspector оставлен намеренно (retarget/auto-close watch с ним сцеплены) — dedupe отдельным следующим проходом при желании",
+        "детач end-to-end собран; живая проверка двух окон — PI3.4 (owner)"
+      ]
     },
     {
       "id": "PI3.4",
