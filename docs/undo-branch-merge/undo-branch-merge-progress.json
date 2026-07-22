@@ -1,0 +1,187 @@
+{
+  "schemaVersion": 1,
+  "plan": "undo-branch-merge",
+  "planDoc": "docs/undo-branch-merge/undo-branch-merge-plan.md",
+  "title": "undo-branch-merge: point-level дельты со стабильными id точек (go 3) как фундамент + трёхсторонний мердж отменённых веток в текущую линию (go 4). Squash одним kind='merge', конфликты через диалог выбора, ветка после мерджа остаётся. Спека P1..P5 + M1..M5 как тесты; PAUSE-приёмки после каждой фазы.",
+  "status": "active",
+  "createdAt": "2026-07-22",
+  "updatedAt": "2026-07-22",
+  "decisions": [
+    {
+      "id": "BM-D1",
+      "text": "Порядок (владелец, квиз 2026-07-22 — «Сначала go 3»): двухфазная фича. Фаза 1 = стабильные id точек + point-level дельты (фундамент точного мерджа и кратного уменьшения коммитов); Фаза 2 = мердж. PAUSE после каждой фазы: point-дельты меняют ядро редактора — владелец проверяет стабильность до постройки мерджа сверху."
+    },
+    {
+      "id": "BM-D2",
+      "text": "Идентичность точек. GTrackPoint.id: string, генерация с сессионной энтропией (уникальность сквозь форки/рестарты, как step.id/cid). Файл .gnaural НЕ меняется: id живут в памяти и в логе — дельты ссылаются на id, снапшоты несут расписание с id через ОПЦИОНАЛЬНЫЕ поля протокола (GnauralScheduleEntry.pointId; id последней точки — отдельное опциональное поле голоса: N сегментов ↔ N+1 точек). Сервер контент-агностичен (VL-D1) — не затрагивается. Файл без якоря → свежие id; адопция со снапшота с id → id продолжаются."
+    },
+    {
+      "id": "BM-D3",
+      "text": "Сигнатурная инвариантность: все сигнатуры (model.signature, scheduleContentSignature) вычисляются по расписанию БЕЗ id — старые снапшот-якоря и файловые состояния сходятся как раньше, S9-эквивалентность не затронута. Это риск №1 фичи — закрывается P2-юнитами и конформансом на смешанной цепочке."
+    },
+    {
+      "id": "BM-D4",
+      "text": "Шаги и совместимость: новая форма дельты шага — по голосам только изменённые точки {id, before|null, after|null} (null = вставка/удаление). Старые voice-дельты (голос целиком до/после) остаются читаемыми НАВСЕГДА: undo/redo/checkout/adoption/deep/ветки работают на смешанных цепочках; ретрофита старых логов нет (append-only). describeStepChanges переводится на id."
+    },
+    {
+      "id": "BM-D5",
+      "text": "Мердж (квиз): three-way от развилки — base=состояние forkParent, ours=текущая модель, theirs=верхушка ветки (реконструкция checkout-механикой). Сравнение по id точек; legacy без id — голос-уровнево. Менялась одна сторона → берём её; обе одинаково → ничего; обе по-разному → конфликт в диалог («моя / из ветки»). Применение — ОДНА транзакция kind='merge' (squash), Ctrl-Z откатывает целиком; лог append-only, ветка остаётся в списке («Оставить лежать»); forkParent=null или недоступный якорь → отказ с сообщением (M5)."
+    },
+    {
+      "id": "BM-D6",
+      "text": "Спека-как-тесты (стиль VL-D7): P1..P5 (фаза 1) + M1..M5 (фаза 2) — критерий приёмки кодовых шагов; fuzz не расширяется (мердж — чистый клиент): юниты планировщиков + конформанс E2E; UI принимает владелец на PAUSE BM1.4/BM2.4."
+    }
+  ],
+  "steps": [
+    {
+      "id": "BM0.1",
+      "phase": 0,
+      "title": "План + леджер + квиз-решения (скоуп «сначала go 3» / squash / диалог конфликтов / ветка остаётся); разведка ядра: voice-дельты целиком (:210), segmentsToPoints N↔N+1 (:66), toSchedule (:857), сигнатуры = JSON.stringify (:203) → требование id-инвариантности.",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [
+        "docs/undo-branch-merge/undo-branch-merge-plan.md",
+        "docs/undo-branch-merge/undo-branch-merge-progress.json"
+      ],
+      "verify": "validate-ledger.js OK на этом леджере.",
+      "startedAt": "2026-07-22",
+      "finishedAt": "2026-07-22",
+      "blockedReason": null,
+      "evidence": [
+        "Квиз владельца 2026-07-22: «Сначала go 3 (point-id)» (BM-D1), «Squash одним коммитом» (BM-D5), «Диалог выбора» (BM-D5), «Оставить лежать» (BM-D5).",
+        "Разведка: шаг несёт голос целиком до/после — point-дельты дают кратное уменьшение и точный мердж; снапшоты несут GnauralScheduleData → id поедут опциональными полями entries; сигнатуры позиционно-JSONные → обязательна id-очистка перед подписью (BM-D3)."
+      ]
+    },
+    {
+      "id": "BM1.1",
+      "phase": 1,
+      "title": "Id в ядре модели: GTrackPoint.id + генерация (segmentsToPoints/insertPoint/fix-preparse), id-less сигнатуры (model.signature + scheduleContentSignature), toSchedule() с id через опциональные поля протокола (GnauralScheduleEntry.pointId + lastPointId голоса), XML-путь не затронут. Юниты P1/P2/P5.",
+      "status": "pending",
+      "dependsOn": ["BM0.1"],
+      "artifacts": [
+        "GnauralCore/ui/composables/gtrack-model.ts",
+        "GnauralCore/ui/composables/gtrack-model.test.ts",
+        "SharedPasCore/ts/protocol.ts"
+      ],
+      "verify": "GnauralCore bun test ui server — 0 fail (52 модельных теста зелёные или осознанно обновлены + новые P1/P2/P5).",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "BM1.2",
+      "phase": 1,
+      "title": "Point-дельты шагов: новая форма дельты (изменённые точки по id, null = вставка/удаление), сбор в транзакции, undo/redo применение по id, describeStepChanges на id; чтение старых voice-дельт (совместимость навсегда). Юниты P3/P4 + размер-тест.",
+      "status": "pending",
+      "dependsOn": ["BM1.1"],
+      "artifacts": [
+        "GnauralCore/ui/composables/gtrack-model.ts",
+        "GnauralCore/ui/composables/gtrack-model.test.ts"
+      ],
+      "verify": "GnauralCore bun test ui server — 0 fail; размер-тест P3 (одноточечная правка на голосе 200 точек — payload на порядок меньше voice-дельты).",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "BM1.3",
+      "phase": 1,
+      "title": "Транспорт/лог: stepToCommitInput/commitToStep обеих форм дельт; конформанс на смешанной цепочке (старые voice-дельты + новые point-дельты: undo/redo/checkout/adoption/deep/ветки); полные сьюты + vue-tsc + build; CRLF lanes.",
+      "status": "pending",
+      "dependsOn": ["BM1.2"],
+      "artifacts": [
+        "GnauralCore/ui/composables/undo-log-adoption.ts",
+        "GnauralCore/ui/composables/undo-log-adoption.test.ts",
+        "MindWaveCore/server/version-log-conformance.test.ts"
+      ],
+      "verify": "MindWaveCore/server ./bun.exe test — 0 fail; GnauralCore bun test ui server — 0 fail; vue-tsc + build — 0; perl CRLF-чек lanes — 0.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "BM1.4",
+      "phase": 1,
+      "title": "PAUSE: приёмка фазы 1 владельцем — редактор/журнал/checkout/ветки на живом wakeup (старые дельты) и на свежих правках (новые point-дельты); диффы в панели точные; файл сохраняется байт-идентично.",
+      "status": "pending",
+      "dependsOn": ["BM1.3"],
+      "artifacts": [],
+      "verify": "Владелец подтверждает; каждый репорт — регрессионный тест.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "BM2.1",
+      "phase": 2,
+      "title": "Чистый merge-планировщик planBranchMerge: base/ours/theirs, точка-уровнево по id + legacy fallback голос-уровнево, список конфликтов, применение выборов. Юниты M1..M5.",
+      "status": "pending",
+      "dependsOn": ["BM1.4"],
+      "artifacts": [
+        "GnauralCore/ui/composables/undo-branch-merge.ts",
+        "GnauralCore/ui/composables/undo-branch-merge.test.ts"
+      ],
+      "verify": "GnauralCore bun test ui server — 0 fail (юниты M1..M5).",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "BM2.2",
+      "phase": 2,
+      "title": "UI: «Влить в текущую» на строке ветки (нижняя секция + inline), диалог конфликтов («моя / из ветки» по точке; legacy — по голосу), применение одной транзакцией kind='merge', notify итога, обновление списка веток; i18n ru/en; CRLF lanes.",
+      "status": "pending",
+      "dependsOn": ["BM2.1"],
+      "artifacts": [
+        "GnauralCore/ui/composables/use-gtrack-lanes.ts",
+        "GnauralCore/ui/components/UndoJournalPanel.vue",
+        "GnauralCore/ui/i18n/ru.json",
+        "GnauralCore/ui/i18n/en.json"
+      ],
+      "verify": "GnauralCore bun test ui server — 0 fail; vue-tsc + build — 0; perl CRLF-чек lanes — 0.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "BM2.3",
+      "phase": 2,
+      "title": "Конформанс E2E мерджа: реальная сессия с форком → merge (чистый и с конфликтом) → эквивалентность реконструкции; legacy-ветка голос-уровнево; M3 (один коммит, Ctrl-Z, ветка на месте).",
+      "status": "pending",
+      "dependsOn": ["BM2.2"],
+      "artifacts": [
+        "MindWaveCore/server/version-log-conformance.test.ts"
+      ],
+      "verify": "MindWaveCore/server ./bun.exe test — 0 fail.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "BM2.4",
+      "phase": 2,
+      "title": "PAUSE: финальная приёмка — мердж чистой ветки, мердж с конфликтом через диалог, Ctrl-Z отката мерджа, legacy-ветка wakeup, ветка остаётся в списке.",
+      "status": "pending",
+      "dependsOn": ["BM2.3"],
+      "artifacts": [],
+      "verify": "Владелец подтверждает.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    }
+  ],
+  "log": [
+    {
+      "at": "2026-07-22",
+      "text": "BM0.1: старт по «go 4». Квиз определил порядок: сначала go 3 (point-id) — мердж строится на точной идентичности точек; семантика мерджа squash/диалог/ветка-остаётся зафиксирована заранее. Ключевые техрешения: id в логе и памяти (файл не меняется), сигнатуры id-инвариантны (риск №1), старые voice-дельты читаемы навсегда."
+    }
+  ]
+}
