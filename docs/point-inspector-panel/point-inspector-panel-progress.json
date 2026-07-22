@@ -140,14 +140,18 @@
       "id": "PI2.4",
       "phase": "2. PanelWindow (float/dock)",
       "title": "Удалить старый <aside> + onInspectorDrag*/inspectorStyle/transition из TracksPanel; открытие/закрытие теперь через panel.open + общий open/close",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["PI2.3"],
       "artifacts": ["GnauralCore/ui/components/TracksPanel.vue"],
       "verify": "bun run typecheck + build; grep: нет остатков inspectorStyle/gtrack-point-inspector",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-22T00:00:00Z",
+      "finishedAt": "2026-07-22T00:00:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "удалён <aside> point-inspector + весь drag (inspectorEl/Pos/Style/Drag*/reset-watch) + осиротевший CSS (vol-row/point-inspector*/multi-table*/col-*/group-row/gtrack-point-inspector transition); color-swatch/popup сохранены",
+        "destructure инспектора обрезан до используемого хостом (inspectorMode/altBigStep/setTarget/closeInspector/undo|redoWithFocus/applyFieldBigStep); edit-point теперь авто-открывает panel.open (PI-D7)",
+        "grep: нет остатков inspectorStyle/gtrack-point-inspector/inspectorEl; vue-tsc 0, build ok, bun test ui server 364/0"
+      ]
     },
     {
       "id": "PI2.5",
