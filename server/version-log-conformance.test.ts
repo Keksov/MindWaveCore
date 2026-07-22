@@ -367,6 +367,41 @@ describe("S13: session round-trips over the real store", () => {
     expect(reopened.currentSignature).toBe(tipSig)
   })
 
+  test("BM1.4 regression: exit at an undone MIDDLE without saving — reopen restores the left-off cursor (owner repro)", async () => {
+    const dir = await makeLogDir()
+    const store = createVersionLogStore()
+    const fileData = fixture()
+
+    const model = new GTrackModel(fileData, [], createGTrackHistory())
+    const sync = new SessionSync(store, dir, null)
+    await sync.pushBaseline(model.savedSignature, model.toScheduleWithIds())
+    editPoint(model, 0, 210)
+    editPoint(model, 1, 220)
+    editPoint(model, 2, 230)
+    await sync.pushDeltas(model, 0)
+    model.undo()
+    model.undo() // the owner leaves at position 1 of 3…
+    const midSig = model.currentSignature
+    await sync.syncHead(model) // …and exits WITHOUT saving (head marks the spot)
+
+    store.forget(dir)
+    const chain = await store.readChain(dir, { from: "main", limit: 300 })
+    const reopened = new GTrackModel(fileData, [], createGTrackHistory()) // file = the never-saved state
+    const plan = planUndoLogAdoption(chain.commits, reopened.currentSignature)
+    expect(plan).not.toBeNull()
+    rebaseFromAnchor(reopened, chain.commits, plan!.anchorCid)
+    expect(reopened.adoptUndoJournal(plan!.journal)).toBe(true)
+    expect(reopened.historyCursor).toBe(0) // the anchor IS the baseline — nothing was ever saved
+
+    // The lanes replay (BM1.4): the head ref points at the left-off position — walk to it.
+    const headPos = plan!.positionCids.indexOf(chain.refs.head!)
+    expect(headPos).toBe(1)
+    while (reopened.historyCursor < headPos) expect(reopened.redo()).toBe(true)
+    expect(reopened.currentSignature).toBe(midSig)
+    expect(reopened.canUndo).toBe(true)
+    expect(reopened.canRedo).toBe(true) // «серые» строки выше остаются доступными по Ctrl-Y
+  })
+
   test("undo -> new edit forks the chain: the old tail survives as an orphan branch (VL-D2)", async () => {
     const dir = await makeLogDir()
     const store = createVersionLogStore()
