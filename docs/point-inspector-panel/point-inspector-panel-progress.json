@@ -70,17 +70,21 @@
       "id": "PI1.1",
       "phase": "1. Общее состояние инспектора",
       "title": "Поднять состояние инспектора в singleton-композабл над useSharedGtrackLanes; TracksPanel делегирует edit-point/add-point; старый <aside> временно биндится к общему состоянию (приложение работает на каждом коммите)",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["PI0.2"],
       "artifacts": [
         "GnauralCore/ui/composables/use-point-inspector.ts",
         "GnauralCore/ui/components/TracksPanel.vue"
       ],
       "verify": "bun run typecheck + build (MindWaveCore/ui); bun test ui server (GnauralCore); инлайн-диалог по-прежнему открывается/apply/autosave/delete/add-node/undo работает",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-22T00:00:00Z",
+      "finishedAt": "2026-07-22T00:00:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "use-point-inspector.ts — singleton над useSharedGtrackLanes (detached effectScope), UI-free; TracksPanel ре-экспортит члены под теми же именами, drag/preparse-confirm/thin-wrappers остались в компоненте",
+        "vue-tsc 0; quasar build succeeded; bun test ui server 354/0",
+        "поведение — прямой порт (тот же логический код, шаблон на тех же именах); живой smoke инлайн-диалога отложен на PI2.5"
+      ]
     },
     {
       "id": "PI2.1",
@@ -248,6 +252,10 @@
     {
       "at": "2026-07-22T00:00:00Z",
       "text": "PI0.2: owner подтвердил PI-D5 (хост на AudioPage + общий композабл) и PI-D7 (развязать panel.open от выделения — IDE properties-panel: тумблер в тулбаре, плейсхолдер при 0 вершин, edit-point авто-открывает). Решения закрыты."
+    },
+    {
+      "at": "2026-07-22T00:00:00Z",
+      "text": "PI1.1 done: состояние/логика инспектора вынесены в use-point-inspector.ts (singleton над useSharedGtrackLanes, detached scope, UI-free). TracksPanel сохранил только drag (уйдёт в PI2.4), preparse-confirm ($q/i18n) и тонкие обёртки openPointDialog/onAddPoint, ре-экспортя члены композабла под прежними именами (шаблон/handlers не тронуты). Убраны неиспользуемые импорты reactive/ctrlStepValue. CRLF сохранён. vue-tsc 0, build ok, tests 354/0."
     }
   ]
 }
