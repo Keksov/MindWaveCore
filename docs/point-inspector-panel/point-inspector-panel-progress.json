@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "plan": "point-inspector-panel",
   "planDoc": "docs/point-inspector-panel/point-inspector-panel-plan.md",
-  "title": "point-inspector-panel: рефакторинг диалога «Параметры точки» на стандартный @panel/PanelWindow (float/dock; detach — отдельная PAUSE-фаза)",
-  "status": "active",
+  "title": "point-inspector-panel: рефакторинг диалога «Параметры точки» на стандартный @panel/PanelWindow (float/dock + detach remote-control)",
+  "status": "done",
   "createdAt": "2026-07-22T00:00:00Z",
   "updatedAt": "2026-07-22T00:00:00Z",
   "decisions": [
@@ -252,27 +252,27 @@
       "id": "PI3.4",
       "phase": "3. Detach (remote-control) — gated",
       "title": "Живая проверка detached-окна: два окна в две стороны sync, все жесты доходят до authoritative gtracks, дочернее умирает с родителем, F5 родителя переусыновляет ребёнка",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["PI3.3"],
       "artifacts": [],
       "verify": "прогон в реальном приложении (AppCore/WebView2 + браузер)",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-22T00:00:00Z",
+      "finishedAt": "2026-07-22T00:00:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": ["owner подтвердил живьём («ок») по чек-листу PI3.4: детач-окно, двусторонний sync формы/таблицы, все жесты к authoritative gtracks, autosave-синхрон, lifecycle (умирает с родителем / F5-переусыновление / закрытие из основного), Alt-big-step в дочернем"]
     },
     {
       "id": "PI3.5",
       "phase": "3. Detach (remote-control) — gated",
       "title": "PAUSE: приёмка Фазы 3 (detach) owner",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["PI3.4"],
       "artifacts": [],
       "verify": "явное согласие owner",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-22T00:00:00Z",
+      "finishedAt": "2026-07-22T00:00:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": ["Фаза 3 (detach) принята owner («ок»). Фича point-inspector-panel полностью завершена."]
     }
   ],
   "log": [
@@ -291,6 +291,10 @@
     {
       "at": "2026-07-22T00:00:00Z",
       "text": "Фаза 2 done (PI2.1..PI2.6). «Параметры точки» — теперь AudioPage-hosted PanelWindow (float + 4 дока, allow-detach=false), контент PointInspectorPanel (форма/таблица/плейсхолдер), тумблер tune в тулбаре Треков, edit-point авто-открывает (PI-D7). Старый <aside>+drag+CSS удалены. Owner принял живьём («ок»). vue-tsc 0, build ok, tests 364/0. Осталась Фаза 3 (detach) за отдельным go/stop."
+    },
+    {
+      "at": "2026-07-22T00:00:00Z",
+      "text": "ФИЧА ЗАВЕРШЕНА. Фаза 3 done (PI3.1..PI3.5, detach remote-control по образцу track-list PW5.7): model/actions(+тест)/snapshot, чистый PointInspectorView с input-буфером, in-window адаптер PointInspectorPanel, дочерний PointInspectorRemote (module.ts), Dialog :bridge-state + @panel-event applier, detach включён. Owner принял детач живьём («ок»). vue-tsc 0, build ok, tests 373/0. Итог: диалог «Параметры точки» полностью на стандартном @panel механизме — float/dock/detach. Заметка: инертный старый буфер в use-point-inspector оставлен намеренно (сцеплен с retarget/auto-close watch) — необязательный dedup-проход при желании."
     }
   ]
 }
