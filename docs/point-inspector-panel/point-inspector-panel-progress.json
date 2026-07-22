@@ -90,33 +90,36 @@
       "id": "PI2.1",
       "phase": "2. PanelWindow (float/dock)",
       "title": "PointInspectorPanel.vue — chrome-free контент трёх состояний (single-форма / bulk-table / плейсхолдер «выберите точку» при 0 выделений, PI-D7), body+footer, emits close; удалить drag/inspectorStyle/aside/transition",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["PI1.1"],
-      "artifacts": ["GnauralCore/ui/components/PointInspectorPanel.vue"],
+      "artifacts": ["GnauralCore/ui/components/PointInspectorPanel.vue", "GnauralCore/ui/i18n/ru.json", "GnauralCore/ui/i18n/en.json"],
       "verify": "bun run typecheck + build",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-22T00:00:00Z",
+      "finishedAt": "2026-07-22T00:00:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "PointInspectorPanel.vue — 3 состояния по inspectorMode (single/table/none-плейсхолдер), читает use-point-inspector + useSharedGtrackLanes напрямую, свой scoped CSS (порт из TracksPanel), data-step-field сохранены",
+        "новый ключ i18n gtrackPointInspectorEmpty (ru/en); vue-tsc 0, build ok"
+      ]
     },
     {
       "id": "PI2.2",
       "phase": "2. PanelWindow (float/dock)",
       "title": "Стор point-inspector-panel.ts: usePanelWindowState('point-inspector', {defaultMode:'floating', defaultFloatRect, minFloatW/H})",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["PI1.1"],
       "artifacts": ["GnauralCore/ui/stores/point-inspector-panel.ts"],
       "verify": "bun run typecheck",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-22T00:00:00Z",
+      "finishedAt": "2026-07-22T00:00:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": ["usePanelWindowState('point-inspector', {defaultMode:'floating', defaultDockSize:320, minFloatW:300, minFloatH:260}); default mindwave-panel-point-inspector-* ключи; vue-tsc 0"]
     },
     {
       "id": "PI2.3",
       "phase": "2. PanelWindow (float/dock)",
       "title": "PointInspectorDialog.vue (PanelWindow :allow-detach=false, динамический :title по inspectorMode) в dock-wrap AudioPage рядом с file-open/track-list; свернуть режим в dockWrapClass; тумблер в тулбаре TracksPanel ↔ panel.open (только в gnaural-редакторе, PI-D7); edit-point авто-открывает",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["PI2.1", "PI2.2"],
       "artifacts": [
         "GnauralCore/ui/components/PointInspectorDialog.vue",
@@ -124,10 +127,14 @@
         "GnauralCore/ui/components/TracksPanel.vue"
       ],
       "verify": "bun run typecheck + build; панель открывается на edit-point, float + 4 дока работают",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-22T00:00:00Z",
+      "finishedAt": "2026-07-22T00:00:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "PointInspectorDialog.vue: PanelWindow :allow-detach=false, :title динамически (single/none → «Параметры точки»[+имя голоса], table → счётчик), undo/redo в слоте #titlebar-actions, @close→closeInspector",
+        "AudioPage: Teleport-хост в dock-wrap + pointInspectorFloating + свёртка в dockWrapClass; TracksPanel: тумблер icon=tune (gnaural-only) ↔ pointInspectorPanel.open",
+        "vue-tsc 0; quasar build ok. edit-point-авто-открытие и удаление старого <aside> — в PI2.4"
+      ]
     },
     {
       "id": "PI2.4",
