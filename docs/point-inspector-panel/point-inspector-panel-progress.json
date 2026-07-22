@@ -1,0 +1,253 @@
+{
+  "schemaVersion": 1,
+  "plan": "point-inspector-panel",
+  "planDoc": "docs/point-inspector-panel/point-inspector-panel-plan.md",
+  "title": "point-inspector-panel: рефакторинг диалога «Параметры точки» на стандартный @panel/PanelWindow (float/dock; detach — отдельная PAUSE-фаза)",
+  "status": "active",
+  "createdAt": "2026-07-22T00:00:00Z",
+  "updatedAt": "2026-07-22T00:00:00Z",
+  "decisions": [
+    {
+      "id": "PI-D1",
+      "text": "Механизм = существующий @panel/PanelWindow.vue + usePanelWindowState(panelId, opts) (MindWaveCore/ui/src/components/panel/, alias '@panel'). panelId = 'point-inspector'. Контрол уже универсален и generic по bridgeState+events[] (подтверждено чек-листом репликации PW5.7 в spectrum-settings-panel): для float/dock изменения инфраструктуры @panel НЕ ожидаются. Диалог сейчас — бespoke НЕмодальный перетаскиваемый <aside role=dialog aria-modal=false> внутри GnauralCore/ui/components/TracksPanel.vue (шаблон ~строки 1000-1214, логика ~1438-1706), БЕЗ backdrop (канвас остаётся интерактивным). Вся оконная обвязка (титул, drag, dock-меню, close, resize) уходит в PanelWindow; диалог рендерит только контент."
+    },
+    {
+      "id": "PI-D2",
+      "text": "Стадирование detach (owner 2026-07-22): Фаза 2 = float + 4 дока с allowDetach=false; НАСТОЯЩИЙ detach вынесен в отдельную PAUSE-gated Фазу 3 как remote-control редизайн (snapshot + actions + pure view + remote-адаптер + parent action applier), зеркаля track-list PW5.5→PW5.7. Причина: дочернее окно «Отдельное окно» — отдельный JS-realm (своя копия Vue/Pinia, свой useSharedGtrackLanes) БЕЗ загруженного gnaural-файла (app не восстанавливает последний файл, SF20), поэтому наивный ремоунт даёт пустой инспектор и клоббер per-file localStorage-ключей между окнами (см. PW-D11). Float+dock дают ценность сразу; detach — отдельное решение после приёмки Фазы 2."
+    },
+    {
+      "id": "PI-D3",
+      "text": "Оба режима одного <aside> переезжают в ОДНУ панель (owner 2026-07-22): single ('Параметры точки', форма одной точки, TracksPanel ~1134-1212) и table (bulk-редактор при выделении 2+ вершин, q-markup-table, ~1054-1132). inspectorMode ('single'|'table'|'none') управляет СОДЕРЖИМЫМ (не видимостью — см. PI-D7); заголовок PanelWindow :title переключается динамически (single → i18n gtrackPointDialog='Параметры точки'; table → существующий заголовок bulk-режима; none → 'Параметры точки')."
+    },
+    {
+      "id": "PI-D4",
+      "text": "Стандартная геометрия панели (owner 2026-07-22): отказ от открытия РЯДОМ с кликнутой точкой и от собственного drag титул-бара. Принять persisted floatRect как у всех @panel-панелей (file-open/track-list/spectrum). Удаляются onInspectorDrag*/inspectorStyle/pointerdown-handle, <transition name=gtrack-point-inspector>, сам <aside>. Позиция/размер/режим персистятся штатно per-panelId в localStorage 'mindwave-panel-point-inspector-*'."
+    },
+    {
+      "id": "PI-D5",
+      "text": "РЕШЕНИЕ ПОД СВЕРКУ НА PAUSE PI0.2 — размещение и состояние. Хостить PanelWindow на уровне AudioPage.vue в общем dock-wrap рядом с file-open и track-list, на общем singleton-состоянии, а НЕ внутри TracksPanel. Причины: (a) player-view q-tab-panels без keep-alive — TracksPanel уничтожается при переключении вкладок (PW-D10), панель из него не переживёт смену вкладки; (b) единообразие с track-list (PW5.6c) — полновысотный док в том же доке, что «Открыть файл»; (c) Фаза 3 (detach) требует AudioPage-хостируемый контент-компонент + authoritative общее состояние, поэтому делаем это сразу и избегаем revert-churn PW5.2→PW5.6, о котором команда уже пожалела. Enabler: состояние инспектора (pointDialogTarget, pointForm, inspectorMode/selection, apply/autosave, delete/add-node, undo/redo-with-focus, mono/balance-деривации, fix-prompt для locked-voice) поднимается в общий композабл над singleton useSharedGtrackLanes (PW5.6a). Триггер открытия — GTrackView @edit-point/@add-point внутри TracksPanel — делегируется в общий open. АЛЬТЕРНАТИВА (минимум, на случай veto): хост внутри TracksPanel — меньше кода в Фазе 2, но повторяет known-bad PW5.2-паттерн и требует переноса в Фазе 3."
+    },
+    {
+      "id": "PI-D6",
+      "text": "Тесты/verify: MindWaveCore/ui — bun run typecheck (vue-tsc) + bun run build (quasar). Поднятый общий композабл (PI1.1) держать Pinia-free при создании (useAudioStore читать в момент ВЫЗОВА, как PW5.6b), чтобы покрывался юнит-тестами GnauralCore (bun test ui server). Перед каждым docs(point-inspector-panel)-коммитом леджера — MindWaveCore/server/bun.exe run ../validate-ledger.js docs/point-inspector-panel/point-inspector-panel-progress.json. Мульти-репо: код — GnauralCore (AudioPage/TracksPanel/новые компоненты/стор/module.ts), леджер+план — MindWaveCore/docs; ставить в индекс только свои файлы, коммиты по репам раздельно (см. multi-repo правило)."
+    },
+    {
+      "id": "PI-D7",
+      "text": "Развязать panel.open от выделения — модель IDE properties-panel (owner 2026-07-22). panel.open УПРАВЛЯЕТСЯ ПОЛЬЗОВАТЕЛЕМ (тумблер в тулбаре TracksPanel + кнопка close панели), НЕ выделением. Содержимое по выделению: 1 вершина → single-форма; 2+ → bulk-таблица; 0 → плейсхолдер «выберите точку» (inspectorMode='none', но панель ОСТАЁТСЯ открытой/в доке). GTrackView @edit-point АВТО-ОТКРЫВАЕТ панель, если закрыта (сохраняя текущее удобство «клик по точке → редактор»). Тумблер: только там, где точки существуют (gnaural-редактор) — в отличие от track-list он НЕ un-gated. Следствие: closeInspector больше НЕ трогает panel.open (только сбрасывает выделение при нужде); panel.open персистится штатно per-panelId."
+    }
+  ],
+  "steps": [
+    {
+      "id": "PI0.1",
+      "phase": "0. Планирование",
+      "title": "Написать план + леджер (решения PI-D1..PI-D7, фазы, риски, verify)",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [
+        "MindWaveCore/docs/point-inspector-panel/point-inspector-panel-plan.md",
+        "MindWaveCore/docs/point-inspector-panel/point-inspector-panel-progress.json"
+      ],
+      "verify": "validate-ledger.js зелёный; owner прочёл решения",
+      "startedAt": "2026-07-22T00:00:00Z",
+      "finishedAt": "2026-07-22T00:00:00Z",
+      "blockedReason": null,
+      "evidence": ["validate-ledger.js: OK, 14 steps, 7 decisions, DAG acyclic, no stale statuses"]
+    },
+    {
+      "id": "PI0.2",
+      "phase": "0. Планирование",
+      "title": "PAUSE: owner подтверждает решения — особенно PI-D5 (хостинг на AudioPage + общий композабл) и PI-D2 (detach отдельной фазой)",
+      "status": "done",
+      "dependsOn": ["PI0.1"],
+      "artifacts": [],
+      "verify": "явное согласие owner в чате",
+      "startedAt": "2026-07-22T00:00:00Z",
+      "finishedAt": "2026-07-22T00:00:00Z",
+      "blockedReason": null,
+      "evidence": ["owner подтвердил PI-D5 (AudioPage) и PI-D7 (развязать open×выделение); PI-D2 detach отдельной фазой"]
+    },
+    {
+      "id": "PI1.1",
+      "phase": "1. Общее состояние инспектора",
+      "title": "Поднять состояние инспектора в singleton-композабл над useSharedGtrackLanes; TracksPanel делегирует edit-point/add-point; старый <aside> временно биндится к общему состоянию (приложение работает на каждом коммите)",
+      "status": "pending",
+      "dependsOn": ["PI0.2"],
+      "artifacts": [
+        "GnauralCore/ui/composables/use-point-inspector.ts",
+        "GnauralCore/ui/components/TracksPanel.vue"
+      ],
+      "verify": "bun run typecheck + build (MindWaveCore/ui); bun test ui server (GnauralCore); инлайн-диалог по-прежнему открывается/apply/autosave/delete/add-node/undo работает",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PI2.1",
+      "phase": "2. PanelWindow (float/dock)",
+      "title": "PointInspectorPanel.vue — chrome-free контент трёх состояний (single-форма / bulk-table / плейсхолдер «выберите точку» при 0 выделений, PI-D7), body+footer, emits close; удалить drag/inspectorStyle/aside/transition",
+      "status": "pending",
+      "dependsOn": ["PI1.1"],
+      "artifacts": ["GnauralCore/ui/components/PointInspectorPanel.vue"],
+      "verify": "bun run typecheck + build",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PI2.2",
+      "phase": "2. PanelWindow (float/dock)",
+      "title": "Стор point-inspector-panel.ts: usePanelWindowState('point-inspector', {defaultMode:'floating', defaultFloatRect, minFloatW/H})",
+      "status": "pending",
+      "dependsOn": ["PI1.1"],
+      "artifacts": ["GnauralCore/ui/stores/point-inspector-panel.ts"],
+      "verify": "bun run typecheck",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PI2.3",
+      "phase": "2. PanelWindow (float/dock)",
+      "title": "PointInspectorDialog.vue (PanelWindow :allow-detach=false, динамический :title по inspectorMode) в dock-wrap AudioPage рядом с file-open/track-list; свернуть режим в dockWrapClass; тумблер в тулбаре TracksPanel ↔ panel.open (только в gnaural-редакторе, PI-D7); edit-point авто-открывает",
+      "status": "pending",
+      "dependsOn": ["PI2.1", "PI2.2"],
+      "artifacts": [
+        "GnauralCore/ui/components/PointInspectorDialog.vue",
+        "GnauralCore/ui/pages/AudioPage.vue",
+        "GnauralCore/ui/components/TracksPanel.vue"
+      ],
+      "verify": "bun run typecheck + build; панель открывается на edit-point, float + 4 дока работают",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PI2.4",
+      "phase": "2. PanelWindow (float/dock)",
+      "title": "Удалить старый <aside> + onInspectorDrag*/inspectorStyle/transition из TracksPanel; открытие/закрытие теперь через panel.open + общий open/close",
+      "status": "pending",
+      "dependsOn": ["PI2.3"],
+      "artifacts": ["GnauralCore/ui/components/TracksPanel.vue"],
+      "verify": "bun run typecheck + build; grep: нет остатков inspectorStyle/gtrack-point-inspector",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PI2.5",
+      "phase": "2. PanelWindow (float/dock)",
+      "title": "Живая проверка: float + 4 дока; apply/autosave/delete-node/add-node-right/undo-redo; table-режим (2+ вершин); mono→скрытый balance; переключение вкладок не роняет панель",
+      "status": "pending",
+      "dependsOn": ["PI2.4"],
+      "artifacts": [],
+      "verify": "прогон в реальном приложении (owner-подтверждение живьём) + typecheck/build зелёные",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PI2.6",
+      "phase": "2. PanelWindow (float/dock)",
+      "title": "PAUSE: приёмка Фазы 2; owner даёт greenlight на Фазу 3 (detach) или закрывает фичу на float/dock",
+      "status": "pending",
+      "dependsOn": ["PI2.5"],
+      "artifacts": [],
+      "verify": "явное согласие owner",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PI3.1",
+      "phase": "3. Detach (remote-control) — gated",
+      "title": "Сериализуемый snapshot (target/form/mode/selection/mono) + каталог serializable actions (apply-field/autosave/delete/add-node/undo/redo/select) для bridge",
+      "status": "pending",
+      "dependsOn": ["PI2.6"],
+      "artifacts": [
+        "GnauralCore/ui/composables/point-inspector-snapshot.ts",
+        "GnauralCore/ui/composables/point-inspector-actions.ts"
+      ],
+      "verify": "bun run typecheck; bun test ui server",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PI3.2",
+      "phase": "3. Detach (remote-control) — gated",
+      "title": "Pure view (рендер из snapshot, один @action на жест) + in-window адаптер + remote-адаптер (дочернее окно); зарегистрировать в GnauralCore/ui/module.ts panels[] {id:'point-inspector', titleKey, icon, component, events:['action']}",
+      "status": "pending",
+      "dependsOn": ["PI3.1"],
+      "artifacts": [
+        "GnauralCore/ui/components/PointInspectorView.vue",
+        "GnauralCore/ui/components/PointInspectorRemote.vue",
+        "GnauralCore/ui/module.ts"
+      ],
+      "verify": "bun run typecheck + build; дочернее окно рендерит панель (нет 'Неизвестная панель')",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PI3.3",
+      "phase": "3. Detach (remote-control) — gated",
+      "title": "Parent action applier поверх authoritative gtracks; :bridge-state=snapshot в PointInspectorDialog; @panel-event → apply; снять allowDetach=false (стало true)",
+      "status": "pending",
+      "dependsOn": ["PI3.2"],
+      "artifacts": [
+        "GnauralCore/ui/components/PointInspectorDialog.vue",
+        "GnauralCore/ui/composables/use-point-inspector.ts"
+      ],
+      "verify": "bun run typecheck + build",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PI3.4",
+      "phase": "3. Detach (remote-control) — gated",
+      "title": "Живая проверка detached-окна: два окна в две стороны sync, все жесты доходят до authoritative gtracks, дочернее умирает с родителем, F5 родителя переусыновляет ребёнка",
+      "status": "pending",
+      "dependsOn": ["PI3.3"],
+      "artifacts": [],
+      "verify": "прогон в реальном приложении (AppCore/WebView2 + браузер)",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PI3.5",
+      "phase": "3. Detach (remote-control) — gated",
+      "title": "PAUSE: приёмка Фазы 3 (detach) owner",
+      "status": "pending",
+      "dependsOn": ["PI3.4"],
+      "artifacts": [],
+      "verify": "явное согласие owner",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    }
+  ],
+  "log": [
+    {
+      "at": "2026-07-22T00:00:00Z",
+      "text": "Создан план+леджер. Разведка: диалог «Параметры точки» — bespoke <aside> в TracksPanel.vue (single+table режимы, in-memory gtracks+undo). Механизм @panel/PanelWindow готов; прецедент PW-D11/PW5.7 (track-list) даёт точный шаблон detach. Квиз owner: float/dock сначала + detach отдельной фазой; оба режима в панель; стандартная геометрия."
+    },
+    {
+      "at": "2026-07-22T00:00:00Z",
+      "text": "PI0.2: owner подтвердил PI-D5 (хост на AudioPage + общий композабл) и PI-D7 (развязать panel.open от выделения — IDE properties-panel: тумблер в тулбаре, плейсхолдер при 0 вершин, edit-point авто-открывает). Решения закрыты."
+    }
+  ]
+}
