@@ -161,15 +161,15 @@
       "id": "BM2.1",
       "phase": 2,
       "title": "Чистый merge-планировщик planBranchMerge: base/ours/theirs, точка-уровнево по id + legacy fallback голос-уровнево, список конфликтов, применение выборов. Юниты M1..M5.",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["BM1.4"],
       "artifacts": [
         "GnauralCore/ui/composables/undo-branch-merge.ts",
         "GnauralCore/ui/composables/undo-branch-merge.test.ts"
       ],
-      "verify": "GnauralCore bun test ui server — 0 fail (юниты M1..M5).",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "PASSED: GnauralCore bun test ui server — 364/0 (10 новых юнитов планировщика: M1 дизъюнктный, M2 конфликты точек/одинаковые правки/edit-vs-delete, смешанный auto+конфликт, M4 legacy целым голосом, locked-голос, canMergeBranch M5).",
+      "startedAt": "2026-07-22",
+      "finishedAt": "2026-07-22",
       "blockedReason": null,
       "evidence": []
     },
