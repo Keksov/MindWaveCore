@@ -177,7 +177,7 @@
       "id": "BM2.2",
       "phase": 2,
       "title": "UI: «Влить в текущую» на строке ветки (нижняя секция + inline), диалог конфликтов («моя / из ветки» по точке; legacy — по голосу), применение одной транзакцией kind='merge', notify итога, обновление списка веток; i18n ru/en; CRLF lanes.",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["BM2.1"],
       "artifacts": [
         "GnauralCore/ui/composables/use-gtrack-lanes.ts",
@@ -185,9 +185,9 @@
         "GnauralCore/ui/i18n/ru.json",
         "GnauralCore/ui/i18n/en.json"
       ],
-      "verify": "GnauralCore bun test ui server — 0 fail; vue-tsc + build — 0; perl CRLF-чек lanes — 0.",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "PASSED: GnauralCore 364/0; vue-tsc 0; build 0; CRLF lanes 0.",
+      "startedAt": "2026-07-22",
+      "finishedAt": "2026-07-22",
       "blockedReason": null,
       "evidence": []
     },
