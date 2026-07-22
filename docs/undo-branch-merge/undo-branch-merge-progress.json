@@ -216,7 +216,7 @@
       "id": "BM2.4",
       "phase": 2,
       "title": "PAUSE: финальная приёмка — мердж чистой ветки, мердж с конфликтом через диалог, Ctrl-Z отката мерджа, legacy-ветка wakeup, ветка остаётся в списке.",
-      "status": "pending",
+      "status": "active",
       "dependsOn": ["BM2.3"],
       "artifacts": [],
       "verify": "Владелец подтверждает.",
