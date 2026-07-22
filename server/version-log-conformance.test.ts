@@ -18,6 +18,13 @@ import {
   planUndoLogAdoption,
   stepToCommitInput,
 } from "../../GnauralCore/ui/composables/undo-log-adoption"
+import {
+  canMergeBranch,
+  mergeConflictKey,
+  planBranchMerge,
+  resolveBranchMerge,
+  type MergeChoice,
+} from "../../GnauralCore/ui/composables/undo-branch-merge"
 import { createVersionLogStore, type VersionLogStore } from "./version-log-store"
 
 const fixtureRoots: string[] = []
@@ -489,6 +496,187 @@ describe("S13: session round-trips over the real store", () => {
       model.historySteps[0]!.id,
       anchor.cid,
     ])
+  })
+})
+
+// BM2.3 (req 8): the FULL merge flow over the real store, mirroring the lanes wiring 1:1 —
+// reconstruction of base/theirs from the log, the pure plan, the choices, one kind='merge'
+// transaction, and the log/branch invariants after it. No Vue, no owner in the loop.
+describe("M: branch merge over the real store (undo-branch-merge)", () => {
+  /** The lanes' reconstructLogStateAt, mirrored: snapshot anchor + redo of the deltas above. */
+  const reconstructAt = async (store: VersionLogStore, dir: string, cid: string): Promise<GTrackModel> => {
+    const chain = await store.readChain(dir, { from: cid, untilType: "snapshot", limit: 300 })
+    const anchor = chain.commits[chain.commits.length - 1]!
+    expect(anchor.type).toBe("snapshot")
+    const payload = anchor.payload as { sig: string; schedule: GnauralScheduleData }
+    const temp = new GTrackModel(payload.schedule, [], createGTrackHistory())
+    expect(temp.currentSignature).toBe(payload.sig)
+    const steps = [...chain.commits]
+      .reverse()
+      .filter((aCommit) => aCommit.type === "delta")
+      .map((aCommit) => commitToStep(aCommit)!)
+    if (steps.length > 0) {
+      expect(temp.adoptUndoJournal({ version: 3, currentSig: temp.currentSignature, cursor: 0, steps })).toBe(true)
+      while (temp.canRedo) {
+        expect(temp.redo()).toBe(true)
+      }
+    }
+    return temp
+  }
+
+  test("M1+M3 e2e: a clean merge composes both lines in ONE undoable kind='merge' commit; the branch stays", async () => {
+    const dir = await makeLogDir()
+    const store = createVersionLogStore()
+    const fileData = fixture()
+
+    // Session: edit point 2 (the branch-to-be), fork off with an edit of point 0.
+    const model = new GTrackModel(fileData, [], createGTrackHistory())
+    const sync = new SessionSync(store, dir, null)
+    await sync.pushBaseline(model.savedSignature, model.toScheduleWithIds())
+    editPoint(model, 2, 230)
+    await sync.pushDeltas(model, 0)
+    model.undo()
+    editPoint(model, 0, 240)
+    sync.positions.length = 1
+    await sync.pushDeltas(model, 0)
+    await sync.syncHead(model)
+
+    const branches = await store.listBranches(dir)
+    expect(branches.length).toBe(1)
+    const branch = branches[0]!
+    expect(canMergeBranch(branch)).toBe("ok")
+
+    // The lanes flow: reconstruct base + theirs, plan against the LIVE model, apply.
+    const base = await reconstructAt(store, dir, branch.forkParent!)
+    const theirs = await reconstructAt(store, dir, branch.tip)
+    const plan = planBranchMerge(base.schedule, model.schedule, theirs.schedule)
+    expect(plan.conflicts).toEqual([])
+    expect(plan.lockedVoiceIds).toEqual([])
+    const resolved = resolveBranchMerge(model.schedule, plan)
+    expect(resolved.length).toBe(1)
+
+    const stepsBefore = model.historySteps.length
+    const preMergeSig = model.currentSignature
+    model.edit(() => {
+      for (const v of resolved) model.replaceVoicePoints(v.voiceId, v.points)
+    }, "merge")
+
+    // M1: both lines composed — ours' point 0 edit kept, the branch's point 2 edit merged in.
+    const points = model.schedule.voices[0]!.points
+    expect(points[0]!.baseFreq).toBe(240)
+    expect(points[2]!.baseFreq).toBe(230)
+
+    // M3: exactly one history step, kind merge, Ctrl-Z rolls the whole merge back.
+    expect(model.historySteps.length).toBe(stepsBefore + 1)
+    expect(model.historySteps[model.historySteps.length - 1]!.kind).toBe("merge")
+    await sync.pushDeltas(model, stepsBefore)
+    expect(model.undo()).toBe(true)
+    expect(model.currentSignature).toBe(preMergeSig)
+    expect(model.redo()).toBe(true)
+
+    // M3: the log is append-only — the merge ADDED one commit, the branch is still listed.
+    const after = await store.listBranches(dir)
+    expect(after.map((aBranch) => aBranch.tip)).toEqual([branch.tip])
+  })
+
+  test("M2 e2e: the same point changed on both sides — the dialog choice «из ветки» wins exactly", async () => {
+    const dir = await makeLogDir()
+    const store = createVersionLogStore()
+    const fileData = fixture()
+
+    const model = new GTrackModel(fileData, [], createGTrackHistory())
+    const sync = new SessionSync(store, dir, null)
+    await sync.pushBaseline(model.savedSignature, model.toScheduleWithIds())
+    editPoint(model, 1, 222) // the branch-to-be edits point 1
+    await sync.pushDeltas(model, 0)
+    model.undo()
+    editPoint(model, 1, 333) // ours edits the SAME point differently
+    sync.positions.length = 1
+    await sync.pushDeltas(model, 0)
+    await sync.syncHead(model)
+
+    const branch = (await store.listBranches(dir))[0]!
+    const base = await reconstructAt(store, dir, branch.forkParent!)
+    const theirs = await reconstructAt(store, dir, branch.tip)
+    const plan = planBranchMerge(base.schedule, model.schedule, theirs.schedule)
+    expect(plan.conflicts.length).toBe(1)
+    expect(plan.conflicts[0]!.kind).toBe("point")
+
+    // Default (all «моя версия») -> the merge is a no-op.
+    expect(resolveBranchMerge(model.schedule, plan)).toEqual([])
+
+    // «Из ветки» -> the branch value lands, applied as one merge commit.
+    const choices = new Map<string, MergeChoice>([[mergeConflictKey(plan.conflicts[0]!), "theirs"]])
+    const resolved = resolveBranchMerge(model.schedule, plan, choices)
+    expect(resolved.length).toBe(1)
+    model.edit(() => {
+      for (const v of resolved) model.replaceVoicePoints(v.voiceId, v.points)
+    }, "merge")
+    expect(model.schedule.voices[0]!.points[1]!.baseFreq).toBe(222)
+  })
+
+  test("M4 e2e: a LEGACY branch (old voice-form wire deltas) merges voice-level", async () => {
+    const dir = await makeLogDir()
+    const store = createVersionLogStore()
+    const fileData = fixture()
+
+    // Hand-build the old wire: an id-less baseline + one legacy voice-delta commit, then fork
+    // the line off the baseline so the legacy commit becomes a branch.
+    const refModel = new GTrackModel(fileData, [], createGTrackHistory())
+    const stripVoiceIds = (aVoice: unknown): unknown => {
+      const copy = JSON.parse(JSON.stringify(aVoice)) as { points: { id?: string }[] }
+      for (const p of copy.points) delete p.id
+      return copy
+    }
+    const beforeVoice = stripVoiceIds(refModel.schedule.voices[0]!)
+    refModel.edit(() => refModel.setPointField(7, 1, "baseFreq", 275))
+    const afterVoice = stripVoiceIds(refModel.schedule.voices[0]!)
+
+    const baseCid = "legacy-base"
+    await store.append(dir, [
+      { cid: baseCid, parent: null, type: "snapshot", atMs: 1, payload: { sig: refModel.savedSignature, schedule: fileData } },
+      {
+        cid: "legacy-delta",
+        parent: baseCid,
+        type: "delta",
+        atMs: 2,
+        payload: { kind: "point-edit", label: "voice", voices: [{ voiceId: 7, before: beforeVoice, after: afterVoice }] },
+      },
+    ], { advanceMain: true })
+    // Fork: a fresh line off the baseline moves main — the legacy delta becomes the branch.
+    const live = new GTrackModel(fileData, [], createGTrackHistory())
+    await store.append(dir, [stepToCommitInput({ id: "line-1", kind: "point-move", label: "voice", atMs: 3, voices: [] }, baseCid)], { advanceMain: true })
+
+    const branch = (await store.listBranches(dir))[0]!
+    expect(branch.tip).toBe("legacy-delta")
+    const base = await reconstructAt(store, dir, branch.forkParent!)
+    const theirs = await reconstructAt(store, dir, branch.tip)
+
+    // Three different id spaces (live/file, base/file re-parse, theirs/normalized) -> voice-level.
+    const plan = planBranchMerge(base.schedule, live.schedule, theirs.schedule)
+    expect(plan.conflicts).toEqual([]) // ours untouched -> clean take-theirs
+    const resolved = resolveBranchMerge(live.schedule, plan)
+    expect(resolved.length).toBe(1)
+    live.edit(() => {
+      for (const v of resolved) live.replaceVoicePoints(v.voiceId, v.points)
+    }, "merge")
+    expect(live.schedule.voices[0]!.points[1]!.baseFreq).toBe(275)
+  })
+
+  test("M5 e2e: a graft-rooted branch reports no-base and is refused before any reconstruction", async () => {
+    const dir = await makeLogDir()
+    const store = createVersionLogStore()
+    const stored = (aCid: string, aParent: string | null, aSeq: number): ProjectUndoLogCommit => {
+      return { cid: aCid, parent: aParent, type: "delta", atMs: aSeq * 10, payload: { kind: "point-move", label: "v", voices: [] }, seq: aSeq }
+    }
+    await store.importLog(
+      dir,
+      [stored("A", null, 1), stored("B", "A", 2), stored("C", null, 3), stored("D", "C", 4)],
+      { main: "B", head: null, tags: {} },
+    )
+    const branch = (await store.listBranches(dir)).find((aBranch) => aBranch.tip === "D")!
+    expect(branch.forkParent).toBeNull()
+    expect(canMergeBranch(branch)).toBe("no-base")
   })
 })
 

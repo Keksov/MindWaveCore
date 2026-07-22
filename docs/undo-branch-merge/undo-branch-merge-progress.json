@@ -195,16 +195,22 @@
       "id": "BM2.3",
       "phase": 2,
       "title": "Конформанс E2E мерджа: реальная сессия с форком → merge (чистый и с конфликтом) → эквивалентность реконструкции; legacy-ветка голос-уровнево; M3 (один коммит, Ctrl-Z, ветка на месте).",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["BM2.2"],
       "artifacts": [
         "MindWaveCore/server/version-log-conformance.test.ts"
       ],
-      "verify": "MindWaveCore/server ./bun.exe test — 0 fail.",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "PASSED: MindWaveCore/server ./bun.exe test — 138/0 (12 конформанс-тестов, из них 4 новых merge-E2E); GnauralCore — 364/0.",
+      "startedAt": "2026-07-22",
+      "finishedAt": "2026-07-22",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "M1+M3: чистый мердж — композиция обеих линий ОДНИМ kind='merge' коммитом; Ctrl-Z откатывает целиком; merge-коммит уходит в лог point-формой; лог append-only, ветка остаётся в списке.",
+        "M2: конфликт одной точки — дефолт (все «моя версия») = no-op; выбор «из ветки» применяет значение ветки точно.",
+        "M4: рукотворный старый wire (id-less voice-дельта в payload) — три разных id-пространства → voice-уровень; ours==base → чистое взятие ветки.",
+        "M5: graft-ветка (forkParent=null через importLog) — canMergeBranch='no-base' до любых реконструкций.",
+        "reconstructAt в тесте — зеркало lanes reconstructLogStateAt 1:1 (якорь-снапшот + redo дельт)."
+      ]
     },
     {
       "id": "BM2.4",
