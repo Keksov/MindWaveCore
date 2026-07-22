@@ -79,17 +79,23 @@
       "id": "BM1.2",
       "phase": 1,
       "title": "Point-дельты шагов: новая форма дельты (изменённые точки по id, null = вставка/удаление), сбор в транзакции, undo/redo применение по id, describeStepChanges на id; чтение старых voice-дельт (совместимость навсегда). Юниты P3/P4 + размер-тест.",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["BM1.1"],
       "artifacts": [
         "GnauralCore/ui/composables/gtrack-model.ts",
         "GnauralCore/ui/composables/gtrack-model.test.ts"
       ],
-      "verify": "GnauralCore bun test ui server — 0 fail; размер-тест P3 (одноточечная правка на голосе 200 точек — payload на порядок меньше voice-дельты).",
-      "startedAt": null,
-      "finishedAt": null,
+      "verify": "PASSED: GnauralCore bun test ui server — 354/0 (59 модельных, +4 новых P3/P4/BM-D4/round-trip); MindWaveCore/server — 133/0 (конформанс 7/0 после ребейз-фиксов); vue-tsc — 0.",
+      "startedAt": "2026-07-22",
+      "finishedAt": "2026-07-22",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Новая форма: GTrackPointDelta {id, before/beforeIndex, after/afterIndex} + GTrackVoicePointsDelta {voiceId, description, points}; GTrackUndoStep.voices — union с legacy voice-дельтой (isPointsDelta-дискриминатор). commitEdit диффит по id (diffVoicePoints); non-point изменения (fix-preparse) остаются voice-формой.",
+        "applyPointsDeltaSide: тронутые id извлекаются, целевые точки сплайсятся по записанным индексам — порядок восстанавливается байт-точно даже через crossover-пересортировку (P4-тест: сигнатуры всех промежуточных состояний совпадают на undo/redo туда-обратно).",
+        "P3: одноточечная правка на голосе из 201 точки — payload шага в ~50+ раз меньше пары целых голосов (порог теста ×10 с запасом). describeStepChanges для point-формы — точный дифф по id без позиционных догадок; isGTrackUndoJournal принимает обе формы.",
+        "ВАЖНОЕ открытие (конформанс поймал на живом сценарии рестарта): id-пространство модели (свежие id из файла) должно совпадать с id лога — добавлен GTrackModel.rebasePointIds(reference) (позиционный ребейз с гейтом по сигнатуре, без undo-шага); конформанс-SessionSync переведён на id-несущие снапшоты (toScheduleWithIds) и ребейз перед адопцией — 3 упавших S13/B9-теста стали зелёными. Провод lanes на ту же схему — BM1.3.",
+        "Кросс-модельная адопция point-дельт «на свежие id» не поддерживается по построению — round-trip-тест переписан на поддерживаемую семантику (target из toScheduleWithIds); legacy voice-дельты id-независимы (BM-D4-тест на рукотворном старом журнале)."
+      ]
     },
     {
       "id": "BM1.3",

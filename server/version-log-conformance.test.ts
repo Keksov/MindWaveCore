@@ -124,7 +124,7 @@ class SessionSync {
       parent: this.positions[position]!,
       type: "snapshot",
       atMs: 2,
-      payload: { sig: model.currentSignature, schedule: model.toSchedule() },
+      payload: { sig: model.currentSignature, schedule: model.toScheduleWithIds() }, // BM-D2: anchors carry point ids
     }
     this.positions[position] = cid
     await this.appendOk([commit])
@@ -149,6 +149,14 @@ const editPoint = (model: GTrackModel, index: number, value: number): void => {
   model.edit(() => model.setPointField(7, index, "baseFreq", value))
 }
 
+/** BM-D2/BM1.3: a restart builds the model from the FILE (fresh point ids); before adopting the
+ *  log's point-form deltas the model rebases onto the anchor snapshot's ids — the same move the
+ *  lanes restore performs. */
+const rebaseFromAnchor = (model: GTrackModel, commits: readonly ProjectUndoLogCommit[], anchorCid: string): void => {
+  const anchor = commits.find((c) => c.cid === anchorCid)!
+  expect(model.rebasePointIds((anchor.payload as { schedule: GnauralScheduleData }).schedule)).toBe(true)
+}
+
 describe("S13: session round-trips over the real store", () => {
   test("edit -> save -> edit tail -> restart: undo window + redo tail reconstruct exactly", async () => {
     const dir = await makeLogDir()
@@ -158,7 +166,7 @@ describe("S13: session round-trips over the real store", () => {
     // --- session A ---
     const modelA = new GTrackModel(fileData, [], createGTrackHistory())
     const sync = new SessionSync(store, dir, null)
-    await sync.pushBaseline(modelA.savedSignature, fileData)
+    await sync.pushBaseline(modelA.savedSignature, modelA.toScheduleWithIds())
 
     editPoint(modelA, 0, 210)
     editPoint(modelA, 1, 220)
@@ -186,6 +194,7 @@ describe("S13: session round-trips over the real store", () => {
     const modelB = new GTrackModel(savedData, [], createGTrackHistory())
     const plan = planUndoLogAdoption(chain.commits, modelB.currentSignature)
     expect(plan).not.toBeNull()
+    rebaseFromAnchor(modelB, chain.commits, plan!.anchorCid)
     expect(modelB.adoptUndoJournal(plan!.journal)).toBe(true)
 
     // The window: 3 undo steps below the anchor, 2 redo steps above it (the unsaved tail).
@@ -215,7 +224,7 @@ describe("S13: session round-trips over the real store", () => {
 
     const model = new GTrackModel(fileData, [], createGTrackHistory())
     const sync = new SessionSync(store, dir, null)
-    await sync.pushBaseline(model.savedSignature, fileData)
+    await sync.pushBaseline(model.savedSignature, model.toScheduleWithIds())
     editPoint(model, 0, 300)
     await sync.pushDeltas(model, 0)
     const saveCid = await sync.pushSaveSnapshot(model)
@@ -244,7 +253,7 @@ describe("S13: session round-trips over the real store", () => {
     // race or never fire) — exactly the owner's acceptance repro.
     const model = new GTrackModel(fileData, [], createGTrackHistory())
     const sync = new SessionSync(store, dir, null)
-    await sync.pushBaseline(model.savedSignature, fileData)
+    await sync.pushBaseline(model.savedSignature, model.toScheduleWithIds())
     editPoint(model, 0, 210)
     editPoint(model, 1, 220)
     await sync.pushDeltas(model, 0)
@@ -257,6 +266,7 @@ describe("S13: session round-trips over the real store", () => {
     const reopened = new GTrackModel(savedData, [], createGTrackHistory())
     const plan = planUndoLogAdoption(chain.commits, reopened.currentSignature)
     expect(plan).not.toBeNull()
+    rebaseFromAnchor(reopened, chain.commits, plan!.anchorCid)
     expect(reopened.adoptUndoJournal(plan!.journal)).toBe(true)
     expect(reopened.historySteps.length).toBe(2)
     expect(reopened.historyCursor).toBe(2)
@@ -276,7 +286,7 @@ describe("S13: session round-trips over the real store", () => {
 
     const model = new GTrackModel(fileData, [], createGTrackHistory())
     const sync = new SessionSync(store, dir, null)
-    await sync.pushBaseline(model.savedSignature, fileData)
+    await sync.pushBaseline(model.savedSignature, model.toScheduleWithIds())
     editPoint(model, 0, 210)
     await sync.pushDeltas(model, 0)
     const savedData = model.toSchedule()
@@ -293,6 +303,7 @@ describe("S13: session round-trips over the real store", () => {
     const reopened = new GTrackModel(savedData, [], createGTrackHistory())
     const plan = planUndoLogAdoption(chain.commits, reopened.currentSignature)
     expect(plan).not.toBeNull()
+    rebaseFromAnchor(reopened, chain.commits, plan!.anchorCid)
     expect(reopened.adoptUndoJournal(plan!.journal)).toBe(true)
     // The last action is present — as the redo tail above the saved anchor.
     expect(reopened.historySteps.map((s) => s.id)).toContain(lastActionId)
@@ -310,7 +321,7 @@ describe("S13: session round-trips over the real store", () => {
     // Session: 4 edits, undo 3 of them, Save at position 1, exit.
     const model = new GTrackModel(fileData, [], createGTrackHistory())
     const sync = new SessionSync(store, dir, null)
-    await sync.pushBaseline(model.savedSignature, fileData)
+    await sync.pushBaseline(model.savedSignature, model.toScheduleWithIds())
     editPoint(model, 0, 210)
     editPoint(model, 1, 220)
     editPoint(model, 2, 230)
@@ -328,7 +339,7 @@ describe("S13: session round-trips over the real store", () => {
     const parent = sync.positions[model.historyCursor]!
     const appended = await store.append(
       dir,
-      [{ cid: midCid, parent, type: "snapshot", atMs: 9, payload: { sig: model.currentSignature, schedule: savedData } }],
+      [{ cid: midCid, parent, type: "snapshot", atMs: 9, payload: { sig: model.currentSignature, schedule: model.toScheduleWithIds() } }],
       { advanceMain: false },
     )
     expect(appended.rejectedFrom).toBeNull()
@@ -345,6 +356,7 @@ describe("S13: session round-trips over the real store", () => {
     const plan = planUndoLogAdoption(mainChain.commits, reopened.currentSignature, headChain.commits)
     expect(plan).not.toBeNull()
     expect(plan!.anchorCid).toBe(midCid)
+    rebaseFromAnchor(reopened, headChain.commits, plan!.anchorCid)
     expect(reopened.adoptUndoJournal(plan!.journal)).toBe(true)
 
     // The owner's «три серые строчки»: cursor at the saved position, the redo tail alive.
@@ -362,7 +374,7 @@ describe("S13: session round-trips over the real store", () => {
 
     const model = new GTrackModel(fileData, [], createGTrackHistory())
     const sync = new SessionSync(store, dir, null)
-    await sync.pushBaseline(model.savedSignature, fileData)
+    await sync.pushBaseline(model.savedSignature, model.toScheduleWithIds())
     editPoint(model, 0, 210)
     editPoint(model, 1, 220)
     await sync.pushDeltas(model, 0)
@@ -393,7 +405,7 @@ describe("S13: session round-trips over the real store", () => {
     // A session: baseline + 3 edits, then undo×2 and a different edit — the log forks.
     const model = new GTrackModel(fileData, [], createGTrackHistory())
     const sync = new SessionSync(store, dir, null)
-    await sync.pushBaseline(model.savedSignature, fileData)
+    await sync.pushBaseline(model.savedSignature, model.toScheduleWithIds())
     editPoint(model, 0, 210)
     editPoint(model, 1, 220)
     editPoint(model, 2, 230)
