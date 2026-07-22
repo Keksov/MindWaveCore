@@ -157,27 +157,27 @@
       "id": "PI2.5",
       "phase": "2. PanelWindow (float/dock)",
       "title": "Живая проверка: float + 4 дока; apply/autosave/delete-node/add-node-right/undo-redo; table-режим (2+ вершин); mono→скрытый balance; переключение вкладок не роняет панель",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["PI2.4"],
       "artifacts": [],
       "verify": "прогон в реальном приложении (owner-подтверждение живьём) + typecheck/build зелёные",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-22T00:00:00Z",
+      "finishedAt": "2026-07-22T00:00:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": ["owner подтвердил живьём («ок») по чек-листу PI2.5: авто-открытие на edit-point, тумблер+плейсхолдер, float+4 дока, single/table/mono, cross-tab persist"]
     },
     {
       "id": "PI2.6",
       "phase": "2. PanelWindow (float/dock)",
       "title": "PAUSE: приёмка Фазы 2; owner даёт greenlight на Фазу 3 (detach) или закрывает фичу на float/dock",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["PI2.5"],
       "artifacts": [],
       "verify": "явное согласие owner",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-22T00:00:00Z",
+      "finishedAt": "2026-07-22T00:00:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": ["Фаза 2 принята owner («ок»). Решение go/stop по Фазе 3 (detach, remote-control) запрошено отдельно."]
     },
     {
       "id": "PI3.1",
@@ -267,6 +267,10 @@
     {
       "at": "2026-07-22T00:00:00Z",
       "text": "PI1.1 done: состояние/логика инспектора вынесены в use-point-inspector.ts (singleton над useSharedGtrackLanes, detached scope, UI-free). TracksPanel сохранил только drag (уйдёт в PI2.4), preparse-confirm ($q/i18n) и тонкие обёртки openPointDialog/onAddPoint, ре-экспортя члены композабла под прежними именами (шаблон/handlers не тронуты). Убраны неиспользуемые импорты reactive/ctrlStepValue. CRLF сохранён. vue-tsc 0, build ok, tests 354/0."
+    },
+    {
+      "at": "2026-07-22T00:00:00Z",
+      "text": "Фаза 2 done (PI2.1..PI2.6). «Параметры точки» — теперь AudioPage-hosted PanelWindow (float + 4 дока, allow-detach=false), контент PointInspectorPanel (форма/таблица/плейсхолдер), тумблер tune в тулбаре Треков, edit-point авто-открывает (PI-D7). Старый <aside>+drag+CSS удалены. Owner принял живьём («ок»). vue-tsc 0, build ok, tests 364/0. Осталась Фаза 3 (detach) за отдельным go/stop."
     }
   ]
 }
