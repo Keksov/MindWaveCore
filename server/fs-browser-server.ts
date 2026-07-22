@@ -5,6 +5,7 @@
 // permissive because only same-machine browsers can ever reach this port.
 
 import type { FsProviderRegistry } from "./fs-browser-provider"
+import { fsLog, FS_SLOW_MS } from "./fs-browser-log"
 
 export interface FsBrowserServer {
   readonly port: number
@@ -78,6 +79,62 @@ const requirePath = (aUrl: URL): string | null => {
 }
 
 export const startFsBrowserServer = (aRegistry: FsProviderRegistry): FsBrowserServer => {
+  let requestSeq = 0
+
+  // The actual routing — returns a Response. Wrapped by fetch() below with start/slow/done logging so
+  // a request that HANGS (the hourglass bug) is on record even though it never resolves or throws.
+  const dispatch = async (aRequest: Request, aUrl: URL): Promise<Response> => {
+    if (aRequest.method !== "GET") {
+      return errorResponse(405, "Method not allowed")
+    }
+
+    const segments = aUrl.pathname.split("/").filter(Boolean)
+    if (segments[0] !== "fs") {
+      return errorResponse(404, "Not found")
+    }
+
+    // FB-diag: the UI beacons here when a listing is slow/stuck, so its side of the timeline lands in
+    // the SAME var/fs-browser.log next to the server's. No provider needed — handle before the lookup.
+    if (segments.length === 2 && segments[1] === "clientlog") {
+      fsLog(`CLIENT ${aUrl.searchParams.get("msg") ?? ""}`)
+      return jsonResponse({ ok: true })
+    }
+
+    const providerId = aUrl.searchParams.get("provider") ?? ""
+    const provider = aRegistry.get(providerId)
+    if (provider === undefined) {
+      return errorResponse(400, `Unknown provider: ${providerId || "(none)"}`)
+    }
+
+    try {
+      if (segments.length === 2 && segments[1] === "roots") {
+        return jsonResponse({ provider: provider.id, roots: await provider.listRoots() })
+      }
+
+      if (segments.length === 2 && segments[1] === "list") {
+        const path = requirePath(aUrl)
+        if (path === null) {
+          return errorResponse(400, "path query parameter is required")
+        }
+        const showHidden = aUrl.searchParams.get("hidden") === "1"
+        return jsonResponse(await provider.listDir(path, { showHidden }))
+      }
+
+      if (segments.length === 2 && segments[1] === "stat") {
+        const path = requirePath(aUrl)
+        if (path === null) {
+          return errorResponse(400, "path query parameter is required")
+        }
+        return jsonResponse(await provider.stat(path))
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "File-browse request failed"
+      return errorResponse(500, message)
+    }
+
+    return errorResponse(404, "Not found")
+  }
+
   const server = Bun.serve({
     hostname: "127.0.0.1",
     port: 0,
@@ -86,49 +143,46 @@ export const startFsBrowserServer = (aRegistry: FsProviderRegistry): FsBrowserSe
         return new Response(null, { status: 204, headers: CORS_HEADERS })
       }
 
-      if (aRequest.method !== "GET") {
-        return errorResponse(405, "Method not allowed")
-      }
-
       const url = new URL(aRequest.url)
-      const segments = url.pathname.split("/").filter(Boolean)
-      if (segments[0] !== "fs") {
-        return errorResponse(404, "Not found")
-      }
+      // The beacon endpoint logs itself (as CLIENT ...); don't also wrap it in REQ start/done noise.
+      const quiet = url.pathname.endsWith("/clientlog")
+      const reqId = ++requestSeq
+      const startedAt = Date.now()
+      const qProvider = url.searchParams.get("provider")
+      const qPath = url.searchParams.get("path")
+      const label =
+        `#${reqId} ${aRequest.method} ${url.pathname}` +
+        `${qProvider !== null ? ` provider=${qProvider}` : ""}` +
+        `${qPath !== null ? ` path=${JSON.stringify(qPath)}` : ""}`
 
-      const providerId = url.searchParams.get("provider") ?? ""
-      const provider = aRegistry.get(providerId)
-      if (provider === undefined) {
-        return errorResponse(400, `Unknown provider: ${providerId || "(none)"}`)
+      // START is logged BEFORE any await, so a request that then hangs forever is already on record —
+      // exactly the case we were blind to (the hourglass bug leaves a start with no matching done).
+      if (!quiet) {
+        fsLog(`REQ start ${label}`)
       }
+      let settled = false
+      const watchdog = setInterval(() => {
+        if (!settled && !quiet) {
+          fsLog(`REQ SLOW ${label} — still no response after ${Date.now() - startedAt}ms`)
+        }
+      }, FS_SLOW_MS)
+      // Never let the watchdog alone keep the process alive.
+      ;(watchdog as unknown as { unref?: () => void }).unref?.()
 
       try {
-        if (segments.length === 2 && segments[1] === "roots") {
-          return jsonResponse({ provider: provider.id, roots: await provider.listRoots() })
+        const response = await dispatch(aRequest, url)
+        if (!quiet) {
+          fsLog(`REQ done ${label} status=${response.status} ms=${Date.now() - startedAt}`)
         }
-
-        if (segments.length === 2 && segments[1] === "list") {
-          const path = requirePath(url)
-          if (path === null) {
-            return errorResponse(400, "path query parameter is required")
-          }
-          const showHidden = url.searchParams.get("hidden") === "1"
-          return jsonResponse(await provider.listDir(path, { showHidden }))
-        }
-
-        if (segments.length === 2 && segments[1] === "stat") {
-          const path = requirePath(url)
-          if (path === null) {
-            return errorResponse(400, "path query parameter is required")
-          }
-          return jsonResponse(await provider.stat(path))
-        }
+        return response
       } catch (error) {
         const message = error instanceof Error ? error.message : "File-browse request failed"
+        fsLog(`REQ throw ${label} ms=${Date.now() - startedAt} error=${message}`)
         return errorResponse(500, message)
+      } finally {
+        settled = true
+        clearInterval(watchdog)
       }
-
-      return errorResponse(404, "Not found")
     },
   })
 

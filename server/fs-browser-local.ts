@@ -16,6 +16,7 @@ import type {
   ListDirResult,
   StatResult,
 } from "./fs-browser-provider"
+import { fsLog, FS_SLOW_MS } from "./fs-browser-log"
 
 export const LOCAL_FS_PROVIDER_ID = "local"
 
@@ -165,23 +166,76 @@ export const createLocalFsProvider = (): FileSourceProvider => {
 
     async listDir(aPath, aOptions?: ListDirOptions) {
       const dirPath = resolve(aPath)
-      const dirents = await readdir(dirPath, { withFileTypes: true })
       const showHidden = aOptions?.showHidden === true
+      const startedAt = Date.now()
 
-      const entries = await Promise.all(
-        dirents.map(async (dirent): Promise<FsEntry | null> => {
-          if (!showHidden && dirent.name.startsWith(".")) {
-            return null
-          }
-          const entryPath = join(dirPath, dirent.name)
-          return statToEntry(entryPath, dirent.name, dirent.isSymbolicLink())
-        }),
-      )
+      // FB-diag: readdir() itself can block on a wedged directory handle / dead mount. Watch it so we
+      // can tell "the directory enumeration hung" apart from "one entry's stat() hung" below. The IIFE
+      // keeps `dirents` a properly-typed const while guaranteeing the watchdog is always cleared.
+      const readdirWatch = setInterval(() => {
+        fsLog(`listDir READDIR still blocked path=${JSON.stringify(dirPath)} after ${Date.now() - startedAt}ms`)
+      }, FS_SLOW_MS)
+      ;(readdirWatch as unknown as { unref?: () => void }).unref?.()
+      const dirents = await (async () => {
+        try {
+          return await readdir(dirPath, { withFileTypes: true })
+        } finally {
+          clearInterval(readdirWatch)
+        }
+      })()
 
-      return {
-        path: dirPath,
-        parent: parentOf(dirPath),
-        entries: entries.filter((entry): entry is FsEntry => entry !== null),
+      // FB-diag: the per-entry stat() phase is WHERE the intermittent hang lives — statToEntry -> stat()
+      // follows reparse points / cloud placeholders / symlinks, any of which can block for minutes with
+      // no timeout. Track which entries are still outstanding and name them periodically, so next time
+      // the hourglass sticks the log says EXACTLY which path's stat() is wedged.
+      const pending = new Set<string>()
+      const statWatch = setInterval(() => {
+        if (pending.size > 0) {
+          const sample = [...pending].slice(0, 10)
+          fsLog(
+            `listDir STAT still pending path=${JSON.stringify(dirPath)} ` +
+              `outstanding=${pending.size}/${dirents.length} after ${Date.now() - startedAt}ms ` +
+              `waiting=${JSON.stringify(sample)}${pending.size > sample.length ? " (+more)" : ""}`,
+          )
+        }
+      }, FS_SLOW_MS)
+      ;(statWatch as unknown as { unref?: () => void }).unref?.()
+
+      try {
+        const entries = await Promise.all(
+          dirents.map(async (dirent): Promise<FsEntry | null> => {
+            if (!showHidden && dirent.name.startsWith(".")) {
+              return null
+            }
+            const entryPath = join(dirPath, dirent.name)
+            pending.add(entryPath)
+            const entryStart = Date.now()
+            try {
+              return await statToEntry(entryPath, dirent.name, dirent.isSymbolicLink())
+            } finally {
+              pending.delete(entryPath)
+              const took = Date.now() - entryStart
+              if (took >= FS_SLOW_MS) {
+                // A single entry that DID eventually resolve but was slow — the smoking gun even when
+                // it doesn't hang forever.
+                fsLog(`listDir STAT slow entry=${JSON.stringify(entryPath)} took=${took}ms`)
+              }
+            }
+          }),
+        )
+
+        const result: ListDirResult = {
+          path: dirPath,
+          parent: parentOf(dirPath),
+          entries: entries.filter((entry): entry is FsEntry => entry !== null),
+        }
+        const totalMs = Date.now() - startedAt
+        if (totalMs >= FS_SLOW_MS) {
+          fsLog(`listDir done path=${JSON.stringify(dirPath)} entries=${result.entries.length} ms=${totalMs}`)
+        }
+        return result
+      } finally {
+        clearInterval(statWatch)
       }
     },
 
