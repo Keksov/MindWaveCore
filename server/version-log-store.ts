@@ -16,6 +16,7 @@ import { appendFile, mkdir, readFile, readdir, rename, rm, truncate, writeFile }
 import { join, resolve } from "node:path"
 
 import { SerialQueues } from "./project-store"
+import { perfLog, perfNow } from "./undo-log-perf-log"
 
 export const VERSION_LOG_REFS_FILE_NAME = "refs.json"
 /** S10: the log itself is unbounded — only a single commit has a sanity cap. */
@@ -308,6 +309,7 @@ class VersionLogStoreImpl implements VersionLogStore {
     aOptions: VersionLogAppendOptions = {},
   ): Promise<VersionLogAppendResult> {
     return this.withDir(aLogDir, async (dir, state) => {
+      const perfStart = perfNow()
       for (const input of aCommits) {
         this.assertValidInput(input)
       }
@@ -362,18 +364,33 @@ class VersionLogStoreImpl implements VersionLogStore {
       }
 
       if (stamped.length > 0) {
+        const writeStart = perfNow()
         await this.writeLines(dir, state, stamped, lines)
+        perfLog("append:writeLines", writeStart, {
+          commits: stamped.length,
+          bytes: lines.reduce((n, l) => n + l.length, 0),
+        })
       }
 
       if (aOptions.advanceMain === true && lastPresentCid !== null) {
         state.refs.main = lastPresentCid
+        const refsStart = perfNow()
         await this.writeRefs(dir, state)
+        perfLog("append:writeRefs", refsStart)
       }
 
       if (aOptions.gc !== undefined && this.gcTriggered(state, aOptions.gc)) {
+        const gcStart = perfNow()
         state = await this.runGc(dir, state, aOptions.gc)
+        perfLog("append:runGc", gcStart, { commitsAfter: state.order.length })
       }
 
+      perfLog("append", perfStart, {
+        received: aCommits.length,
+        appended: stamped.length,
+        skipped,
+        totalCommits: state.order.length,
+      })
       return {
         appended: stamped.length,
         skipped,
@@ -490,12 +507,16 @@ class VersionLogStoreImpl implements VersionLogStore {
 
   public async listBranches(aLogDir: string): Promise<readonly VersionLogBranch[]> {
     return this.withDir(aLogDir, async (_dir, state) => {
-      return this.computeBranches(state)
+      const perfStart = perfNow()
+      const branches = this.computeBranches(state)
+      perfLog("listBranches", perfStart, { commits: state.order.length, branches: branches.length })
+      return branches
     })
   }
 
   public async deleteBranch(aLogDir: string, aTip: string): Promise<number> {
     return this.withDir(aLogDir, async (dir, state) => {
+      const perfStart = perfNow()
       const tip = state.commits.get(aTip)
       if (tip === undefined) {
         throw new VersionLogError(404, `Unknown commit: ${aTip}`)
@@ -546,7 +567,10 @@ class VersionLogStoreImpl implements VersionLogStore {
         kept.push(commit)
       }
 
+      const rewriteStart = perfNow()
       await this.rewriteLog(dir, state, kept)
+      perfLog("deleteBranch:rewriteLog", rewriteStart, { kept: kept.length, doomed: doomed.size })
+      perfLog("deleteBranch", perfStart, { totalCommits: state.order.length, doomed: doomed.size })
       return doomed.size
     })
   }
@@ -627,12 +651,21 @@ class VersionLogStoreImpl implements VersionLogStore {
   private async withDir<T>(aLogDir: string, aAction: (aDir: string, aState: LogState) => Promise<T>): Promise<T> {
     const dir = resolve(aLogDir)
     const key = this.stateKey(dir)
+    const queueStart = perfNow()
 
     // Per-dir serialization (S11): loads and mutations of one log never interleave.
     return this.queues.run(key, async () => {
+      const queueMs = perfNow() - queueStart
+      if (queueMs > 5) perfLog("withDir queue wait", queueStart, { dir: key })
       let state = this.states.get(key)
       if (state === undefined) {
+        const loadStart = perfNow()
         state = await this.loadState(dir)
+        perfLog("withDir loadState (cold)", loadStart, {
+          dir: key,
+          commits: state.order.length,
+          segments: state.segments.length,
+        })
         this.states.set(key, state)
       }
 

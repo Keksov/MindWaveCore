@@ -26,6 +26,7 @@ import { createLogArchiveStore } from "./log-db"
 import { createLogReplayManager } from "./log-replay"
 import { UNDO_LOG_DIR_NAME, copyProjectsTree, createProjectStore, defaultUserDataRoot, isProjectStoreError, type ProjectsMigrationSummary } from "./project-store"
 import { createVersionLogStore, isVersionLogError, type VersionLogCommitInput, type VersionLogGcPolicy, type VersionLogRefsPatch } from "./version-log-store"
+import { armEventLoopLagProbe, perfLog, perfNow } from "./undo-log-perf-log"
 import { createPublishCallbacks } from "./publish"
 import type { AudioFileKind, AudioServerEvent, AudioVoiceMuteItem, AudioVoiceMuteResponse, GnauralScheduleData, ProjectListResponse, ProjectSectionResponse, ProjectSettingsResponse, ProjectUndoLogAppendResponse, ProjectUndoLogBranchesResponse, ProjectUndoLogChainResponse, ProjectUndoLogDeleteBranchResponse, ProjectUndoLogRefsResponse } from "./protocol"
 import { isRecord, toJson } from "./protocol"
@@ -37,6 +38,10 @@ import { checkSpectrogramWorkerHealth } from "../../GnauralCore/server/spectrogr
 // Never route same-machine loopback fetches through a local HTTP proxy (owner: "bun must not use a
 // proxy in dev"). Must run before anything issues a loopback fetch.
 ensureLoopbackNoProxy()
+
+// undo-log perf investigation (2026-07-22): catch the process's event loop being blocked by
+// something other than the undo-log code itself (see undo-log-perf-log.ts).
+armEventLoopLagProbe()
 
 type SocketData = UiSocketData
 
@@ -1450,6 +1455,7 @@ const handleApiRequest = async (aRequest: Request): Promise<Response | null> => 
     }
 
     try {
+      const perfStart = perfNow()
       const id = url.searchParams.get("id") ?? ""
       const logDir = await resolveUndoLogDir(id)
       if (logDir === null) {
@@ -1474,6 +1480,7 @@ const handleApiRequest = async (aRequest: Request): Promise<Response | null> => 
         ...(untilTypeRaw === null ? {} : { untilType: untilTypeRaw }),
       })
       const payload: ProjectUndoLogChainResponse = { id, commits: chain.commits, refs: chain.refs, hasMore: chain.hasMore }
+      perfLog("GET undo-log (handler)", perfStart, { commits: chain.commits.length })
       return jsonResponse(payload)
     } catch (error) {
       return mapProjectStoreError(error)
@@ -1488,13 +1495,16 @@ const handleApiRequest = async (aRequest: Request): Promise<Response | null> => 
       }
 
       try {
+        const perfStart = perfNow()
         const id = url.searchParams.get("id") ?? ""
         const logDir = await resolveUndoLogDir(id)
         if (logDir === null) {
           return errorResponse(404, "Project not found")
         }
 
-        const payload: ProjectUndoLogBranchesResponse = { id, branches: await versionLogStore.listBranches(logDir) }
+        const branches = await versionLogStore.listBranches(logDir)
+        const payload: ProjectUndoLogBranchesResponse = { id, branches }
+        perfLog("GET undo-log/branches (handler)", perfStart, { branches: branches.length })
         return jsonResponse(payload)
       } catch (error) {
         return mapProjectStoreError(error)
@@ -1506,6 +1516,7 @@ const handleApiRequest = async (aRequest: Request): Promise<Response | null> => 
     }
 
     try {
+      const perfStart = perfNow()
       const body = await parseJsonBody(aRequest)
       if (!isRecord(body) || typeof body.id !== "string") {
         return errorResponse(400, "id must be provided as a string")
@@ -1541,6 +1552,10 @@ const handleApiRequest = async (aRequest: Request): Promise<Response | null> => 
           rejectedFrom: result.rejectedFrom,
           refs: result.refs,
         }
+        perfLog("POST undo-log/append (handler)", perfStart, {
+          commits: (body.commits as unknown[]).length,
+          appended: result.appended,
+        })
         // S3: the accepted prefix IS persisted — a cut batch answers 409 with the same body.
         return jsonResponse(payload, result.rejectedFrom === null ? 200 : 409)
       }
@@ -1576,11 +1591,13 @@ const handleApiRequest = async (aRequest: Request): Promise<Response | null> => 
         }
         const refs = await versionLogStore.putRefs(logDir, patch)
         const payload: ProjectUndoLogRefsResponse = { id: body.id, refs }
+        perfLog("POST undo-log/refs (handler)", perfStart)
         return jsonResponse(payload)
       }
 
       if (segments[3] === "clear") {
         await versionLogStore.clear(logDir)
+        perfLog("POST undo-log/clear (handler)", perfStart)
         return new Response(null, { status: 204 })
       }
 
@@ -1592,6 +1609,7 @@ const handleApiRequest = async (aRequest: Request): Promise<Response | null> => 
         // OB-D3: 409 when the tip is not a branch tip or a tag protects its exclusive suffix.
         const deleted = await versionLogStore.deleteBranch(logDir, body.tip)
         const payload: ProjectUndoLogDeleteBranchResponse = { id: body.id, deleted }
+        perfLog("POST undo-log/delete-branch (handler)", perfStart, { deleted })
         return jsonResponse(payload)
       }
 
