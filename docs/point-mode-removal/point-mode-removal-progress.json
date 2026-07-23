@@ -1,0 +1,115 @@
+{
+  "schemaVersion": 1,
+  "plan": "point-mode-removal",
+  "planDoc": "docs/point-mode-removal/point-mode-removal-plan.md",
+  "title": "point-mode-removal: убрать выделенный «Режим правки точек» (кнопка edit_location_alt в шапке gtrack-дорожки, GT3.1/GT10.5). Его единственное содержательное отличие от обычного режима — мульти-выбор точек по Ctrl/Shift (GT3.15) — переносится в обычный режим отображения графика: Ctrl/Shift+клик (нажатие-отпускание без движения) по вершине переключает её в мульти-выборке, Ctrl+drag по-прежнему двигает вершину (GT10.10). Остальные отличия режима — косметика (радиус вершин, запас по оси, курсоры) либо поведение обычного режима, которое сохраняется 1:1.",
+  "status": "active",
+  "createdAt": "2026-07-23",
+  "updatedAt": "2026-07-23",
+  "decisions": [
+    {
+      "id": "PM-D1",
+      "text": "Жест мульти-выбора в обычном режиме: Ctrl/Shift + клик по вершине (нажатие-отпускание без движения, порог DRAG_THRESHOLD_PX) переключает точку в мульти-выборке. Ctrl+drag по-прежнему двигает вершину (GT10.10, треб. 57-58). Ничего не теряется: Ctrl+клик без движения раньше открывал инспектор — дубликат обычного клика, который эту роль сохраняет."
+    },
+    {
+      "id": "PM-D2",
+      "text": "select-point на модификаторном нажатии откладывается до первого реального движения (dragMoved). Хост на @select-point вызывает clearMultiSelection() (TracksPanel.vue:295), поэтому эмит на pointerdown стирал бы накопленную выборку на каждом Ctrl+клике. В самом режиме проблемы не было: ветка мульти-выбора возвращалась до beginVertexDrag."
+    },
+    {
+      "id": "PM-D3",
+      "text": "Shift = только мульти-выбор. Добавление узла кликом по кривой и drag кромок (beat-полоса, коридор баланса) остаются на Ctrl без изменений. Shift+drag по вершине двигает её (побочный эффект общего пути; раньше Shift+drag на канве не значил ничего). Shift на КОЛЕСЕ (панорама времени, GT11.13) не затрагивается."
+    },
+    {
+      "id": "PM-D4",
+      "text": "Визуал = обычный режим: baseR 2 px, запас по оси Y только во время drag (dragging.value). Курсоры --point/--value-edge становятся безусловными: hover-хит-тест и подсказка и так работали вне режима (GT3.17)."
+    },
+    {
+      "id": "PM-D5",
+      "text": "Сброс мульти-выборки: Escape (закрывает инспектор + чистит, GT3.16) или обычный клик по вершине (select-point → clearMultiSelection). Клик по пустому месту, как и раньше в обычном режиме, двигает плейхед и выборку не трогает."
+    },
+    {
+      "id": "PM-D6",
+      "text": "navigateToDiagnostic (TracksPanel.vue:1216) больше не включает режим — только selectPoint + clearMultiSelection."
+    }
+  ],
+  "steps": [
+    {
+      "id": "PM0.1",
+      "phase": 0,
+      "title": "План + progress.json (docs): требование владельца verbatim, инвентаризация шести веток pointMode, решения PM-D1..D6, шаги, риски, проверка.",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [
+        "MindWaveCore/docs/point-mode-removal/point-mode-removal-plan.md (новый) [LF]",
+        "MindWaveCore/docs/point-mode-removal/point-mode-removal-progress.json (новый) [LF]"
+      ],
+      "verify": "DONE — validate-ledger.js OK.",
+      "startedAt": "2026-07-23",
+      "finishedAt": "2026-07-23",
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PM1.1",
+      "phase": 1,
+      "title": "GTrackView: мульти-выбор в ОБЫЧНОЙ ветке onPointerDown (PM-D1) — модификаторное нажатие на вершине идёт через beginVertexDrag с отложенным select-point (PM-D2); на pointerup без движения эмитится toggle-multi-select вместо edit-point; onClick игнорирует Shift-клик по вершине. Режим ещё на месте.",
+      "status": "done",
+      "dependsOn": ["PM0.1"],
+      "artifacts": [
+        "GnauralCore/ui/components/GTrackView.vue (dragMultiSelect; beginVertexDrag(aMultiSelect=false) с отложенным select-point; onPointerMove эмитит select-point на первом движении; onPointerUp: toggle-multi-select вместо edit-point на модификаторном клике; onClick игнорирует Ctrl/Meta/Shift) [CRLF сохранён]"
+      ],
+      "verify": "DONE — MindWaveCore/ui bun run typecheck (vue-tsc) чисто; GnauralCore bun test ui server: 373 pass / 0 fail. Прогон выполнен ДО шага PM2.1, т.е. на дереве, где режим ещё существовал.",
+      "startedAt": "2026-07-23",
+      "finishedAt": "2026-07-23",
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "PM2.1",
+      "phase": 2,
+      "title": "Удаление режима: проп pointMode + все его ветки (GTrackView: курсоры, autoAxis, baseR, onPointerDown, onClick, watch), кнопка edit_location_alt + проп :point-mode + navigateToDiagnostic (TracksPanel), pointModeLanes/isLanePointMode/toggleLanePointMode (use-gtrack-lanes), ключ audio.gtrackPointMode (ru+en).",
+      "status": "done",
+      "dependsOn": ["PM1.1"],
+      "artifacts": [
+        "GnauralCore/ui/components/GTrackView.vue (проп pointMode и все шесть его веток удалены; курсоры --point/--value-edge безусловны; baseR=2; autoAxis только на dragging) [CRLF сохранён]",
+        "GnauralCore/ui/components/TracksPanel.vue (кнопка edit_location_alt удалена; :point-mode снят; navigateToDiagnostic только selectPoint) [CRLF сохранён]",
+        "GnauralCore/ui/composables/use-gtrack-lanes.ts (pointModeLanes/isLanePointMode/toggleLanePointMode удалены вместе с экспортами) [CRLF сохранён]",
+        "GnauralCore/ui/i18n/ru.json, GnauralCore/ui/i18n/en.json (ключ audio.gtrackPointMode удалён)"
+      ],
+      "verify": "DONE — MindWaveCore/ui bun run typecheck (vue-tsc) чисто; bun run build (quasar) успешно → server/public; GnauralCore bun test ui server: 373 pass / 0 fail. rg по GnauralCore/ui + MindWaveCore/ui/src: остаточных упоминаний pointMode/isLanePointMode/gtrackPointMode нет (кроме исторических комментариев с явной пометкой PM2.1). Рантайм-приёмка — PM3.1.",
+      "startedAt": "2026-07-23",
+      "finishedAt": "2026-07-23",
+      "blockedReason": null,
+      "evidence": [
+        "typecheck: vue-tsc --noEmit — без вывода (2026-07-23)",
+        "bun test ui server: 373 pass / 0 fail / 1227 expect (2026-07-23)",
+        "quasar build: Output folder MindWaveCore/server/public (2026-07-23)"
+      ]
+    },
+    {
+      "id": "PM3.1",
+      "phase": 3,
+      "title": "PAUSE: приёмка владельцем в реальном приложении — обычный клик по вершине открывает инспектор; Ctrl+drag двигает вершину; Ctrl/Shift+клик по 2-3 вершинам даёт таблицу мульти-выбора и групповое удаление; клик по пустому месту двигает плейхед; кнопки режима в шапке дорожки нет.",
+      "status": "pending",
+      "dependsOn": ["PM2.1"],
+      "artifacts": [],
+      "verify": "",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    }
+  ],
+  "log": [
+    {
+      "at": "2026-07-23",
+      "step": "PM0.1",
+      "text": "Заведено по требованию владельца (2026-07-23). Инвентаризация перед правкой: pointMode гейтит шесть вещей, но содержательно значимо только одно — мульти-выбор Ctrl/Shift (GT3.15, треб. 30); остальное косметика (радиус вершин, запас по оси, курсоры) либо поведение обычного режима (Ctrl+drag вместо простого drag; клик по пустому месту = seek), которое сохраняется 1:1. Ключевая ловушка реализации — PM-D2: хост чистит мульти-выборку на select-point, поэтому обычный beginVertexDrag на Ctrl+нажатии стирал бы накопление."
+    },
+    {
+      "at": "2026-07-23",
+      "step": "PM2.1",
+      "text": "PM1.1 и PM2.1 реализованы и проверены (typecheck + build + 373 теста). Коммит ОДИН на оба шага: правки лежат в одних и тех же местах GTrackView (ветка onPointerDown, onPointerUp, onClick), и разнести их по двум коммитам можно было бы только постановкой отдельных хунков — атомарность от этого не выигрывает. PM1.1 при этом реально проверялся отдельно, на дереве с ещё живым режимом (см. его verify). Утраченные вместе с режимом жесты, которых в обычном режиме не было и не будет: простой (без Ctrl) drag вершины и кромок полос, клик по пустому месту как снятие выделения — вместо него, как и раньше в обычном режиме, перемещение плейхеда; сброс мульти-выборки теперь Escape или обычный клик по вершине (PM-D5). Побочно улучшено: курсор ns-resize над кромкой beat/balance-полосы теперь виден всегда (раньше — только в режиме), хотя тянуть её по-прежнему нужно с Ctrl. Осталась PAUSE PM3.1 — приёмка владельцем в реальном приложении."
+    }
+  ]
+}
