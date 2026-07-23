@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "plan": "point-multiselect-range-groupdrag",
+  "planDoc": "docs/point-multiselect-range-groupdrag/point-multiselect-range-groupdrag-plan.md",
+  "title": "point-multiselect-range-groupdrag: развести Ctrl и Shift в мультивыборе точек и добавить групповой drag. (1) Shift+клик по вершине = диапазонный выбор от якоря (последняя одиночно/Ctrl-выбранная точка) до текущей в пределах одного голоса, union с накопленным; Ctrl+клик остаётся точечным toggle. (2) Ctrl/Shift+drag по ВЫБРАННОЙ вершине при мультивыборке ≥2 двигает всю группу жёстким блоком (clamp, индексы стабильны, один undo). Продолжение point-mode-removal.",
+  "status": "active",
+  "createdAt": "2026-07-23",
+  "updatedAt": "2026-07-23",
+  "decisions": [
+    {
+      "id": "MSR-D1",
+      "text": "Req 1. Shift+клик по вершине = диапазонный выбор от якоря до текущей точки включительно, в пределах ОДНОГО голоса, union с уже накопленной мультивыборкой. Якорь = последняя одиночно выбранная (selection) либо последняя Ctrl-toggle-нутая точка; Shift-range якорь НЕ сдвигает (можно расширять). Ctrl+клик — прежний точечный toggle. Новый эмит range-multi-select → стор rangeMultiSelect."
+    },
+    {
+      "id": "MSR-D2",
+      "text": "Кросс-голосовой диапазон не определён (точки разных голосов не имеют общей оси индексов). Shift+клик по вершине другого голоса, чем якорь, добавляет только её и переносит якорь туда (деградация до toggle-add)."
+    },
+    {
+      "id": "MSR-D3",
+      "text": "Req 2. Групповой drag: если схваченная вершина ∈ мультивыборке и её размер ≥ 2 — тянутся ВСЕ выбранные точки жёстким блоком. Семантика clamp (не crossover): общий Δвремени зажимается так, чтобы ни одна выбранная точка не перешла невыбранного соседа → индексы стабильны, ключи voiceId:pointIndex не рассыпаются. Δзначение применяется к каждой точке через valuePatchForMode (клампинг по режиму per-point). Оригиналы снимаются один раз на первом кадре."
+    },
+    {
+      "id": "MSR-D4",
+      "text": "Групповой drag НЕ эмитит select-point (иначе хост очистит мультивыбор через @select-point → clearMultiSelection) и не трогает одиночную selection; мультивыбор сохраняется после отпускания. Одна транзакция = один undo (drag-start..drag-end)."
+    },
+    {
+      "id": "MSR-D5",
+      "text": "Различение по модификатору откладывается до pointerup: press-release без движения по вершине = toggle-out (Ctrl) / range (Shift); реальное движение по ВЫБРАННОЙ вершине = групповой drag; движение по НЕвыбранной вершине под модификатором — прежний одиночный drag (эмитит select-point, осознанно очищая мультивыбор)."
+    }
+  ],
+  "steps": [
+    {
+      "id": "MSG0.1",
+      "phase": 0,
+      "title": "План + progress.json: требование владельца verbatim, инвентаризация текущих веток мультивыбора/drag, решения MSR-D1..D5, шаги, риски, проверка.",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [
+        "MindWaveCore/docs/point-multiselect-range-groupdrag/point-multiselect-range-groupdrag-plan.md (новый) [LF]",
+        "MindWaveCore/docs/point-multiselect-range-groupdrag/point-multiselect-range-groupdrag-progress.json (новый) [LF]"
+      ],
+      "verify": "DONE — validate-ledger.js OK.",
+      "startedAt": "2026-07-23",
+      "finishedAt": "2026-07-23",
+      "blockedReason": null,
+      "evidence": []
+    },
+    {
+      "id": "MSG1.1",
+      "phase": 1,
+      "title": "Req 1 — Shift+клик = диапазонный выбор (MSR-D1/D2). GTrackView: запомнить модификатор жеста (dragRange), на клике без движения эмитить range-multi-select для Shift, toggle-multi-select для Ctrl. Стор: rangeMultiSelect(voiceId, pointIndex) + якорь multiAnchor, обновляемый в selectPoint/toggleMultiSelect. Проброс @range-multi-select в TracksPanel.",
+      "status": "done",
+      "dependsOn": ["MSG0.1"],
+      "artifacts": [
+        "GnauralCore/ui/components/GTrackView.vue (dragRange; beginVertexDrag(aRange); onPointerDown передаёт aEvent.shiftKey; onPointerUp: range-multi-select vs toggle-multi-select; новый emit range-multi-select) [CRLF сохранён]",
+        "GnauralCore/ui/composables/use-gtrack-lanes.ts (multiAnchor; rangeMultiSelect; обновление якоря в selectPoint/toggleMultiSelect/clearMultiSelection; экспорт rangeMultiSelect) [CRLF сохранён]",
+        "GnauralCore/ui/components/TracksPanel.vue (@range-multi-select проброшен в gtracks.rangeMultiSelect) [CRLF сохранён]"
+      ],
+      "verify": "DONE — проверено совместно с MSG2.1 (правки лежат в тех же функциях GTrackView.beginVertexDrag/onPointerDown/onPointerUp): MindWaveCore/ui bun run typecheck (vue-tsc) чисто + bun run build успешно → server/public; GnauralCore bun test ui server: 373 pass / 0 fail. Рантайм-приёмка — MSG3.1.",
+      "startedAt": "2026-07-24",
+      "finishedAt": "2026-07-24",
+      "blockedReason": null,
+      "evidence": [
+        "typecheck: vue-tsc --noEmit — без вывода (2026-07-24)",
+        "bun test ui server: 373 pass / 0 fail / 1227 expect (2026-07-24)"
+      ]
+    },
+    {
+      "id": "MSG2.1",
+      "phase": 2,
+      "title": "Req 2 — групповой drag (MSR-D3/D4/D5). GTrackView: определить dragGroup (hit ∈ multiSelected && size≥2), подавить отложенный select-point на первом движении. Стор: групповое перемещение блока в dragPoint (снимок оригиналов на первом кадре, зажатый общий Δвремени против невыбранных соседей, per-point valuePatchForMode), сброс снимка на endPointDrag/cancelPointDrag.",
+      "status": "done",
+      "dependsOn": ["MSG1.1"],
+      "artifacts": [
+        "GnauralCore/ui/components/GTrackView.vue (dragGroup; beginVertexDrag(aGroup); onPointerDown считает isGroup по пропу multiSelected; onPointerMove не эмитит select-point для группы; сброс dragGroup в onPointerUp) [CRLF сохранён]",
+        "GnauralCore/ui/composables/use-gtrack-lanes.ts (import pointValue; groupDragOrigins/groupDragAnchorKey/resetGroupDrag; dragGroupBlock — снимок оригиналов, зажатый общий Δвремени против невыбранных соседей + пол 0, per-point valuePatchForMode; ветка в dragPoint; сброс на endPointDrag/cancelPointDrag) [CRLF сохранён]"
+      ],
+      "verify": "DONE — MindWaveCore/ui bun run typecheck (vue-tsc) чисто (после фикса типа параметра m: NonNullable<typeof model.value> — обёртка ref разворачивает GTrackModel в структурный тип без приватных полей); bun run build (quasar) успешно → server/public; GnauralCore bun test ui server: 373 pass / 0 fail. Рантайм-приёмка — MSG3.1.",
+      "startedAt": "2026-07-24",
+      "finishedAt": "2026-07-24",
+      "blockedReason": null,
+      "evidence": [
+        "typecheck: vue-tsc --noEmit — без вывода (2026-07-24)",
+        "bun test ui server: 373 pass / 0 fail / 1227 expect (2026-07-24)",
+        "quasar build: Output folder MindWaveCore/server/public (2026-07-24)"
+      ]
+    },
+    {
+      "id": "MSG3.1",
+      "phase": 3,
+      "title": "PAUSE: приёмка владельцем в реальном приложении — click A → Shift+click B выделяет диапазон A..B (таблица инспектора); Ctrl+click добавляет одиночные; Ctrl+drag любой выбранной вершины двигает всю группу как блок с сохранением выбора; блок не пересекает невыбранных соседей.",
+      "status": "pending",
+      "dependsOn": ["MSG2.1"],
+      "artifacts": [],
+      "verify": "",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    }
+  ],
+  "log": [
+    {
+      "at": "2026-07-23",
+      "step": "MSG0.1",
+      "text": "Заведено по требованию владельца (2026-07-23), продолжение point-mode-removal. Две развязки: Shift → диапазон (Ctrl остаётся точечным toggle), и групповой drag выбранных точек. Ключевые ловушки: (R1) select-point чистит мультивыбор — в групповом drag его эмитить нельзя (MSR-D4); (R2) пересортировка рассыпает ключи voiceId:pointIndex — групповой drag сделан clamp-семантикой, индексы стабильны (MSR-D3)."
+    },
+    {
+      "at": "2026-07-24",
+      "step": "MSG2.1",
+      "text": "MSG1.1 и MSG2.1 реализованы и проверены (typecheck + build + 373 теста). Коммит ОДИН на оба шага: правки лежат в одних и тех же функциях GTrackView (beginVertexDrag/onPointerDown/onPointerUp/onPointerMove) и переплетены с изменениями стора — разнести по двум коммитам можно было бы только постановкой отдельных хунков, атомарность от этого не выигрывает (тот же случай, что PM1.1/PM2.1). Групповой drag намеренно clamp-семантика (не crossover): блок двигается жёстко, зажат так, что ни одна выбранная точка не пересекает невыбранного соседа, поэтому индексы и ключи voiceId:pointIndex стабильны весь drag. Δзначение применяется per-point через valuePatchForMode (клампинг по режиму независим для каждой точки). Осталась PAUSE MSG3.1 — приёмка владельцем в реальном приложении."
+    }
+  ]
+}
