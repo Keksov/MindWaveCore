@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "plan": "undo-journal-earlier-history-gate",
+  "planDoc": "docs/undo-journal-earlier-history-gate/undo-journal-earlier-history-gate-plan.md",
+  "title": "undo-journal-earlier-history-gate: показывать «Ранняя история…» только когда в логе реально есть история старше окна",
+  "status": "active",
+  "createdAt": "2026-07-24T00:00:00Z",
+  "updatedAt": "2026-07-24T00:00:00Z",
+  "decisions": [
+    {
+      "id": "EH-D1",
+      "text": "Признак «есть ли ранняя история» = parent самого старого коммита усвоенного окна (undoChain.commits фетчатся newest-first, старейший — последний элемент). parent === null (корень лога или graft-корень после GC) означает, что старше окна в логе ничего нет и пейджер не нужен. undoLogPositions[0] для признака НЕ годится: после adoption он перезаписывается снапшотом позиции 0 (не остаётся null), поэтому проверка «cid позиции 0 !== null» ложна — подтверждено чтением planUndoLogAdoption."
+    },
+    {
+      "id": "EH-D2",
+      "text": "Новый reactive deepUndoHasEarlier (ref), выставляется при adoption из fetched-цепочки, сбрасывается в resetUndoLogSync. showDeepLoad умножается на него. Плейн-массив undoLogPositions не реактивен, поэтому вычислять признак прямо в computed нельзя — нужен ref."
+    },
+    {
+      "id": "EH-D3",
+      "text": "Поведение по умолчанию (признак не установлен / журнал пуст / не синхронизирован) = скрыто. Пейджер — это действие, а не пустой холст; показываем только когда точно есть что грузить."
+    }
+  ],
+  "steps": [
+    {
+      "id": "EH1.1",
+      "phase": "Фаза 1 — Гейт пейджера",
+      "title": "deepUndoHasEarlier ref: объявление, сброс в resetUndoLogSync, установка при adoption, экспорт",
+      "status": "done",
+      "dependsOn": [],
+      "artifacts": [
+        "GnauralCore/ui/composables/use-gtrack-lanes.ts"
+      ],
+      "verify": "deepUndoHasEarlier сбрасывается в false при resetUndoLogSync и выставляется в (oldest.parent !== null) при успешной adoption; экспортирован из useSharedGtrackLanes.",
+      "startedAt": "2026-07-24T00:00:00Z",
+      "finishedAt": "2026-07-24T00:00:00Z",
+      "blockedReason": null,
+      "evidence": [
+        "ref deepUndoHasEarlier объявлен рядом с deepUndoLoaded; сброс в false добавлен в resetUndoLogSync.",
+        "При adoption: oldestCommit = undoChain.commits[len-1] (newest-first), deepUndoHasEarlier = oldestCommit.parent !== null.",
+        "Добавлен в return-объект useSharedGtrackLanes рядом с deepUndoLoaded."
+      ]
+    },
+    {
+      "id": "EH1.2",
+      "phase": "Фаза 1 — Гейт пейджера",
+      "title": "showDeepLoad в UndoJournalPanel учитывает deepUndoHasEarlier",
+      "status": "done",
+      "dependsOn": ["EH1.1"],
+      "artifacts": [
+        "GnauralCore/ui/components/UndoJournalPanel.vue"
+      ],
+      "verify": "showDeepLoad = deepUndoHasEarlier && (!deepUndoLoaded || deepUndoHasMore); пейджер «Ранняя история…» не показывается, когда старейший коммит окна — корень.",
+      "startedAt": "2026-07-24T00:00:00Z",
+      "finishedAt": "2026-07-24T00:00:00Z",
+      "blockedReason": null,
+      "evidence": [
+        "showDeepLoad = gtracks.deepUndoHasEarlier.value && (!deepUndoLoaded.value || deepUndoHasMore.value).",
+        "Пустой журнал / не синхронизирован / окно от корня → deepUndoHasEarlier false → пейджер скрыт (EH-D3)."
+      ]
+    },
+    {
+      "id": "EH1.3",
+      "phase": "Фаза 1 — Гейт пейджера",
+      "title": "Автоматическая проверка: тесты, typecheck, build",
+      "status": "done",
+      "dependsOn": ["EH1.2"],
+      "artifacts": [],
+      "verify": "GnauralCore: bun test ui server. MindWaveCore/ui: bun run typecheck + bun run build.",
+      "startedAt": "2026-07-24T00:00:00Z",
+      "finishedAt": "2026-07-24T00:00:00Z",
+      "blockedReason": null,
+      "evidence": [
+        "GnauralCore bun test ui server: 373 pass, 0 fail, 1227 expect().",
+        "MindWaveCore/ui bun run typecheck (vue-tsc --noEmit): без ошибок.",
+        "MindWaveCore/ui bun run build (quasar): Build succeeded (со второй попытки — public/assets был залочен работающим приложением)."
+      ]
+    },
+    {
+      "id": "EH1.4",
+      "phase": "Фаза 1 — Гейт пейджера",
+      "title": "PAUSE: приёмка владельцем",
+      "status": "pending",
+      "dependsOn": ["EH1.3"],
+      "artifacts": [],
+      "verify": "Явное подтверждение владельца: пейджер «Ранняя история…» не показывается на ForestMeditation, журнал работает как прежде.",
+      "startedAt": null,
+      "finishedAt": null,
+      "blockedReason": null,
+      "evidence": []
+    }
+  ],
+  "log": [
+    {
+      "at": "2026-07-24T00:00:00Z",
+      "text": "Заведено по вопросу владельца о «Ранняя история…». Диагностика на живых данных: пейджер показывается оптимистично, а клик обнаруживает пустоту и прячет его; обострено фиксом потери журнала (окно теперь тянет всю линию от корня). Квиз: скрывать, когда грузить нечего."
+    }
+  ]
+}
