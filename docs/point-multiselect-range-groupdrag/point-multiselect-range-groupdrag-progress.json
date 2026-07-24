@@ -5,7 +5,7 @@
   "title": "point-multiselect-range-groupdrag: развести Ctrl и Shift в мультивыборе точек и добавить групповой drag. (1) Shift+клик по вершине = диапазонный выбор от якоря (последняя одиночно/Ctrl-выбранная точка) до текущей в пределах одного голоса, union с накопленным; Ctrl+клик остаётся точечным toggle. (2) Ctrl/Shift+drag по ВЫБРАННОЙ вершине при мультивыборке ≥2 двигает всю группу жёстким блоком (clamp, индексы стабильны, один undo). Продолжение point-mode-removal.",
   "status": "active",
   "createdAt": "2026-07-23",
-  "updatedAt": "2026-07-23",
+  "updatedAt": "2026-07-24",
   "decisions": [
     {
       "id": "MSR-D1",
@@ -26,6 +26,14 @@
     {
       "id": "MSR-D5",
       "text": "Различение по модификатору откладывается до pointerup: press-release без движения по вершине = toggle-out (Ctrl) / range (Shift); реальное движение по ВЫБРАННОЙ вершине = групповой drag; движение по НЕвыбранной вершине под модификатором — прежний одиночный drag (эмитит select-point, осознанно очищая мультивыбор)."
+    },
+    {
+      "id": "MSR-D6",
+      "text": "Req 3 (owner 2026-07-24). Обычный (без модификатора) клик по вершине сбрасывает мультивыборку. Правка точечная: путь edit-point (onClick → openPointDialog → setTarget → selectPoint) выделял точку, но НЕ чистил мультивыбор, а таблица инспектора имеет приоритет при size≥2, поэтому группа оставалась выбранной. Чистим в обработчике @edit-point в TracksPanel ПЕРЕД openPointDialog (clearMultiSelection обнуляет и якорь, затем selectPoint ставит его на кликнутую точку). Ctrl+клик по кривой (добавление узла, onAddPoint) не трогаем — это отдельный edit-жест. Клик по пустому месту (seek) выборку не трогает, как и раньше (PM-D5)."
+    },
+    {
+      "id": "MSR-D7",
+      "text": "Req 4 (owner 2026-07-24). Записи журнала, затрагивающие >1 точки (групповой drag, а также любой мультиточечный шаг — bulk edit/delete), в тултипе И в подформе отмены показывают ТОЛЬКО число затронутых точек, а не поштучные таблицы (сейчас describeStepChanges обрезает на 8 → «не все точки»). Порог >1: одиночные edit/move/add/remove сохраняют детальный was/became. Полное (необрезанное) число берётся новой describeStepChangeCount(step) — считает, не аллоцируя объекты; кэш строк журнала не меняется (число выводится из идентичности шага)."
     }
   ],
   "steps": [
@@ -86,11 +94,50 @@
       ]
     },
     {
+      "id": "MSG4.1",
+      "phase": 4,
+      "title": "Req 3 (MSR-D6) — обычный клик по вершине сбрасывает мультивыборку. TracksPanel: @edit-point сначала gtracks.clearMultiSelection(), затем openPointDialog (порядок важен: clear обнуляет якорь, selectPoint внутри openPointDialog ставит его на кликнутую точку).",
+      "status": "done",
+      "dependsOn": ["MSG2.1"],
+      "artifacts": [
+        "GnauralCore/ui/components/TracksPanel.vue (@edit-point: clearMultiSelection перед openPointDialog) [CRLF сохранён]"
+      ],
+      "verify": "DONE — проверено совместно с MSG5.1: MindWaveCore/ui bun run typecheck (vue-tsc) чисто + bun run build успешно → server/public; GnauralCore bun test ui server: 373 pass / 0 fail. Рантайм-приёмка — MSG3.1.",
+      "startedAt": "2026-07-24",
+      "finishedAt": "2026-07-24",
+      "blockedReason": null,
+      "evidence": [
+        "typecheck: vue-tsc --noEmit — без вывода (2026-07-24)",
+        "bun test ui server: 373 pass / 0 fail (2026-07-24)"
+      ]
+    },
+    {
+      "id": "MSG5.1",
+      "phase": 5,
+      "title": "Req 4 (MSR-D7) — мультиточечные записи журнала показывают число точек. gtrack-model: describeStepChangeCount(step) (необрезанный счётчик, без аллокаций). UndoJournalPanel: JournalRow.pointCount во всех билдерах строк; в трёх местах рендера (тултип основного списка, тултип inline-веток, подформа отмены) при pointCount>1 — одна строка-сводка вместо поштучных таблиц. i18n ru/en ключ.",
+      "status": "done",
+      "dependsOn": ["MSG2.1"],
+      "artifacts": [
+        "GnauralCore/ui/composables/gtrack-model.ts (export describeStepChangeCount — те же правила подсчёта, что describeStepChanges, но без аллокаций и без кэпа) [CRLF сохранён]",
+        "GnauralCore/ui/components/UndoJournalPanel.vue (import describeStepChangeCount; JournalRow.pointCount в 4 билдерах строк — initial/rows/deepRows/branchStepRows; rowActionsPointCount computed; сводка undoTipGroupPoints при pointCount>1 в 3 местах рендера) [CRLF сохранён]",
+        "GnauralCore/ui/i18n/ru.json (undoTipGroupPoints: «Затронуто точек: {n}»), GnauralCore/ui/i18n/en.json (undoTipGroupPoints: «{n} points affected»)"
+      ],
+      "verify": "DONE — MindWaveCore/ui bun run typecheck (vue-tsc) чисто + bun run build успешно → server/public; GnauralCore bun test ui server: 373 pass / 0 fail. Кэш строк журнала не нарушен: pointCount выводится из идентичности шага, ключ кэша не менялся. Рантайм-приёмка — MSG3.1.",
+      "startedAt": "2026-07-24",
+      "finishedAt": "2026-07-24",
+      "blockedReason": null,
+      "evidence": [
+        "typecheck: vue-tsc --noEmit — без вывода (2026-07-24)",
+        "bun test ui server: 373 pass / 0 fail (2026-07-24)",
+        "quasar build: Output folder MindWaveCore/server/public (2026-07-24)"
+      ]
+    },
+    {
       "id": "MSG3.1",
       "phase": 3,
-      "title": "PAUSE: приёмка владельцем в реальном приложении — click A → Shift+click B выделяет диапазон A..B (таблица инспектора); Ctrl+click добавляет одиночные; Ctrl+drag любой выбранной вершины двигает всю группу как блок с сохранением выбора; блок не пересекает невыбранных соседей.",
+      "title": "PAUSE: приёмка владельцем в реальном приложении — click A → Shift+click B выделяет диапазон A..B (таблица инспектора); Ctrl+click добавляет одиночные; Ctrl+drag любой выбранной вершины двигает всю группу как блок с сохранением выбора; блок не пересекает невыбранных соседей; обычный клик по любой точке сбрасывает мультивыбор (MSG4.1); запись группового смещения в журнале и в подформе отмены показывает число точек, а не поштучный список (MSG5.1).",
       "status": "pending",
-      "dependsOn": ["MSG2.1"],
+      "dependsOn": ["MSG2.1", "MSG4.1", "MSG5.1"],
       "artifacts": [],
       "verify": "",
       "startedAt": null,
@@ -108,7 +155,17 @@
     {
       "at": "2026-07-24",
       "step": "MSG2.1",
-      "text": "MSG1.1 и MSG2.1 реализованы и проверены (typecheck + build + 373 теста). Коммит ОДИН на оба шага: правки лежат в одних и тех же функциях GTrackView (beginVertexDrag/onPointerDown/onPointerUp/onPointerMove) и переплетены с изменениями стора — разнести по двум коммитам можно было бы только постановкой отдельных хунков, атомарность от этого не выигрывает (тот же случай, что PM1.1/PM2.1). Групповой drag намеренно clamp-семантика (не crossover): блок двигается жёстко, зажат так, что ни одна выбранная точка не пересекает невыбранного соседа, поэтому индексы и ключи voiceId:pointIndex стабильны весь drag. Δзначение применяется per-point через valuePatchForMode (клампинг по режиму независим для каждой точки). Осталась PAUSE MSG3.1 — приёмка владельцем в реальном приложении."
+      "text": "MSG1.1 и MSG2.1 реализованы и проверены (typecheck + build + 373 теста). Коммит ОДИН на оба шага: правки лежат в одних и тех же функциях GTrackView (beginVertexDrag/onPointerDown/onPointerUp/onPointerMove) и переплетены с изменениями стора — разнести по двум коммитам можно было бы только постановкой отдельных хунков, атомарность от этого не выигрывает (тот же случай, что PM1.1/PM2.1). Групповой drag намеренно clamp-семантика (не crossover): блок двигается жёстко, зажат так, что ни одна выбранная точка не пересекает невыбранного соседа, поэтому индексы и ключи voiceId:pointIndex стабильны весь drag. Δзначение применяется per-point через valuePatchForMode (клампинг по режиму независим для каждой точки). Код: GnauralCore b0ab9b0; леджер: MindWaveCore 6463f81. Осталась PAUSE MSG3.1 — приёмка владельцем в реальном приложении."
+    },
+    {
+      "at": "2026-07-24",
+      "step": "MSG4.1",
+      "text": "На приёмке владелец добавил два требования (2026-07-24): (Req 3) обычный клик по любой точке должен сбрасывать мультивыборку; (Req 4) запись группового смещения в журнале и в подформе отмены должна показывать только число затронутых точек, а не поштучный список (тултип обрезает на 8 → «не все точки»). Заведены MSR-D6/D7 и шаги MSG4.1/MSG5.1; PAUSE MSG3.1 теперь зависит от них. Статус леджера снова active."
+    },
+    {
+      "at": "2026-07-24",
+      "step": "MSG5.1",
+      "text": "MSG4.1 и MSG5.1 реализованы и проверены (typecheck + build + 373 теста). Req 3 — однострочная правка обработчика @edit-point (clearMultiSelection перед openPointDialog); порог решён приоритетом таблицы инспектора (size≥2) — теперь обычный клик её сбрасывает. Req 4 — порог сводки >1 точки чисто разводит одиночный drag/edit (=1, детальный was/became сохранён) от групповых операций (групповой drag, bulk edit/delete — сводка «Затронуто точек: N»). Число берётся необрезанным describeStepChangeCount; сводка добавлена во все три места рендера (основной тултип, тултип inline-веток, подформа отмены). Осталась PAUSE MSG3.1 — приёмка владельцем всех четырёх требований."
     }
   ]
 }
