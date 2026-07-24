@@ -3,7 +3,7 @@
   "plan": "undo-journal-earlier-history-gate",
   "planDoc": "docs/undo-journal-earlier-history-gate/undo-journal-earlier-history-gate-plan.md",
   "title": "undo-journal-earlier-history-gate: показывать «Ранняя история…» только когда в логе реально есть история старше окна",
-  "status": "active",
+  "status": "done",
   "createdAt": "2026-07-24T00:00:00Z",
   "updatedAt": "2026-07-24T00:00:00Z",
   "decisions": [
@@ -79,20 +79,26 @@
       "id": "EH1.4",
       "phase": "Фаза 1 — Гейт пейджера",
       "title": "PAUSE: приёмка владельцем",
-      "status": "pending",
+      "status": "done",
       "dependsOn": ["EH1.3"],
       "artifacts": [],
       "verify": "Явное подтверждение владельца: пейджер «Ранняя история…» не показывается на ForestMeditation, журнал работает как прежде.",
-      "startedAt": null,
-      "finishedAt": null,
+      "startedAt": "2026-07-24T00:00:00Z",
+      "finishedAt": "2026-07-24T00:00:00Z",
       "blockedReason": null,
-      "evidence": []
+      "evidence": [
+        "Владелец подтвердил живьём: «Ранняя история исчезла, всё ОК». Пейджер больше не показывается на ForestMeditation, журнал работает как прежде. Фича принята."
+      ]
     }
   ],
   "log": [
     {
       "at": "2026-07-24T00:00:00Z",
       "text": "Заведено по вопросу владельца о «Ранняя история…». Диагностика на живых данных: пейджер показывается оптимистично, а клик обнаруживает пустоту и прячет его; обострено фиксом потери журнала (окно теперь тянет всю линию от корня). Квиз: скрывать, когда грузить нечего."
+    },
+    {
+      "at": "2026-07-24T00:00:00Z",
+      "text": "FEATURE COMPLETE. Владелец принял: «Ранняя история исчезла, всё ОК». Все 4 шага done. Код фичи (deepUndoHasEarlier + showDeepLoad-гейт) — в коммите GnauralCore 8894411, запушен; план+леджер — в MindWaveCore e2f01a6."
     }
   ]
 }
